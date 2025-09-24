@@ -125,7 +125,7 @@ A peer-to-peer laundry platform that connects busy professionals and families wi
 ## 5. User Journey & Experience
 
 ### 5.1 Customer Journey
-1. **Discovery & Signup**: Visit landing page → Select subscription plan → Add payment method
+1. **Discovery & Signup**: Visit landing page → Sign up/log inn → Select subscription plan → Add payment method
 2. **Bag Delivery**: Receive branded laundry bag → Activate account → Ready to place orders
 3. **First Order**: Set pickup preferences → Schedule first pickup → Receive confirmation
 4. **Service Experience**: Pickup notification → Real-time tracking → Delivery notification

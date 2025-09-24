@@ -1,0 +1,312 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+
+interface LaundryItem {
+  type: string;
+  quantity: number;
+}
+
+interface OrderData {
+  specialInstructions: string;
+  pickupDate: string;
+  pickupTime: string;
+  address: {
+    street: string;
+    city: string;
+    postalCode: string;
+    specialInstructions: string;
+  };
+  pickupMethod: 'home' | 'entrance' | 'other';
+  otherLocation: string;
+}
+
+const laundryTypeNames: { [key: string]: string } = {
+  'shirts': 'Skjorter/bluser',
+  'pants': 'Bukser',
+  'dresses': 'Kjoler',
+  'suits': 'Dresser/jakker',
+  'bedding': 'Sengetøy',
+  'towels': 'Håndklær',
+  'delicates': 'Undertøy/silke',
+  'outerwear': 'Yttertøy',
+  'other': 'Annet'
+};
+
+export default function ConfirmPage() {
+  const searchParams = useSearchParams();
+  const [orderData, setOrderData] = useState<OrderData | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const data = searchParams.get('data');
+    if (data) {
+      try {
+        const parsed = JSON.parse(decodeURIComponent(data));
+        setOrderData(parsed);
+      } catch (e) {
+        console.error('Failed to parse order data:', e);
+      }
+    }
+  }, [searchParams]);
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const dayNames = ['Søndag', 'Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag'];
+    const monthNames = ['januar', 'februar', 'mars', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'desember'];
+
+    return `${dayNames[date.getDay()]} ${date.getDate()}. ${monthNames[date.getMonth()]}`;
+  };
+
+  const handleConfirmOrder = async () => {
+    if (!orderData) return;
+
+    setIsSubmitting(true);
+
+    // Mock API call - simulate order submission
+    try {
+      console.log('Submitting order:', orderData);
+
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Mock success - redirect to success page with order ID
+      const mockOrderId = 'RV' + Math.random().toString(36).substr(2, 8).toUpperCase();
+      window.location.href = `/orders/success?orderId=${mockOrderId}`;
+
+    } catch (error) {
+      console.error('Order submission failed:', error);
+      alert('Det oppstod en feil ved bestilling. Vennligst prøv igjen.');
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!orderData) {
+    return (
+      <div className="min-h-screen bg-soft-gray flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-dark-gray mb-4">Laster bestillingsdetaljer...</h2>
+          <p className="text-medium-gray">Hvis dette tar for lang tid, <Link href="/orders/new" className="text-nordic-blue hover:underline">start på nytt</Link>.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // No individual items with bag-based subscription
+
+  return (
+    <div className="min-h-screen bg-soft-gray">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <Link href="/dashboard" className="inline-block">
+              <h1 className="text-2xl font-bold text-nordic-blue">RenVask</h1>
+            </Link>
+            <span className="text-medium-gray">Bekreft bestilling</span>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Progress Steps */}
+        <div className="flex items-center justify-center mb-12">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center">
+              <div className="w-8 h-8 bg-success-green text-white rounded-full flex items-center justify-center text-sm font-semibold">
+                ✓
+              </div>
+              <span className="ml-2 text-success-green font-medium">Velg tid</span>
+            </div>
+            <div className="w-8 h-0.5 bg-success-green"></div>
+            <div className="flex items-center">
+              <div className="w-8 h-8 bg-success-green text-white rounded-full flex items-center justify-center text-sm font-semibold">
+                ✓
+              </div>
+              <span className="ml-2 text-success-green font-medium">Instruksjoner</span>
+            </div>
+            <div className="w-8 h-0.5 bg-success-green"></div>
+            <div className="flex items-center">
+              <div className="w-8 h-8 bg-nordic-blue text-white rounded-full flex items-center justify-center text-sm font-semibold">
+                3
+              </div>
+              <span className="ml-2 text-nordic-blue font-medium">Bekreft</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Page Header */}
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-dark-gray mb-4">Bekreft bestilling</h2>
+          <p className="text-xl text-medium-gray">
+            Sjekk at alt stemmer før vi bekrefter din henting.
+          </p>
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-8">
+          {/* Order Details */}
+          <div className="space-y-6">
+            {/* Service Details */}
+            <div className="bg-white rounded-2xl p-8">
+              <h3 className="text-lg font-semibold text-dark-gray mb-6">Tjeneste</h3>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center">
+                    <span className="text-2xl mr-3">👕</span>
+                    <span className="text-dark-gray">RenVask-pose henting og vask</span>
+                  </div>
+                  <span className="font-semibold text-success-green">Inkludert</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center">
+                    <span className="text-2xl mr-3">🚚</span>
+                    <span className="text-dark-gray">Henting og levering</span>
+                  </div>
+                  <span className="font-semibold text-success-green">Inkludert</span>
+                </div>
+              </div>
+
+              {orderData.specialInstructions && (
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <h4 className="font-semibold text-dark-gray mb-2">Spesielle instruksjoner</h4>
+                  <p className="text-medium-gray italic">"{orderData.specialInstructions}"</p>
+                </div>
+              )}
+            </div>
+
+            {/* Pickup Details */}
+            <div className="bg-white rounded-2xl p-8">
+              <h3 className="text-lg font-semibold text-dark-gray mb-6">Hentingsdetaljer</h3>
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-semibold text-dark-gray mb-1">Dato og tid</h4>
+                  <p className="text-medium-gray">
+                    {formatDate(orderData.pickupDate)} kl. {orderData.pickupTime}
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="font-semibold text-dark-gray mb-1">Adresse</h4>
+                  <p className="text-medium-gray">
+                    {orderData.address.street}<br/>
+                    {orderData.address.postalCode} {orderData.address.city}
+                  </p>
+                  {orderData.address.specialInstructions && (
+                    <p className="text-medium-gray italic mt-1">
+                      "{orderData.address.specialInstructions}"
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <h4 className="font-semibold text-dark-gray mb-1">Hentingsmåte</h4>
+                  <p className="text-medium-gray">
+                    {orderData.pickupMethod === 'home' && '🏠 Jeg er hjemme - du kan banke på'}
+                    {orderData.pickupMethod === 'entrance' && '🚪 Plasser utenfor inngangen'}
+                    {orderData.pickupMethod === 'other' && '📍 Plasser et annet sted'}
+                  </p>
+                  {orderData.pickupMethod === 'other' && orderData.otherLocation && (
+                    <p className="text-medium-gray italic mt-1">
+                      "Plassering: {orderData.otherLocation}"
+                    </p>
+                  )}
+                  {orderData.pickupMethod !== 'home' && (
+                    <div className="mt-2 p-2 bg-yellow-50 rounded-md">
+                      <p className="text-sm text-yellow-700">
+                        📸 Husk å ta bilde av posen når du plasserer den
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Order Summary */}
+          <div className="lg:sticky lg:top-8">
+            <div className="bg-white rounded-2xl p-8">
+              <h3 className="text-lg font-semibold text-dark-gray mb-6">Bestillingssammendrag</h3>
+
+              <div className="space-y-4 mb-6">
+                <div className="flex justify-between items-center">
+                  <span className="text-medium-gray">Tjeneste</span>
+                  <span className="text-dark-gray font-semibold">RenVask-pose</span>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-medium-gray">Henting og levering</span>
+                  <span className="text-dark-gray font-semibold">Inkludert</span>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-medium-gray">Leveringstid</span>
+                  <span className="text-dark-gray font-semibold">2-3 dager</span>
+                </div>
+
+                <div className="border-t border-gray-200 pt-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-lg font-semibold text-dark-gray">Total</span>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-success-green">Gratis</p>
+                      <p className="text-sm text-medium-gray">Inkludert i abonnement</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Important Notice */}
+              <div className="bg-blue-50 rounded-lg p-4 mb-6">
+                <div className="flex items-start">
+                  <div className="text-blue-500 mr-3 mt-0.5">ℹ️</div>
+                  <div>
+                    <h4 className="font-semibold text-blue-900 mb-1">Viktig informasjon</h4>
+                    <ul className="text-sm text-blue-800 space-y-1">
+                      <li>• Ha klærne klare i RenVask-posen</li>
+                      <li>• Du får SMS når renseren er på vei</li>
+                      <li>• Levering skjer til samme adresse</li>
+                      <li>• Du kan følge status i appen</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Confirm Button */}
+              <button
+                onClick={handleConfirmOrder}
+                disabled={isSubmitting}
+                className={`w-full py-4 rounded-lg font-semibold text-lg transition-colors ${
+                  isSubmitting
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : 'bg-nordic-blue text-white hover:bg-blue-600'
+                }`}
+              >
+                {isSubmitting ? (
+                  <span className="flex items-center justify-center">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Bekrefter bestilling...
+                  </span>
+                ) : (
+                  'Bekreft bestilling'
+                )}
+              </button>
+
+              <div className="text-center mt-4">
+                <Link
+                  href={`/orders/instructions?data=${searchParams.get('data')}`}
+                  className="text-medium-gray hover:text-dark-gray text-sm"
+                >
+                  ← Tilbake til instruksjoner
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
