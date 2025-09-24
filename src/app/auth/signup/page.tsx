@@ -32,8 +32,13 @@ export default function SignupPage() {
       return;
     }
     console.log('Signup attempt:', formData);
-    // Mock redirect to subscription plans
-    window.location.href = '/auth/plans';
+    // Store user info and redirect to address page
+    const userInfo = encodeURIComponent(JSON.stringify({
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone
+    }));
+    window.location.href = `/auth/address?user=${userInfo}`;
   };
 
   return (

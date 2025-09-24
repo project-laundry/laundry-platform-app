@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
 interface Plan {
   id: 'starter' | 'family' | 'premium';
@@ -58,6 +59,8 @@ const plans: Plan[] = [
 ];
 
 export default function PlansPage() {
+  const searchParams = useSearchParams();
+  const addressParam = searchParams.get('address');
   const [selectedPlan, setSelectedPlan] = useState<string>('family');
 
   const handlePlanSelect = (planId: string) => {
@@ -66,8 +69,13 @@ export default function PlansPage() {
 
   const handleContinue = () => {
     console.log('Selected plan:', selectedPlan);
-    // Redirect to payment page with selected plan
-    window.location.href = `/auth/payment?plan=${selectedPlan}`;
+    // Redirect to services page with selected plan and address
+    const params = new URLSearchParams();
+    params.set('plan', selectedPlan);
+    if (addressParam) {
+      params.set('address', addressParam);
+    }
+    window.location.href = `/auth/services?${params.toString()}`;
   };
 
   return (

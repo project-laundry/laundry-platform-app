@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
@@ -31,6 +31,17 @@ const planPrices = {
 export default function PaymentPage() {
   const searchParams = useSearchParams();
   const planId = searchParams.get('plan') || 'family';
+  const addressParam = searchParams.get('address');
+
+  // Parse the delivery address from URL params
+  const deliveryAddress = useMemo(() => {
+    if (!addressParam) return null;
+    try {
+      return JSON.parse(decodeURIComponent(addressParam));
+    } catch {
+      return null;
+    }
+  }, [addressParam]);
 
   const [selectedPayment, setSelectedPayment] = useState<string>('vipps');
   const [showCardForm, setShowCardForm] = useState(false);
@@ -41,6 +52,7 @@ export default function PaymentPage() {
     cardholderName: '',
   });
 
+  const [useSameAddress, setUseSameAddress] = useState(false);
   const [billingAddress, setBillingAddress] = useState({
     street: '',
     city: '',
@@ -51,6 +63,25 @@ export default function PaymentPage() {
   useEffect(() => {
     setShowCardForm(selectedPayment === 'card');
   }, [selectedPayment]);
+
+  // Handle "use same address" checkbox
+  useEffect(() => {
+    if (useSameAddress && deliveryAddress) {
+      setBillingAddress({
+        street: deliveryAddress.street,
+        city: deliveryAddress.city,
+        postalCode: deliveryAddress.postalCode,
+        country: deliveryAddress.country,
+      });
+    } else if (!useSameAddress) {
+      setBillingAddress({
+        street: '',
+        city: '',
+        postalCode: '',
+        country: 'Norge',
+      });
+    }
+  }, [useSameAddress]); // Remove deliveryAddress from dependencies
 
   const handlePaymentSelect = (paymentId: string) => {
     setSelectedPayment(paymentId);
@@ -235,9 +266,39 @@ export default function PaymentPage() {
                 </div>
               )}
 
+              {/* Delivery Address Display (if available) */}
+              {deliveryAddress && (
+                <div className="bg-blue-50 rounded-2xl p-6 border border-blue-200">
+                  <h4 className="text-lg font-semibold text-dark-gray mb-4">Leveringsadresse</h4>
+                  <div className="text-medium-gray space-y-1">
+                    <p>{deliveryAddress.street}</p>
+                    <p>{deliveryAddress.postalCode} {deliveryAddress.city}</p>
+                    <p>{deliveryAddress.country}</p>
+                  </div>
+                </div>
+              )}
+
               {/* Billing Address */}
               <div className="bg-white rounded-2xl p-6 border border-gray-200">
                 <h4 className="text-lg font-semibold text-dark-gray mb-4">Fakturaadresse</h4>
+
+                {/* Use Same Address Checkbox */}
+                {deliveryAddress && (
+                  <div className="mb-6">
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={useSameAddress}
+                        onChange={(e) => setUseSameAddress(e.target.checked)}
+                        className="w-4 h-4 text-nordic-blue bg-gray-100 border-gray-300 rounded focus:ring-nordic-blue focus:ring-2"
+                      />
+                      <span className="ml-3 text-sm font-medium text-dark-gray">
+                        Bruk samme adresse som leveringsadresse
+                      </span>
+                    </label>
+                  </div>
+                )}
+
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-semibold text-dark-gray mb-2">
@@ -248,7 +309,10 @@ export default function PaymentPage() {
                       name="street"
                       value={billingAddress.street}
                       onChange={handleAddressChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue"
+                      disabled={useSameAddress}
+                      className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue ${
+                        useSameAddress ? 'bg-gray-100 cursor-not-allowed' : ''
+                      }`}
                       placeholder="Storgata 1"
                       required
                     />
@@ -264,7 +328,10 @@ export default function PaymentPage() {
                         name="city"
                         value={billingAddress.city}
                         onChange={handleAddressChange}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue"
+                        disabled={useSameAddress}
+                        className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue ${
+                          useSameAddress ? 'bg-gray-100 cursor-not-allowed' : ''
+                        }`}
                         placeholder="Bergen"
                         required
                       />
@@ -278,7 +345,10 @@ export default function PaymentPage() {
                         name="postalCode"
                         value={billingAddress.postalCode}
                         onChange={handleAddressChange}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue"
+                        disabled={useSameAddress}
+                        className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue ${
+                          useSameAddress ? 'bg-gray-100 cursor-not-allowed' : ''
+                        }`}
                         placeholder="5001"
                         required
                       />

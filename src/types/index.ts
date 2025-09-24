@@ -42,6 +42,15 @@ export interface SubscriptionPlan {
   currency: 'NOK';
   features: string[];
   maxOrders?: number;
+  additionalServices?: AdditionalService[];
+}
+
+export interface AdditionalService {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  category: 'basic' | 'premium' | 'special';
 }
 
 export interface LaundryPreferences {
