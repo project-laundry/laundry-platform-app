@@ -12,12 +12,12 @@ export default function Home() {
               <a href="#områder" className="text-medium-gray hover:text-dark-gray font-medium">Områder</a>
             </nav>
             <div className="flex gap-3">
-              <button className="text-nordic-blue font-semibold px-4 py-2 hover:bg-soft-gray rounded-lg">
+              <a href="/auth/login" className="text-nordic-blue font-semibold px-4 py-2 hover:bg-soft-gray rounded-lg">
                 Logg inn
-              </button>
-              <button className="bg-nordic-blue text-white font-semibold px-6 py-2 rounded-lg hover:bg-blue-600">
+              </a>
+              <a href="/auth/signup" className="bg-nordic-blue text-white font-semibold px-6 py-2 rounded-lg hover:bg-blue-600">
                 Kom i gang
-              </button>
+              </a>
             </div>
           </div>
         </div>
@@ -35,9 +35,9 @@ export default function Home() {
               Profesjonell henting og levering som passer din travle hverdag.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button className="bg-nordic-blue text-white font-semibold px-8 py-4 rounded-lg hover:bg-blue-600 text-lg">
+              <a href="/auth/signup" className="bg-nordic-blue text-white font-semibold px-8 py-4 rounded-lg hover:bg-blue-600 text-lg text-center">
                 Kom i gang
-              </button>
+              </a>
               <button className="border-2 border-nordic-blue text-nordic-blue font-semibold px-8 py-4 rounded-lg hover:bg-blue-50 text-lg">
                 Bli en renser
               </button>
@@ -125,9 +125,9 @@ export default function Home() {
                 <h4 className="text-2xl font-bold text-dark-gray mb-2">Start</h4>
                 <p className="text-4xl font-bold text-dark-gray mb-1">500 <span className="text-lg text-medium-gray font-normal">NOK/mnd</span></p>
                 <p className="text-medium-gray mb-8">Perfekt for enkeltpersoner</p>
-                <button className="w-full bg-soft-gray text-dark-gray font-semibold py-3 rounded-lg hover:bg-gray-200 transition-colors">
+                <a href="/auth/signup" className="block w-full bg-soft-gray text-dark-gray font-semibold py-3 rounded-lg hover:bg-gray-200 transition-colors text-center">
                   Velg plan
-                </button>
+                </a>
               </div>
 
               <div className="bg-white rounded-2xl p-8 border-2 border-nordic-blue relative">
@@ -137,18 +137,18 @@ export default function Home() {
                 <h4 className="text-2xl font-bold text-dark-gray mb-2">Familie</h4>
                 <p className="text-4xl font-bold text-dark-gray mb-1">1000 <span className="text-lg text-medium-gray font-normal">NOK/mnd</span></p>
                 <p className="text-medium-gray mb-8">Ideell for familier</p>
-                <button className="w-full bg-nordic-blue text-white font-semibold py-3 rounded-lg hover:bg-blue-600 transition-colors">
+                <a href="/auth/signup" className="block w-full bg-nordic-blue text-white font-semibold py-3 rounded-lg hover:bg-blue-600 transition-colors text-center">
                   Velg plan
-                </button>
+                </a>
               </div>
 
               <div className="bg-white rounded-2xl p-8 border border-soft-gray">
                 <h4 className="text-2xl font-bold text-dark-gray mb-2">Premium</h4>
                 <p className="text-4xl font-bold text-dark-gray mb-1">2000 <span className="text-lg text-medium-gray font-normal">NOK/mnd</span></p>
                 <p className="text-medium-gray mb-8">Prioritert service og omsorg</p>
-                <button className="w-full bg-soft-gray text-dark-gray font-semibold py-3 rounded-lg hover:bg-gray-200 transition-colors">
+                <a href="/auth/signup" className="block w-full bg-soft-gray text-dark-gray font-semibold py-3 rounded-lg hover:bg-gray-200 transition-colors text-center">
                   Velg plan
-                </button>
+                </a>
               </div>
             </div>
           </div>
