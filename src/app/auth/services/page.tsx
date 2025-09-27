@@ -328,12 +328,7 @@ export default function ServicesPage() {
                     + {selectedServices.length} tilleggstjeneste{selectedServices.length !== 1 ? 'r' : ''}
                   </div>
                 )}
-                <div className="text-2xl font-bold text-dark-gray">
-                  {totalAddOnPrice > 0 && (
-                    <span className="text-lg text-medium-gray line-through mr-2">
-                      {basePlanPrice + totalAddOnPrice} kr/mnd
-                    </span>
-                  )}
+                <div className="text-2xl font-bold text-dark-gray">                  
                   {totalPrice} kr/mnd
                 </div>
               </div>
