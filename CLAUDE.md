@@ -54,7 +54,7 @@ src/
 
 The main business entities are defined in `src/types/index.ts`:
 - **User**: Base user type with role-based extensions (Customer, Cleaner)
-- **Order**: Central entity with status tracking (pending → delivered)
+- **Order**: Central entity with status tracking (awaiting_bag → bag_delivered → first_order_placed → active_customer)
 - **SubscriptionPlan**: Three tiers with NOK pricing
 - **Address**: Norwegian address format with optional coordinates
 
@@ -64,7 +64,7 @@ The main business entities are defined in `src/types/index.ts`:
 - TypeScript strict mode enabled
 - Geist fonts (sans and mono) loaded via next/font/google
 - Role-based user types with specific properties per role
-- Order status progression through defined workflow states
+- Order status progression: awaiting_bag → bag_delivered → first_order_placed → active_customer
 
 ## Business Context
 
