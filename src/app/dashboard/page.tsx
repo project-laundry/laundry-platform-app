@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 
-type UserStatus = 'awaiting_bag' | 'bag_delivered' | 'first_order_placed' | 'active_customer';
+type CustomerJourneyState = 'awaiting_bag' | 'no_active_order' | 'active_order' | 'multiple_active_orders';
 
 interface StatusConfig {
   title: string;
@@ -21,7 +21,7 @@ interface StatusConfig {
   };
 }
 
-const statusConfigs: Record<UserStatus, StatusConfig> = {
+const journeyStateConfigs: Record<CustomerJourneyState, StatusConfig> = {
   awaiting_bag: {
     title: 'Venter på poseleveranse',
     description: 'Vi sender deg en RenVask-pose i løpet av 3-5 virkedager. Du kan bestille henting når posen er levert og aktivert.',
@@ -36,26 +36,26 @@ const statusConfigs: Record<UserStatus, StatusConfig> = {
       className: 'w-full bg-gray-200 text-gray-400 font-semibold py-2 rounded-lg cursor-not-allowed'
     }
   },
-  bag_delivered: {
-    title: 'RenVask-posen er levert! 🎉',
-    description: 'Din RenVask-pose er levert og klar til bruk. Du kan nå bestille din første henting!',
+  no_active_order: {
+    title: 'Ingen aktive bestillinger',
+    description: 'Du har ikke noen aktive bestillinger for øyeblikket. Bestill en ny henting når det passer deg!',
     badge: {
       text: 'Klar for bestilling',
       className: 'bg-green-100 text-green-800'
     },
     icon: '✅',
     orderButton: {
-      text: 'Bestill nå',
+      text: 'Bestill henting',
       href: '/orders/new',
       disabled: false,
       className: 'block w-full bg-nordic-blue text-white text-center font-semibold py-2 rounded-lg hover:bg-blue-600 transition-colors'
     }
   },
-  first_order_placed: {
-    title: 'Din første bestilling er på vei!',
-    description: 'Vi har mottatt din første bestilling. Du vil få varsling når renseren er på vei for henting.',
+  active_order: {
+    title: 'Du har en aktiv bestilling!',
+    description: 'Din bestilling er i prosess. Du vil få varsling når renseren er på vei for henting og levering.',
     badge: {
-      text: 'Første bestilling aktiv',
+      text: 'Bestilling aktiv',
       className: 'bg-blue-100 text-blue-800'
     },
     icon: '🚚',
@@ -66,16 +66,16 @@ const statusConfigs: Record<UserStatus, StatusConfig> = {
       className: 'block w-full bg-nordic-blue text-white text-center font-semibold py-2 rounded-lg hover:bg-blue-600 transition-colors'
     }
   },
-  active_customer: {
-    title: 'Velkommen tilbake!',
-    description: 'Du har brukt RenVask før. Bestill en ny henting når det passer deg.',
+  multiple_active_orders: {
+    title: 'Du har flere aktive bestillinger!',
+    description: 'Du har flere bestillinger i prosess. Se oversikten nedenfor for å følge med på statusen til hver bestilling.',
     badge: {
-      text: 'Aktiv kunde',
-      className: 'bg-success-green/20 text-success-green'
+      text: 'Flere bestillinger aktive',
+      className: 'bg-purple-100 text-purple-800'
     },
-    icon: '⭐',
+    icon: '📦',
     orderButton: {
-      text: 'Bestill henting',
+      text: 'Bestill ny henting',
       href: '/orders/new',
       disabled: false,
       className: 'block w-full bg-nordic-blue text-white text-center font-semibold py-2 rounded-lg hover:bg-blue-600 transition-colors'
@@ -85,9 +85,9 @@ const statusConfigs: Record<UserStatus, StatusConfig> = {
 
 export default function DashboardPage() {
   // You can easily change this state to test different user journeys
-  const [userStatus, setUserStatus] = useState<UserStatus>('bag_delivered');
+  const [currentJourneyState, setCurrentJourneyState] = useState<CustomerJourneyState>('no_active_order');
 
-  const currentConfig = statusConfigs[userStatus];
+  const currentConfig = journeyStateConfigs[currentJourneyState];
 
   return (
     <div className="min-h-screen bg-soft-gray">
@@ -121,19 +121,19 @@ export default function DashboardPage() {
 
         {/* State Toggle for Development (remove in production) */}
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-8">
-          <h4 className="text-sm font-semibold text-yellow-800 mb-2">🔧 Dev: Test Different User States</h4>
+          <h4 className="text-sm font-semibold text-yellow-800 mb-2">🔧 Dev: Test Different Customer Journey States</h4>
           <div className="flex flex-wrap gap-2">
-            {Object.keys(statusConfigs).map((status) => (
+            {Object.keys(journeyStateConfigs).map((state) => (
               <button
-                key={status}
-                onClick={() => setUserStatus(status as UserStatus)}
+                key={state}
+                onClick={() => setCurrentJourneyState(state as CustomerJourneyState)}
                 className={`px-3 py-1 text-xs rounded-md font-medium ${
-                  userStatus === status
+                  currentJourneyState === state
                     ? 'bg-yellow-200 text-yellow-900'
                     : 'bg-white text-yellow-700 border border-yellow-300'
                 }`}
               >
-                {status.replace('_', ' ')}
+                {state.replace('_', ' ')}
               </button>
             ))}
           </div>

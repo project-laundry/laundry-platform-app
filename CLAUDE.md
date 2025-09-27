@@ -54,9 +54,16 @@ src/
 
 The main business entities are defined in `src/types/index.ts`:
 - **User**: Base user type with role-based extensions (Customer, Cleaner)
-- **Order**: Central entity with status tracking (awaiting_bag → bag_delivered → first_order_placed → active_customer)
+- **Order**: Central entity with typical order workflow (pending → assigned → picked_up → in_progress → ready_for_delivery → delivered)
 - **SubscriptionPlan**: Three tiers with NOK pricing
 - **Address**: Norwegian address format with optional coordinates
+
+## Mock Frontend States
+
+Since this is a frontend-only demo without backend integration, the dashboard uses mock customer journey states to showcase different user scenarios:
+- **CustomerJourneyState**: awaiting_bag → no_active_order → active_order → multiple_active_orders
+- These are UI demonstration states only, not database entities
+- Used to show different customer experience flows in the dashboard
 
 ## Key Patterns
 
@@ -64,7 +71,7 @@ The main business entities are defined in `src/types/index.ts`:
 - TypeScript strict mode enabled
 - Geist fonts (sans and mono) loaded via next/font/google
 - Role-based user types with specific properties per role
-- Order status progression: awaiting_bag → bag_delivered → first_order_placed → active_customer
+- Mock customer journey states for UI demo: awaiting_bag → no_active_order → active_order → multiple_active_orders
 
 ## Business Context
 
