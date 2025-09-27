@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is **RenVask**, a peer-to-peer laundry platform that connects customers with local cleaners in Bergen and Oslo, Norway. The platform offers subscription-based pickup and delivery laundry services, with three tiers (Starter 500 NOK, Family 1000 NOK, Premium 2000 NOK monthly).
 
 The application supports three user roles:
+
 - **Customers**: Schedule laundry pickups via subscription plans
 - **Cleaners**: Accept missions and provide laundry services
 - **Admins**: Manage operations and platform oversight
@@ -61,6 +62,7 @@ The main business entities are defined in `src/types/index.ts`:
 ## Mock Frontend States
 
 Since this is a frontend-only demo without backend integration, the dashboard uses mock customer journey states to showcase different user scenarios:
+
 - **CustomerJourneyState**: awaiting_bag → no_active_order → active_order → multiple_active_orders
 - These are UI demonstration states only, not database entities
 - Used to show different customer experience flows in the dashboard

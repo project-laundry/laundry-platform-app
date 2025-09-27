@@ -38,9 +38,9 @@ export default function Home() {
               <a href="/auth/signup" className="bg-nordic-blue text-white font-semibold px-8 py-4 rounded-lg hover:bg-blue-600 text-lg text-center">
                 Kom i gang
               </a>
-              <button className="border-2 border-nordic-blue text-nordic-blue font-semibold px-8 py-4 rounded-lg hover:bg-blue-50 text-lg">
+              <a href="/bli-renser" className="border-2 border-nordic-blue text-nordic-blue font-semibold px-8 py-4 rounded-lg hover:bg-blue-50 text-lg text-center block">
                 Bli en renser
-              </button>
+              </a>
             </div>
           </div>
         </section>
