@@ -27,6 +27,11 @@ interface StatusConfig {
     disabled: boolean;
     className: string;
   };
+  trackingButton?: {
+    text: string;
+    href: string;
+    className: string;
+  };
 }
 
 const journeyStateConfigs: Record<CustomerJourneyState, StatusConfig> = {
@@ -72,6 +77,11 @@ const journeyStateConfigs: Record<CustomerJourneyState, StatusConfig> = {
       href: '/orders/new',
       disabled: false,
       className: 'block w-full bg-nordic-blue text-white text-center font-semibold py-2 rounded-lg hover:bg-blue-600 transition-colors'
+    },
+    trackingButton: {
+      text: 'Spor bestilling',
+      href: '/orders/1234',
+      className: 'block w-full bg-gray-100 text-dark-gray text-center font-semibold py-2 rounded-lg hover:bg-gray-200 transition-colors mt-2'
     }
   },
   multiple_active_orders: {
@@ -267,6 +277,13 @@ export default function DashboardPage() {
               <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${currentConfig.badge.className}`}>
                 {currentConfig.badge.text}
               </span>
+              {currentConfig.trackingButton && (
+                <div className="mt-4 w-[250px]">
+                  <a href={currentConfig.trackingButton.href} className={currentConfig.trackingButton.className}>
+                    {currentConfig.trackingButton.text}
+                  </a>
+                </div>
+              )}
             </div>
             <div className="text-6xl">
               {currentConfig.icon}
