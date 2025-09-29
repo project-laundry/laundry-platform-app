@@ -20,7 +20,7 @@ export default function SuccessPage() {
 
           {/* Success Message */}
           <h1 className="text-2xl font-bold text-dark-gray mb-4">
-            Velkommen til RenVask!
+            Velkommen til NooraCare!
           </h1>
           <p className="text-medium-gray mb-8 leading-relaxed">
             Kontoen din er opprettet og betalingen er behandlet. Vi sender deg en merkevarepose i løpet av 3-5 virkedager.
@@ -32,7 +32,7 @@ export default function SuccessPage() {
             <ul className="space-y-2 text-sm text-medium-gray">
               <li className="flex items-start">
                 <span className="text-nordic-blue mr-2">1.</span>
-                Du mottar en RenVask-pose på døren din
+                Du mottar en NooraCare-pose på døren din
               </li>
               <li className="flex items-start">
                 <span className="text-nordic-blue mr-2">2.</span>

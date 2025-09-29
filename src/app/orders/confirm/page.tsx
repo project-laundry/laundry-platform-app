@@ -103,7 +103,7 @@ export default function ConfirmPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <Link href="/dashboard" className="inline-block">
-              <h1 className="text-2xl font-bold text-nordic-blue">RenVask</h1>
+              <h1 className="text-2xl font-bold text-nordic-blue">NooraCare</h1>
             </Link>
             <span className="text-medium-gray">Bekreft bestilling</span>
           </div>
@@ -155,7 +155,7 @@ export default function ConfirmPage() {
                 <div className="flex justify-between items-center">
                   <div className="flex items-center">
                     <span className="text-2xl mr-3">👕</span>
-                    <span className="text-dark-gray">RenVask-pose henting og vask</span>
+                    <span className="text-dark-gray">NooraCare-pose henting og vask</span>
                   </div>
                   <span className="font-semibold text-success-green">Inkludert</span>
                 </div>
@@ -232,7 +232,7 @@ export default function ConfirmPage() {
               <div className="space-y-4 mb-6">
                 <div className="flex justify-between items-center">
                   <span className="text-medium-gray">Tjeneste</span>
-                  <span className="text-dark-gray font-semibold">RenVask-pose</span>
+                  <span className="text-dark-gray font-semibold">NooraCare-pose</span>
                 </div>
 
                 <div className="flex justify-between items-center">
@@ -263,7 +263,7 @@ export default function ConfirmPage() {
                   <div>
                     <h4 className="font-semibold text-blue-900 mb-1">Viktig informasjon</h4>
                     <ul className="text-sm text-blue-800 space-y-1">
-                      <li>• Ha klærne klare i RenVask-posen</li>
+                      <li>• Ha klærne klare i NooraCare-posen</li>
                       <li>• Du får SMS når renseren er på vei</li>
                       <li>• Levering skjer til samme adresse</li>
                       <li>• Du kan følge status i appen</li>

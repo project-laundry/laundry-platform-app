@@ -47,10 +47,10 @@ export default function SignupPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-block">
-            <h1 className="text-3xl font-bold text-nordic-blue mb-2">RenVask</h1>
+            <h1 className="text-3xl font-bold text-nordic-blue mb-2">NooraCare</h1>
           </Link>
           <h2 className="text-2xl font-bold text-dark-gray mb-2">Opprett konto</h2>
-          <p className="text-medium-gray">Kom i gang med din RenVask-opplevelse</p>
+          <p className="text-medium-gray">Kom i gang med din NooraCare-opplevelse</p>
         </div>
 
         {/* Signup Form */}

@@ -47,15 +47,6 @@ export default function InstructionsPage() {
     window.location.href = `/orders/confirm?data=${encodedData}`;
   };
 
-  const commonInstructions = [
-    'Vask på kaldt for å bevare fargene',
-    'Ekstra forsiktig med delikate materialer',
-    'Ikke bruk tørketrommel på ull',
-    'Separate vasking for hvite og mørke farger',
-    'Bruk miljøvennlige vaskemidler',
-    'Strykefritt hvis mulig'
-  ];
-
   const handleQuickAdd = (instruction: string) => {
     if (specialInstructions.trim()) {
       setSpecialInstructions(prev => prev + '\n' + instruction);
@@ -82,7 +73,7 @@ export default function InstructionsPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <Link href="/dashboard" className="inline-block">
-              <h1 className="text-2xl font-bold text-nordic-blue">RenVask</h1>
+              <h1 className="text-2xl font-bold text-nordic-blue">NooraCare</h1>
             </Link>
             <span className="text-medium-gray">Spesielle instruksjoner</span>
           </div>
@@ -139,24 +130,6 @@ export default function InstructionsPage() {
               <p className="text-sm text-medium-gray mt-2">
                 F.eks. behandling av spesielle materialer, fargepreferanser, allergier, etc.
               </p>
-            </div>
-
-            {/* Quick Add Options */}
-            <div className="bg-white rounded-2xl p-8">
-              <h3 className="text-lg font-semibold text-dark-gray mb-4">Vanlige instruksjoner</h3>
-              <p className="text-sm text-medium-gray mb-4">Klikk for å legge til:</p>
-
-              <div className="space-y-2">
-                {commonInstructions.map((instruction, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleQuickAdd(instruction)}
-                    className="w-full text-left p-3 border border-gray-200 rounded-lg hover:border-nordic-blue hover:bg-blue-50 transition-colors text-sm"
-                  >
-                    + {instruction}
-                  </button>
-                ))}
-              </div>
             </div>
           </div>
 

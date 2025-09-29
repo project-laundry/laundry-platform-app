@@ -115,7 +115,7 @@ export default function SchedulePage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <Link href="/dashboard" className="inline-block">
-              <h1 className="text-2xl font-bold text-nordic-blue">RenVask</h1>
+              <h1 className="text-2xl font-bold text-nordic-blue">NooraCare</h1>
             </Link>
             <span className="text-medium-gray">Velg hentingstid</span>
           </div>
@@ -430,7 +430,7 @@ export default function SchedulePage() {
             <div>
               <h3 className="text-lg font-semibold text-dark-gray">Sammendrag</h3>
               <p className="text-medium-gray">
-                RenVask-pose • {selectedDate && selectedTime ?
+                NooraCare-pose • {selectedDate && selectedTime ?
                   `${days.find(d => `${d.date.getFullYear()}-${String(d.date.getMonth() + 1).padStart(2, '0')}-${String(d.date.getDate()).padStart(2, '0')}` === selectedDate)?.dayName || ''} ${selectedTime}`
                   : 'Ingen tid valgt'}
               </p>

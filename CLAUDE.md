@@ -4,9 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is **RenVask**, a peer-to-peer laundry platform that connects customers with local cleaners in Bergen and Oslo, Norway. The platform offers subscription-based pickup and delivery laundry services, with three tiers (Starter 500 NOK, Family 1000 NOK, Premium 2000 NOK monthly).
+This is **NooraCare**, a peer-to-peer laundry platform that connects customers with local cleaners in Bergen and Oslo, Norway. The platform offers subscription-based pickup and delivery laundry services, with three tiers (Starter 500 NOK, Family 1000 NOK, Premium 2000 NOK monthly).
 
 The application supports three user roles:
+
 - **Customers**: Schedule laundry pickups via subscription plans
 - **Cleaners**: Accept missions and provide laundry services
 - **Admins**: Manage operations and platform oversight
@@ -54,17 +55,25 @@ src/
 
 The main business entities are defined in `src/types/index.ts`:
 - **User**: Base user type with role-based extensions (Customer, Cleaner)
-- **Order**: Central entity with status tracking (pending → delivered)
+- **Order**: Central entity with typical order workflow (pending → assigned → picked_up → in_progress → ready_for_delivery → delivered)
 - **SubscriptionPlan**: Three tiers with NOK pricing
 - **Address**: Norwegian address format with optional coordinates
 
+## Mock Frontend States
+
+Since this is a frontend-only demo without backend integration, the dashboard uses mock customer journey states to showcase different user scenarios:
+
+- **CustomerJourneyState**: awaiting_bag → no_active_order → active_order → multiple_active_orders
+- These are UI demonstration states only, not database entities
+- Used to show different customer experience flows in the dashboard
+
 ## Key Patterns
 
-- Use Norwegian language for user-facing content (app title: "RenVask - Aldri vask klær igjen")
+- Use Norwegian language for user-facing content (app title: "NooraCare - Aldri vask klær igjen")
 - TypeScript strict mode enabled
 - Geist fonts (sans and mono) loaded via next/font/google
 - Role-based user types with specific properties per role
-- Order status progression through defined workflow states
+- Mock customer journey states for UI demo: awaiting_bag → no_active_order → active_order → multiple_active_orders
 
 ## Business Context
 
