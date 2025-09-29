@@ -103,7 +103,7 @@ const journeyStateConfigs: Record<CustomerJourneyState, StatusConfig> = {
 
 export default function DashboardPage() {
   // Customer journey state (independent from notifications)
-  const [currentJourneyState, setCurrentJourneyState] = useState<CustomerJourneyState>('no_active_order');
+  const [currentJourneyState, setCurrentJourneyState] = useState<CustomerJourneyState>('awaiting_bag');
 
   // Independent notification triggers
   const [notificationTriggers, setNotificationTriggers] = useState<NotificationTriggers>(

@@ -65,20 +65,14 @@ export default function ConfirmPage() {
 
     setIsSubmitting(true);
 
-    // Mock API call - simulate order submission
+    // Redirect to payment page
     try {
-      console.log('Submitting order:', orderData);
-
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Mock success - redirect to success page with order ID
-      const mockOrderId = 'RV' + Math.random().toString(36).substr(2, 8).toUpperCase();
-      window.location.href = `/orders/success?orderId=${mockOrderId}`;
-
+      console.log('Proceeding to payment with order:', orderData);
+      const encodedData = encodeURIComponent(JSON.stringify(orderData));
+      window.location.href = `/auth/payment?data=${encodedData}`;
     } catch (error) {
-      console.error('Order submission failed:', error);
-      alert('Det oppstod en feil ved bestilling. Vennligst prøv igjen.');
+      console.error('Navigation failed:', error);
+      alert('Det oppstod en feil. Vennligst prøv igjen.');
       setIsSubmitting(false);
     }
   };

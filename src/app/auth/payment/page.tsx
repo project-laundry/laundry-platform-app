@@ -17,20 +17,20 @@ const paymentMethods: PaymentMethod[] = [
 ];
 
 const planNames = {
-  starter: 'Start',
-  family: 'Familie',
-  premium: 'Premium'
+  weekly: 'Ukentlig',
+  biweekly: 'Annenhver uke',
+  single: 'Enkeltvask'
 };
 
 const planPrices = {
-  starter: 500,
-  family: 1000,
-  premium: 2000
+  weekly: 399,
+  biweekly: 249,
+  single: 149
 };
 
 export default function PaymentPage() {
   const searchParams = useSearchParams();
-  const planId = searchParams.get('plan') || 'family';
+  const planId = searchParams.get('plan') || 'weekly';
   const addressParam = searchParams.get('address');
 
   // Parse the delivery address from URL params
@@ -106,12 +106,13 @@ export default function PaymentPage() {
       billingAddress
     });
 
-    // Mock success - redirect to success page
-    window.location.href = '/auth/success';
+    // Mock success - redirect to order success page
+    const mockOrderId = 'NC' + Math.random().toString(36).substr(2, 8).toUpperCase();
+    window.location.href = `/orders/success?orderId=${mockOrderId}`;
   };
 
-  const currentPlan = planNames[planId as keyof typeof planNames] || 'Familie';
-  const currentPrice = planPrices[planId as keyof typeof planPrices] || 1000;
+  const currentPlan = planNames[planId as keyof typeof planNames] || 'Ukentlig';
+  const currentPrice = planPrices[planId as keyof typeof planPrices] || 399;
 
   return (
     <div className="min-h-screen bg-soft-gray">

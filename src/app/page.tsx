@@ -121,10 +121,12 @@ export default function Home() {
             </div>
 
             <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+              
+
               <div className="bg-white rounded-2xl p-8 border border-soft-gray">
-                <h4 className="text-2xl font-bold text-dark-gray mb-2">Start</h4>
-                <p className="text-4xl font-bold text-dark-gray mb-1">500 <span className="text-lg text-medium-gray font-normal">NOK/mnd</span></p>
-                <p className="text-medium-gray mb-8">Perfekt for enkeltpersoner</p>
+                <h4 className="text-2xl font-bold text-dark-gray mb-2">Annenhver uke</h4>
+                <p className="text-4xl font-bold text-dark-gray mb-1">249 <span className="text-lg text-medium-gray font-normal">NOK/mnd</span></p>
+                <p className="text-medium-gray mb-8">Vaskes annenhver uke</p>
                 <a href="/auth/signup" className="block w-full bg-soft-gray text-dark-gray font-semibold py-3 rounded-lg hover:bg-gray-200 transition-colors text-center">
                   Velg plan
                 </a>
@@ -134,18 +136,18 @@ export default function Home() {
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-nordic-blue text-white px-4 py-1 rounded-full text-sm font-semibold">
                   Mest populær
                 </div>
-                <h4 className="text-2xl font-bold text-dark-gray mb-2">Familie</h4>
-                <p className="text-4xl font-bold text-dark-gray mb-1">1000 <span className="text-lg text-medium-gray font-normal">NOK/mnd</span></p>
-                <p className="text-medium-gray mb-8">Ideell for familier</p>
+                <h4 className="text-2xl font-bold text-dark-gray mb-2">Ukentlig</h4>
+                <p className="text-4xl font-bold text-dark-gray mb-1">399 <span className="text-lg text-medium-gray font-normal">NOK/mnd</span></p>
+                <p className="text-medium-gray mb-8">Vaskes hver uke</p>
                 <a href="/auth/signup" className="block w-full bg-nordic-blue text-white font-semibold py-3 rounded-lg hover:bg-blue-600 transition-colors text-center">
                   Velg plan
                 </a>
               </div>
 
               <div className="bg-white rounded-2xl p-8 border border-soft-gray">
-                <h4 className="text-2xl font-bold text-dark-gray mb-2">Premium</h4>
-                <p className="text-4xl font-bold text-dark-gray mb-1">2000 <span className="text-lg text-medium-gray font-normal">NOK/mnd</span></p>
-                <p className="text-medium-gray mb-8">Prioritert service og omsorg</p>
+                <h4 className="text-2xl font-bold text-dark-gray mb-2">Enkeltvask</h4>
+                <p className="text-4xl font-bold text-dark-gray mb-1">149 <span className="text-lg text-medium-gray font-normal">NOK</span></p>
+                <p className="text-medium-gray mb-8">Betal per vask</p>
                 <a href="/auth/signup" className="block w-full bg-soft-gray text-dark-gray font-semibold py-3 rounded-lg hover:bg-gray-200 transition-colors text-center">
                   Velg plan
                 </a>

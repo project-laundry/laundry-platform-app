@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
 interface Plan {
-  id: 'starter' | 'family' | 'premium';
+  id: 'weekly' | 'biweekly' | 'single';
   name: string;
   price: number;
   description: string;
@@ -15,45 +15,46 @@ interface Plan {
 
 const plans: Plan[] = [
   {
-    id: 'starter',
-    name: 'Start',
-    price: 500,
-    description: 'Perfekt for enkeltpersoner',
+    id: 'biweekly',
+    name: 'Annenhver uke',
+    price: 249,
+    description: 'Vaskes annenhver uke',
     features: [
-      'Opptil 3 hentinger per måned',
-      'Standard vasketid (2-3 dager)',
-      'Grunnleggende kundestøtte',
+      'Henting annenhver uke',
+      'Fast vaskedag hver 14. dag',
+      'Inntil 5 kg tøy per henting',
       'SMS-varsling',
+      'Standard vasketid (2-3 dager)',
+      'Kan avbrytes når som helst',
     ]
   },
   {
-    id: 'family',
-    name: 'Familie',
-    price: 1000,
-    description: 'Ideell for familier',
+    id: 'weekly',
+    name: 'Ukentlig',
+    price: 399,
+    description: 'Vaskes hver uke',
     popular: true,
     features: [
-      'Ubegrenset antall hentinger',
+      'Ukentlig henting og levering',
+      'Fast vaskedag hver uke',
+      'Inntil 5 kg tøy per henting',
+      'SMS-varsling',
       'Prioritert behandling',
-      'Familievennlige tjenester',
-      'SMS og e-postvarsling',
-      '24/7 kundestøtte',
-      'Spesialomsorg for barnetøy',
+      'Kan avbrytes når som helst',
     ]
   },
   {
-    id: 'premium',
-    name: 'Premium',
-    price: 2000,
-    description: 'Prioritert service og omsorg',
+    id: 'single',
+    name: 'Enkeltvask',
+    price: 149,
+    description: 'Betal per vask',
     features: [
-      'Ubegrenset hentinger',
-      'Ekspresservice (samme dag)',
-      'Premium omsorg og behandling',
-      'Dedikert kunderådgiver',
-      'Alle kommunikasjonskanaler',
-      'Forsikring opp til 10 000 NOK',
-      'Miljøvennlige produkter',
+      'Ingen abonnement',
+      'Bestill når du trenger det',
+      'Inntil 5 kg tøy per vask',
+      'Standard vasketid (3-4 dager)',
+      'SMS-varsling',
+      'Ingen bindingstid',
     ]
   }
 ];
@@ -61,7 +62,7 @@ const plans: Plan[] = [
 export default function PlansPage() {
   const searchParams = useSearchParams();
   const addressParam = searchParams.get('address');
-  const [selectedPlan, setSelectedPlan] = useState<string>('family');
+  const [selectedPlan, setSelectedPlan] = useState<string>('weekly');
 
   const handlePlanSelect = (planId: string) => {
     setSelectedPlan(planId);
@@ -69,13 +70,13 @@ export default function PlansPage() {
 
   const handleContinue = () => {
     console.log('Selected plan:', selectedPlan);
-    // Redirect to services page with selected plan and address
+    // Redirect to schedule page after plan selection
     const params = new URLSearchParams();
     params.set('plan', selectedPlan);
     if (addressParam) {
       params.set('address', addressParam);
     }
-    window.location.href = `/auth/services?${params.toString()}`;
+    window.location.href = `/orders/schedule?${params.toString()}`;
   };
 
   return (

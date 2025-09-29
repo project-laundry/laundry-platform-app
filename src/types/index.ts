@@ -22,7 +22,7 @@ export interface Address {
 
 export interface Customer extends User {
   role: 'customer';
-  subscriptionPlan: SubscriptionPlan;
+  subscriptionPlan?: SubscriptionPlan;
   preferences?: LaundryPreferences;
 }
 
@@ -37,7 +37,7 @@ export interface Cleaner extends User {
 
 export interface SubscriptionPlan {
   id: string;
-  name: 'starter' | 'family' | 'premium';
+  name: 'weekly' | 'biweekly' | 'single';
   price: number;
   currency: 'NOK';
   features: string[];
