@@ -30,7 +30,7 @@ export default function OrderSuccessPage() {
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <Link href="/dashboard" className="inline-block">
-            <h1 className="text-2xl font-bold text-nordic-blue">RenVask</h1>
+            <h1 className="text-2xl font-bold text-nordic-blue">NooraCare</h1>
           </Link>
         </div>
       </header>
@@ -124,7 +124,7 @@ export default function OrderSuccessPage() {
               <div className="text-left">
                 <h3 className="font-semibold text-yellow-800 mb-2">Viktige tips for første henting</h3>
                 <ul className="text-sm text-yellow-700 space-y-1">
-                  <li>• Ha klærne klare i RenVask-posen</li>
+                  <li>• Ha klærne klare i NooraCare-posen</li>
                   <li>• Sjekk lommene for verdisaker</li>
                   <li>• Vær tilgjengelig på telefon under hentetiden</li>
                   <li>• Gi beskjed hvis du ikke kan være hjemme</li>

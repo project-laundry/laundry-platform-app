@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RenVask - Aldri vask klær igjen",
+  title: "NooraCare - Aldri vask klær igjen",
   description: "Koble deg til lokale rensere i Bergen og Oslo. Praktisk henting og levering av vask for travle fagfolk og familier.",
 };
 

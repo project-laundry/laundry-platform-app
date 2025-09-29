@@ -5,7 +5,7 @@ export default function BecomeCleanerPage() {
       <header className="bg-white border-b border-soft-gray">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex justify-between items-center">
-            <a href="/" className="text-2xl font-bold text-nordic-blue">RenVask</a>
+            <a href="/" className="text-2xl font-bold text-nordic-blue">NooraCare</a>
             <nav className="hidden md:flex gap-8">
               <a href="#hvorfor" className="text-medium-gray hover:text-dark-gray font-medium">Hvorfor</a>
               <a href="#kom-i-gang" className="text-medium-gray hover:text-dark-gray font-medium">Kom i gang</a>
@@ -32,7 +32,7 @@ export default function BecomeCleanerPage() {
               {/* Left side - Content */}
               <div>
                 <h1 className="text-5xl lg:text-6xl font-bold text-dark-gray mb-6 leading-tight">
-                  Tjen penger ved å rense med RenVask i Norge
+                  Tjen penger ved å rense med NooraCare i Norge
                 </h1>
                 <p className="text-xl text-medium-gray mb-10 leading-relaxed">
                   Sett din egen timeplan. Få betalt for hver oppdrag. Koble deg til kunder som trenger dine rensetjenester.
@@ -105,9 +105,9 @@ export default function BecomeCleanerPage() {
         <section id="hvorfor" className="bg-soft-gray py-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
-              <h2 className="text-4xl font-bold text-dark-gray mb-4">Hvorfor bli en RenVask renser?</h2>
+              <h2 className="text-4xl font-bold text-dark-gray mb-4">Hvorfor bli en NooraCare renser?</h2>
               <p className="text-xl text-medium-gray">
-                RenVask gir deg muligheten til å tjene penger når det passer deg, med støtte langs hele veien.
+                NooraCare gir deg muligheten til å tjene penger når det passer deg, med støtte langs hele veien.
               </p>
             </div>
 
@@ -196,7 +196,7 @@ export default function BecomeCleanerPage() {
         <section id="slik-virker-det" className="bg-soft-gray py-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
-              <h2 className="text-4xl font-bold text-dark-gray mb-4">Slik fungerer RenVask renser-appen</h2>
+              <h2 className="text-4xl font-bold text-dark-gray mb-4">Slik fungerer NooraCare renser-appen</h2>
               <p className="text-xl text-medium-gray">
                 Alt du trenger for å administrere oppdragene dine og tjene penger effektivt.
               </p>
@@ -306,16 +306,16 @@ export default function BecomeCleanerPage() {
             <div className="space-y-6">
               <details className="bg-white border border-soft-gray rounded-lg p-6">
                 <summary className="font-semibold text-dark-gray cursor-pointer">
-                  Kan jeg starte å rense med RenVask i min by?
+                  Kan jeg starte å rense med NooraCare i min by?
                 </summary>
                 <p className="mt-4 text-medium-gray">
-                  For øyeblikket er RenVask tilgjengelig i Bergen og Oslo. Vi arbeider med å utvide til flere byer i Norge.
+                  For øyeblikket er NooraCare tilgjengelig i Bergen og Oslo. Vi arbeider med å utvide til flere byer i Norge.
                 </p>
               </details>
 
               <details className="bg-white border border-soft-gray rounded-lg p-6">
                 <summary className="font-semibold text-dark-gray cursor-pointer">
-                  Hvor mye kan jeg tjene som renser med RenVask?
+                  Hvor mye kan jeg tjene som renser med NooraCare?
                 </summary>
                 <p className="mt-4 text-medium-gray">
                   Inntektene varierer basert på antall oppdrag du fullfører og størrelsen på hver order. Aktive rensere tjener typisk mellom 200-800 NOK per dag.
@@ -333,7 +333,7 @@ export default function BecomeCleanerPage() {
 
               <details className="bg-white border border-soft-gray rounded-lg p-6">
                 <summary className="font-semibold text-dark-gray cursor-pointer">
-                  Er å rense med RenVask sikkert?
+                  Er å rense med NooraCare sikkert?
                 </summary>
                 <p className="mt-4 text-medium-gray">
                   Ja, alle kunder er verifisert og vi har 24/7 støtte. Du kan også se kundevurderinger før du godtar et oppdrag.
@@ -342,7 +342,7 @@ export default function BecomeCleanerPage() {
 
               <details className="bg-white border border-soft-gray rounded-lg p-6">
                 <summary className="font-semibold text-dark-gray cursor-pointer">
-                  Hvor ofte får jeg betalt for å rense med RenVask?
+                  Hvor ofte får jeg betalt for å rense med NooraCare?
                 </summary>
                 <p className="mt-4 text-medium-gray">
                   Du får utbetalt inntektene dine hver uke direkte til bankkontoen din via Vipps eller bankoverføring.
@@ -395,21 +395,21 @@ export default function BecomeCleanerPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
-              <a href="/" className="text-2xl font-bold text-nordic-blue mb-4 block">RenVask</a>
+              <a href="/" className="text-2xl font-bold text-nordic-blue mb-4 block">NooraCare</a>
               <p className="text-gray-400 leading-relaxed">
                 Kobler deg med pålitelige lokale rensere i Norge.
               </p>
             </div>
             <div>
-              <h4 className="font-semibold mb-4 text-lg">RenVask</h4>
+              <h4 className="font-semibold mb-4 text-lg">NooraCare</h4>
               <ul className="space-y-3 text-gray-400">
-                <li><a href="/auth/signup" className="hover:text-white transition-colors">Bruk RenVask</a></li>
+                <li><a href="/auth/signup" className="hover:text-white transition-colors">Bruk NooraCare</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Priser</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Serviceområder</a></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4 text-lg">Partner med RenVask</h4>
+              <h4 className="font-semibold mb-4 text-lg">Partner med NooraCare</h4>
               <ul className="space-y-3 text-gray-400">
                 <li><a href="/bli-renser" className="hover:text-white transition-colors">Bli en renser</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Renseverktøy</a></li>
@@ -426,7 +426,7 @@ export default function BecomeCleanerPage() {
             </div>
           </div>
           <div className="border-t border-gray-800 mt-12 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 RenVask. Alle rettigheter forbeholdt.</p>
+            <p>&copy; 2024 NooraCare. Alle rettigheter forbeholdt.</p>
           </div>
         </div>
       </footer>

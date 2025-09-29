@@ -61,7 +61,7 @@ export default function AddressPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-block">
-            <h1 className="text-3xl font-bold text-nordic-blue mb-2">RenVask</h1>
+            <h1 className="text-3xl font-bold text-nordic-blue mb-2">NooraCare</h1>
           </Link>
           <h2 className="text-2xl font-bold text-dark-gray mb-2">Din adresse</h2>
           <p className="text-medium-gray">Vi trenger adressen din for å levere tjenesten</p>

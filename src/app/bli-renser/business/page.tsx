@@ -11,7 +11,7 @@ export default function BusinessInfoPage() {
       <header className="bg-white border-b border-soft-gray">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex justify-between items-center">
-            <a href="/" className="text-2xl font-bold text-nordic-blue">RenVask</a>
+            <a href="/" className="text-2xl font-bold text-nordic-blue">NooraCare</a>
             <div className="text-sm text-medium-gray">
               Steg 2 av 5
             </div>
@@ -175,7 +175,7 @@ export default function BusinessInfoPage() {
                     className="w-4 h-4 text-nordic-blue border-soft-gray focus:ring-nordic-blue mt-1"
                   />
                   <span className="ml-3 text-sm text-dark-gray">
-                    Jeg godtar <a href="#" className="text-nordic-blue hover:underline">vilkårene</a> for å være renser hos RenVask *
+                    Jeg godtar <a href="#" className="text-nordic-blue hover:underline">vilkårene</a> for å være renser hos NooraCare *
                   </span>
                 </label>
 

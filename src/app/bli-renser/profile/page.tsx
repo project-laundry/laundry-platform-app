@@ -5,7 +5,7 @@ export default function ProfilePage() {
       <header className="bg-white border-b border-soft-gray">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex justify-between items-center">
-            <a href="/" className="text-2xl font-bold text-nordic-blue">RenVask</a>
+            <a href="/" className="text-2xl font-bold text-nordic-blue">NooraCare</a>
             <div className="text-sm text-medium-gray">
               Steg 5 av 5
             </div>
@@ -271,7 +271,7 @@ export default function ProfilePage() {
                 <ul className="text-sm text-medium-gray space-y-1">
                   <li>• Vi gjennomgår søknaden din innen 1-2 virkedager</li>
                   <li>• Du får beskjed på e-post når profilen din er godkjent</li>
-                  <li>• Du kan da begynne å motta oppdrag gjennom RenVask-appen</li>
+                  <li>• Du kan da begynne å motta oppdrag gjennom NooraCare-appen</li>
                 </ul>
               </div>
             </div>

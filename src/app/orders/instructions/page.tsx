@@ -73,7 +73,7 @@ export default function InstructionsPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <Link href="/dashboard" className="inline-block">
-              <h1 className="text-2xl font-bold text-nordic-blue">RenVask</h1>
+              <h1 className="text-2xl font-bold text-nordic-blue">NooraCare</h1>
             </Link>
             <span className="text-medium-gray">Spesielle instruksjoner</span>
           </div>

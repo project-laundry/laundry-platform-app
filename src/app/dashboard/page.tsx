@@ -37,7 +37,7 @@ interface StatusConfig {
 const journeyStateConfigs: Record<CustomerJourneyState, StatusConfig> = {
   awaiting_bag: {
     title: 'Venter på poseleveranse',
-    description: 'Vi sender deg en RenVask-pose i løpet av 3-5 virkedager. Du kan bestille henting når posen er levert og aktivert.',
+    description: 'Vi sender deg en NooraCare-pose i løpet av 3-5 virkedager. Du kan bestille henting når posen er levert og aktivert.',
     badge: {
       text: 'Venter på levering',
       className: 'bg-orange-100 text-orange-800'
@@ -145,7 +145,7 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <Link href="/" className="inline-block">
-              <h1 className="text-2xl font-bold text-nordic-blue">RenVask</h1>
+              <h1 className="text-2xl font-bold text-nordic-blue">NooraCare</h1>
             </Link>
             <div className="flex items-center gap-4">
               <span className="text-medium-gray">Ola Nordmann</span>
@@ -161,7 +161,7 @@ export default function DashboardPage() {
         {/* Welcome Section */}
         <div className="mb-12">
           <h2 className="text-3xl font-bold text-dark-gray mb-4">
-            Velkommen til RenVask! 🎉
+            Velkommen til NooraCare! 🎉
           </h2>
           <p className="text-xl text-medium-gray">
             Din konto er opprettet og klar til bruk.

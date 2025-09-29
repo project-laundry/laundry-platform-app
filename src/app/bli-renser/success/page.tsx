@@ -5,7 +5,7 @@ export default function RegistrationSuccessPage() {
       <header className="bg-white border-b border-soft-gray">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex justify-between items-center">
-            <a href="/" className="text-2xl font-bold text-nordic-blue">RenVask</a>
+            <a href="/" className="text-2xl font-bold text-nordic-blue">NooraCare</a>
             <div className="text-sm text-success-green font-medium">
               Registrering fullført!
             </div>
@@ -27,7 +27,7 @@ export default function RegistrationSuccessPage() {
             Takk for din interesse!
           </h1>
           <p className="text-xl text-medium-gray mb-8">
-            Din søknad for å bli renser hos RenVask er mottatt og vil bli gjennomgått av vårt team.
+            Din søknad for å bli renser hos NooraCare er mottatt og vil bli gjennomgått av vårt team.
           </p>
 
           {/* What happens next */}

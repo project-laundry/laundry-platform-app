@@ -20,15 +20,15 @@ export const NOTIFICATION_TEMPLATES = {
   welcome: {
     id: 'welcome_message',
     type: 'success' as const,
-    title: 'Velkommen til RenVask! 🎉',
-    message: 'Kontoen din er opprettet og aktivert. Vi sender deg en RenVask-pose i løpet av 3-5 virkedager. Du vil få beskjed når posen er levert og klar til bruk.',
+    title: 'Velkommen til NooraCare! 🎉',
+    message: 'Kontoen din er opprettet og aktivert. Vi sender deg en NooraCare-pose i løpet av 3-5 virkedager. Du vil få beskjed når posen er levert og klar til bruk.',
     dismissible: true
   },
   bagDelivered: {
     id: 'bag_delivered',
     type: 'success' as const,
-    title: 'RenVask-posen din er levert! 📦',
-    message: 'Din RenVask-pose er nå levert og aktivert. Du kan begynne å bestille henting av klær når det passer deg.',
+    title: 'NooraCare-posen din er levert! 📦',
+    message: 'Din NooraCare-pose er nå levert og aktivert. Du kan begynne å bestille henting av klær når det passer deg.',
     actionText: 'Bestill første henting',
     actionUrl: '/orders/new',
     dismissible: true
@@ -44,7 +44,7 @@ export const NOTIFICATION_TEMPLATES = {
     id: 'getting_started_tip',
     type: 'info' as const,
     title: 'Tips for første bestilling',
-    message: 'Legg klærne i RenVask-posen og bestill henting. Vi anbefaler å bestille 2-3 dager i forveien for å sikre ønsket hentetidspunkt.',
+    message: 'Legg klærne i NooraCare-posen og bestill henting. Vi anbefaler å bestille 2-3 dager i forveien for å sikre ønsket hentetidspunkt.',
     actionText: 'Se instruksjoner',
     actionUrl: '/orders/instructions',
     dismissible: true
@@ -60,7 +60,7 @@ export const NOTIFICATION_TEMPLATES = {
     id: 'multiple_orders_tip',
     type: 'warning' as const,
     title: 'Flere aktive bestillinger',
-    message: 'Du har flere bestillinger i prosess. Sørg for at du har tilstrekkelig med RenVask-poser for alle bestillingene.',
+    message: 'Du har flere bestillinger i prosess. Sørg for at du har tilstrekkelig med NooraCare-poser for alle bestillingene.',
     actionText: 'Bestill flere poser',
     actionUrl: '/profile?section=bags',
     dismissible: true

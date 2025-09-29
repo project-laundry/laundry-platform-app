@@ -5,7 +5,7 @@ export default function Home() {
       <header className="bg-white border-b border-soft-gray">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-nordic-blue">RenVask</h1>
+            <h1 className="text-2xl font-bold text-nordic-blue">NooraCare</h1>
             <nav className="hidden md:flex gap-8">
               <a href="#slik-virker-det" className="text-medium-gray hover:text-dark-gray font-medium">Slik virker det</a>
               <a href="#priser" className="text-medium-gray hover:text-dark-gray font-medium">Priser</a>
@@ -208,7 +208,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
-              <h3 className="text-2xl font-bold text-nordic-blue mb-4">RenVask</h3>
+              <h3 className="text-2xl font-bold text-nordic-blue mb-4">NooraCare</h3>
               <p className="text-gray-400 leading-relaxed">
                 Kobler deg med pålitelige lokale rensere i Norge.
               </p>
@@ -238,7 +238,7 @@ export default function Home() {
             </div>
           </div>
           <div className="border-t border-gray-800 mt-12 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 RenVask. Alle rettigheter forbeholdt.</p>
+            <p>&copy; 2024 NooraCare. Alle rettigheter forbeholdt.</p>
           </div>
         </div>
       </footer>

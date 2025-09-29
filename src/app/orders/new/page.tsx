@@ -16,7 +16,7 @@ export default function NewOrderPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <Link href="/dashboard" className="inline-block">
-              <h1 className="text-2xl font-bold text-nordic-blue">RenVask</h1>
+              <h1 className="text-2xl font-bold text-nordic-blue">NooraCare</h1>
             </Link>
             <span className="text-medium-gray">Ny bestilling</span>
           </div>
@@ -34,7 +34,7 @@ export default function NewOrderPage() {
 
         {/* What's Included */}
         <div className="bg-white rounded-2xl p-8 mb-8">
-          <h3 className="text-xl font-semibold text-dark-gray mb-6 text-center">Din RenVask-pose inkluderer</h3>
+          <h3 className="text-xl font-semibold text-dark-gray mb-6 text-center">Din NooraCare-pose inkluderer</h3>
 
           <div className="grid md:grid-cols-3 gap-6">
             <div className="text-center p-6">

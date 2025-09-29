@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is **RenVask**, a peer-to-peer laundry platform that connects customers with local cleaners in Bergen and Oslo, Norway. The platform offers subscription-based pickup and delivery laundry services, with three tiers (Starter 500 NOK, Family 1000 NOK, Premium 2000 NOK monthly).
+This is **NooraCare**, a peer-to-peer laundry platform that connects customers with local cleaners in Bergen and Oslo, Norway. The platform offers subscription-based pickup and delivery laundry services, with three tiers (Starter 500 NOK, Family 1000 NOK, Premium 2000 NOK monthly).
 
 The application supports three user roles:
 
@@ -69,7 +69,7 @@ Since this is a frontend-only demo without backend integration, the dashboard us
 
 ## Key Patterns
 
-- Use Norwegian language for user-facing content (app title: "RenVask - Aldri vask klær igjen")
+- Use Norwegian language for user-facing content (app title: "NooraCare - Aldri vask klær igjen")
 - TypeScript strict mode enabled
 - Geist fonts (sans and mono) loaded via next/font/google
 - Role-based user types with specific properties per role
