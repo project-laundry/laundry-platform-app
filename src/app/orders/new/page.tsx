@@ -105,8 +105,7 @@ export default function NewOrderPage() {
               <div className="text-5xl mb-4">📦</div>
               <h3 className="text-2xl font-bold text-dark-gray mb-3">Perfekt! Vi ordner det.</h3>
               <p className="text-medium-gray mb-6">
-                Du får en gratis NooraCare-pose levert dagen før første henting.<br />
-                Fortsett med å planlegge henting – posen leveres automatisk i god tid.
+                Du får en gratis NooraCare-pose levert dagen før første henting.
               </p>
             </div>
 

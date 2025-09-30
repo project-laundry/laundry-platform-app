@@ -117,17 +117,6 @@ export default function SchedulePage() {
 
   const deliveryDays = getNextDeliveryDays(hasBag);
 
-  useEffect(() => {
-    // Auto-select first available day for single plans
-    if (plan === 'single' && !selectedDate && deliveryDays.length > 0) {
-      const firstDay = deliveryDays[0];
-      setSelectedDate(`${firstDay.date.getFullYear()}-${String(firstDay.date.getMonth() + 1).padStart(2, '0')}-${String(firstDay.date.getDate()).padStart(2, '0')}`);
-    }
-    // Auto-select first available weekday for recurring plans
-    if (plan !== 'single' && !selectedWeekday && deliveryDays.length > 0) {
-      setSelectedWeekday(deliveryDays[0].weekdayValue);
-    }
-  }, [selectedDate, selectedWeekday, plan, deliveryDays, hasBag]);
 
   const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -218,19 +207,14 @@ export default function SchedulePage() {
 
         {/* Page Header */}
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-dark-gray mb-4">Når skal vi hente?</h2>
-          <p className="text-xl text-medium-gray">
-            {plan === 'single'
-              ? 'Velg dag for første levering. Dette blir din faste ukedag for ukentlig levering mellom kl. 15:00-20:00.'
-              : 'Velg dag for første levering. Dette blir din faste ukedag for ukentlig levering mellom kl. 15:00-20:00.'}
-          </p>
+          <h2 className="text-3xl font-bold text-dark-gray mb-4">Når skal vi hente?</h2>          
         </div>
 
         {/* Date or Weekday Selection based on plan type */}
         {plan === 'single' ? (
           /* Date Selection for single plan */
           <div className="bg-white rounded-2xl p-6 sm:p-8 mb-8">
-            <h3 className="text-lg font-semibold text-dark-gray mb-6">Velg første levering</h3>
+            <h3 className="text-lg font-semibold text-dark-gray mb-6">Velg første henting</h3>
 
             {/* Desktop: 7 column grid */}
             <div className="hidden sm:grid grid-cols-7 gap-4">
@@ -294,9 +278,9 @@ export default function SchedulePage() {
         ) : (
           /* Weekday Selection for recurring plans */
           <div className="bg-white rounded-2xl p-6 sm:p-8 mb-8">
-            <h3 className="text-lg font-semibold text-dark-gray mb-6">Velg første levering</h3>
+            <h3 className="text-lg font-semibold text-dark-gray mb-6">Velg første henting</h3>
             <p className="text-medium-gray mb-6">
-              Velg dag for din første levering. Dette blir din faste ukedag for alle fremtidige leveringer.
+              Velg dag for din første henting. Dette blir din faste ukedag for alle fremtidige hentinger.
             </p>
 
             {/* Desktop: 7 column grid */}
@@ -360,18 +344,17 @@ export default function SchedulePage() {
 
         {/* Bag Delivery Notice */}
         {!hasBag && (plan === 'single' && selectedDate || plan !== 'single' && selectedWeekday) && (
-          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 mb-8">
+          <div className="bg-blue-50 border-2 border-blue-300 rounded-2xl p-6 mb-8">
             <div className="flex items-start">
-              <div className="text-2xl mr-3">📦</div>
+              <div className="text-4xl mr-4">📦</div>
               <div>
-                <h3 className="text-lg font-semibold text-dark-gray mb-2">NooraCare-pose leveres først</h3>
+                <h3 className="text-xl font-bold text-dark-gray mb-3">NooraCare-pose leveres først</h3>
                 {plan === 'single' && selectedDate ? (
-                  <p className="text-medium-gray">
-                    Vi leverer en gratis NooraCare-pose <span className="font-semibold text-dark-gray">{getBagDeliveryInfo(selectedDate).bagDeliveryDay} {getBagDeliveryInfo(selectedDate).bagDeliveryDate}</span> (dagen før levering).
-                    Du får SMS når posen er levert, så du kan fylle den med tøy til levering {getDeliveryDateInfo(selectedDate).deliveryDay} {getDeliveryDateInfo(selectedDate).deliveryDate}.
+                  <p className="text-medium-gray leading-relaxed">
+                    Vi leverer en gratis NooraCare-pose <span className="font-semibold text-dark-gray">Onsdag 1. oktober</span> (dagen før din første levering). Du får SMS når posen er levert, så du kan fylle den med tøy til neste dag.
                   </p>
                 ) : selectedWeekday ? (
-                  <p className="text-medium-gray">
+                  <p className="text-medium-gray leading-relaxed">
                     Vi leverer en gratis NooraCare-pose <span className="font-semibold text-dark-gray">{getWeekdayDeliveryInfo(selectedWeekday).bagDeliveryDay} {getWeekdayDeliveryInfo(selectedWeekday).bagDeliveryDate}</span> (dagen før din første levering).
                     Du får SMS når posen er levert, så du kan fylle den med tøy til neste dag.
                   </p>
@@ -383,22 +366,20 @@ export default function SchedulePage() {
 
         {/* Delivery Time Information */}
         {(plan === 'single' && selectedDate) || (plan !== 'single' && selectedWeekday) ? (
-          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 mb-8">
+          <div className="bg-white border border-gray-200 rounded-xl p-5 mb-8">
             <div className="flex items-start">
               <div className="text-2xl mr-3">📅</div>
               <div>
-                <h3 className="text-lg font-semibold text-dark-gray mb-2">Hentetidspunkt</h3>
+                <h4 className="text-base font-semibold text-dark-gray mb-1">Hentetidspunkt</h4>
                 {plan === 'single' && selectedDate ? (
-                  <p className="text-medium-gray">
+                  <p className="text-sm text-medium-gray">
                     Neste henting: <span className="font-semibold text-dark-gray">{getDeliveryDateInfo(selectedDate).deliveryDay} {getDeliveryDateInfo(selectedDate).deliveryDate}</span> mellom kl. <span className="font-semibold text-dark-gray">15:00-20:00</span>
-                    <br />
-                    <span className="text-sm">Deretter hver {getDeliveryDateInfo(selectedDate).deliveryDay.toLowerCase()} til samme tid.</span>
                   </p>
                 ) : selectedWeekday ? (
-                  <p className="text-medium-gray">
+                  <p className="text-sm text-medium-gray">
                     Neste henting: <span className="font-semibold text-dark-gray">{getWeekdayDeliveryInfo(selectedWeekday).deliveryDay} {getWeekdayDeliveryInfo(selectedWeekday).deliveryDate}</span> mellom kl. <span className="font-semibold text-dark-gray">15:00-20:00</span>
                     <br />
-                    <span className="text-sm">Deretter hver {weekdays.find(d => d.value === selectedWeekday)?.label.toLowerCase()} til samme tid.</span>
+                    <span className="text-xs">Deretter hver {weekdays.find(d => d.value === selectedWeekday)?.label.toLowerCase()} til samme tid.</span>
                   </p>
                 ) : null}
               </div>

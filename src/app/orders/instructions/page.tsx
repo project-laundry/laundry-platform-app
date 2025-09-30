@@ -109,77 +109,25 @@ export default function InstructionsPage() {
 
         {/* Page Header */}
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-dark-gray mb-4">Til slutt, har du noen spesielle instruksjoner?</h2>
+          <h2 className="text-3xl font-bold text-dark-gray mb-4">Har du noen spesielle instruksjoner?</h2>
           <p className="text-xl text-medium-gray">
             Dette er valgfritt, men hjelper oss å gi deg den beste servicen.
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-8">
-          {/* Instructions Input */}
-          <div className="space-y-6">
-            <div className="bg-white rounded-2xl p-8">
-              <h3 className="text-lg font-semibold text-dark-gray mb-4">Dine instruksjoner</h3>
-              <textarea
-                value={specialInstructions}
-                onChange={(e) => setSpecialInstructions(e.target.value)}
-                placeholder="Skriv dine spesielle ønsker eller instruksjoner her..."
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue resize-none"
-                rows={6}
-              />
-              <p className="text-sm text-medium-gray mt-2">
-                F.eks. behandling av spesielle materialer, fargepreferanser, allergier, etc.
-              </p>
-            </div>
-          </div>
-
-          {/* Order Summary */}
-          <div className="lg:sticky lg:top-8">
-            <div className="bg-white rounded-2xl p-8">
-              <h3 className="text-lg font-semibold text-dark-gray mb-6">Oppsummering så langt</h3>
-
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-semibold text-dark-gray mb-1">Hentingsdato</h4>
-                  <p className="text-medium-gray">
-                    {new Date(orderData.pickupDate).toLocaleDateString('no-NO', {
-                      weekday: 'long',
-                      day: 'numeric',
-                      month: 'long'
-                    })} kl. {orderData.pickupTime}
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-semibold text-dark-gray mb-1">Adresse</h4>
-                  <p className="text-medium-gray">
-                    {orderData.address.street}<br/>
-                    {orderData.address.postalCode} {orderData.address.city}
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-semibold text-dark-gray mb-1">Hentingsmåte</h4>
-                  <p className="text-medium-gray">
-                    {orderData.pickupMethod === 'home' && '🏠 Jeg er hjemme'}
-                    {orderData.pickupMethod === 'entrance' && '🚪 Utenfor inngangen'}
-                    {orderData.pickupMethod === 'other' && '📍 Annet sted'}
-                  </p>
-                  {orderData.pickupMethod === 'other' && orderData.otherLocation && (
-                    <p className="text-sm text-medium-gray italic mt-1">
-                      {orderData.otherLocation}
-                    </p>
-                  )}
-                  {orderData.pickupMethod !== 'home' && (
-                    <p className="text-sm text-yellow-700 mt-1">
-                      📸 Husk foto når du plasserer posen
-                    </p>
-                  )}
-                </div>
-              </div>
-
-            </div>
-          </div>
+        {/* Instructions Input */}
+        <div className="bg-white rounded-2xl p-8">
+          <h3 className="text-lg font-semibold text-dark-gray mb-4">Dine instruksjoner</h3>
+          <textarea
+            value={specialInstructions}
+            onChange={(e) => setSpecialInstructions(e.target.value)}
+            placeholder="Skriv dine spesielle ønsker eller instruksjoner her..."
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue resize-none"
+            rows={6}
+          />
+          <p className="text-sm text-medium-gray mt-2">
+            F.eks. behandling av spesielle materialer, fargepreferanser, allergier, etc.
+          </p>
         </div>
 
         {/* Continue Section */}

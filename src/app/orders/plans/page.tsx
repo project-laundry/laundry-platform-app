@@ -168,8 +168,8 @@ export default function PlansPage() {
 
         {/* Back Link */}
         <div className="text-center mt-8">
-          <Link href="/auth/signup" className="text-medium-gray hover:text-dark-gray">
-            ← Tilbake til registrering
+          <Link href="/dashboard" className="text-medium-gray hover:text-dark-gray">
+            ← Tilbake til dashbord
           </Link>
         </div>
       </div>

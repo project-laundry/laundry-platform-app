@@ -11,9 +11,11 @@ interface LaundryItem {
 
 interface OrderData {
   specialInstructions: string;
-  pickupDate: string;
+  pickupDate?: string;
+  pickupWeekday?: string;
   pickupTime: string;
   hasBag?: boolean;
+  plan?: string;
   address: {
     street: string;
     city: string;
@@ -46,6 +48,15 @@ const laundryTypeNames: { [key: string]: string } = {
   'delicates': 'Undertøy/silke',
   'outerwear': 'Yttertøy',
   'other': 'Annet'
+};
+
+const getPlanDetails = (plan: string) => {
+  const plans: { [key: string]: { name: string; price: number } } = {
+    'weekly': { name: 'Ukentlig', price: 399 },
+    'biweekly': { name: 'Annenhver uke', price: 249 },
+    'single': { name: 'Enkeltvask', price: 149 }
+  };
+  return plans[plan] || { name: 'Abonnement', price: 0 };
 };
 
 export default function ConfirmPage() {
@@ -102,12 +113,28 @@ export default function ConfirmPage() {
     }
   }, [useSameAddress, orderData]);
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return 'Ikke valgt';
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Ikke valgt';
     const dayNames = ['Søndag', 'Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag'];
     const monthNames = ['januar', 'februar', 'mars', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'desember'];
 
     return `${dayNames[date.getDay()]} ${date.getDate()}. ${monthNames[date.getMonth()]}`;
+  };
+
+  const formatWeekday = (weekday: string | undefined) => {
+    if (!weekday) return 'Ikke valgt';
+    const weekdayMap: { [key: string]: string } = {
+      'monday': 'Mandag',
+      'tuesday': 'Tirsdag',
+      'wednesday': 'Onsdag',
+      'thursday': 'Torsdag',
+      'friday': 'Fredag',
+      'saturday': 'Lørdag',
+      'sunday': 'Søndag'
+    };
+    return weekdayMap[weekday] || weekday;
   };
 
   const handlePaymentSelect = (paymentId: string) => {
@@ -245,7 +272,9 @@ export default function ConfirmPage() {
                 <div>
                   <h4 className="font-semibold text-dark-gray mb-1">Dato og tid</h4>
                   <p className="text-medium-gray">
-                    {formatDate(orderData.pickupDate)} kl. {orderData.pickupTime}
+                    {orderData.pickupDate
+                      ? `${formatDate(orderData.pickupDate)} kl. ${orderData.pickupTime}`
+                      : `${formatWeekday(orderData.pickupWeekday)} kl. ${orderData.pickupTime}`}
                   </p>
                 </div>
 
@@ -294,27 +323,26 @@ export default function ConfirmPage() {
                 <h3 className="text-lg font-semibold text-dark-gray mb-6">Bestillingssammendrag</h3>
 
                 <div className="space-y-4 mb-6">
-                  <div className="flex justify-between items-center">
-                    <span className="text-medium-gray">Tjeneste</span>
-                    <span className="text-dark-gray font-semibold">NooraCare-pose</span>
-                  </div>
+                  {orderData.plan && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-medium-gray">Abonnement</span>
+                      <span className="text-dark-gray font-semibold">{getPlanDetails(orderData.plan).name}</span>
+                    </div>
+                  )}
 
-                  <div className="flex justify-between items-center">
-                    <span className="text-medium-gray">Henting og levering</span>
-                    <span className="text-dark-gray font-semibold">Inkludert</span>
-                  </div>
-
-                  <div className="flex justify-between items-center">
-                    <span className="text-medium-gray">Leveringstid</span>
-                    <span className="text-dark-gray font-semibold">2-3 dager</span>
-                  </div>
+                  {orderData.hasBag === false && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-medium-gray">NooraCare-pose</span>
+                      <span className="text-dark-gray font-semibold">Gratis</span>
+                    </div>
+                  )}
 
                   <div className="border-t border-gray-200 pt-4">
                     <div className="flex justify-between items-center">
                       <span className="text-lg font-semibold text-dark-gray">Total</span>
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-success-green">Gratis</p>
-                        <p className="text-sm text-medium-gray">Inkludert i abonnement</p>
+                        <p className="text-2xl font-bold text-nordic-blue">{orderData.plan ? getPlanDetails(orderData.plan).price : 0} kr</p>
+                        <p className="text-sm text-medium-gray">{orderData.plan && orderData.plan !== 'single' ? 'per måned' : 'engangsbeløp'}</p>
                       </div>
                     </div>
                   </div>
