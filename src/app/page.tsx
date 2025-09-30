@@ -60,7 +60,7 @@ export default function Home() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a4 4 0 118 0v4m-4 11v-1a4 4 0 118 0v1M3 11h18" />
                   </svg>
                 </div>
-                <h4 className="text-2xl font-bold text-dark-gray mb-3">1. Bestill henting</h4>
+                <h4 className="text-2xl font-bold text-dark-gray mb-3">1. Bestill klesvask</h4>
                 <p className="text-medium-gray leading-relaxed">
                   Velg tid som passer deg. Vi kommer og henter vasken hjemme hos deg.
                 </p>

@@ -34,10 +34,25 @@ interface StatusConfig {
   };
 }
 
-const journeyStateConfigs: Record<CustomerJourneyState, StatusConfig> = {
+const journeyStateConfigs: Record<CustomerJourneyState, StatusConfig> = {  
+  no_active_order: {
+    title: 'Ingen aktive bestillinger',
+    description: 'Du har ikke noen aktive bestillinger for øyeblikket. Bestill klesvask når det passer deg!',
+    badge: {
+      text: 'Klar for bestilling',
+      className: 'bg-green-100 text-green-800'
+    },
+    icon: '✅',
+    orderButton: {
+      text: 'Bestill klesvask',
+      href: '/auth/plans',
+      disabled: false,
+      className: 'block w-full bg-nordic-blue text-white text-center font-semibold py-2 rounded-lg hover:bg-blue-600 transition-colors'
+    }
+  },
   awaiting_bag: {
     title: 'Venter på poseleveranse',
-    description: 'Vi sender deg en NooraCare-pose i løpet av 3-5 virkedager. Du kan bestille henting når posen er levert og aktivert.',
+    description: 'Vi sender deg en NooraCare-pose i løpet av 3-5 virkedager. Du kan bestille klesvask når posen er levert og aktivert.',
     badge: {
       text: 'Venter på levering',
       className: 'bg-orange-100 text-orange-800'
@@ -49,21 +64,6 @@ const journeyStateConfigs: Record<CustomerJourneyState, StatusConfig> = {
       className: 'w-full bg-gray-200 text-gray-400 font-semibold py-2 rounded-lg cursor-not-allowed'
     }
   },
-  no_active_order: {
-    title: 'Ingen aktive bestillinger',
-    description: 'Du har ikke noen aktive bestillinger for øyeblikket. Bestill en ny henting når det passer deg!',
-    badge: {
-      text: 'Klar for bestilling',
-      className: 'bg-green-100 text-green-800'
-    },
-    icon: '✅',
-    orderButton: {
-      text: 'Bestill henting',
-      href: '/auth/plans',
-      disabled: false,
-      className: 'block w-full bg-nordic-blue text-white text-center font-semibold py-2 rounded-lg hover:bg-blue-600 transition-colors'
-    }
-  },
   active_order: {
     title: 'Du har en aktiv bestilling!',
     description: 'Din bestilling er i prosess. Du vil få varsling når renseren er på vei for henting og levering.',
@@ -73,7 +73,7 @@ const journeyStateConfigs: Record<CustomerJourneyState, StatusConfig> = {
     },
     icon: '🚚',
     orderButton: {
-      text: 'Bestill ny henting',
+      text: 'Bestill klesvask',
       href: '/auth/plans',
       disabled: false,
       className: 'block w-full bg-nordic-blue text-white text-center font-semibold py-2 rounded-lg hover:bg-blue-600 transition-colors'
@@ -93,7 +93,7 @@ const journeyStateConfigs: Record<CustomerJourneyState, StatusConfig> = {
     },
     icon: '📦',
     orderButton: {
-      text: 'Bestill ny henting',
+      text: 'Bestill klesvask',
       href: '/auth/plans',
       disabled: false,
       className: 'block w-full bg-nordic-blue text-white text-center font-semibold py-2 rounded-lg hover:bg-blue-600 transition-colors'
@@ -103,7 +103,7 @@ const journeyStateConfigs: Record<CustomerJourneyState, StatusConfig> = {
 
 export default function DashboardPage() {
   // Customer journey state (independent from notifications)
-  const [currentJourneyState, setCurrentJourneyState] = useState<CustomerJourneyState>('awaiting_bag');
+  const [currentJourneyState, setCurrentJourneyState] = useState<CustomerJourneyState>('no_active_order');
 
   // Independent notification triggers
   const [notificationTriggers, setNotificationTriggers] = useState<NotificationTriggers>(
@@ -295,7 +295,7 @@ export default function DashboardPage() {
         <div className="grid md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-2xl p-6 border border-gray-200">
             <div className="text-4xl mb-4">👕</div>
-            <h4 className="text-lg font-bold text-dark-gray mb-2">Bestill henting</h4>
+            <h4 className="text-lg font-bold text-dark-gray mb-2">Bestill klesvask</h4>
             <p className="text-medium-gray mb-4">
               Få klærne dine hentet og vasket
             </p>

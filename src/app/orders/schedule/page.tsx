@@ -226,29 +226,6 @@ export default function SchedulePage() {
           </p>
         </div>
 
-        {/* Bag Delivery Notice */}
-        {!hasBag && (plan === 'single' && selectedDate || plan !== 'single' && selectedWeekday) && (
-          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 mb-8">
-            <div className="flex items-start">
-              <div className="text-2xl mr-3">📦</div>
-              <div>
-                <h3 className="text-lg font-semibold text-dark-gray mb-2">NooraCare-pose leveres først</h3>
-                {plan === 'single' && selectedDate ? (
-                  <p className="text-medium-gray">
-                    Vi leverer en gratis NooraCare-pose <span className="font-semibold text-dark-gray">{getBagDeliveryInfo(selectedDate).bagDeliveryDay} {getBagDeliveryInfo(selectedDate).bagDeliveryDate}</span> (dagen før levering).
-                    Du får SMS når posen er levert, så du kan fylle den med tøy til levering {getDeliveryDateInfo(selectedDate).deliveryDay} {getDeliveryDateInfo(selectedDate).deliveryDate}.
-                  </p>
-                ) : selectedWeekday ? (
-                  <p className="text-medium-gray">
-                    Vi leverer en gratis NooraCare-pose <span className="font-semibold text-dark-gray">{getWeekdayDeliveryInfo(selectedWeekday).bagDeliveryDay} {getWeekdayDeliveryInfo(selectedWeekday).bagDeliveryDate}</span> (dagen før din første levering).
-                    Du får SMS når posen er levert, så du kan fylle den med tøy til neste dag.
-                  </p>
-                ) : null}
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Date or Weekday Selection based on plan type */}
         {plan === 'single' ? (
           /* Date Selection for single plan */
@@ -377,6 +354,29 @@ export default function SchedulePage() {
                   display: none;
                 }
               `}</style>
+            </div>
+          </div>
+        )}
+
+        {/* Bag Delivery Notice */}
+        {!hasBag && (plan === 'single' && selectedDate || plan !== 'single' && selectedWeekday) && (
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 mb-8">
+            <div className="flex items-start">
+              <div className="text-2xl mr-3">📦</div>
+              <div>
+                <h3 className="text-lg font-semibold text-dark-gray mb-2">NooraCare-pose leveres først</h3>
+                {plan === 'single' && selectedDate ? (
+                  <p className="text-medium-gray">
+                    Vi leverer en gratis NooraCare-pose <span className="font-semibold text-dark-gray">{getBagDeliveryInfo(selectedDate).bagDeliveryDay} {getBagDeliveryInfo(selectedDate).bagDeliveryDate}</span> (dagen før levering).
+                    Du får SMS når posen er levert, så du kan fylle den med tøy til levering {getDeliveryDateInfo(selectedDate).deliveryDay} {getDeliveryDateInfo(selectedDate).deliveryDate}.
+                  </p>
+                ) : selectedWeekday ? (
+                  <p className="text-medium-gray">
+                    Vi leverer en gratis NooraCare-pose <span className="font-semibold text-dark-gray">{getWeekdayDeliveryInfo(selectedWeekday).bagDeliveryDay} {getWeekdayDeliveryInfo(selectedWeekday).bagDeliveryDate}</span> (dagen før din første levering).
+                    Du får SMS når posen er levert, så du kan fylle den med tøy til neste dag.
+                  </p>
+                ) : null}
+              </div>
             </div>
           </div>
         )}
