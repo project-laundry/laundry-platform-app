@@ -351,11 +351,11 @@ export default function SchedulePage() {
                 <h3 className="text-xl font-bold text-dark-gray mb-3">NooraCare-pose leveres først</h3>
                 {plan === 'single' && selectedDate ? (
                   <p className="text-medium-gray leading-relaxed">
-                    Vi leverer en gratis NooraCare-pose <span className="font-semibold text-dark-gray">Onsdag 1. oktober</span> (dagen før din første levering). Du får SMS når posen er levert, så du kan fylle den med tøy til neste dag.
+                    Vi leverer en gratis NooraCare-pose <span className="font-semibold text-dark-gray">Onsdag 1. oktober</span> (dagen før din første henting). Du får SMS når posen er levert, så du kan fylle den med tøy til neste dag.
                   </p>
                 ) : selectedWeekday ? (
                   <p className="text-medium-gray leading-relaxed">
-                    Vi leverer en gratis NooraCare-pose <span className="font-semibold text-dark-gray">{getWeekdayDeliveryInfo(selectedWeekday).bagDeliveryDay} {getWeekdayDeliveryInfo(selectedWeekday).bagDeliveryDate}</span> (dagen før din første levering).
+                    Vi leverer en gratis NooraCare-pose <span className="font-semibold text-dark-gray">{getWeekdayDeliveryInfo(selectedWeekday).bagDeliveryDay} {getWeekdayDeliveryInfo(selectedWeekday).bagDeliveryDate}</span> (dagen før din første henting).
                     Du får SMS når posen er levert, så du kan fylle den med tøy til neste dag.
                   </p>
                 ) : null}
