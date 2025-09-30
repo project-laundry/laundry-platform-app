@@ -71,7 +71,7 @@ export default function PlansPage() {
   const handleContinue = () => {
     console.log('Selected plan:', selectedPlan);
     // Redirect to bag selection page after plan selection
-    window.location.href = `/orders/new?plan=${selectedPlan}`;
+    window.location.href = `/orders/bag-check?plan=${selectedPlan}`;
   };
 
   return (

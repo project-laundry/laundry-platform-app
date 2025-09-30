@@ -21,7 +21,7 @@ export default function OrderSuccessPage() {
   };
 
   const handleNewOrder = () => {
-    window.location.href = '/orders/new';
+    window.location.href = '/orders/bag-check';
   };
 
   return (
@@ -88,7 +88,7 @@ export default function OrderSuccessPage() {
                 <h3 className="font-semibold text-dark-gray mb-2">Kontaktinformasjon</h3>
                 <div className="text-sm text-medium-gray space-y-2">
                   <p>
-                    <span className="font-medium">E-post:</span> hei@renvask.no
+                    <span className="font-medium">E-post:</span> hei@nooracare.no
                   </p>
                   <p>
                     <span className="font-medium">Telefon:</span> +47 123 45 678

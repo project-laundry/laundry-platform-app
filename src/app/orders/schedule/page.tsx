@@ -567,7 +567,7 @@ export default function SchedulePage() {
         {/* Continue Button */}
         <div className="flex justify-between items-center">
           <Link
-            href="/orders/new"
+            href="/orders/bag-check"
             className="text-medium-gray hover:text-dark-gray"
           >
             ← Tilbake
