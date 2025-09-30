@@ -218,3 +218,13 @@ A peer-to-peer laundry platform that connects busy professionals and families wi
 ---
 
 *This PRD serves as the foundation for development and should be reviewed and updated regularly as the product evolves and market feedback is incorporated.*
+
+## Kjerneprodukt
+
+- Vaskepose (5 kg skittentøy).
+- Henting → Vask/stryk → Levering tilbake (innen 48 timer).
+- Abonnementsmodeller:
+  - Ukentlig (399 kr/mnd).
+  - Annenhver uke (249 kr/mnd).
+  - Enkeltvask (149–199 kr).
+  - Tillegg: Skjorter, kjoler, sengetøy.

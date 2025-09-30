@@ -2,18 +2,21 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
 export default function NewOrderPage() {
+  const searchParams = useSearchParams();
+  const plan = searchParams.get('plan') || 'single';
   const [hasBag, setHasBag] = useState<boolean | null>(null);
 
   const handleContinue = () => {
-    // Proceed to plan selection regardless of bag status
-    window.location.href = '/auth/plans';
+    // Pass hasBag=true to schedule page
+    window.location.href = `/orders/schedule?plan=${plan}&hasBag=true`;
   };
 
   const handleRequestBag = () => {
-    // Proceed to plan selection - they'll receive bag after payment
-    window.location.href = '/auth/plans';
+    // Pass hasBag=false to schedule page - they'll receive bag before pickup
+    window.location.href = `/orders/schedule?plan=${plan}&hasBag=false`;
   };
 
   return (
@@ -89,7 +92,7 @@ export default function NewOrderPage() {
                 onClick={handleContinue}
                 className="bg-nordic-blue text-white font-semibold px-8 py-3 rounded-lg hover:bg-blue-600 transition-colors text-lg"
               >
-                Velg abonnement
+                Planlegg henting
               </button>
             </div>
           </div>
@@ -102,8 +105,8 @@ export default function NewOrderPage() {
               <div className="text-5xl mb-4">📦</div>
               <h3 className="text-2xl font-bold text-dark-gray mb-3">Perfekt! Vi ordner det.</h3>
               <p className="text-medium-gray mb-6">
-                Du får en gratis NooraCare-pose tilsendt sammen med første vask.<br />
-                Velg abonnement og planlegg henting – posen kommer i god tid før første henting.
+                Du får en gratis NooraCare-pose levert dagen før første henting.<br />
+                Fortsett med å planlegge henting – posen leveres automatisk i god tid.
               </p>
             </div>
 
@@ -119,7 +122,7 @@ export default function NewOrderPage() {
                 onClick={handleRequestBag}
                 className="bg-nordic-blue text-white font-semibold px-8 py-3 rounded-lg hover:bg-blue-600 transition-colors text-lg"
               >
-                Velg abonnement
+                Planlegg henting
               </button>
             </div>
           </div>

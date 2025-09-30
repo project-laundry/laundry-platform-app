@@ -13,6 +13,7 @@ interface OrderData {
   specialInstructions: string;
   pickupDate: string;
   pickupTime: string;
+  hasBag?: boolean;
   address: {
     street: string;
     city: string;
@@ -22,6 +23,18 @@ interface OrderData {
   pickupMethod: 'home' | 'entrance' | 'other';
   otherLocation: string;
 }
+
+interface PaymentMethod {
+  id: string;
+  name: string;
+  type: 'card' | 'vipps';
+  icon: string;
+}
+
+const paymentMethods: PaymentMethod[] = [
+  { id: 'vipps', name: 'Vipps', type: 'vipps', icon: '📱' },
+  { id: 'card', name: 'Bankkort', type: 'card', icon: '💳' },
+];
 
 const laundryTypeNames: { [key: string]: string } = {
   'shirts': 'Skjorter/bluser',
@@ -39,6 +52,21 @@ export default function ConfirmPage() {
   const searchParams = useSearchParams();
   const [orderData, setOrderData] = useState<OrderData | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<string>('vipps');
+  const [showCardForm, setShowCardForm] = useState(false);
+  const [cardForm, setCardForm] = useState({
+    cardNumber: '',
+    expiryDate: '',
+    cvv: '',
+    cardholderName: '',
+  });
+  const [useSameAddress, setUseSameAddress] = useState(true);
+  const [billingAddress, setBillingAddress] = useState({
+    street: '',
+    city: '',
+    postalCode: '',
+    country: 'Norge',
+  });
 
   useEffect(() => {
     const data = searchParams.get('data');
@@ -52,6 +80,28 @@ export default function ConfirmPage() {
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    setShowCardForm(selectedPayment === 'card');
+  }, [selectedPayment]);
+
+  useEffect(() => {
+    if (useSameAddress && orderData?.address) {
+      setBillingAddress({
+        street: orderData.address.street,
+        city: orderData.address.city,
+        postalCode: orderData.address.postalCode,
+        country: 'Norge',
+      });
+    } else if (!useSameAddress) {
+      setBillingAddress({
+        street: '',
+        city: '',
+        postalCode: '',
+        country: 'Norge',
+      });
+    }
+  }, [useSameAddress, orderData]);
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const dayNames = ['Søndag', 'Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag'];
@@ -60,18 +110,40 @@ export default function ConfirmPage() {
     return `${dayNames[date.getDay()]} ${date.getDate()}. ${monthNames[date.getMonth()]}`;
   };
 
-  const handleConfirmOrder = async () => {
+  const handlePaymentSelect = (paymentId: string) => {
+    setSelectedPayment(paymentId);
+  };
+
+  const handleCardFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setCardForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setBillingAddress(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleConfirmOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!orderData) return;
 
     setIsSubmitting(true);
 
-    // Redirect to payment page
+    // Mock payment processing
     try {
-      console.log('Proceeding to payment with order:', orderData);
-      const encodedData = encodeURIComponent(JSON.stringify(orderData));
-      window.location.href = `/auth/payment?data=${encodedData}`;
+      console.log('Processing payment:', {
+        order: orderData,
+        paymentMethod: selectedPayment,
+        cardForm: selectedPayment === 'card' ? cardForm : null,
+        billingAddress
+      });
+
+      // Mock success - redirect to order success page
+      const mockOrderId = 'NC' + Math.random().toString(36).substr(2, 8).toUpperCase();
+      window.location.href = `/orders/success?orderId=${mockOrderId}`;
     } catch (error) {
-      console.error('Navigation failed:', error);
+      console.error('Payment failed:', error);
       alert('Det oppstod en feil. Vennligst prøv igjen.');
       setIsSubmitting(false);
     }
@@ -121,54 +193,50 @@ export default function ConfirmPage() {
               </div>
               <span className="ml-2 text-success-green font-medium">Instruksjoner</span>
             </div>
-            <div className="w-8 h-0.5 bg-success-green"></div>
+            <div className="w-8 h-0.5 bg-nordic-blue"></div>
             <div className="flex items-center">
               <div className="w-8 h-8 bg-nordic-blue text-white rounded-full flex items-center justify-center text-sm font-semibold">
                 3
               </div>
-              <span className="ml-2 text-nordic-blue font-medium">Bekreft</span>
+              <span className="ml-2 text-nordic-blue font-medium">Bekreft & Betal</span>
             </div>
           </div>
         </div>
 
         {/* Page Header */}
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-dark-gray mb-4">Bekreft bestilling</h2>
+          <h2 className="text-3xl font-bold text-dark-gray mb-4">Bekreft og fullfør bestilling</h2>
           <p className="text-xl text-medium-gray">
-            Sjekk at alt stemmer før vi bekrefter din henting.
+            Sjekk at alt stemmer og fullfør betaling.
           </p>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Order Details */}
           <div className="space-y-6">
-            {/* Service Details */}
-            <div className="bg-white rounded-2xl p-8">
-              <h3 className="text-lg font-semibold text-dark-gray mb-6">Tjeneste</h3>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center">
-                    <span className="text-2xl mr-3">👕</span>
-                    <span className="text-dark-gray">NooraCare-pose henting og vask</span>
+            {/* Bag Delivery Notice if user doesn't have a bag */}
+            {orderData.hasBag === false && (
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6">
+                <div className="flex items-start">
+                  <div className="text-2xl mr-3">📦</div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-dark-gray mb-2">NooraCare-pose leveres først</h3>
+                    <p className="text-medium-gray">
+                      Vi leverer en gratis NooraCare-pose <span className="font-semibold text-dark-gray">dagen før</span> din valgte henting.
+                      Du får SMS når posen er levert. Fyll den med tøy, og vi henter den neste dag.
+                    </p>
                   </div>
-                  <span className="font-semibold text-success-green">Inkludert</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center">
-                    <span className="text-2xl mr-3">🚚</span>
-                    <span className="text-dark-gray">Henting og levering</span>
-                  </div>
-                  <span className="font-semibold text-success-green">Inkludert</span>
                 </div>
               </div>
+            )}
 
-              {orderData.specialInstructions && (
-                <div className="mt-6 pt-6 border-t border-gray-200">
-                  <h4 className="font-semibold text-dark-gray mb-2">Spesielle instruksjoner</h4>
-                  <p className="text-medium-gray italic">"{orderData.specialInstructions}"</p>
-                </div>
-              )}
-            </div>
+            {/* Special Instructions if provided */}
+            {orderData.specialInstructions && (
+              <div className="bg-white rounded-2xl p-8">
+                <h3 className="text-lg font-semibold text-dark-gray mb-4">Spesielle instruksjoner</h3>
+                <p className="text-medium-gray italic">"{orderData.specialInstructions}"</p>
+              </div>
+            )}
 
             {/* Pickup Details */}
             <div className="bg-white rounded-2xl p-8">
@@ -218,40 +286,212 @@ export default function ConfirmPage() {
             </div>
           </div>
 
-          {/* Order Summary */}
-          <div className="lg:sticky lg:top-8">
-            <div className="bg-white rounded-2xl p-8">
-              <h3 className="text-lg font-semibold text-dark-gray mb-6">Bestillingssammendrag</h3>
+          {/* Payment and Order Summary */}
+          <div className="space-y-6">
+            <form onSubmit={handleConfirmOrder} className="space-y-6">
+              {/* Order Summary */}
+              <div className="bg-white rounded-2xl p-8">
+                <h3 className="text-lg font-semibold text-dark-gray mb-6">Bestillingssammendrag</h3>
 
-              <div className="space-y-4 mb-6">
-                <div className="flex justify-between items-center">
-                  <span className="text-medium-gray">Tjeneste</span>
-                  <span className="text-dark-gray font-semibold">NooraCare-pose</span>
-                </div>
-
-                <div className="flex justify-between items-center">
-                  <span className="text-medium-gray">Henting og levering</span>
-                  <span className="text-dark-gray font-semibold">Inkludert</span>
-                </div>
-
-                <div className="flex justify-between items-center">
-                  <span className="text-medium-gray">Leveringstid</span>
-                  <span className="text-dark-gray font-semibold">2-3 dager</span>
-                </div>
-
-                <div className="border-t border-gray-200 pt-4">
+                <div className="space-y-4 mb-6">
                   <div className="flex justify-between items-center">
-                    <span className="text-lg font-semibold text-dark-gray">Total</span>
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-success-green">Gratis</p>
-                      <p className="text-sm text-medium-gray">Inkludert i abonnement</p>
+                    <span className="text-medium-gray">Tjeneste</span>
+                    <span className="text-dark-gray font-semibold">NooraCare-pose</span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-medium-gray">Henting og levering</span>
+                    <span className="text-dark-gray font-semibold">Inkludert</span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-medium-gray">Leveringstid</span>
+                    <span className="text-dark-gray font-semibold">2-3 dager</span>
+                  </div>
+
+                  <div className="border-t border-gray-200 pt-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-lg font-semibold text-dark-gray">Total</span>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-success-green">Gratis</p>
+                        <p className="text-sm text-medium-gray">Inkludert i abonnement</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Method Selection */}
+              <div className="bg-white rounded-2xl p-8">
+                <h3 className="text-lg font-semibold text-dark-gray mb-4">Betalingsmåte</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  {paymentMethods.map((method) => (
+                    <div
+                      key={method.id}
+                      className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                        selectedPayment === method.id
+                          ? 'border-nordic-blue bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                      onClick={() => handlePaymentSelect(method.id)}
+                    >
+                      <div className="flex items-center justify-center">
+                        <span className="text-2xl mr-2">{method.icon}</span>
+                        <span className="font-semibold text-dark-gray">{method.name}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Card Details Form */}
+              {showCardForm && (
+                <div className="bg-white rounded-2xl p-8">
+                  <h4 className="text-lg font-semibold text-dark-gray mb-4">Kortdetaljer</h4>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-dark-gray mb-2">
+                        Kortnummer
+                      </label>
+                      <input
+                        type="text"
+                        name="cardNumber"
+                        value={cardForm.cardNumber}
+                        onChange={handleCardFormChange}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue"
+                        placeholder="1234 5678 9012 3456"
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-dark-gray mb-2">
+                          Utløpsdato
+                        </label>
+                        <input
+                          type="text"
+                          name="expiryDate"
+                          value={cardForm.expiryDate}
+                          onChange={handleCardFormChange}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue"
+                          placeholder="MM/YY"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-dark-gray mb-2">
+                          CVV
+                        </label>
+                        <input
+                          type="text"
+                          name="cvv"
+                          value={cardForm.cvv}
+                          onChange={handleCardFormChange}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue"
+                          placeholder="123"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-dark-gray mb-2">
+                        Kortholders navn
+                      </label>
+                      <input
+                        type="text"
+                        name="cardholderName"
+                        value={cardForm.cardholderName}
+                        onChange={handleCardFormChange}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue"
+                        placeholder="Ola Nordmann"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Billing Address */}
+              <div className="bg-white rounded-2xl p-8">
+                <h4 className="text-lg font-semibold text-dark-gray mb-4">Fakturaadresse</h4>
+
+                {/* Use Same Address Checkbox */}
+                <div className="mb-6">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={useSameAddress}
+                      onChange={(e) => setUseSameAddress(e.target.checked)}
+                      className="w-4 h-4 text-nordic-blue bg-gray-100 border-gray-300 rounded focus:ring-nordic-blue focus:ring-2"
+                    />
+                    <span className="ml-3 text-sm font-medium text-dark-gray">
+                      Bruk samme adresse som leveringsadresse
+                    </span>
+                  </label>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-dark-gray mb-2">
+                      Gateadresse
+                    </label>
+                    <input
+                      type="text"
+                      name="street"
+                      value={billingAddress.street}
+                      onChange={handleAddressChange}
+                      disabled={useSameAddress}
+                      className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue ${
+                        useSameAddress ? 'bg-gray-100 cursor-not-allowed' : ''
+                      }`}
+                      placeholder="Storgata 1"
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-dark-gray mb-2">
+                        By
+                      </label>
+                      <input
+                        type="text"
+                        name="city"
+                        value={billingAddress.city}
+                        onChange={handleAddressChange}
+                        disabled={useSameAddress}
+                        className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue ${
+                          useSameAddress ? 'bg-gray-100 cursor-not-allowed' : ''
+                        }`}
+                        placeholder="Bergen"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-dark-gray mb-2">
+                        Postnummer
+                      </label>
+                      <input
+                        type="text"
+                        name="postalCode"
+                        value={billingAddress.postalCode}
+                        onChange={handleAddressChange}
+                        disabled={useSameAddress}
+                        className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue ${
+                          useSameAddress ? 'bg-gray-100 cursor-not-allowed' : ''
+                        }`}
+                        placeholder="5001"
+                        required
+                      />
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Important Notice */}
-              <div className="bg-blue-50 rounded-lg p-4 mb-6">
+              <div className="bg-blue-50 rounded-lg p-4">
                 <div className="flex items-start">
                   <div className="text-blue-500 mr-3 mt-0.5">ℹ️</div>
                   <div>
@@ -266,9 +506,9 @@ export default function ConfirmPage() {
                 </div>
               </div>
 
-              {/* Confirm Button */}
+              {/* Submit Button */}
               <button
-                onClick={handleConfirmOrder}
+                type="submit"
                 disabled={isSubmitting}
                 className={`w-full py-4 rounded-lg font-semibold text-lg transition-colors ${
                   isSubmitting
@@ -282,14 +522,14 @@ export default function ConfirmPage() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    Bekrefter bestilling...
+                    Behandler bestilling...
                   </span>
                 ) : (
-                  'Bekreft bestilling'
+                  selectedPayment === 'vipps' ? 'Betal med Vipps' : 'Fullfør betaling'
                 )}
               </button>
 
-              <div className="text-center mt-4">
+              <div className="text-center">
                 <Link
                   href={`/orders/instructions?data=${searchParams.get('data')}`}
                   className="text-medium-gray hover:text-dark-gray text-sm"
@@ -297,7 +537,7 @@ export default function ConfirmPage() {
                   ← Tilbake til instruksjoner
                 </Link>
               </div>
-            </div>
+            </form>
           </div>
         </div>
       </div>

@@ -70,13 +70,8 @@ export default function PlansPage() {
 
   const handleContinue = () => {
     console.log('Selected plan:', selectedPlan);
-    // Redirect to schedule page after plan selection
-    const params = new URLSearchParams();
-    params.set('plan', selectedPlan);
-    if (addressParam) {
-      params.set('address', addressParam);
-    }
-    window.location.href = `/orders/schedule?${params.toString()}`;
+    // Redirect to bag selection page after plan selection
+    window.location.href = `/orders/new?plan=${selectedPlan}`;
   };
 
   return (

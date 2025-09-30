@@ -59,7 +59,7 @@ const journeyStateConfigs: Record<CustomerJourneyState, StatusConfig> = {
     icon: '✅',
     orderButton: {
       text: 'Bestill henting',
-      href: '/orders/new',
+      href: '/auth/plans',
       disabled: false,
       className: 'block w-full bg-nordic-blue text-white text-center font-semibold py-2 rounded-lg hover:bg-blue-600 transition-colors'
     }
@@ -74,7 +74,7 @@ const journeyStateConfigs: Record<CustomerJourneyState, StatusConfig> = {
     icon: '🚚',
     orderButton: {
       text: 'Bestill ny henting',
-      href: '/orders/new',
+      href: '/auth/plans',
       disabled: false,
       className: 'block w-full bg-nordic-blue text-white text-center font-semibold py-2 rounded-lg hover:bg-blue-600 transition-colors'
     },
@@ -94,7 +94,7 @@ const journeyStateConfigs: Record<CustomerJourneyState, StatusConfig> = {
     icon: '📦',
     orderButton: {
       text: 'Bestill ny henting',
-      href: '/orders/new',
+      href: '/auth/plans',
       disabled: false,
       className: 'block w-full bg-nordic-blue text-white text-center font-semibold py-2 rounded-lg hover:bg-blue-600 transition-colors'
     }

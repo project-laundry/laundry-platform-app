@@ -4,32 +4,32 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
-interface TimeSlot {
-  time: string;
-  available: boolean;
-}
-
 interface LaundryItem {
   type: string;
   quantity: number;
 }
 
-const timeSlots: TimeSlot[] = [
-  { time: '08:00-10:00', available: true },
-  { time: '10:00-12:00', available: true },
-  { time: '12:00-14:00', available: false },
-  { time: '14:00-16:00', available: true },
-  { time: '16:00-18:00', available: true },
-  { time: '18:00-20:00', available: false }
+const FIXED_PICKUP_TIME = '15:00-20:00';
+
+const weekdays = [
+  { value: 'monday' as const, label: 'Mandag', dayIndex: 1 },
+  { value: 'tuesday' as const, label: 'Tirsdag', dayIndex: 2 },
+  { value: 'wednesday' as const, label: 'Onsdag', dayIndex: 3 },
+  { value: 'thursday' as const, label: 'Torsdag', dayIndex: 4 },
+  { value: 'friday' as const, label: 'Fredag', dayIndex: 5 },
+  { value: 'saturday' as const, label: 'Lørdag', dayIndex: 6 },
+  { value: 'sunday' as const, label: 'Søndag', dayIndex: 0 }
 ];
 
-const getNext7Days = () => {
+const getNextDeliveryDays = (hasBag: boolean, count: number = 7) => {
   const days = [];
   const today = new Date();
+  // If no bag, skip tomorrow (bag delivery day) and start from day after tomorrow
+  const startOffset = hasBag ? 1 : 2;
 
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < count; i++) {
     const date = new Date(today);
-    date.setDate(today.getDate() + i);
+    date.setDate(today.getDate() + startOffset + i);
 
     const dayNames = ['Søndag', 'Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag'];
     const monthNames = ['jan', 'feb', 'mar', 'apr', 'mai', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'des'];
@@ -39,18 +39,22 @@ const getNext7Days = () => {
       dayName: dayNames[date.getDay()],
       dayNum: date.getDate(),
       monthName: monthNames[date.getMonth()],
-      isToday: i === 0,
-      isTomorrow: i === 1
+      weekdayValue: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][date.getDay()] as Weekday,
+      isFirstOption: i === 0
     });
   }
 
   return days;
 };
 
+type Weekday = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+
 export default function SchedulePage() {
   const searchParams = useSearchParams();
+  const plan = searchParams.get('plan') || 'single';
+  const hasBag = searchParams.get('hasBag') === 'true';
   const [selectedDate, setSelectedDate] = useState<string>('');
-  const [selectedTime, setSelectedTime] = useState<string>('');
+  const [selectedWeekday, setSelectedWeekday] = useState<Weekday | ''>('');
   const [address, setAddress] = useState({
     street: '',
     city: 'Bergen',
@@ -61,18 +65,69 @@ export default function SchedulePage() {
   const [pickupMethod, setPickupMethod] = useState<'home' | 'entrance' | 'other'>('home');
   const [otherLocation, setOtherLocation] = useState('');
 
-  useEffect(() => {
-    // Set default to tomorrow if no date is selected
-    if (!selectedDate) {
-      const days = getNext7Days();
-      if (days.length > 1) {
-        const tomorrow = days[1];
-        setSelectedDate(`${tomorrow.date.getFullYear()}-${String(tomorrow.date.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.date.getDate()).padStart(2, '0')}`);
-      }
-    }
-  }, [selectedDate]);
+  // Helper function to get delivery date info (the selected date is the delivery date)
+  const getDeliveryDateInfo = (dateString: string) => {
+    const date = new Date(dateString);
+    const dayNames = ['Søndag', 'Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag'];
+    return {
+      deliveryDay: dayNames[date.getDay()],
+      deliveryDate: `${date.getDate()}. ${['januar', 'februar', 'mars', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'desember'][date.getMonth()]}`
+    };
+  };
 
-  const days = getNext7Days();
+  // Helper function to get bag delivery date (one day before delivery)
+  const getBagDeliveryInfo = (dateString: string) => {
+    const deliveryDate = new Date(dateString);
+    const bagDate = new Date(deliveryDate);
+    bagDate.setDate(deliveryDate.getDate() - 1);
+
+    const dayNames = ['Søndag', 'Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag'];
+    return {
+      bagDeliveryDay: dayNames[bagDate.getDay()],
+      bagDeliveryDate: `${bagDate.getDate()}. ${['januar', 'februar', 'mars', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'desember'][bagDate.getMonth()]}`
+    };
+  };
+
+  // Helper function to get delivery info for recurring weekday
+  const getWeekdayDeliveryInfo = (weekday: Weekday) => {
+    const selectedDay = weekdays.find(d => d.value === weekday);
+    if (!selectedDay) return { deliveryDay: '', deliveryDate: '', bagDeliveryDay: '', bagDeliveryDate: '' };
+
+    const today = new Date();
+    const currentDayIndex = today.getDay();
+
+    // Calculate days until next occurrence
+    let daysUntil = selectedDay.dayIndex - currentDayIndex;
+    if (daysUntil <= 0) daysUntil += 7;
+
+    const nextDelivery = new Date(today);
+    nextDelivery.setDate(today.getDate() + daysUntil);
+
+    const bagDelivery = new Date(nextDelivery);
+    bagDelivery.setDate(nextDelivery.getDate() - 1);
+
+    const dayNames = ['Søndag', 'Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag'];
+    return {
+      deliveryDay: selectedDay.label,
+      deliveryDate: `${nextDelivery.getDate()}. ${['januar', 'februar', 'mars', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'desember'][nextDelivery.getMonth()]}`,
+      bagDeliveryDay: dayNames[bagDelivery.getDay()],
+      bagDeliveryDate: `${bagDelivery.getDate()}. ${['januar', 'februar', 'mars', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'desember'][bagDelivery.getMonth()]}`
+    };
+  };
+
+  const deliveryDays = getNextDeliveryDays(hasBag);
+
+  useEffect(() => {
+    // Auto-select first available day for single plans
+    if (plan === 'single' && !selectedDate && deliveryDays.length > 0) {
+      const firstDay = deliveryDays[0];
+      setSelectedDate(`${firstDay.date.getFullYear()}-${String(firstDay.date.getMonth() + 1).padStart(2, '0')}-${String(firstDay.date.getDate()).padStart(2, '0')}`);
+    }
+    // Auto-select first available weekday for recurring plans
+    if (plan !== 'single' && !selectedWeekday && deliveryDays.length > 0) {
+      setSelectedWeekday(deliveryDays[0].weekdayValue);
+    }
+  }, [selectedDate, selectedWeekday, plan, deliveryDays, hasBag]);
 
   const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -80,10 +135,19 @@ export default function SchedulePage() {
   };
 
   const handleContinue = () => {
-    if (!selectedDate || !selectedTime) {
-      alert('Vennligst velg dato og tidspunkt');
-      return;
+    // Validate date or weekday selection based on plan type
+    if (plan === 'single') {
+      if (!selectedDate) {
+        alert('Vennligst velg dato');
+        return;
+      }
+    } else {
+      if (!selectedWeekday) {
+        alert('Vennligst velg ukedag');
+        return;
+      }
     }
+
     if (!address.street || !address.postalCode) {
       alert('Vennligst fyll ut adresse');
       return;
@@ -94,8 +158,11 @@ export default function SchedulePage() {
     }
 
     const fullOrderData = {
-      pickupDate: selectedDate,
-      pickupTime: selectedTime,
+      plan,
+      hasBag,
+      pickupDate: plan === 'single' ? selectedDate : undefined,
+      pickupWeekday: plan !== 'single' ? selectedWeekday : undefined,
+      pickupTime: FIXED_PICKUP_TIME,
       address,
       pickupMethod,
       otherLocation: pickupMethod === 'other' ? otherLocation : ''
@@ -153,44 +220,44 @@ export default function SchedulePage() {
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-dark-gray mb-4">Når skal vi hente?</h2>
           <p className="text-xl text-medium-gray">
-            Velg dag og 2-timers vindu som passer deg best.
+            {plan === 'single'
+              ? 'Velg dag for første levering. Dette blir din faste ukedag for ukentlig levering mellom kl. 15:00-20:00.'
+              : 'Velg dag for første levering. Dette blir din faste ukedag for ukentlig levering mellom kl. 15:00-20:00.'}
           </p>
         </div>
 
-        {/* Date Selection */}
-        <div className="bg-white rounded-2xl p-6 sm:p-8 mb-8">
-          <h3 className="text-lg font-semibold text-dark-gray mb-6">Velg dag</h3>
-
-          {/* Desktop: 7 column grid */}
-          <div className="hidden sm:grid grid-cols-7 gap-4">
-            {days.map((day) => {
-              const dateString = `${day.date.getFullYear()}-${String(day.date.getMonth() + 1).padStart(2, '0')}-${String(day.date.getDate()).padStart(2, '0')}`;
-              const isSelected = selectedDate === dateString;
-
-              return (
-                <button
-                  key={dateString}
-                  onClick={() => setSelectedDate(dateString)}
-                  className={`p-4 rounded-lg border-2 text-center transition-colors ${
-                    isSelected
-                      ? 'border-nordic-blue bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="text-sm text-medium-gray mb-1">
-                    {day.isToday ? 'I dag' : day.isTomorrow ? 'I morgen' : day.dayName}
-                  </div>
-                  <div className="font-bold text-dark-gray">{day.dayNum}</div>
-                  <div className="text-xs text-medium-gray">{day.monthName}</div>
-                </button>
-              );
-            })}
+        {/* Bag Delivery Notice */}
+        {!hasBag && (plan === 'single' && selectedDate || plan !== 'single' && selectedWeekday) && (
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 mb-8">
+            <div className="flex items-start">
+              <div className="text-2xl mr-3">📦</div>
+              <div>
+                <h3 className="text-lg font-semibold text-dark-gray mb-2">NooraCare-pose leveres først</h3>
+                {plan === 'single' && selectedDate ? (
+                  <p className="text-medium-gray">
+                    Vi leverer en gratis NooraCare-pose <span className="font-semibold text-dark-gray">{getBagDeliveryInfo(selectedDate).bagDeliveryDay} {getBagDeliveryInfo(selectedDate).bagDeliveryDate}</span> (dagen før levering).
+                    Du får SMS når posen er levert, så du kan fylle den med tøy til levering {getDeliveryDateInfo(selectedDate).deliveryDay} {getDeliveryDateInfo(selectedDate).deliveryDate}.
+                  </p>
+                ) : selectedWeekday ? (
+                  <p className="text-medium-gray">
+                    Vi leverer en gratis NooraCare-pose <span className="font-semibold text-dark-gray">{getWeekdayDeliveryInfo(selectedWeekday).bagDeliveryDay} {getWeekdayDeliveryInfo(selectedWeekday).bagDeliveryDate}</span> (dagen før din første levering).
+                    Du får SMS når posen er levert, så du kan fylle den med tøy til neste dag.
+                  </p>
+                ) : null}
+              </div>
+            </div>
           </div>
+        )}
 
-          {/* Mobile: Horizontal scroll */}
-          <div className="sm:hidden">
-            <div className="flex gap-3 overflow-x-auto pb-2" style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
-              {days.map((day) => {
+        {/* Date or Weekday Selection based on plan type */}
+        {plan === 'single' ? (
+          /* Date Selection for single plan */
+          <div className="bg-white rounded-2xl p-6 sm:p-8 mb-8">
+            <h3 className="text-lg font-semibold text-dark-gray mb-6">Velg første levering</h3>
+
+            {/* Desktop: 7 column grid */}
+            <div className="hidden sm:grid grid-cols-7 gap-4">
+              {deliveryDays.map((day) => {
                 const dateString = `${day.date.getFullYear()}-${String(day.date.getMonth() + 1).padStart(2, '0')}-${String(day.date.getDate()).padStart(2, '0')}`;
                 const isSelected = selectedDate === dateString;
 
@@ -198,54 +265,146 @@ export default function SchedulePage() {
                   <button
                     key={dateString}
                     onClick={() => setSelectedDate(dateString)}
-                    className={`flex-shrink-0 p-3 rounded-lg border-2 text-center transition-colors min-w-[80px] ${
+                    className={`p-4 rounded-lg border-2 text-center transition-colors ${
                       isSelected
                         ? 'border-nordic-blue bg-blue-50'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
-                    <div className="text-xs text-medium-gray mb-1">
-                      {day.isToday ? 'I dag' : day.isTomorrow ? 'I morgen' : day.dayName.substring(0, 3)}
+                    <div className="text-sm text-medium-gray mb-1">
+                      {day.dayName}
                     </div>
-                    <div className="font-bold text-dark-gray text-lg">{day.dayNum}</div>
+                    <div className="font-bold text-dark-gray">{day.dayNum}</div>
                     <div className="text-xs text-medium-gray">{day.monthName}</div>
                   </button>
                 );
               })}
             </div>
-            <style jsx>{`
-              div::-webkit-scrollbar {
-                display: none;
-              }
-            `}</style>
-          </div>
-        </div>
 
-        {/* Time Selection */}
-        <div className="bg-white rounded-2xl p-8 mb-8">
-          <h3 className="text-lg font-semibold text-dark-gray mb-6">Velg tidspunkt</h3>
-          <div className="grid md:grid-cols-3 gap-4">
-            {timeSlots.map((slot) => (
-              <button
-                key={slot.time}
-                onClick={() => slot.available && setSelectedTime(slot.time)}
-                disabled={!slot.available}
-                className={`p-4 rounded-lg border-2 text-center font-semibold transition-colors ${
-                  selectedTime === slot.time
-                    ? 'border-nordic-blue bg-blue-50 text-nordic-blue'
-                    : slot.available
-                    ? 'border-gray-200 hover:border-gray-300 text-dark-gray'
-                    : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
-                }`}
-              >
-                {slot.time}
-                {!slot.available && (
-                  <div className="text-xs mt-1">Opptatt</div>
-                )}
-              </button>
-            ))}
+            {/* Mobile: Horizontal scroll */}
+            <div className="sm:hidden">
+              <div className="flex gap-3 overflow-x-auto pb-2" style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
+                {deliveryDays.map((day) => {
+                  const dateString = `${day.date.getFullYear()}-${String(day.date.getMonth() + 1).padStart(2, '0')}-${String(day.date.getDate()).padStart(2, '0')}`;
+                  const isSelected = selectedDate === dateString;
+
+                  return (
+                    <button
+                      key={dateString}
+                      onClick={() => setSelectedDate(dateString)}
+                      className={`flex-shrink-0 p-3 rounded-lg border-2 text-center transition-colors min-w-[80px] ${
+                        isSelected
+                          ? 'border-nordic-blue bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="text-xs text-medium-gray mb-1">
+                        {day.dayName.substring(0, 3)}
+                      </div>
+                      <div className="font-bold text-dark-gray text-lg">{day.dayNum}</div>
+                      <div className="text-xs text-medium-gray">{day.monthName}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <style jsx>{`
+                div::-webkit-scrollbar {
+                  display: none;
+                }
+              `}</style>
+            </div>
           </div>
-        </div>
+        ) : (
+          /* Weekday Selection for recurring plans */
+          <div className="bg-white rounded-2xl p-6 sm:p-8 mb-8">
+            <h3 className="text-lg font-semibold text-dark-gray mb-6">Velg første levering</h3>
+            <p className="text-medium-gray mb-6">
+              Velg dag for din første levering. Dette blir din faste ukedag for alle fremtidige leveringer.
+            </p>
+
+            {/* Desktop: 7 column grid */}
+            <div className="hidden sm:grid grid-cols-7 gap-4">
+              {deliveryDays.map((day) => {
+                const isSelected = selectedWeekday === day.weekdayValue;
+
+                return (
+                  <button
+                    key={`${day.date.getTime()}`}
+                    onClick={() => setSelectedWeekday(day.weekdayValue)}
+                    className={`p-4 rounded-lg border-2 text-center transition-colors ${
+                      isSelected
+                        ? 'border-nordic-blue bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="text-sm text-medium-gray mb-1">
+                      {day.dayName}
+                    </div>
+                    <div className="font-bold text-dark-gray">{day.dayNum}</div>
+                    <div className="text-xs text-medium-gray">{day.monthName}</div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Mobile: Horizontal scroll */}
+            <div className="sm:hidden">
+              <div className="flex gap-3 overflow-x-auto pb-2" style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
+                {deliveryDays.map((day) => {
+                  const isSelected = selectedWeekday === day.weekdayValue;
+
+                  return (
+                    <button
+                      key={`${day.date.getTime()}`}
+                      onClick={() => setSelectedWeekday(day.weekdayValue)}
+                      className={`flex-shrink-0 p-3 rounded-lg border-2 text-center transition-colors min-w-[80px] ${
+                        isSelected
+                          ? 'border-nordic-blue bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="text-xs text-medium-gray mb-1">
+                        {day.dayName.substring(0, 3)}
+                      </div>
+                      <div className="font-bold text-dark-gray text-lg">{day.dayNum}</div>
+                      <div className="text-xs text-medium-gray">{day.monthName}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <style jsx>{`
+                div::-webkit-scrollbar {
+                  display: none;
+                }
+              `}</style>
+            </div>
+          </div>
+        )}
+
+        {/* Delivery Time Information */}
+        {(plan === 'single' && selectedDate) || (plan !== 'single' && selectedWeekday) ? (
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 mb-8">
+            <div className="flex items-start">
+              <div className="text-2xl mr-3">📅</div>
+              <div>
+                <h3 className="text-lg font-semibold text-dark-gray mb-2">Hentetidspunkt</h3>
+                {plan === 'single' && selectedDate ? (
+                  <p className="text-medium-gray">
+                    Neste henting: <span className="font-semibold text-dark-gray">{getDeliveryDateInfo(selectedDate).deliveryDay} {getDeliveryDateInfo(selectedDate).deliveryDate}</span> mellom kl. <span className="font-semibold text-dark-gray">15:00-20:00</span>
+                    <br />
+                    <span className="text-sm">Deretter hver {getDeliveryDateInfo(selectedDate).deliveryDay.toLowerCase()} til samme tid.</span>
+                  </p>
+                ) : selectedWeekday ? (
+                  <p className="text-medium-gray">
+                    Neste henting: <span className="font-semibold text-dark-gray">{getWeekdayDeliveryInfo(selectedWeekday).deliveryDay} {getWeekdayDeliveryInfo(selectedWeekday).deliveryDate}</span> mellom kl. <span className="font-semibold text-dark-gray">15:00-20:00</span>
+                    <br />
+                    <span className="text-sm">Deretter hver {weekdays.find(d => d.value === selectedWeekday)?.label.toLowerCase()} til samme tid.</span>
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {/* Pickup Method Selection */}
         <div className="bg-white rounded-2xl p-8 mb-8">
@@ -424,50 +583,34 @@ export default function SchedulePage() {
           </div>
         </div>
 
-        {/* Summary and Continue */}
-        <div className="bg-white rounded-2xl p-8">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="text-lg font-semibold text-dark-gray">Sammendrag</h3>
-              <p className="text-medium-gray">
-                NooraCare-pose • {selectedDate && selectedTime ?
-                  `${days.find(d => `${d.date.getFullYear()}-${String(d.date.getMonth() + 1).padStart(2, '0')}-${String(d.date.getDate()).padStart(2, '0')}` === selectedDate)?.dayName || ''} ${selectedTime}`
-                  : 'Ingen tid valgt'}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-medium-gray">Inkludert i ditt abonnement</p>
-              <p className="text-2xl font-bold text-success-green">✓ Gratis</p>
-            </div>
-          </div>
+        {/* Continue Button */}
+        <div className="flex justify-between items-center">
+          <Link
+            href="/orders/new"
+            className="text-medium-gray hover:text-dark-gray"
+          >
+            ← Tilbake
+          </Link>
 
-          <div className="flex justify-between items-center">
-            <Link
-              href="/orders/new"
-              className="text-medium-gray hover:text-dark-gray"
-            >
-              ← Tilbake
-            </Link>
-
-            <button
-              onClick={handleContinue}
-              disabled={
-                !selectedDate ||
-                !selectedTime ||
-                !address.street ||
-                !address.postalCode ||
-                (pickupMethod === 'other' && !otherLocation.trim())
-              }
-              className={`px-8 py-3 rounded-lg font-semibold text-lg transition-colors ${
-                selectedDate && selectedTime && address.street && address.postalCode &&
-                (pickupMethod !== 'other' || otherLocation.trim())
-                  ? 'bg-nordic-blue text-white hover:bg-blue-600'
-                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-              }`}
-            >
-              Fortsett til instruksjoner
-            </button>
-          </div>
+          <button
+            onClick={handleContinue}
+            disabled={
+              (plan === 'single' ? !selectedDate : !selectedWeekday) ||
+              !address.street ||
+              !address.postalCode ||
+              (pickupMethod === 'other' && !otherLocation.trim())
+            }
+            className={`px-8 py-3 rounded-lg font-semibold text-lg transition-colors ${
+              (plan === 'single' ? selectedDate : selectedWeekday) &&
+              address.street &&
+              address.postalCode &&
+              (pickupMethod !== 'other' || otherLocation.trim())
+                ? 'bg-nordic-blue text-white hover:bg-blue-600'
+                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+            }`}
+          >
+            Fortsett til instruksjoner
+          </button>
         </div>
       </div>
     </div>

@@ -178,15 +178,6 @@ export default function InstructionsPage() {
                 </div>
               </div>
 
-              <div className="border-t border-gray-200 pt-6 mt-6">
-                <div className="flex justify-between items-center">
-                  <span className="text-lg font-semibold text-dark-gray">Total</span>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold text-success-green">Gratis</p>
-                    <p className="text-sm text-medium-gray">Inkludert i abonnement</p>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -201,24 +192,12 @@ export default function InstructionsPage() {
               ← Tilbake til tidsvalg
             </Link>
 
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => {
-                  setSpecialInstructions('');
-                  handleContinue();
-                }}
-                className="px-6 py-3 border-2 border-nordic-blue text-nordic-blue font-semibold rounded-lg hover:bg-blue-50 transition-colors"
-              >
-                Hopp over
-              </button>
-
-              <button
-                onClick={handleContinue}
-                className="px-8 py-3 bg-nordic-blue text-white font-semibold rounded-lg hover:bg-blue-600 transition-colors text-lg"
-              >
-                Fortsett til bekreftelse
-              </button>
-            </div>
+            <button
+              onClick={handleContinue}
+              className="px-8 py-3 bg-nordic-blue text-white font-semibold rounded-lg hover:bg-blue-600 transition-colors text-lg"
+            >
+              Fortsett til bekreftelse
+            </button>
           </div>
         </div>
       </div>
