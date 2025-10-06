@@ -102,14 +102,11 @@ export default function PlansPage() {
           {plans.map((plan) => (
             <div
               key={plan.id}
-              className={`bg-white rounded-2xl p-8 border-2 cursor-pointer transition-all relative ${
-                selectedPlan === plan.id
-                  ? 'border-nordic-blue shadow-lg'
-                  : plan.popular
+              className={`bg-white rounded-2xl p-8 border-2 transition-all relative flex flex-col ${
+                plan.popular
                   ? 'border-nordic-blue'
-                  : 'border-gray-200 hover:border-gray-300'
+                  : 'border-gray-200'
               }`}
-              onClick={() => handlePlanSelect(plan.id)}
             >
               {/* Popular Badge */}
               {plan.popular && (
@@ -117,21 +114,6 @@ export default function PlansPage() {
                   Mest populær
                 </div>
               )}
-
-              {/* Selection Indicator */}
-              <div className="absolute top-4 right-4">
-                <div className={`w-6 h-6 rounded-full border-2 ${
-                  selectedPlan === plan.id
-                    ? 'border-nordic-blue bg-nordic-blue'
-                    : 'border-gray-300'
-                } flex items-center justify-center`}>
-                  {selectedPlan === plan.id && (
-                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </div>
-              </div>
 
               <div className="mb-6">
                 <h3 className="text-2xl font-bold text-dark-gray mb-2">{plan.name}</h3>
@@ -142,7 +124,7 @@ export default function PlansPage() {
                 <p className="text-medium-gray">{plan.description}</p>
               </div>
 
-              <ul className="space-y-3">
+              <ul className="space-y-3 mb-6 flex-grow">
                 {plan.features.map((feature, index) => (
                   <li key={index} className="flex items-start">
                     <svg className="w-5 h-5 text-fresh-green mr-3 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -152,18 +134,19 @@ export default function PlansPage() {
                   </li>
                 ))}
               </ul>
+
+              {/* Select Button */}
+              <button
+                onClick={() => {
+                  setSelectedPlan(plan.id);
+                  window.location.href = `/orders/bag-check?plan=${plan.id}`;
+                }}
+                className="w-full py-3 px-6 rounded-lg font-semibold transition-colors bg-white text-nordic-blue border-2 border-nordic-blue hover:bg-nordic-blue hover:text-white cursor-pointer"
+              >
+                Velg plan
+              </button>
             </div>
           ))}
-        </div>
-
-        {/* Continue Button */}
-        <div className="text-center">
-          <button
-            onClick={handleContinue}
-            className="bg-nordic-blue text-white font-semibold px-12 py-4 rounded-lg hover:bg-blue-600 transition-colors text-lg"
-          >
-            Fortsett med {plans.find(p => p.id === selectedPlan)?.name}
-          </button>
         </div>
 
         {/* Back Link */}

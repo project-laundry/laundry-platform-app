@@ -28,11 +28,10 @@ export default function Home() {
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-28">
           <div className="text-center">
             <h2 className="text-5xl lg:text-6xl font-bold text-dark-gray mb-6 leading-tight">
-              Aldri vask klær igjen
+              Din hverdag, lysere og lettere
             </h2>
-            <p className="text-xl text-medium-gray mb-10 max-w-3xl mx-auto leading-relaxed">
-              Koble deg til pålitelige lokale rensere i Bergen og Oslo.
-              Profesjonell henting og levering som passer din travle hverdag.
+            <p className="text-xl text-medium-gray mb-10 max-w-2xl mx-auto leading-relaxed">
+              Mer tid til det som betyr noe. NooraCare håndterer vasken for travle familier i Bergen og Oslo.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a href="/auth/signup" className="bg-nordic-blue text-white font-semibold px-8 py-4 rounded-lg hover:bg-blue-600 text-lg text-center">
@@ -49,8 +48,8 @@ export default function Home() {
         <section id="slik-virker-det" className="bg-soft-gray py-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
-              <h3 className="text-4xl font-bold text-dark-gray mb-4">Slik virker det</h3>
-              <p className="text-xl text-medium-gray">Enkelt i tre steg</p>
+              <h3 className="text-4xl font-bold text-dark-gray mb-4">Renhet. Omtanke. Noora.</h3>
+              <p className="text-xl text-medium-gray">Klarhet og renhet i en travel hverdag</p>
             </div>
 
             <div className="grid md:grid-cols-3 gap-12">
@@ -62,7 +61,7 @@ export default function Home() {
                 </div>
                 <h4 className="text-2xl font-bold text-dark-gray mb-3">1. Bestill klesvask</h4>
                 <p className="text-medium-gray leading-relaxed">
-                  Velg tid som passer deg. Vi kommer og henter vasken hjemme hos deg.
+                  Velg tid som passer din familie. Vi kommer og henter vasken hjemme hos deg.
                 </p>
               </div>
 
@@ -72,9 +71,9 @@ export default function Home() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <h4 className="text-2xl font-bold text-dark-gray mb-3">2. Vi vasker</h4>
+                <h4 className="text-2xl font-bold text-dark-gray mb-3">2. Profesjonell håndtering</h4>
                 <p className="text-medium-gray leading-relaxed">
-                  Profesjonelle rensere tar vare på klærne dine med største omhu.
+                  Klærne dine håndteres med høyeste standard og allergivennlige vaskemidler.
                 </p>
               </div>
 
@@ -84,9 +83,9 @@ export default function Home() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
                 </div>
-                <h4 className="text-2xl font-bold text-dark-gray mb-3">3. Leveres hjem</h4>
+                <h4 className="text-2xl font-bold text-dark-gray mb-3">3. Levert med omtanke</h4>
                 <p className="text-medium-gray leading-relaxed">
-                  Få rene klær levert direkte hjem til deg i løpet av 2-3 dager.
+                  Rene, friske klær levert direkte hjem til deg i løpet av 2-3 dager.
                 </p>
               </div>
             </div>
@@ -116,8 +115,8 @@ export default function Home() {
         <section id="priser" className="bg-soft-gray py-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
-              <h3 className="text-4xl font-bold text-dark-gray mb-4">Enkel prising</h3>
-              <p className="text-xl text-medium-gray">Velg planen som passer deg</p>
+              <h3 className="text-4xl font-bold text-dark-gray mb-4">For travle hverdager, med et snev av luksus</h3>
+              <p className="text-xl text-medium-gray">Velg planen som passer din familie</p>
             </div>
 
             <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
@@ -160,8 +159,8 @@ export default function Home() {
         <section className="py-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
-              <h3 className="text-4xl font-bold text-dark-gray mb-4">Trygg og pålitelig</h3>
-              <p className="text-xl text-medium-gray">Norsk kvalitet du kan stole på</p>
+              <h3 className="text-4xl font-bold text-dark-gray mb-4">Nordisk luksus med høyeste standard</h3>
+              <p className="text-xl text-medium-gray">Lys, klarhet og renhet i hver detalj</p>
             </div>
 
             <div className="grid md:grid-cols-3 gap-8">
@@ -171,9 +170,9 @@ export default function Home() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                   </svg>
                 </div>
-                <h4 className="text-xl font-bold text-dark-gray mb-3">Verifiserte rensere</h4>
+                <h4 className="text-xl font-bold text-dark-gray mb-3">Allergivennlig og miljøvennlig</h4>
                 <p className="text-medium-gray">
-                  Alle våre rensere er bakgrunnssjekket og sertifisert.
+                  Vi bruker kun allergivennlige og miljøvennlige vaskemidler som er trygge for hele familien.
                 </p>
               </div>
 
@@ -183,9 +182,9 @@ export default function Home() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                 </div>
-                <h4 className="text-xl font-bold text-dark-gray mb-3">Forsikret service</h4>
+                <h4 className="text-xl font-bold text-dark-gray mb-3">Håndtering med høyeste standard</h4>
                 <p className="text-medium-gray">
-                  Full dekning for skader eller tap av klær.
+                  Klærne dine håndteres med største omhu og profesjonalitet fra start til slutt.
                 </p>
               </div>
 
@@ -195,9 +194,9 @@ export default function Home() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                   </svg>
                 </div>
-                <h4 className="text-xl font-bold text-dark-gray mb-3">Kundefokusert</h4>
+                <h4 className="text-xl font-bold text-dark-gray mb-3">Perfekt for småbarnsfamilier</h4>
                 <p className="text-medium-gray">
-                  Din tilfredsstillelse er vår høyeste prioritet.
+                  Vi gjør hverdagen enklere og mer luksuriøs for familier som trenger mer tid sammen.
                 </p>
               </div>
             </div>
@@ -212,7 +211,7 @@ export default function Home() {
             <div>
               <h3 className="text-2xl font-bold text-nordic-blue mb-4">NooraCare</h3>
               <p className="text-gray-400 leading-relaxed">
-                Kobler deg med pålitelige lokale rensere i Norge.
+                Din hverdag, lysere og lettere. Ren tid, ren frihet.
               </p>
             </div>
             <div>

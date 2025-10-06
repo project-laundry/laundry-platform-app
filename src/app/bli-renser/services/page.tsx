@@ -95,26 +95,7 @@ export default function ServicesPage() {
                     className="w-4 h-4 text-nordic-blue border-soft-gray focus:ring-nordic-blue"
                   />
                   <span className="ml-3 text-dark-gray">Jeg kan hente/levere klær hos kunde</span>
-                </label>                                
-
-                {/* Service Radius */}
-                <div className="mt-6">
-                  <label htmlFor="serviceRadius" className="block text-sm font-medium text-dark-gray mb-2">
-                    Serviceradius (km) *
-                  </label>
-                  <select
-                    id="serviceRadius"
-                    className="w-full px-4 py-3 border border-soft-gray rounded-lg focus:outline-none focus:border-nordic-blue bg-white"
-                  >
-                    <option value="">Hvor langt reiser du for henting/levering?</option>
-                    <option value="2">Opp til 2 km</option>
-                    <option value="5">Opp til 5 km</option>
-                    <option value="10">Opp til 10 km</option>
-                    <option value="15">Opp til 15 km</option>
-                    <option value="20">Opp til 20 km</option>
-                    <option value="25">Opp til 25 km eller mer</option>
-                  </select>
-                </div>
+                </label>                                                
               </div>
             </div>
 

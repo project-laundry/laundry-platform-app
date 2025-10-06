@@ -44,88 +44,46 @@ export default function NewOrderPage() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-4 max-w-2xl mx-auto">
-            <button
-              onClick={() => setHasBag(false)}
-              className={`p-6 rounded-xl border-2 transition-all ${
-                hasBag === false
-                  ? 'border-nordic-blue bg-blue-50'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-            >
+          <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+            <div className="p-8 rounded-xl border-2 border-gray-200 bg-white flex flex-col">
               <div className="text-4xl mb-3">📦</div>
-              <h3 className="font-semibold text-dark-gray mb-2">Nei, send meg en pose først</h3>
-              <p className="text-sm text-medium-gray">
+              <h3 className="font-semibold text-dark-gray mb-2 text-lg">Nei, send meg en pose først</h3>
+              <p className="text-sm text-medium-gray mb-6 flex-grow">
                 Vi sender deg en gratis NooraCare-pose
               </p>
-            </button>
+              <button
+                onClick={handleRequestBag}
+                className="w-full py-3 px-6 rounded-lg font-semibold transition-colors bg-white text-nordic-blue border-2 border-nordic-blue hover:bg-nordic-blue hover:text-white cursor-pointer"
+              >
+                Bestill pose
+              </button>
+            </div>
 
-            <button
-              onClick={() => setHasBag(true)}
-              className={`p-6 rounded-xl border-2 transition-all ${
-                hasBag === true
-                  ? 'border-nordic-blue bg-blue-50'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-            >
+            <div className="p-8 rounded-xl border-2 border-gray-200 bg-white flex flex-col">
               <div className="text-4xl mb-3">✅</div>
-              <h3 className="font-semibold text-dark-gray mb-2">Ja, jeg har allerede en</h3>
-              <p className="text-sm text-medium-gray">
+              <h3 className="font-semibold text-dark-gray mb-2 text-lg">Ja, jeg har allerede en</h3>
+              <p className="text-sm text-medium-gray mb-6 flex-grow">
                 Fortsett til bestilling
               </p>
-            </button>
+              <button
+                onClick={handleContinue}
+                className="w-full py-3 px-6 rounded-lg font-semibold transition-colors bg-white text-nordic-blue border-2 border-nordic-blue hover:bg-nordic-blue hover:text-white cursor-pointer"
+              >
+                Fortsett
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Show continue button if user has a bag */}
-        {hasBag === true && (
-          <div className="bg-white rounded-2xl p-8">
-            <div className="flex justify-between items-center">
-              <Link
-                href="/dashboard"
-                className="text-medium-gray hover:text-dark-gray"
-              >
-                ← Tilbake til dashbord
-              </Link>
-
-              <button
-                onClick={handleContinue}
-                className="bg-nordic-blue text-white font-semibold px-8 py-3 rounded-lg hover:bg-blue-600 transition-colors text-lg"
-              >
-                Planlegg henting
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Show bag request confirmation if user doesn't have a bag */}
-        {hasBag === false && (
-          <div className="bg-white rounded-2xl p-8">
-            <div className="text-center mb-6">
-              <div className="text-5xl mb-4">📦</div>
-              <h3 className="text-2xl font-bold text-dark-gray mb-3">Perfekt! Vi ordner det.</h3>
-              <p className="text-medium-gray mb-6">
-                Du får en gratis NooraCare-pose levert dagen før første henting.
-              </p>
-            </div>
-
-            <div className="flex justify-between items-center">
-              <Link
-                href="/dashboard"
-                className="text-medium-gray hover:text-dark-gray"
-              >
-                ← Tilbake til dashbord
-              </Link>
-
-              <button
-                onClick={handleRequestBag}
-                className="bg-nordic-blue text-white font-semibold px-8 py-3 rounded-lg hover:bg-blue-600 transition-colors text-lg"
-              >
-                Planlegg henting
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Back Link */}
+        <div className="text-center mt-8">
+          <Link
+            href="/dashboard"
+            className="text-medium-gray hover:text-dark-gray"
+          >
+            ← Tilbake til dashbord
+          </Link>
+        </div>
       </div>
     </div>
   );
