@@ -30,7 +30,7 @@ export const NOTIFICATION_TEMPLATES = {
     title: 'NooraCare-posen din er levert! 📦',
     message: 'Din NooraCare-pose er nå levert og aktivert. Du kan begynne å bestille klesvask når det passer deg.',
     actionText: 'Bestill første klesvask',
-    actionUrl: '/orders/bag-check',
+    actionUrl: '/orders/additional-services',
     dismissible: true
   },
   bagDeliveryInfo: {

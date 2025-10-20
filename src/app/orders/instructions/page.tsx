@@ -60,7 +60,7 @@ export default function InstructionsPage() {
       <div className="min-h-screen bg-soft-gray flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-dark-gray mb-4">Laster...</h2>
-          <p className="text-medium-gray">Hvis dette tar for lang tid, <Link href="/orders/bag-check" className="text-nordic-blue hover:underline">start på nytt</Link>.</p>
+          <p className="text-medium-gray">Hvis dette tar for lang tid, <Link href="/orders/additional-services" className="text-nordic-blue hover:underline">start på nytt</Link>.</p>
         </div>
       </div>
     );

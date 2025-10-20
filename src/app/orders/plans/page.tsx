@@ -70,8 +70,8 @@ export default function PlansPage() {
 
   const handleContinue = () => {
     console.log('Selected plan:', selectedPlan);
-    // Redirect to bag selection page after plan selection
-    window.location.href = `/orders/bag-check?plan=${selectedPlan}`;
+    // Redirect to additional services page after plan selection
+    window.location.href = `/orders/additional-services?plan=${selectedPlan}`;
   };
 
   return (
@@ -139,7 +139,7 @@ export default function PlansPage() {
               <button
                 onClick={() => {
                   setSelectedPlan(plan.id);
-                  window.location.href = `/orders/bag-check?plan=${plan.id}`;
+                  window.location.href = `/orders/additional-services?plan=${plan.id}`;
                 }}
                 className="w-full py-3 px-6 rounded-lg font-semibold transition-colors bg-white text-nordic-blue border-2 border-nordic-blue hover:bg-nordic-blue hover:text-white cursor-pointer"
               >

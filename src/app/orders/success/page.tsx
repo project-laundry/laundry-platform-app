@@ -21,7 +21,7 @@ export default function OrderSuccessPage() {
   };
 
   const handleNewOrder = () => {
-    window.location.href = '/orders/bag-check';
+    window.location.href = '/orders/additional-services';
   };
 
   return (
