@@ -84,21 +84,6 @@ export default function ServicesPage() {
               </div>
             </div>
 
-            {/* Pickup and Delivery */}
-            <div className="bg-soft-gray rounded-lg p-6">
-              <h3 className="text-lg font-medium text-dark-gray mb-4">Henting og levering</h3>
-
-              <div className="space-y-4">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 text-nordic-blue border-soft-gray focus:ring-nordic-blue"
-                  />
-                  <span className="ml-3 text-dark-gray">Jeg kan hente/levere klær hos kunde</span>
-                </label>                                                
-              </div>
-            </div>
-
             {/* Additional Services */}
             <div>
               <h3 className="text-lg font-medium text-dark-gray mb-4">Tilleggstjenester</h3>

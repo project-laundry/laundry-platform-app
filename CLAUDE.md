@@ -86,3 +86,4 @@ src/
 │   └── utils/          # General utilities
 └── types/              # TypeScript type definitions
 ```
+- when working with the @ENTITIES.md file, don't implement schema migration yet as it's not implemented yet
