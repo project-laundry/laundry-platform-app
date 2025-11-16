@@ -6,17 +6,19 @@ import { useParams } from 'next/navigation';
 
 interface OrderStatus {
   id: string;
-  status: 'pending' | 'assigned' | 'picked_up' | 'in_progress' | 'ready_for_delivery' | 'delivered';
+  status: 'pending' | 'assigned' | 'awaiting_pickup' | 'picked_up' | 'in_progress' | 'ready_for_delivery' | 'delivered';
   assignedCleaner?: {
     name: string;
     rating: number;
     phone: string;
   };
+  photoUploaded?: boolean;
 }
 
 const statusLabels = {
   pending: 'Venter på tildeling',
   assigned: 'Tildelt renser',
+  awaiting_pickup: 'Venter på henting',
   picked_up: 'Hentet',
   in_progress: 'Under vask',
   ready_for_delivery: 'Klar for levering',
@@ -26,9 +28,8 @@ const statusLabels = {
 const statusSteps = [
   { key: 'pending', label: 'Bestilling mottatt', icon: '📝' },
   { key: 'assigned', label: 'Renser tildelt', icon: '👤' },
-  { key: 'picked_up', label: 'Hentet', icon: '🚗' },
-  { key: 'in_progress', label: 'Under vask', icon: '🧽' },
-  { key: 'ready_for_delivery', label: 'Klar for levering', icon: '📦' },
+  { key: 'awaiting_pickup', label: 'Last opp bilde av pose', icon: '📸' },
+  { key: 'picked_up', label: 'Hentet', icon: '🚗' },  
   { key: 'delivered', label: 'Levert', icon: '✅' }
 ];
 
@@ -41,12 +42,13 @@ export default function OrderTrackingPage() {
     // Mock order data - in real app this would come from API
     const mockOrder: OrderStatus = {
       id: orderId,
-      status: 'assigned',
+      status: 'awaiting_pickup',
       assignedCleaner: {
         name: 'Lisa Hansen',
         rating: 4.9,
         phone: '+47 987 65 432'
-      }
+      },
+      photoUploaded: false
     };
 
     setOrderData(mockOrder);
@@ -136,6 +138,29 @@ export default function OrderTrackingPage() {
                               <span>⭐ {orderData.assignedCleaner.rating}/5</span>
                               <span>📞 {orderData.assignedCleaner.phone}</span>
                             </div>
+                          </div>
+                        )}
+
+                        {status === 'current' && step.key === 'awaiting_pickup' && (
+                          <div className="mt-2 p-4 bg-blue-50 rounded-lg">
+                            <p className="text-sm text-blue-800 mb-3">
+                              Last opp et bilde av vaskepose så sjåføren enkelt kan finne den
+                            </p>
+                            {!orderData.photoUploaded ? (
+                              <Link
+                                href="/orders/upload-photo"
+                                className="inline-block bg-nordic-blue text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors"
+                              >
+                                📸 Last opp bilde nå
+                              </Link>
+                            ) : (
+                              <div className="flex items-center text-sm text-green-700">
+                                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                                Bilde lastet opp
+                              </div>
+                            )}
                           </div>
                         )}
 
