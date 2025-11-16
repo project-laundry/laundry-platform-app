@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is **NooraCare**, a peer-to-peer laundry platform that connects customers with local cleaners in Bergen and Oslo, Norway. The platform offers subscription-based pickup and delivery laundry services, with three tiers (biweekly 249 NOK, weekly 399 NOK, single 149 NOK).
+This is **NooraCare**, a peer-to-peer laundry platform that connects customers with local cleaners in Bergen and Oslo, Norway. The platform offers subscription-based pickup and delivery laundry services.
 
 The application supports three user roles:
 
@@ -19,6 +19,21 @@ The application supports three user roles:
 - **Runtime**: React 19.1.0
 - **Path Aliases**: `@/*` maps to `./src/*`
 - **Language**: Norwegian (locale `no`)
+
+## Backend & Database
+
+- **Database**: Supabase (PostgreSQL)
+- **Project**: laundry-platform
+- **Project ID**: uknariyagkmhdjqrllhf
+- **Region**: eu-north-1 (Europe/Stockholm)
+- **API URL**: https://uknariyagkmhdjqrllhf.supabase.co
+
+### Environment Variables
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://uknariyagkmhdjqrllhf.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVrbmFyaXlhZ2ttaGRqcXJsbGhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMyOTc5OTEsImV4cCI6MjA3ODg3Mzk5MX0.wjxGV9tj3gtujZsf512SoNZnqbSy8oFSEqNOvpZyQbo
+```
 
 ## Development Commands
 
@@ -70,35 +85,3 @@ src/
 │   └── utils/          # General utilities
 └── types/              # TypeScript type definitions
 ```
-
-## Core Types
-
-The main business entities are defined in `src/types/index.ts`:
-- **User**: Base user type with role-based extensions (Customer, Cleaner)
-- **Order**: Central entity with typical order workflow (pending → assigned → picked_up → in_progress → ready_for_delivery → delivered)
-- **SubscriptionPlan**: Three tiers with NOK pricing
-- **Address**: Norwegian address format with optional coordinates
-
-## Mock Frontend States
-
-Since this is a frontend-only demo without backend integration, the dashboard uses mock customer journey states to showcase different user scenarios:
-
-- **CustomerJourneyState**: awaiting_bag → no_active_order → active_order → multiple_active_orders
-- These are UI demonstration states only, not database entities
-- Used to show different customer experience flows in the dashboard
-
-## Key Patterns
-
-- Use Norwegian language for user-facing content (app title: "NooraCare - Aldri vask klær igjen")
-- TypeScript strict mode enabled
-- Geist fonts (sans and mono) loaded via next/font/google
-- Role-based user types with specific properties per role
-- Mock customer journey states for UI demo: awaiting_bag → no_active_order → active_order → multiple_active_orders
-
-## Business Context
-
-Focus on Norwegian market requirements:
-- NOK currency for all pricing
-- Norwegian address format (street, city, postalCode, country)
-- Service areas limited to Bergen and Oslo
-- Integration considerations for Vipps payments and Norwegian banking
