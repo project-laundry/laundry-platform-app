@@ -27,6 +27,7 @@ The application supports three user roles:
 - **Project ID**: uknariyagkmhdjqrllhf
 - **Region**: eu-north-1 (Europe/Stockholm)
 - **API URL**: https://uknariyagkmhdjqrllhf.supabase.co
+- **Schema Documentation**: See `ENTITIES.md` for complete database schema, entity definitions, relationships, and data integrity rules
 
 ### Environment Variables
 
