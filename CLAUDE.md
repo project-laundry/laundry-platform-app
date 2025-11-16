@@ -33,22 +33,42 @@ npm run lint       # Run ESLint
 
 ```
 src/
-├── app/           # Next.js App Router pages
-│   ├── auth/      # Authentication pages
-│   ├── dashboard/ # User dashboards
-│   ├── orders/    # Order management
-│   └── profile/   # User profile pages
-├── components/    # Reusable UI components
-│   ├── forms/     # Form components
-│   ├── layout/    # Layout components
-│   └── ui/        # Basic UI elements
-├── hooks/         # Custom React hooks
-├── lib/           # Utility libraries
-│   ├── auth/      # Authentication logic
-│   ├── database/  # Database connections/queries
-│   ├── payments/  # Payment processing
-│   └── utils/     # General utilities
-└── types/         # TypeScript type definitions
+├── app/                # Next.js App Router pages
+│   ├── auth/           # Authentication flow
+│   │   ├── address/    # Address input step
+│   │   ├── login/      # Login page
+│   │   ├── signup/     # Sign up page
+│   │   └── success/    # Registration success
+│   ├── bli-renser/     # Cleaner onboarding flow
+│   │   ├── business/   # Business information
+│   │   ├── equipment/  # Equipment details
+│   │   ├── profile/    # Cleaner profile
+│   │   ├── services/   # Service offerings
+│   │   └── success/    # Onboarding success
+│   ├── dashboard/      # User dashboards
+│   │   └── cleaner/    # Cleaner dashboard
+│   ├── orders/         # Order management flow
+│   │   ├── [orderId]/  # Dynamic order details
+│   │   ├── additional-services/  # Extra services selection
+│   │   ├── confirm/    # Order confirmation
+│   │   ├── instructions/  # Special instructions
+│   │   ├── plans/      # Subscription plan selection
+│   │   ├── schedule/   # Pickup scheduling
+│   │   ├── services/   # Service type selection
+│   │   └── success/    # Order success
+│   └── profile/        # User profile pages
+│       └── cleaner/    # Cleaner profile view
+├── components/         # Reusable UI components
+│   ├── forms/          # Form components
+│   ├── layout/         # Layout components
+│   └── ui/             # Basic UI elements
+├── hooks/              # Custom React hooks
+├── lib/                # Utility libraries
+│   ├── auth/           # Authentication logic
+│   ├── database/       # Database connections/queries
+│   ├── payments/       # Payment processing
+│   └── utils/          # General utilities
+└── types/              # TypeScript type definitions
 ```
 
 ## Core Types

@@ -82,21 +82,22 @@ export default function OrderSuccessPage() {
                     Klærne vaskes og leveres tilbake (2-3 dager)
                   </li>
                 </ul>
-              </div>
+              </div>              
+            </div>
+          </div>          
 
-              <div>
-                <h3 className="font-semibold text-dark-gray mb-2">Kontaktinformasjon</h3>
-                <div className="text-sm text-medium-gray space-y-2">
-                  <p>
-                    <span className="font-medium">E-post:</span> hei@nooracare.no
-                  </p>
-                  <p>
-                    <span className="font-medium">Telefon:</span> +47 123 45 678
-                  </p>
-                  <p>
-                    <span className="font-medium">Åpningstider:</span> 8-20 hverdager
-                  </p>
-                </div>
+          {/* Important Notice */}
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-8">
+            <div className="flex items-start">
+              <div className="text-yellow-600 mr-3 mt-0.5">💡</div>
+              <div className="text-left">
+                <h3 className="font-semibold text-yellow-800 mb-2">Viktige tips for første henting</h3>
+                <ul className="text-sm text-yellow-700 space-y-1">
+                  <li>• Ha klærne klare i NooraCare-posen</li>
+                  <li>• Sjekk lommene for verdisaker</li>
+                  <li>• Vær tilgjengelig på telefon under hentetiden</li>
+                  <li>• Gi beskjed hvis du ikke kan være hjemme</li>
+                </ul>
               </div>
             </div>
           </div>
@@ -115,22 +116,6 @@ export default function OrderSuccessPage() {
             >
               Ny bestilling
             </button>
-          </div>
-
-          {/* Important Notice */}
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-8">
-            <div className="flex items-start">
-              <div className="text-yellow-600 mr-3 mt-0.5">💡</div>
-              <div className="text-left">
-                <h3 className="font-semibold text-yellow-800 mb-2">Viktige tips for første henting</h3>
-                <ul className="text-sm text-yellow-700 space-y-1">
-                  <li>• Ha klærne klare i NooraCare-posen</li>
-                  <li>• Sjekk lommene for verdisaker</li>
-                  <li>• Vær tilgjengelig på telefon under hentetiden</li>
-                  <li>• Gi beskjed hvis du ikke kan være hjemme</li>
-                </ul>
-              </div>
-            </div>
           </div>
 
           {/* Back to Dashboard */}

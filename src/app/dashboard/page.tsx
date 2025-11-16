@@ -103,17 +103,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Welcome Section */}
-        <div className="mb-12">
-          <h2 className="text-3xl font-bold text-dark-gray mb-4">
-            Velkommen til NooraCare! 🎉
-          </h2>
-          <p className="text-xl text-medium-gray">
-            Din konto er opprettet og klar til bruk.
-          </p>
-        </div>
-
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">        
         {/* Status Card */}
         <div className="bg-white rounded-2xl p-8 border border-gray-200 mb-8">
           <div className="flex items-center justify-between">

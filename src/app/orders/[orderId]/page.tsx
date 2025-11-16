@@ -168,11 +168,7 @@ export default function OrderTrackingPage() {
             {/* Quick Actions */}
             <div className="bg-white rounded-2xl p-6">
               <h3 className="text-lg font-semibold text-dark-gray mb-4">Handlinger</h3>
-              <div className="space-y-3">
-                <button className="w-full text-left p-3 border border-gray-200 rounded-lg hover:border-nordic-blue transition-colors">
-                  <div className="font-medium text-dark-gray">Kontakt renser</div>
-                  <div className="text-sm text-medium-gray">Send melding eller ring</div>
-                </button>
+              <div className="space-y-3">                
                 <button className="w-full text-left p-3 border border-gray-200 rounded-lg hover:border-nordic-blue transition-colors">
                   <div className="font-medium text-dark-gray">Endre leveringsadresse</div>
                   <div className="text-sm text-medium-gray">Hvis du ikke er hjemme</div>
@@ -211,13 +207,7 @@ export default function OrderTrackingPage() {
                   className="text-sm bg-nordic-blue text-white px-4 py-2 rounded-lg hover:bg-blue-600"
                 >
                   E-post
-                </a>
-                <a
-                  href="tel:+4712345678"
-                  className="text-sm border border-nordic-blue text-nordic-blue px-4 py-2 rounded-lg hover:bg-blue-50"
-                >
-                  Ring
-                </a>
+                </a>                
               </div>
             </div>
           </div>
