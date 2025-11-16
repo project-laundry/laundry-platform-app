@@ -41,7 +41,7 @@ export default function EquipmentPage() {
             <div>
               <h3 className="text-lg font-medium text-dark-gray mb-4">Bilde av vaskemaskinen</h3>
               <p className="text-sm text-medium-gray mb-4">
-                Last opp et bilde som viser vaskemaskinen din. Dette gir kunder tillit til utstyret ditt.
+                Last opp et bilde som viser vaskemaskinen din.
               </p>
 
               <div className="border-2 border-dashed border-soft-gray rounded-lg p-8 text-center">
@@ -82,22 +82,7 @@ export default function EquipmentPage() {
                     placeholder="f.eks. Miele W1, Bosch WAU28T64SN, etc."
                     className="w-full px-4 py-3 border border-soft-gray rounded-lg focus:outline-none focus:border-nordic-blue"
                   />
-                </div>
-
-                <div>
-                  <label htmlFor="serialNumber" className="block text-sm font-medium text-dark-gray mb-2">
-                    Serienummer
-                  </label>
-                  <input
-                    type="text"
-                    id="serialNumber"
-                    placeholder="Serienummer på maskinen (valgfritt)"
-                    className="w-full px-4 py-3 border border-soft-gray rounded-lg focus:outline-none focus:border-nordic-blue"
-                  />
-                  <p className="text-sm text-medium-gray mt-1">
-                    Frivillig, men hjelper med kvalitetssikring
-                  </p>
-                </div>
+                </div>                
 
                 <div>
                   <label htmlFor="capacity" className="block text-sm font-medium text-dark-gray mb-2">

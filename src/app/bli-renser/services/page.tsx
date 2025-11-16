@@ -95,70 +95,7 @@ export default function ServicesPage() {
                     className="w-4 h-4 text-nordic-blue border-soft-gray focus:ring-nordic-blue"
                   />
                   <span className="ml-3 text-dark-gray">Jeg kan hente/levere klær hos kunde</span>
-                </label>                
-
-                {/* Operating Hours */}
-                <div className="mt-6">
-                  <h4 className="text-md font-medium text-dark-gray mb-3">Åpningstider for henting/levering</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="hoursFrom" className="block text-sm font-medium text-dark-gray mb-2">
-                        Fra
-                      </label>
-                      <select
-                        id="hoursFrom"
-                        className="w-full px-4 py-3 border border-soft-gray rounded-lg focus:outline-none focus:border-nordic-blue bg-white"
-                      >
-                        <option value="">Velg tidspunkt</option>
-                        <option value="06:00">06:00</option>
-                        <option value="07:00">07:00</option>
-                        <option value="08:00">08:00</option>
-                        <option value="09:00">09:00</option>
-                        <option value="10:00">10:00</option>
-                        <option value="11:00">11:00</option>
-                        <option value="12:00">12:00</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label htmlFor="hoursTo" className="block text-sm font-medium text-dark-gray mb-2">
-                        Til
-                      </label>
-                      <select
-                        id="hoursTo"
-                        className="w-full px-4 py-3 border border-soft-gray rounded-lg focus:outline-none focus:border-nordic-blue bg-white"
-                      >
-                        <option value="">Velg tidspunkt</option>
-                        <option value="15:00">15:00</option>
-                        <option value="16:00">16:00</option>
-                        <option value="17:00">17:00</option>
-                        <option value="18:00">18:00</option>
-                        <option value="19:00">19:00</option>
-                        <option value="20:00">20:00</option>
-                        <option value="21:00">21:00</option>
-                        <option value="22:00">22:00</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Service Radius */}
-                <div className="mt-6">
-                  <label htmlFor="serviceRadius" className="block text-sm font-medium text-dark-gray mb-2">
-                    Serviceradius (km) *
-                  </label>
-                  <select
-                    id="serviceRadius"
-                    className="w-full px-4 py-3 border border-soft-gray rounded-lg focus:outline-none focus:border-nordic-blue bg-white"
-                  >
-                    <option value="">Hvor langt reiser du for henting/levering?</option>
-                    <option value="2">Opp til 2 km</option>
-                    <option value="5">Opp til 5 km</option>
-                    <option value="10">Opp til 10 km</option>
-                    <option value="15">Opp til 15 km</option>
-                    <option value="20">Opp til 20 km</option>
-                    <option value="25">Opp til 25 km eller mer</option>
-                  </select>
-                </div>
+                </label>                                                
               </div>
             </div>
 

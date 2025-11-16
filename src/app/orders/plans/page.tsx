@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
 interface Plan {
-  id: 'starter' | 'family' | 'premium';
+  id: 'weekly' | 'biweekly' | 'single';
   name: string;
   price: number;
   description: string;
@@ -15,45 +15,46 @@ interface Plan {
 
 const plans: Plan[] = [
   {
-    id: 'starter',
-    name: 'Start',
-    price: 500,
-    description: 'Perfekt for enkeltpersoner',
+    id: 'biweekly',
+    name: 'Annenhver uke',
+    price: 249,
+    description: 'Vaskes annenhver uke',
     features: [
-      'Opptil 3 hentinger per måned',
-      'Standard vasketid (2-3 dager)',
-      'Grunnleggende kundestøtte',
+      'Henting annenhver uke',
+      'Fast vaskedag hver 14. dag',
+      'Inntil 5 kg tøy per henting',
       'SMS-varsling',
+      'Standard vasketid (2-3 dager)',
+      'Kan avbrytes når som helst',
     ]
   },
   {
-    id: 'family',
-    name: 'Familie',
-    price: 1000,
-    description: 'Ideell for familier',
+    id: 'weekly',
+    name: 'Ukentlig',
+    price: 399,
+    description: 'Vaskes hver uke',
     popular: true,
     features: [
-      'Ubegrenset antall hentinger',
+      'Ukentlig henting og levering',
+      'Fast vaskedag hver uke',
+      'Inntil 5 kg tøy per henting',
+      'SMS-varsling',
       'Prioritert behandling',
-      'Familievennlige tjenester',
-      'SMS og e-postvarsling',
-      '24/7 kundestøtte',
-      'Spesialomsorg for barnetøy',
+      'Kan avbrytes når som helst',
     ]
   },
   {
-    id: 'premium',
-    name: 'Premium',
-    price: 2000,
-    description: 'Prioritert service og omsorg',
+    id: 'single',
+    name: 'Enkeltvask',
+    price: 149,
+    description: 'Betal per vask',
     features: [
-      'Ubegrenset hentinger',
-      'Ekspresservice (samme dag)',
-      'Premium omsorg og behandling',
-      'Dedikert kunderådgiver',
-      'Alle kommunikasjonskanaler',
-      'Forsikring opp til 10 000 NOK',
-      'Miljøvennlige produkter',
+      'Ingen abonnement',
+      'Bestill når du trenger det',
+      'Inntil 5 kg tøy per vask',
+      'Standard vasketid (3-4 dager)',
+      'SMS-varsling',
+      'Ingen bindingstid',
     ]
   }
 ];
@@ -61,7 +62,7 @@ const plans: Plan[] = [
 export default function PlansPage() {
   const searchParams = useSearchParams();
   const addressParam = searchParams.get('address');
-  const [selectedPlan, setSelectedPlan] = useState<string>('family');
+  const [selectedPlan, setSelectedPlan] = useState<string>('weekly');
 
   const handlePlanSelect = (planId: string) => {
     setSelectedPlan(planId);
@@ -69,13 +70,8 @@ export default function PlansPage() {
 
   const handleContinue = () => {
     console.log('Selected plan:', selectedPlan);
-    // Redirect to services page with selected plan and address
-    const params = new URLSearchParams();
-    params.set('plan', selectedPlan);
-    if (addressParam) {
-      params.set('address', addressParam);
-    }
-    window.location.href = `/auth/services?${params.toString()}`;
+    // Redirect to additional services page after plan selection
+    window.location.href = `/orders/additional-services?plan=${selectedPlan}`;
   };
 
   return (
@@ -106,14 +102,11 @@ export default function PlansPage() {
           {plans.map((plan) => (
             <div
               key={plan.id}
-              className={`bg-white rounded-2xl p-8 border-2 cursor-pointer transition-all relative ${
-                selectedPlan === plan.id
-                  ? 'border-nordic-blue shadow-lg'
-                  : plan.popular
+              className={`bg-white rounded-2xl p-8 border-2 transition-all relative flex flex-col ${
+                plan.popular
                   ? 'border-nordic-blue'
-                  : 'border-gray-200 hover:border-gray-300'
+                  : 'border-gray-200'
               }`}
-              onClick={() => handlePlanSelect(plan.id)}
             >
               {/* Popular Badge */}
               {plan.popular && (
@@ -121,21 +114,6 @@ export default function PlansPage() {
                   Mest populær
                 </div>
               )}
-
-              {/* Selection Indicator */}
-              <div className="absolute top-4 right-4">
-                <div className={`w-6 h-6 rounded-full border-2 ${
-                  selectedPlan === plan.id
-                    ? 'border-nordic-blue bg-nordic-blue'
-                    : 'border-gray-300'
-                } flex items-center justify-center`}>
-                  {selectedPlan === plan.id && (
-                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </div>
-              </div>
 
               <div className="mb-6">
                 <h3 className="text-2xl font-bold text-dark-gray mb-2">{plan.name}</h3>
@@ -146,7 +124,7 @@ export default function PlansPage() {
                 <p className="text-medium-gray">{plan.description}</p>
               </div>
 
-              <ul className="space-y-3">
+              <ul className="space-y-3 mb-6 flex-grow">
                 {plan.features.map((feature, index) => (
                   <li key={index} className="flex items-start">
                     <svg className="w-5 h-5 text-fresh-green mr-3 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -156,24 +134,25 @@ export default function PlansPage() {
                   </li>
                 ))}
               </ul>
+
+              {/* Select Button */}
+              <button
+                onClick={() => {
+                  setSelectedPlan(plan.id);
+                  window.location.href = `/orders/additional-services?plan=${plan.id}`;
+                }}
+                className="w-full py-3 px-6 rounded-lg font-semibold transition-colors bg-white text-nordic-blue border-2 border-nordic-blue hover:bg-nordic-blue hover:text-white cursor-pointer"
+              >
+                Velg plan
+              </button>
             </div>
           ))}
         </div>
 
-        {/* Continue Button */}
-        <div className="text-center">
-          <button
-            onClick={handleContinue}
-            className="bg-nordic-blue text-white font-semibold px-12 py-4 rounded-lg hover:bg-blue-600 transition-colors text-lg"
-          >
-            Fortsett med {plans.find(p => p.id === selectedPlan)?.name}
-          </button>
-        </div>
-
         {/* Back Link */}
         <div className="text-center mt-8">
-          <Link href="/auth/signup" className="text-medium-gray hover:text-dark-gray">
-            ← Tilbake til registrering
+          <Link href="/dashboard" className="text-medium-gray hover:text-dark-gray">
+            ← Tilbake til dashbord
           </Link>
         </div>
       </div>

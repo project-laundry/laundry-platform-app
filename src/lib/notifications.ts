@@ -28,9 +28,9 @@ export const NOTIFICATION_TEMPLATES = {
     id: 'bag_delivered',
     type: 'success' as const,
     title: 'NooraCare-posen din er levert! 📦',
-    message: 'Din NooraCare-pose er nå levert og aktivert. Du kan begynne å bestille henting av klær når det passer deg.',
-    actionText: 'Bestill første henting',
-    actionUrl: '/orders/new',
+    message: 'Din NooraCare-pose er nå levert og aktivert. Du kan begynne å bestille klesvask når det passer deg.',
+    actionText: 'Bestill første klesvask',
+    actionUrl: '/orders/additional-services',
     dismissible: true
   },
   bagDeliveryInfo: {
@@ -44,7 +44,7 @@ export const NOTIFICATION_TEMPLATES = {
     id: 'getting_started_tip',
     type: 'info' as const,
     title: 'Tips for første bestilling',
-    message: 'Legg klærne i NooraCare-posen og bestill henting. Vi anbefaler å bestille 2-3 dager i forveien for å sikre ønsket hentetidspunkt.',
+    message: 'Legg klærne i NooraCare-posen og bestill klesvask. Vi anbefaler å bestille 2-3 dager i forveien for å sikre ønsket hentetidspunkt.',
     actionText: 'Se instruksjoner',
     actionUrl: '/orders/instructions',
     dismissible: true

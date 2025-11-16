@@ -197,21 +197,7 @@ export default function ProfilePage() {
                     className="w-4 h-4 text-nordic-blue border-soft-gray focus:ring-nordic-blue"
                   />
                   <span className="ml-3 text-dark-gray">Engelsk</span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 text-nordic-blue border-soft-gray focus:ring-nordic-blue"
-                  />
-                  <span className="ml-3 text-dark-gray">Svenska</span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 text-nordic-blue border-soft-gray focus:ring-nordic-blue"
-                  />
-                  <span className="ml-3 text-dark-gray">Dansk</span>
-                </label>
+                </label>                
                 <label className="flex items-center">
                   <input
                     type="checkbox"

@@ -32,13 +32,13 @@ export default function SignupPage() {
       return;
     }
     console.log('Signup attempt:', formData);
-    // Store user info and redirect to address page
+    // Store user info and redirect to dashboard
     const userInfo = encodeURIComponent(JSON.stringify({
       name: formData.name,
       email: formData.email,
       phone: formData.phone
     }));
-    window.location.href = `/auth/address?user=${userInfo}`;
+    window.location.href = `/dashboard?user=${userInfo}`;
   };
 
   return (

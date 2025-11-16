@@ -50,7 +50,7 @@ const mockMissions: Mission[] = [
     items: 3,
     payment: 120,
     distance: '4.1 km',
-    status: 'assigned'
+    status: 'available'
   },
   {
     id: '3',
