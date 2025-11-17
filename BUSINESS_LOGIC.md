@@ -20,7 +20,10 @@
 
 2. **Payment Success Triggers Order Generation:**
    - When payment status changes to `captured`:
-     - Calculate how many orders needed for billing period (e.g., monthly subscription with weekly frequency = 4 orders)
+     - Calculate how many orders needed for billing period
+     - **Monthly billing:** Generate first 4 occurrences of `recurring_weekday` after billing_date
+     - **Weekly frequency:** 4 orders per monthly billing period
+     - **Biweekly frequency:** 2 orders per monthly billing period
      - Generate ALL orders for the period at once
      - All orders assigned to same cleaner (`Subscription.assigned_cleaner_id`)
      - Each order inherits subscription defaults (extra_kg, needs_ironing, etc.)
@@ -31,18 +34,28 @@
    - If payment succeeds, generate next batch of orders
    - Update `next_billing_date` to next period
 
-**Example:**
+**Example (Monthly Billing, Weekly Pickups):**
 ```
 Customer subscribes Nov 15, 2025:
 - Plan: Monthly billing (399 NOK), weekly pickups, recurring_weekday = Wednesday
 - Payment succeeds Nov 15
-- System creates 4 orders immediately:
+- System creates 4 orders (first 4 Wednesdays after billing date):
   - Order 1: Pickup Nov 20 (Wed)
   - Order 2: Pickup Nov 27 (Wed)
   - Order 3: Pickup Dec 4 (Wed)
   - Order 4: Pickup Dec 11 (Wed)
 - All assigned to same cleaner (e.g., cleaner_id = abc-123)
 - Next billing date: Dec 15, 2025
+- On Dec 15, if payment succeeds, generate next 4 orders: Dec 18, 25, Jan 1, 8
+```
+
+**Example (5-Week Month Handling):**
+```
+Customer billing cycle: Jan 1 to Feb 1
+Recurring weekday: Wednesday
+Jan Wednesdays: 1, 8, 15, 22, 29 (5 total)
+System generates: First 4 only (Jan 1, 8, 15, 22)
+Result: Consistent billing (4 orders per month) regardless of calendar weeks
 ```
 
 ### Subscription Billing Cost Calculation
@@ -59,7 +72,11 @@ billing_cost_ore = SubscriptionPlan.price_ore
 **Calculation Rules:**
 
 - `billing_cost_ore` is calculated when subscription is created based on plan price and permanent add-ons
-- When customer updates permanent preferences (`default_needs_ironing`, `default_delicate_items_count`), `billing_cost_ore` must be recalculated and updated
+- When customer updates permanent preferences (`default_needs_ironing`, `default_delicate_items_count`, `default_extra_kg`):
+  - Changes take effect at **next billing cycle** (not immediately)
+  - `billing_cost_ore` is recalculated on next billing date
+  - Already-generated orders keep their original preferences and costs
+  - No prorated charges or refunds for mid-cycle changes in MVP
 - Preferences are permanent until customer explicitly changes them
 - These preferences apply to ALL auto-generated orders in the subscription
 
@@ -77,6 +94,33 @@ Current billing period can be computed from `started_at` and `billing_period`:
 - Example: If `started_at = Nov 15` and `billing_period = monthly`, and today is Dec 20
 - Current period: Dec 15 to Jan 15
 
+### One-Time Subscriptions (Pay-Per-Order)
+
+**Description:** Subscriptions with `billing_period = 'one_time'` (e.g., "Enkeltvask" plan) represent pay-per-order pricing agreements.
+
+**How It Works:**
+
+1. Customer selects one-time plan and subscribes
+2. Subscription created with:
+   - `status = 'active'`
+   - `billing_period = 'one_time'`
+   - `next_billing_date = null` (no scheduled billing)
+3. Customer places orders on-demand (not auto-generated)
+4. Each order triggers a payment when created:
+   - Payment has `payment_type = 'one_time'`
+   - Payment linked to specific order via `order_id`
+   - Amount = `Order.total_cost_ore` for that order
+5. Customer can place multiple orders over time under same subscription
+
+**Key Differences from Monthly Subscriptions:**
+
+| Monthly Subscription | One-Time Subscription |
+|---------------------|----------------------|
+| Billed on schedule (monthly) | Billed per order placed |
+| Auto-generates orders in batches | Customer requests orders manually |
+| Payment covers all orders in period | Payment covers single order |
+| `next_billing_date` set | `next_billing_date` null |
+
 ### Bag Delivery Auto-Creation
 
 **Trigger:** New subscription creation
@@ -93,11 +137,11 @@ Current billing period can be computed from `started_at` and `billing_period`:
    - `bag_quantity = 1` (default)
    - `scheduled_date` = 2 days before first laundry order pickup
    - `status = 'pending_assignment'`
-   - Links to first laundry order via `related_laundry_order_id`
+   - First laundry order has `related_bag_order_id` pointing to this bag delivery
 
 4. When bag delivery completed:
    - Admin marks order as `completed`
-   - System increments `Customer.laundry_bags_count += bag_quantity`
+   - System increments `Customer.laundry_bags_count` by the `Order.bag_quantity` value
    - First laundry order can now proceed to pickup
 
 **Business Rule:** Laundry order cannot move to `pickup_scheduled` status until related bag delivery is `completed`.
@@ -107,13 +151,15 @@ Current billing period can be computed from `started_at` and `billing_period`:
 **Customer.laundry_bags_count** tracks how many NooraCare bags the customer has.
 
 **Increment Triggers:**
-- Bag delivery order marked as `completed`: `+= bag_quantity`
+- Bag delivery order marked as `completed`: `laundry_bags_count += Order.bag_quantity`
 
 **Decrement Triggers:**
-- Laundry order marked as `picked_up`: `-= 1` (assumes 1 bag per order for MVP)
+- Laundry order marked as `picked_up`: `laundry_bags_count -= 1` (MVP uses 1 bag per laundry order)
 
 **Validation:**
 - Cannot create laundry order if `laundry_bags_count = 0` (must order bags first)
+
+**Note:** While `Order.bag_quantity` field exists for bag deliveries (supports 1-10 bags), MVP laundry operations assume 1 bag per pickup.
 
 ### Cleaner Assignment & Matching
 
@@ -145,6 +191,11 @@ Current billing period can be computed from `started_at` and `billing_period`:
 
 **Example:** `NO-20251117-001`
 
+**Limits:**
+- Maximum 999 orders per day (XXX = 001 to 999)
+- Acceptable for MVP given Bergen/Oslo market size
+- No overflow handling needed for initial launch
+
 ### Pickup/Delivery Operations (MVP)
 
 **Admin-Driven Process:**
@@ -167,10 +218,12 @@ Current billing period can be computed from `started_at` and `billing_period`:
 
 **Database Constraints:**
 
-- `Order.delivery_date >= Order.pickup_date` (for laundry orders)
+- `Order.delivery_date >= Order.scheduled_date` (for laundry orders)
 - `Order.scheduled_date >= CURRENT_DATE`
 - `Subscription.expires_at >= Subscription.started_at` (if set)
-- `Subscription.next_billing_date > Subscription.started_at`
+- `Subscription.next_billing_date > Subscription.started_at` (if set)
+
+**Note:** `scheduled_date` serves as the pickup date for laundry orders. Simplified from previous two-field approach.
 
 ### Audit Trail (MVP)
 
@@ -207,6 +260,26 @@ These timestamps provide sufficient audit trail for MVP compliance.
 **Amount Calculation:**
 - Recurring payment amount = `Subscription.billing_cost_ore`
 - One-time payment amount = `Order.total_cost_ore`
+
+### Payment Failure Handling
+
+**Subscription Creation with Failed Payment:**
+- Subscription is created with `status = 'active'`
+- Payment record created with `status = 'failed'`
+- No orders are generated until payment succeeds
+- Customer must retry payment to activate service
+- Subscription remains in database for retry attempts
+
+**Recurring Payment Failures:**
+- On billing date, attempt to charge customer
+- If payment fails:
+  - Payment status = `failed`
+  - No new orders generated for that billing period
+  - Subscription status remains `active` (grace period)
+  - Customer notified to update payment method
+- After retry period (defined by business policy):
+  - Subscription status → `cancelled` or `paused`
+  - Customer must reactivate to resume service
 
 ---
 

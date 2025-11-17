@@ -93,11 +93,12 @@
 - `verification_status` (enum → [CleanerVerificationStatus](#cleanerverificationstatus), required) - Verification status
   - **Default:** `pending`
 - `business_type` (enum → [CleanerBusinessType](#cleanerbusinesstype), required) - Business type
-- `tax_id` (string, unique, required) - Personal number or Organization number    
+- `tax_id` (string, unique, required) - Personal number or Organization number
 - `business_name` (string, nullable) - Company name
   - **Validation:** Required if `business_type = 'business'`, max 200 chars
 - `business_address` (text, nullable) - Registered business address
   - **Validation:** Required if `business_type = 'business'`, max 300 chars
+  - **Note:** Stored as text for MVP. Contains legal business registration address for accounting/compliance purposes.
 - `bank_account` (string, required) - Norwegian bank account
   - **Validation:** 11 digits (Norwegian bank account format)
 - `base_address_id` (uuid, FK → [Address](#6-address).id, required) - Base operation address
@@ -106,23 +107,13 @@
   - **Validation:** ISO 639-1 codes (e.g., `['no', 'en']`), at least 1 language
 - `specializations` (enum[] → [CleanerSpecialization](#cleanerspecialization), nullable) - Clothing specializations
   - **Note:** Can select multiple specializations
-- `daily_capacity` (integer, nullable) - Maximum wash cycles per day
-  - **Constraints:** >= 1, <= 20
-- `weekly_schedule` (jsonb, nullable) - Weekly availability pattern
+- `weekly_schedule` (jsonb, required) - Weekly availability pattern
   - **Format:** `{"mon": true, "tue": true, "wed": true, "thu": true, "fri": true, "sat": false, "sun": false}`
-  - **Note:** Defines which weekdays cleaner accepts orders. If null, cleaner must set availability before receiving orders.
+  - **Default:** `{"mon": true, "tue": true, "wed": true, "thu": true, "fri": true, "sat": false, "sun": false}`
+  - **Note:** Defines which weekdays cleaner accepts orders. Must be set before cleaner can receive order assignments.
 - `is_accepting_orders` (boolean) - Whether cleaner is accepting new orders
   - **Default:** `true`
   - **Note:** Vacation mode toggle. When false, cleaner receives no new assignments.
-- `offers_dryer` (boolean) - Offers machine dryer service
-  - **Default:** `false`
-  - **Note:** For MVP, informational only - not priced separately
-- `offers_drying_room` (boolean) - Offers drying room service
-  - **Default:** `false`
-  - **Note:** For MVP, informational only - not priced separately
-- `offers_ironing` (boolean) - Offers ironing service
-  - **Default:** `false`
-  - **Note:** For MVP, informational only - not priced separately
 - `created_at` (timestamp) - Profile creation timestamp
 - `updated_at` (timestamp) - Last update timestamp
 - `approved_at` (timestamp, nullable) - Approval timestamp
@@ -188,8 +179,10 @@
 - `country` (string) - Country
   - **Default:** `'Norway'`
   - **Validation:** Max 100 chars
-- `special_instructions` (text, nullable) - Access instructions
+- `special_instructions` (text, nullable) - Permanent access instructions
   - **Validation:** Max 500 chars
+  - **Examples:** "Use side entrance", "Gate code 1234", "Ring doorbell twice"
+  - **Note:** For permanent access details. One-time delivery notes go in Order.special_instructions
 - `latitude` (decimal(10,8), nullable) - GPS latitude
   - **Validation:** Range -90 to 90
 - `longitude` (decimal(11,8), nullable) - GPS longitude
@@ -231,6 +224,7 @@
   - **Constraints:** >= 0
 - `billing_period` (enum → [SubscriptionBillingPeriod](#subscriptionbillingperiod), required) - Billing period
 - `included_kg` (integer, default: 5) - Included kg per cycle
+  - **Note:** Display/marketing only - weight limits not enforced in MVP
 - `features` (string[], required) - Plan features list
 - `frequency` (enum → [SubscriptionFrequency](#subscriptionfrequency), required) - Pickup frequency
 - `is_popular` (boolean, default: false) - Popular plan flag
@@ -268,13 +262,13 @@
 - `default_needs_ironing` (boolean, default: false) - Permanent ironing preference
 - `default_delicate_items_count` (integer, default: 0) - Permanent delicate items count
 - `recurring_weekday` (enum → [Weekday](#weekday), nullable) - Preferred weekday for recurring pickups based on subscription frequency
-  - **Note:** For biweekly frequency, this weekday repeats every 2 weeks from `started_at`. For monthly, it represents the target weekday if possible within the month.
-- `status` (enum, required) - Status: `active`, `paused`, `cancelled`, `expired`
+  - **Note:** For biweekly frequency, this weekday repeats every 2 weeks from `started_at`. For monthly, system generates first 4 occurrences of this weekday after billing_date.
+- `status` (enum → [SubscriptionStatus](#subscriptionstatus), required) - Subscription status
 - `billing_cost_ore` (integer, required) - Total billing cost in øre, calculated from plan price + permanent add-ons
   - **Constraints:** >= 0
   - **Note:** Named "billing" (not "monthly") because it applies to both monthly and one_time billing periods
 - `next_billing_date` (date, nullable) - Next scheduled payment date
-  - **Note:** Updated after each successful payment. For monthly billing, set to started_at + N months. Null for one_time plans after initial payment.
+  - **Note:** Updated after each successful payment. For monthly billing, set to started_at + N months. Null for one_time plans (billed per order, not on schedule).
 - `started_at` (timestamp, required) - Subscription start date
 - `paused_at` (timestamp, nullable) - Pause timestamp
 - `cancelled_at` (timestamp, nullable) - Cancellation timestamp
@@ -323,8 +317,10 @@
 - `scheduled_date` (date, required) - Scheduled date for this task
   - **Validation:** Must be >= today
   - **Note:** For MVP, Admin users handle pickup/delivery operations manually via driver dashboard
-- `special_instructions` (text, nullable) - Special instructions
+- `special_instructions` (text, nullable) - One-time delivery notes for this specific order
   - **Validation:** Max 1000 chars
+  - **Examples:** "Leave on porch today", "Call when arriving", "Extra dirty items"
+  - **Note:** For one-time order-specific notes. Permanent access instructions are in Address.special_instructions
 - `declined_by_cleaner_ids` (uuid[], nullable) - Array of cleaner IDs who declined this order
   - **Note:** Used during reassignment to prevent offering order to same cleaner again
 - `completed_at` (timestamp, nullable) - Task completion timestamp
@@ -343,13 +339,10 @@
   - **Required for:** `laundry` type
 - `cleaner_id` (uuid, FK → [Cleaner](#3-cleaner).id, nullable) - Assigned cleaner
   - **Applicable to:** `laundry` type only
-- `pickup_date` (date, nullable) - Scheduled pickup date
-  - **Required for:** `laundry` type
-  - **Validation:** Must be >= today
-  - **Note:** Should match `scheduled_date` for routing consistency
 - `delivery_date` (date, nullable) - Scheduled/actual delivery date
-  - **Validation:** Must be >= pickup_date
+  - **Validation:** Must be >= scheduled_date
   - **Applicable to:** `laundry` type
+  - **Note:** Uses scheduled_date as pickup date for routing and validation
 - `pickup_method` (enum → [PickupMethod](#pickupmethod), nullable) - Pickup method
   - **Required for:** `laundry` type
 - `pickup_location_description` (text, nullable) - Detailed pickup location
@@ -385,9 +378,10 @@
   - **Validation:** Required if cleaner declines, max 500 chars
   - **Applicable to:** `laundry` type
 - `related_bag_order_id` (uuid, FK → Order.id, nullable) - Reference to prerequisite bag delivery
-  - **Note:** If this laundry order requires bags to be delivered first
+  - **Note:** If this laundry order requires bags to be delivered first. One-directional link (bag order → laundry order).
   - **Applicable to:** `laundry` type
   - **Business Rule:** Laundry order cannot move to pickup status until related bag order is completed
+  - **Constraint:** Should reference an order with `order_type = 'bag_delivery'`
 
 **Bag Delivery Fields (order_type = 'bag_delivery'):**
 
@@ -400,9 +394,6 @@
 - `bag_placement_photo_url` (string, nullable) - Placement photo URL
   - **Validation:** max 500 chars
   - **Applicable to:** `bag_delivery` type
-- `related_laundry_order_id` (uuid, FK → Order.id, nullable) - Reference to the laundry order this supports
-  - **Note:** Links bag delivery to the upcoming laundry order
-  - **Applicable to:** `bag_delivery` type
 
 **Relationships:**
 
@@ -412,13 +403,13 @@
 - Assigned to Cleaner (laundry only)
 - Has one Address (all types)
 - Has many Payments (laundry only)
-- Self-referential: bag_delivery links to laundry via `related_laundry_order_id`, laundry links to bag_delivery via `related_bag_order_id`
+- Self-referential: laundry order links to prerequisite bag delivery via `related_bag_order_id` (one direction only)
 
 **Indexes:**
 
 - Unique: order_number
 - Foreign: customer_id, subscription_id, plan_id, cleaner_id, address_id
-- Index: order_type, status, scheduled_date, pickup_date
+- Index: order_type, status, scheduled_date
 - Composite: (order_type, customer_id, created_at), (order_type, cleaner_id, status)
 
 ---
@@ -515,8 +506,15 @@
 
 ### SubscriptionBillingPeriod
 
-- `monthly` - Charged monthly
-- `one_time` - One-time payment
+- `monthly` - Charged monthly (recurring billing on billing_date each month)
+- `one_time` - Pay-per-order (customer is billed each time they place an order, e.g., "Enkeltvask" plan)
+
+### SubscriptionStatus
+
+- `active` - Subscription is active and generating orders
+- `paused` - Temporarily paused by customer
+- `cancelled` - Cancelled by customer or admin
+- `expired` - Subscription period has ended
 
 ### SubscriptionFrequency
 
@@ -559,6 +557,39 @@
 - `cancelled` - Order cancelled (final state)
 
 **Note:** Some statuses have different semantic meanings based on `order_type`. For `bag_delivery` orders, the flow is simpler: `pending_assignment` → `assigned` → `en_route_pickup` (heading to deliver bags) → `delivered` → `completed`.
+
+---
+
+## Database Constraints & Validation
+
+### Database-Level Constraints (Enforced by PostgreSQL)
+
+**CHECK Constraints:**
+- `Payment`: `(order_id IS NOT NULL) != (subscription_id IS NOT NULL)` - Payment must have EITHER order_id OR subscription_id, not both, not neither (XOR)
+- `Order`: `delivery_date >= scheduled_date` - Delivery cannot be before pickup (laundry orders)
+- `Subscription`: `expires_at >= started_at` - Expiration must be after start date (if set)
+- `Subscription`: `next_billing_date > started_at` - Next billing must be after start date (if set)
+
+**Unique Partial Indexes:**
+- `Address`: `(user_id) WHERE is_default = true` - Only one default address per user
+- `Subscription`: `(customer_id) WHERE status IN ('active', 'paused')` - Only one active/paused subscription per customer
+
+**Foreign Key Cascades:**
+- `Customer.user_id` → `User.id` (ON DELETE CASCADE)
+- `Cleaner.user_id` → `User.id` (ON DELETE CASCADE)
+- `Address.user_id` → `User.id` (ON DELETE CASCADE)
+
+### Application-Level Validation (Enforced by Code)
+
+**Business Rules:**
+- Cannot create laundry order if `Customer.laundry_bags_count = 0` (must order bags first)
+- Laundry order cannot move to `pickup_scheduled` status until `related_bag_order_id` is completed
+- Orders cannot be assigned to cleaner with `weekly_schedule` that doesn't include the pickup weekday
+- Orders cannot be assigned to cleaner with `verification_status != 'approved'`
+- Cleaner cannot receive assignments if `is_accepting_orders = false`
+- `business_name` and `business_address` required if `Cleaner.business_type = 'business'`
+- `pickup_location_description` required if `Order.pickup_method = 'other'`
+- Order number must be unique and follow format `NO-YYYYMMDD-XXX` (max 999 orders per day for MVP)
 
 ---
 
