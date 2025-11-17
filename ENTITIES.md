@@ -36,10 +36,8 @@
 
 - Has one Customer profile (if role = customer)
 - Has one Cleaner profile (if role = cleaner)
-- Has one Driver profile (if role = driver)
 - Has one Admin profile (if role = admin)
 - Has many Addresses
-- Has many Notifications
 
 **Indexes:**
 
@@ -70,8 +68,6 @@
 - Belongs to User
 - Has many Subscriptions (only one active/paused at a time)
 - Has many Orders
-- Has many Reviews
-- Has many PaymentMethods
 
 **Indexes:**
 
@@ -118,51 +114,34 @@
 - `is_accepting_orders` (boolean) - Whether cleaner is accepting new orders
   - **Default:** `true`
   - **Note:** Vacation mode toggle. When false, cleaner receives no new assignments.
+- `offers_dryer` (boolean) - Offers machine dryer service
+  - **Default:** `false`
+  - **Note:** For MVP, informational only - not priced separately
+- `offers_drying_room` (boolean) - Offers drying room service
+  - **Default:** `false`
+  - **Note:** For MVP, informational only - not priced separately
+- `offers_ironing` (boolean) - Offers ironing service
+  - **Default:** `false`
+  - **Note:** For MVP, informational only - not priced separately
 - `created_at` (timestamp) - Profile creation timestamp
 - `updated_at` (timestamp) - Last update timestamp
 - `approved_at` (timestamp, nullable) - Approval timestamp
 - `suspended_at` (timestamp, nullable) - Suspension timestamp
 - `deleted_at` (timestamp, nullable) - Soft delete timestamp
-  - **Note:** Set when parent User is deleted. Preserves order/review history and financial records.
+  - **Note:** Set when parent User is deleted. Preserves order history and financial records.
   - **Business Rule:** On deletion, anonymize sensitive fields (tax_id, bank_account, business_address) while keeping operational data
 
 **Relationships:**
 
 - Belongs to User
-- Has many CleanerServices
 - Has one base Address
 - Has many Orders (assigned orders)
-- Receives many Reviews
 
 **Indexes:**
 
 - Unique: user_id, tax_id
 - Index: verification_status, base_address_id
 - GeoIndex: base_address_id (for location-based queries)
-
----
-
-### Driver
-
-**Description:** Profile for drivers who handle pickups and deliveries.
-
-**Fields:**
-
-- `id` (uuid, PK) - Unique identifier
-- `user_id` (uuid, FK → User.id, unique, required) - Reference to User
-- `display_name` (string, required) - Public display name
-- `created_at` (timestamp) - Profile creation timestamp
-- `updated_at` (timestamp) - Last update timestamp
-
-**Relationships:**
-
-- Belongs to User
-- Has many Orders as pickup_driver (through Order.pickup_driver_id)
-- Has many Orders as delivery_driver (through Order.delivery_driver_id)
-
-**Indexes:**
-
-- Unique: user_id
 
 ---
 
@@ -205,6 +184,7 @@
   - **Validation:** Exactly 4 digits
 - `city` (string, required) - City name
   - **Validation:** Min 2 chars, max 100 chars
+  - **MVP Constraint:** Must be 'Bergen' or 'Oslo' - system only operates in these cities initially
 - `country` (string) - Country
   - **Default:** `'Norway'`
   - **Validation:** Max 100 chars
@@ -231,6 +211,7 @@
 - Foreign: user_id
 - GeoIndex: (latitude, longitude)
 - Index: postal_code, city
+- Unique: (user_id) WHERE is_default = true - enforces one default address per user
 
 ---
 
@@ -281,6 +262,8 @@
 - `id` (uuid, PK) - Unique identifier
 - `customer_id` (uuid, FK → Customer.id, required) - Customer reference
 - `plan_id` (uuid, FK → SubscriptionPlan.id, required) - Plan reference
+- `assigned_cleaner_id` (uuid, FK → [Cleaner](#3-cleaner).id, nullable) - Cleaner assigned to all orders in this subscription
+  - **Note:** All orders generated from this subscription are assigned to the same cleaner for consistency
 - `default_extra_kg` (integer, default: 0) - Permanent extra kg added to subscription
 - `default_needs_ironing` (boolean, default: false) - Permanent ironing preference
 - `default_delicate_items_count` (integer, default: 0) - Permanent delicate items count
@@ -290,6 +273,8 @@
 - `billing_cost_ore` (integer, required) - Total billing cost in øre, calculated from plan price + permanent add-ons
   - **Constraints:** >= 0
   - **Note:** Named "billing" (not "monthly") because it applies to both monthly and one_time billing periods
+- `next_billing_date` (date, nullable) - Next scheduled payment date
+  - **Note:** Updated after each successful payment. For monthly billing, set to started_at + N months. Null for one_time plans after initial payment.
 - `started_at` (timestamp, required) - Subscription start date
 - `paused_at` (timestamp, nullable) - Pause timestamp
 - `cancelled_at` (timestamp, nullable) - Cancellation timestamp
@@ -301,20 +286,20 @@
 
 - Belongs to Customer
 - Belongs to SubscriptionPlan
+- Assigned to Cleaner (nullable)
 - Has many Orders (generated from subscription)
 - Has many Payments (monthly recurring billing)
 
 **Notes:**
 
-- `billing_cost_ore` is calculated as: `SubscriptionPlan.price_ore + (default_extra_kg * PricingConfiguration.extra_kg_price_ore) + (default_needs_ironing ? PricingConfiguration.ironing_price_ore : 0) + (default_delicate_items_count * PricingConfiguration.delicate_item_price_ore)`
-- When customer updates preferences (default_extra_kg, default_needs_ironing, etc.), `billing_cost_ore` must be recalculated and updated
-- Auto-generated orders inherit these default preferences (Order.extra_kg = Subscription.default_extra_kg, etc.)
-- Preferences are permanent until customer explicitly changes them
+- See [BUSINESS_LOGIC.md](./BUSINESS_LOGIC.md#subscription-billing-cost-calculation) for `billing_cost_ore` calculation formula, recalculation rules, and billing period computation
+- See [BUSINESS_LOGIC.md](./BUSINESS_LOGIC.md#subscription-creation--order-generation-payment-triggered) for order generation workflow and preference inheritance rules
 
 **Indexes:**
 
-- Foreign: customer_id, plan_id
+- Foreign: customer_id, plan_id, assigned_cleaner_id
 - Index: status
+- Unique: (customer_id) WHERE status IN ('active', 'paused') - enforces one active subscription per customer
 
 ---
 
@@ -335,11 +320,9 @@
 - `status` (enum → [OrderStatus](#orderstatus), required) - Order status
   - **Default:** `pending_assignment`
 - `address_id` (uuid, FK → [Address](#6-address).id, required) - Delivery/pickup location
-- `assigned_driver_id` (uuid, FK → [Driver](#4-driver).id, nullable) - Assigned driver for this task
-  - **Note:** Used for routing; represents the driver assigned to complete this specific task
 - `scheduled_date` (date, required) - Scheduled date for this task
   - **Validation:** Must be >= today
-  - **Note:** For driver routing and optimization
+  - **Note:** For MVP, Admin users handle pickup/delivery operations manually via driver dashboard
 - `special_instructions` (text, nullable) - Special instructions
   - **Validation:** Max 1000 chars
 - `declined_by_cleaner_ids` (uuid[], nullable) - Array of cleaner IDs who declined this order
@@ -383,22 +366,11 @@
 - `needs_ironing` (boolean, nullable) - Ironing needed
   - **Default:** `false`
   - **Applicable to:** `laundry` type
-- `actual_weight_kg` (decimal(5,2), nullable) - Actual weight measured at pickup
-  - **Note:** Set by cleaner/driver during pickup
-  - **Applicable to:** `laundry` type
-- `weight_overage_charge_ore` (integer, nullable) - Additional charge for weight exceeding plan
-  - **Constraints:** >= 0
-  - **Applicable to:** `laundry` type
 - `total_cost_ore` (integer, nullable) - Total order cost in øre
   - **Constraints:** >= 0
   - **Required for:** `laundry` type
-  - **Calculation:** Plan price + extras (kg, ironing, delicate items) + weight_overage_charge_ore
-- `pickup_driver_id` (uuid, FK → [Driver](#4-driver).id, nullable) - Driver who handled pickup
-  - **Applicable to:** `laundry` type
-  - **Note:** Different from `assigned_driver_id`; this tracks who actually did the pickup
-- `delivery_driver_id` (uuid, FK → [Driver](#4-driver).id, nullable) - Driver who handled delivery
-  - **Applicable to:** `laundry` type
-  - **Note:** Different from `assigned_driver_id`; this tracks who actually did the delivery
+  - **Calculation:** Plan price + extras (ironing, delicate items)
+  - **Note:** Weight overage charges not included in MVP
 - `assigned_at` (timestamp, nullable) - Cleaner assignment timestamp
   - **Applicable to:** `laundry` type
 - `picked_up_at` (timestamp, nullable) - Actual pickup timestamp
@@ -438,98 +410,16 @@
 - Belongs to SubscriptionPlan (laundry only)
 - Belongs to Subscription (laundry only, nullable)
 - Assigned to Cleaner (laundry only)
-- Pickup handled by Driver (laundry only)
-- Delivery handled by Driver (laundry only)
-- Has assigned Driver (all types, for routing)
 - Has one Address (all types)
 - Has many Payments (laundry only)
-- Has many OrderStatusHistory records
 - Self-referential: bag_delivery links to laundry via `related_laundry_order_id`, laundry links to bag_delivery via `related_bag_order_id`
 
 **Indexes:**
 
 - Unique: order_number
-- Foreign: customer_id, subscription_id, plan_id, cleaner_id, address_id, pickup_driver_id, delivery_driver_id, assigned_driver_id
+- Foreign: customer_id, subscription_id, plan_id, cleaner_id, address_id
 - Index: order_type, status, scheduled_date, pickup_date
-- Composite: (order_type, customer_id, created_at), (order_type, cleaner_id, status), (assigned_driver_id, scheduled_date, order_type)
-
----
-
-### AdditionalService
-
-**Description:** Catalog of additional services offered by cleaners.
-
-**Fields:**
-
-- `id` (uuid, PK) - Unique identifier
-- `slug` (string, unique, required) - Service identifier: `dryer`, `drying_room`, `ironing`
-- `name` (string, required) - Norwegian name
-- `description` (text, required) - Norwegian description
-- `base_price_ore` (integer, required) - Base price in øre
-  - **Constraints:** >= 0
-- `pricing_type` (enum → [AdditionalServicePricingType](#additionalservicepricingtype), required) - Pricing type
-- `is_active` (boolean, default: true) - Active flag
-- `created_at` (timestamp) - Creation timestamp
-- `updated_at` (timestamp) - Last update timestamp
-
-**Relationships:**
-
-- Has many CleanerServices (cleaner-specific offerings)
-
-**Indexes:**
-
-- Unique: slug
-- Index: is_active
-
----
-
-### CleanerService
-
-**Description:** Services offered by specific cleaners. The existence of a record indicates the cleaner offers this service at the base price defined in AdditionalService.
-
-**Fields:**
-
-- `id` (uuid, PK) - Unique identifier
-- `cleaner_id` (uuid, FK → Cleaner.id, required) - Cleaner reference
-- `service_id` (uuid, FK → AdditionalService.id, required) - Service reference
-- `created_at` (timestamp) - Creation timestamp
-- `updated_at` (timestamp) - Last update timestamp
-
-**Relationships:**
-
-- Belongs to Cleaner
-- Belongs to AdditionalService
-
-**Indexes:**
-
-- Foreign: cleaner_id, service_id
-- Unique: (cleaner_id, service_id)
-
----
-
-### OrderStatusHistory
-
-**Description:** Audit trail of order status changes.
-
-**Fields:**
-
-- `id` (uuid, PK) - Unique identifier
-- `order_id` (uuid, FK → Order.id, required) - Order reference
-- `status` (enum, required) - Status value (uses OrderStatus enum)
-- `changed_by` (uuid, FK → User.id, required) - User who made the change
-- `changed_at` (timestamp, required) - When status changed
-- `created_at` (timestamp) - Record creation timestamp
-
-**Relationships:**
-
-- Belongs to Order
-- Changed by User
-
-**Indexes:**
-
-- Foreign: order_id, changed_by
-- Index: status, changed_at
-- Composite: (order_id, changed_at DESC)
+- Composite: (order_type, customer_id, created_at), (order_type, cleaner_id, status)
 
 ---
 
@@ -544,7 +434,6 @@
 - `order_id` (uuid, FK → Order.id, nullable) - Order reference (for one-time plan orders only)
 - `subscription_id` (uuid, FK → Subscription.id, nullable) - Subscription reference (for monthly billing)
 - `payment_type` (enum, required) - Type: `recurring`, `one_time`, `refund`
-- `payment_method_id` (uuid, FK → PaymentMethod.id, nullable) - Payment method used
 - `amount_ore` (integer, required) - Amount in øre
   - **Constraints:** >= 0
 - `status` (enum, required) - Status: `pending`, `authorized`, `captured`, `failed`, `refunded`, `cancelled`
@@ -567,168 +456,21 @@
 - Belongs to Customer
 - Belongs to Order (nullable, for one-time plan orders)
 - Belongs to Subscription (nullable, for monthly subscription billing)
-- Uses PaymentMethod (nullable)
 
 **Notes:**
 
-- Recurring payments (`payment_type = recurring`) have `subscription_id` set, `order_id` null, and cover all orders in that billing period
-- One-time payments (`payment_type = one_time`) have `order_id` set, `subscription_id` null, and cover the full cost of a single order
-- Payment amount for recurring payments matches `Subscription.billing_cost_ore` (base plan + permanent add-ons)
-- Payment amount for one-time payments matches `Order.total_cost_ore` (plan price + any extras)
+- See [BUSINESS_LOGIC.md](./BUSINESS_LOGIC.md#payment-types--amount-calculation) for payment type rules and amount calculation formulas
 
 **Indexes:**
 
 - Unique: provider_payment_id
-- Foreign: customer_id, order_id, subscription_id, payment_method_id
+- Foreign: customer_id, order_id, subscription_id
 - Index: status, payment_provider, payment_type, created_at
 - Composite: (customer_id, created_at DESC), (subscription_id, created_at DESC)
 
 ---
 
-### PaymentMethod
-
-**Description:** Stored customer payment methods.
-
-**Fields:**
-
-- `id` (uuid, PK) - Unique identifier
-- `customer_id` (uuid, FK → Customer.id, required) - Customer reference
-- `type` (enum, required) - Type: `vipps`, `card`
-- `is_default` (boolean, default: false) - Default payment method
-  - **Business Rule:** Only one payment method per customer can have `is_default = true`. Enforce via application logic or partial unique index.
-- `provider` (enum, required) - Provider: `vipps`, `stripe`, `manual`
-- `provider_payment_method_id` (string, nullable) - External payment method ID
-- `card_last4` (string, nullable) - Last 4 digits (for cards)
-- `card_brand` (string, nullable) - Card brand (Visa, Mastercard, etc.)
-- `card_exp_month` (integer, nullable) - Expiry month
-- `card_exp_year` (integer, nullable) - Expiry year
-- `vipps_phone` (string, nullable) - Vipps phone number
-- `billing_address_id` (uuid, FK → Address.id, nullable) - Billing address
-- `is_active` (boolean, default: true) - Active flag
-- `created_at` (timestamp) - Creation timestamp
-- `updated_at` (timestamp) - Last update timestamp
-
-**Relationships:**
-
-- Belongs to Customer
-- Has billing Address (nullable)
-- Used by many Payments
-
-**Indexes:**
-
-- Foreign: customer_id, billing_address_id
-- Index: is_default, is_active, type
-
----
-
-### Review
-
-**Description:** Customer reviews of cleaners.
-
-**Fields:**
-
-- `id` (uuid, PK) - Unique identifier
-- `order_id` (uuid, FK → Order.id, unique, required) - Order reference
-- `customer_id` (uuid, FK → Customer.id, required) - Reviewer
-- `cleaner_id` (uuid, FK → Cleaner.id, required) - Reviewed cleaner
-- `rating` (integer, required) - Rating 1-5
-  - **Constraints:** CHECK (rating >= 1 AND rating <= 5)
-- `comment` (text, nullable) - Review text
-- `is_public` (boolean, default: true) - Public visibility
-- `cleaner_response` (text, nullable) - Cleaner's response
-- `responded_at` (timestamp, nullable) - Response timestamp
-- `created_at` (timestamp) - Review creation timestamp
-- `updated_at` (timestamp) - Last update timestamp
-
-**Relationships:**
-
-- Belongs to Order (one-to-one)
-- Written by Customer
-- About Cleaner
-
-**Indexes:**
-
-- Unique: order_id
-- Foreign: customer_id, cleaner_id
-- Index: rating, is_public, created_at
-- Composite: (cleaner_id, created_at DESC)
-
----
-
-### 16. Notification
-
-**Description:** Notification records (SMS, email, push).
-
-**Fields:**
-
-- `id` (uuid, PK) - Unique identifier
-- `user_id` (uuid, FK → User.id, required) - Recipient
-- `type` (enum, required) - Type: `sms`, `email`, `push`
-- `subject` (string, nullable) - Notification subject (for email)
-- `message` (text, required) - Notification content
-- `metadata` (jsonb, nullable) - Additional data
-- `status` (enum, required) - Status: `pending`, `sent`, `failed`, `read`
-- `sent_at` (timestamp, nullable) - Send timestamp
-- `read_at` (timestamp, nullable) - Read timestamp
-- `failed_at` (timestamp, nullable) - Failure timestamp
-- `failure_reason` (text, nullable) - Failure reason
-- `created_at` (timestamp) - Creation timestamp
-
-**Relationships:**
-
-- Belongs to User
-
-**Indexes:**
-
-- Foreign: user_id
-- Index: type, status, channel, created_at
-- Composite: (user_id, created_at DESC)
-
----
-
-### PricingConfiguration
-
-**Description:** System-wide pricing configuration for dynamic pricing variables. Single row table.
-
-**Fields:**
-
-- `id` (uuid, PK) - Unique identifier
-- `extra_kg_price_ore` (integer, required) - Price per extra kg in øre
-  - **Constraints:** >= 0
-  - **Note:** Used to calculate charges for weight beyond plan included_kg
-- `ironing_price_ore` (integer, required) - Price for basic ironing service in øre
-  - **Constraints:** >= 0
-  - **Note:** Applied when `Order.needs_ironing = true`
-- `delicate_item_price_ore` (integer, required) - Price per delicate item in øre
-  - **Constraints:** >= 0
-  - **Note:** Multiplied by `Order.delicate_items_count`
-- `vat_rate_percent` (decimal(5,2), required) - VAT rate percentage
-  - **Constraints:** >= 0, <= 100
-  - **Example:** `25.00` for 25% Norwegian MVA
-  - **Note:** For display/reporting; prices stored in entities already include VAT
-- `version` (integer, required) - Configuration version number
-  - **Default:** `1`
-  - **Auto-increment:** Increments on every update for change tracking
-- `effective_from` (timestamp, required) - When this pricing becomes effective
-  - **Note:** For future-dated price changes
-- `created_at` (timestamp) - Creation timestamp
-- `updated_at` (timestamp) - Last update timestamp
-- `updated_by` (uuid, FK → User.id, nullable) - Admin who updated pricing
-
-**Relationships:**
-
-- Updated by Admin User (nullable)
-
-**Business Rules:**
-
-- Only ONE active pricing configuration should exist at a time
-- When prices change, create audit trail (consider PricingConfigurationHistory table)
-- All cost calculations reference this entity for consistency
-- Changes to pricing affect new subscriptions and orders; existing subscriptions keep their calculated `billing_cost_ore` until explicitly recalculated
-
-**Indexes:**
-
-- Foreign: updated_by
+**Note:** For MVP, email/SMS notifications are tracked via provider audit logs (SendGrid, Twilio, etc.) - no database storage needed.
 
 ---
 
@@ -738,7 +480,6 @@
 
 - `customer`
 - `cleaner`
-- `driver`
 - `admin`
 
 ### CleanerVerificationStatus
@@ -817,16 +558,17 @@
 - `completed` - Order completed (final state)
 - `cancelled` - Order cancelled (final state)
 
-**Note:** Some statuses have different semantic meanings based on `order_type`. For `bag_delivery` orders, the flow is simpler: `pending_assignment` → `assigned` → `en_route_pickup` (driver heading to deliver bags) → `delivered` → `completed`.
-
-### AdditionalServicePricingType
-
-- `per_order` - Fixed price per order
-- `per_item` - Price per item
-- `per_kg` - Price per kg
+**Note:** Some statuses have different semantic meanings based on `order_type`. For `bag_delivery` orders, the flow is simpler: `pending_assignment` → `assigned` → `en_route_pickup` (heading to deliver bags) → `delivered` → `completed`.
 
 ---
 
 ## Security & Privacy
 
 - **RLS Policies:** Customers see own data only; cleaners see assigned orders only; admins have full access
+- **Driver Role (MVP):** Admins access driver dashboard to perform pickup/delivery operations
+
+---
+
+## Related Documentation
+
+**Business Logic & Workflows:** See [BUSINESS_LOGIC.md](./BUSINESS_LOGIC.md) for application workflows, operational rules, and business process definitions.

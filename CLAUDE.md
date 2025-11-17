@@ -36,7 +36,9 @@ The application supports three user roles:
 - **Project ID**: uknariyagkmhdjqrllhf
 - **Region**: eu-north-1 (Europe/Stockholm)
 - **API URL**: https://uknariyagkmhdjqrllhf.supabase.co
-- **Schema Documentation**: See `ENTITIES.md` for complete database schema, entity definitions, relationships, and data integrity rules
+- **Schema Documentation**:
+  - See `ENTITIES.md` for complete database schema, entity definitions, relationships, and data integrity rules
+  - See `BUSINESS_LOGIC.md` for application workflows, operational rules, and business process definitions
 
 ### Environment Variables
 
@@ -95,4 +97,8 @@ src/
 │   └── utils/          # General utilities
 └── types/              # TypeScript type definitions
 ```
-- when working with the `ENTITIES.md` file, don't implement schema migration yet as it's not implemented yet
+
+## Documentation Notes
+
+- When working with the `ENTITIES.md` file, don't implement schema migration yet as it's not implemented yet
+- Refer to `BUSINESS_LOGIC.md` for understanding application workflows and business rules when implementing features
