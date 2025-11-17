@@ -12,6 +12,15 @@ The application supports three user roles:
 - **Cleaners**: Accept missions and provide laundry services
 - **Admins**: Manage operations and platform oversight
 
+## Development Philosophy
+
+**This is an MVP.** Always prioritize the simplest solution that works:
+
+- Choose simple, straightforward implementations over complex architectures
+- Avoid over-engineering - build what's needed now, not what might be needed later
+- Prefer existing patterns and libraries over custom solutions
+- Keep code readable and maintainable rather than clever
+
 ## Technology Stack
 
 - **Framework**: Next.js 15.5.4 with TypeScript and App Router
@@ -86,4 +95,4 @@ src/
 │   └── utils/          # General utilities
 └── types/              # TypeScript type definitions
 ```
-- when working with the @ENTITIES.md file, don't implement schema migration yet as it's not implemented yet
+- when working with the `ENTITIES.md` file, don't implement schema migration yet as it's not implemented yet
