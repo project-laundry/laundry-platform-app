@@ -1,6 +1,6 @@
 # NooraCare Business Logic & Workflows
 
-**Related Documentation:** See [ENTITIES.md](./ENTITIES.md) for complete database schema, entity definitions, and relationships.
+**Related Documentation:** See [ENTITIES.md](./ENTITIES.md) for database schema and [DASHBOARDS.md](./DASHBOARDS.md) for UI specifications.
 
 ---
 
@@ -218,21 +218,34 @@ Assignment happens at order creation for all plan types (recurring and one-time)
 
 ### Pickup/Delivery Operations (MVP)
 
-**Admin-Driven Process:**
+**Complete Order Workflow:**
 
-1. Admin logs into platform, accesses "Driver Dashboard"
-2. See list of orders for today grouped by status:
-   - **Pending Pickup:** Orders with `status = 'pickup_scheduled'`
-   - **Ready for Delivery:** Orders with `status = 'en_route_delivery'` or ready from cleaner
+1. `pickup_scheduled` → `picked_up`
+   - **Who:** Admin/Driver
+   - **Action:** Picks up laundry from customer
+   - **Timestamp:** `picked_up_at`
 
-3. Admin updates statuses manually as they perform pickups/deliveries:
-   - Mark `picked_up` when laundry collected
-   - Mark `completed` when laundry returned to customer
-   - Add photos, notes as needed
+2. `picked_up` → `in_cleaning`
+   - **Who:** Admin/Driver
+   - **Action:** Delivers laundry to cleaner
+   - **Timestamp:** `in_cleaning_at`
 
-4. System timestamps (`picked_up_at`, `delivered_at`, `completed_at`) auto-set when status changes
+3. `in_cleaning` → `ready_for_delivery`
+   - **Who:** Cleaner
+   - **Action:** Marks laundry as cleaned and ready
+   - **Timestamp:** `ready_for_delivery_at`
 
-**Future:** When Driver role is added, replace Admin with dedicated driver assignments.
+4. `ready_for_delivery` → `out_for_delivery`
+   - **Who:** Admin/Driver
+   - **Action:** Collects clean laundry from cleaner
+   - **Timestamp:** `out_for_delivery_at`
+
+5. `out_for_delivery` → `completed`
+   - **Who:** Admin/Driver
+   - **Action:** Delivers clean laundry to customer
+   - **Timestamp:** `completed_at`
+
+**Dashboard Specifications:** See [DASHBOARDS.md](./DASHBOARDS.md) for Admin Driver Dashboard, Cleaner Dashboard, and other role-based UI specifications.
 
 ### Date Consistency Rules
 
@@ -251,7 +264,7 @@ Assignment happens at order creation for all plan types (recurring and one-time)
 
 Instead of separate audit tables, rely on entity timestamps:
 
-- **Orders:** `created_at`, `assigned_at`, `picked_up_at`, `delivered_at`, `completed_at`, `cancelled_at`
+- **Orders:** `created_at`, `assigned_at`, `picked_up_at`, `in_cleaning_at`, `ready_for_delivery_at`, `out_for_delivery_at`, `completed_at`, `cancelled_at`
 - **Subscriptions:** `started_at`, `paused_at`, `cancelled_at`, `expires_at`
 - **Payments:** `created_at`, `authorized_at`, `captured_at`, `failed_at`, `refunded_at`
 

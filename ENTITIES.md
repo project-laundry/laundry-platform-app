@@ -396,7 +396,9 @@
   - **Note:** Used during reassignment to prevent offering order to same cleaner again
 - `assigned_at` (timestamp, nullable) - Cleaner assignment timestamp
 - `picked_up_at` (timestamp, nullable) - Actual pickup timestamp
-- `delivered_at` (timestamp, nullable) - Actual delivery timestamp
+- `in_cleaning_at` (timestamp, nullable) - When driver delivered to cleaner
+- `ready_for_delivery_at` (timestamp, nullable) - When cleaner marked laundry as ready
+- `out_for_delivery_at` (timestamp, nullable) - When driver collected from cleaner
 - `completed_at` (timestamp, nullable) - Order completion timestamp
 - `cancelled_at` (timestamp, nullable) - Cancellation timestamp
 - `cancellation_reason` (text, nullable) - Reason for cancellation
@@ -564,10 +566,11 @@
 
 - `pending_assignment` - Waiting for cleaner assignment (edge case: no available cleaners)
 - `pickup_scheduled` - Cleaner assigned and pickup scheduled
-- `en_route_pickup` - Driver heading to pick up laundry
-- `picked_up` - Laundry picked up from customer
-- `en_route_delivery` - Heading to deliver clean laundry
-- `completed` - Order completed (final state)
+- `picked_up` - Laundry picked up from customer, in transit to cleaner
+- `in_cleaning` - Laundry delivered to cleaner, being washed
+- `ready_for_delivery` - Laundry cleaned, ready for driver to collect from cleaner
+- `out_for_delivery` - Driver collected from cleaner, en route to customer
+- `completed` - Clean laundry delivered to customer (final state)
 - `cancelled` - Order cancelled (final state)
 
 ---
@@ -616,4 +619,4 @@
 
 ## Related Documentation
 
-**Business Logic & Workflows:** See [BUSINESS_LOGIC.md](./BUSINESS_LOGIC.md) for application workflows, operational rules, and business process definitions.
+See [BUSINESS_LOGIC.md](./BUSINESS_LOGIC.md) for workflows and [DASHBOARDS.md](./DASHBOARDS.md) for UI specifications.
