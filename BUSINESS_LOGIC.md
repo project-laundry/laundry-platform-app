@@ -61,8 +61,8 @@ Customer subscribes Nov 15, 2025:
 Customer billing cycle: Jan 1 to Feb 1
 Recurring weekday: Wednesday
 Jan Wednesdays: 1, 8, 15, 22, 29 (5 total)
-System generates: First 4 only (Jan 1, 8, 15, 22)
-Result: Consistent billing (4 orders per month) regardless of calendar weeks
+System generates: First 5 orders in this case
+Result: Customer get more value this time.
 ```
 
 ### Subscription Billing Cost Calculation
@@ -109,15 +109,18 @@ Current billing period can be computed from `started_at` and `billing_period`:
 
 1. Customer selects one-time plan and subscribes
 2. Subscription created with:
-   - `status = 'active'`
+   - `status = 'pending_payment'`
    - `billing_period = 'one_time'`
+   - `started_at = null`
    - `next_billing_date = null` (no scheduled billing)
-3. Customer places orders on-demand (not auto-generated)
-4. Each order triggers a payment when created:
+3. Customer places first order, which triggers a payment:
    - Payment has `payment_type = 'one_time'`
    - Payment linked to specific order via `order_id`
    - Amount = `Order.total_cost_ore` for that order
-5. Customer can place multiple orders over time under same subscription
+4. When first order payment succeeds:
+   - Set `started_at = now()`
+   - Update subscription status to `active`
+5. Customer can place additional orders over time under same subscription
 
 **Key Differences from Monthly Subscriptions:**
 
@@ -141,7 +144,7 @@ Current billing period can be computed from `started_at` and `billing_period`:
 
 3. BagDelivery Details:
    - `bag_quantity = 1` (default)
-   - `scheduled_date` = 2 days before first order pickup
+   - `scheduled_date` = 1 days before first order pickup
    - `status = 'pending'`
    - First Order has `prerequisite_bag_delivery_id` pointing to this BagDelivery
 
@@ -157,12 +160,11 @@ Current billing period can be computed from `started_at` and `billing_period`:
 **Customer.laundry_bags_count** tracks how many NooraCare bags the customer has.
 
 **Increment Triggers:**
+
 - BagDelivery marked as `completed`: `laundry_bags_count += BagDelivery.bag_quantity`
 
-**Decrement Triggers:**
-- Order marked as `picked_up`: `laundry_bags_count -= 1` (MVP uses 1 bag per order)
-
 **Validation:**
+
 - Cannot create order if `laundry_bags_count = 0` and no `prerequisite_bag_delivery_id` is set (must have bags or order them)
 
 **Note:** While `BagDelivery.bag_quantity` supports 1-10 bags, MVP laundry operations assume 1 bag per pickup.
@@ -188,29 +190,23 @@ Current billing period can be computed from `started_at` and `billing_period`:
 
 ### Order Number Format
 
-**Order Format:** `NO-YYYYMMDD-XXX`
+**Format:** `XXXXXX` (6-character random alphanumeric)
 
-**Components:**
-- `NO`: Country code (Norway)
-- `YYYYMMDD`: Date order was created (e.g., 20251117)
-- `XXX`: Sequential number for that day (001, 002, etc.)
+**Character Set:** `23456789ABCDEFGHJKMNPQRSTUVWXYZ` (32 characters)
+- Excludes confusing characters: 0/O, 1/I/L
 
-**Example:** `NO-20251117-001`
+**Examples:** `A7K2X9`, `P3M8NV`, `K2X9HJ`
 
-**BagDelivery Format:** `BD-YYYYMMDD-XXX`
+**Generation Rules:**
+- Randomly generated on order creation
+- Collision checking required before saving
+- Same format used for both Orders and BagDeliveries
+- Total combinations: 32^6 = 1+ billion (sufficient for platform scale)
 
-**Components:**
-- `BD`: Bag Delivery identifier
-- `YYYYMMDD`: Date delivery was created
-- `XXX`: Sequential number for that day (001, 002, etc.)
-
-**Example:** `BD-20251117-001`
-
-**Limits:**
-- Maximum 999 orders per day (XXX = 001 to 999)
-- Maximum 999 bag deliveries per day
-- Acceptable for MVP given Bergen/Oslo market size
-- No overflow handling needed for initial launch
+**Benefits:**
+- Easy to communicate verbally
+- Doesn't reveal business volume or creation date
+- Professional appearance
 
 ### Pickup/Delivery Operations (MVP)
 

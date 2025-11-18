@@ -216,8 +216,8 @@
 
 - `id` (uuid, PK) - Unique identifier
 - `delivery_number` (string, unique, required) - Human-readable delivery number
-  - **Format:** `BD-YYYYMMDD-XXX`
-  - **Examples:** `'BD-20251117-001'`
+  - **Format:** `XXXXXX` (6-character random alphanumeric)
+  - **Examples:** `'P3M8NV'`, `'K2X9HJ'`
 - `customer_id` (uuid, FK → [Customer](#customer).id, required) - Customer reference
   - **On Delete:** CASCADE
 - `address_id` (uuid, FK → [Address](#address).id, required) - Delivery location
@@ -355,7 +355,8 @@
 
 - `id` (uuid, PK) - Unique identifier
 - `order_number` (string, unique, required) - Human-readable order number
-  - **Format:** `NO-YYYYMMDD-XXX`
+  - **Format:** `XXXXXX` (6-character random alphanumeric)
+  - **Examples:** `'A7K2X9'`, `'P3M8NV'`
 - `customer_id` (uuid, FK → [Customer](#customer).id, required) - Customer reference
   - **On Delete:** CASCADE
 - `subscription_id` (uuid, FK → [Subscription](#subscription).id, nullable) - Subscription reference
@@ -607,8 +608,8 @@
 - Cleaner cannot receive assignments if `is_accepting_orders = false`
 - `business_name` and `business_address` required if `Cleaner.business_type = 'business'`
 - `pickup_location_description` required if `Order.pickup_method = 'other'`
-- Order number must be unique and follow format `NO-YYYYMMDD-XXX` (max 999 orders per day for MVP)
-- BagDelivery delivery_number must be unique and follow format `BD-YYYYMMDD-XXX`
+- Order number must be unique and follow format `XXXXXX` (6-character random alphanumeric)
+- BagDelivery delivery_number must be unique and follow format `XXXXXX` (6-character random alphanumeric)
 
 ---
 
