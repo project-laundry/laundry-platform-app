@@ -103,7 +103,7 @@ Current billing period can be computed from `started_at` and `billing_period`:
 
 ### One-Time Subscriptions (Pay-Per-Order)
 
-**Description:** Subscriptions with `billing_period = 'one_time'` (e.g., "Enkeltvask" plan) represent pay-per-order pricing agreements.
+**Description:** Subscriptions with `billing_period = 'one_time'` (e.g., "Enkeltvask" plan) work like recurring subscriptions but generate only one order.
 
 **How It Works:**
 
@@ -113,47 +113,49 @@ Current billing period can be computed from `started_at` and `billing_period`:
    - `billing_period = 'one_time'`
    - `started_at = null`
    - `next_billing_date = null` (no scheduled billing)
-3. Customer places first order, which triggers a payment:
-   - Payment has `payment_type = 'one_time'`
-   - Payment linked to specific order via `order_id`
-   - Amount = `Order.total_cost_ore` for that order
-4. When first order payment succeeds:
+   - `assigned_cleaner_id` set via cleaner matching
+3. Initial payment is processed
+4. When payment succeeds:
    - Set `started_at = now()`
    - Update subscription status to `active`
-5. Customer can place additional orders over time under same subscription
+   - Auto-generate 1 order with cleaner assigned
+   - Payment has `payment_type = 'one_time'`
+   - Payment linked to specific order via `order_id`
+   - Amount = `Order.total_cost_ore`
 
 **Key Differences from Monthly Subscriptions:**
 
 | Monthly Subscription | One-Time Subscription |
 |---------------------|----------------------|
-| Billed on schedule (monthly) | Billed per order placed |
-| Auto-generates orders in batches | Customer requests orders manually |
+| Billed on schedule (monthly) | Billed once per subscription |
+| Auto-generates multiple orders per billing cycle | Auto-generates 1 order |
 | Payment covers all orders in period | Payment covers single order |
 | `next_billing_date` set | `next_billing_date` null |
 
 ### Bag Delivery Auto-Creation
 
-**Trigger:** New subscription creation
+**Trigger:** New subscription creation (payment success)
 
 **Workflow:**
 
-1. Customer completes subscription signup
+1. Customer completes subscription signup and payment succeeds
 2. System checks `Customer.laundry_bags_count`:
    - If `= 0`: Auto-create BagDelivery before first order
    - If `> 0`: Skip bag delivery, customer already has bags
 
 3. BagDelivery Details:
    - `bag_quantity = 1` (default)
-   - `scheduled_date` = 1 days before first order pickup
+   - `scheduled_date` = 1 day before first order pickup
    - `status = 'pending'`
-   - First Order has `prerequisite_bag_delivery_id` pointing to this BagDelivery
+   - First Order has `prerequisite_bag_delivery_id` pointing to this BagDelivery (for UI display)
 
-4. When bag delivery completed:
+4. All orders are created and assigned cleaners immediately (not blocked by bag delivery)
+
+5. When bag delivery completed:
    - Admin marks BagDelivery as `completed`
    - System increments `Customer.laundry_bags_count` by the `BagDelivery.bag_quantity` value
-   - First order can now proceed to pickup
 
-**Business Rule:** Order cannot move to `pickup_scheduled` status until `prerequisite_bag_delivery_id` (if set) is `completed`.
+**Note:** Bag delivery is scheduled 1 day before first pickup for coordination, but does not block order assignment or progression.
 
 ### Bag Inventory Management
 
@@ -173,20 +175,26 @@ Current billing period can be computed from `started_at` and `billing_period`:
 
 **City-Based Matching (MVP):**
 
-1. Order is created with `address_id`
-2. System looks up `Address.city` (must be 'Bergen' or 'Oslo')
+Assignment happens at order creation for all plan types (recurring and one-time).
+
+1. When subscription is created, system assigns a cleaner to `Subscription.assigned_cleaner_id`
+2. System looks up `Address.city` from customer's default address (must be 'Bergen' or 'Oslo')
 3. Find available cleaners:
-   - `Cleaner.base_address_id → Address.city` matches order city
+   - `Cleaner.base_address_id → Address.city` matches customer city
    - `Cleaner.verification_status = 'approved'`
    - `Cleaner.is_accepting_orders = true`
-   - `Cleaner.weekly_schedule` includes the pickup weekday
+   - `Cleaner.weekly_schedule` includes the pickup weekday(s)
    - Not in `Order.declined_by_cleaner_ids`
 
-4. Offer order to cleaner (manual or automatic assignment)
-5. If cleaner declines, add to `declined_by_cleaner_ids` and offer to next cleaner
-6. Once accepted, set `Order.cleaner_id` and `Order.assigned_at`
+4. Once matched, all orders generated from this subscription are assigned to the same cleaner
+5. Orders are created with `status = 'pickup_scheduled'` (cleaner already assigned)
 
-**For Subscription Orders:** All orders in a billing period are pre-assigned to `Subscription.assigned_cleaner_id` for consistency.
+**Edge Case - No Available Cleaners:** If no cleaner matches the criteria, orders are created with `status = 'pending_assignment'` for manual admin resolution.
+
+**Reassignment Flow:** If a cleaner declines or becomes unavailable:
+1. Add cleaner to `Order.declined_by_cleaner_ids`
+2. Find next available cleaner using matching criteria
+3. Update `Order.cleaner_id` and `Order.assigned_at`
 
 ### Order Number Format
 
@@ -214,15 +222,15 @@ Current billing period can be computed from `started_at` and `billing_period`:
 
 1. Admin logs into platform, accesses "Driver Dashboard"
 2. See list of orders for today grouped by status:
-   - **Pending Pickup:** Orders with `status = 'pickup_scheduled'` or `'assigned'`
+   - **Pending Pickup:** Orders with `status = 'pickup_scheduled'`
    - **Ready for Delivery:** Orders with `status = 'en_route_delivery'` or ready from cleaner
 
 3. Admin updates statuses manually as they perform pickups/deliveries:
    - Mark `picked_up` when laundry collected
-   - Mark `delivered` when laundry returned to customer
+   - Mark `completed` when laundry returned to customer
    - Add photos, notes as needed
 
-4. System timestamps (`picked_up_at`, `delivered_at`) auto-set when status changes
+4. System timestamps (`picked_up_at`, `delivered_at`, `completed_at`) auto-set when status changes
 
 **Future:** When Driver role is added, replace Admin with dedicated driver assignments.
 

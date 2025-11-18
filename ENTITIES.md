@@ -390,9 +390,8 @@
   - **Constraints:** >= 0
   - **Calculation:** Plan price + extras (ironing, delicate items)
   - **Note:** Weight overage charges not included in MVP
-- `prerequisite_bag_delivery_id` (uuid, FK → [BagDelivery](#bagdelivery).id, nullable) - Required bag delivery
-  - **Note:** If customer needs bags delivered before this order can proceed
-  - **Business Rule:** Order cannot move to `pickup_scheduled` status until prerequisite bag delivery is `completed`
+- `prerequisite_bag_delivery_id` (uuid, FK → [BagDelivery](#bagdelivery).id, nullable) - Associated bag delivery
+  - **Note:** Links to bag delivery scheduled before this order for UI display and tracking. Does not block order progression.
 - `declined_by_cleaner_ids` (uuid[], nullable) - Array of cleaner IDs who declined this order
   - **Note:** Used during reassignment to prevent offering order to same cleaner again
 - `assigned_at` (timestamp, nullable) - Cleaner assignment timestamp
@@ -403,8 +402,6 @@
 - `cancellation_reason` (text, nullable) - Reason for cancellation
   - **Validation:** Required if status = `cancelled`, max 500 chars
 - `mission_accepted_at` (timestamp, nullable) - When cleaner accepted the order
-- `mission_declined_at` (timestamp, nullable) - When cleaner declined the order
-- `mission_decline_reason` (text, nullable) - Reason for declining
   - **Validation:** Required if cleaner declines, max 500 chars
 - `created_at` (timestamp) - Order creation timestamp
 - `updated_at` (timestamp) - Last update timestamp
@@ -565,13 +562,11 @@
 
 ### OrderStatus
 
-- `pending_assignment` - Waiting for cleaner assignment
-- `assigned` - Cleaner assigned
-- `pickup_scheduled` - Pickup scheduled
+- `pending_assignment` - Waiting for cleaner assignment (edge case: no available cleaners)
+- `pickup_scheduled` - Cleaner assigned and pickup scheduled
 - `en_route_pickup` - Driver heading to pick up laundry
 - `picked_up` - Laundry picked up from customer
 - `en_route_delivery` - Heading to deliver clean laundry
-- `delivered` - Clean laundry delivered to customer
 - `completed` - Order completed (final state)
 - `cancelled` - Order cancelled (final state)
 
@@ -602,7 +597,6 @@
 
 **Business Rules:**
 - Cannot create order if `Customer.laundry_bags_count = 0` and no `prerequisite_bag_delivery_id` is set (must have bags or order them)
-- Order cannot move to `pickup_scheduled` status until `prerequisite_bag_delivery_id` (if set) is completed
 - Orders cannot be assigned to cleaner with `weekly_schedule` that doesn't include the pickup weekday
 - Orders cannot be assigned to cleaner with `verification_status != 'approved'`
 - Cleaner cannot receive assignments if `is_accepting_orders = false`
