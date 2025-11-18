@@ -129,37 +129,36 @@ Current billing period can be computed from `started_at` and `billing_period`:
 
 1. Customer completes subscription signup
 2. System checks `Customer.laundry_bags_count`:
-   - If `= 0`: Auto-create `bag_delivery` Order before first laundry order
+   - If `= 0`: Auto-create BagDelivery before first order
    - If `> 0`: Skip bag delivery, customer already has bags
 
-3. Bag Delivery Order Details:
-   - `order_type = 'bag_delivery'`
+3. BagDelivery Details:
    - `bag_quantity = 1` (default)
-   - `scheduled_date` = 2 days before first laundry order pickup
-   - `status = 'pending_assignment'`
-   - First laundry order has `related_bag_order_id` pointing to this bag delivery
+   - `scheduled_date` = 2 days before first order pickup
+   - `status = 'pending'`
+   - First Order has `prerequisite_bag_delivery_id` pointing to this BagDelivery
 
 4. When bag delivery completed:
-   - Admin marks order as `completed`
-   - System increments `Customer.laundry_bags_count` by the `Order.bag_quantity` value
-   - First laundry order can now proceed to pickup
+   - Admin marks BagDelivery as `completed`
+   - System increments `Customer.laundry_bags_count` by the `BagDelivery.bag_quantity` value
+   - First order can now proceed to pickup
 
-**Business Rule:** Laundry order cannot move to `pickup_scheduled` status until related bag delivery is `completed`.
+**Business Rule:** Order cannot move to `pickup_scheduled` status until `prerequisite_bag_delivery_id` (if set) is `completed`.
 
 ### Bag Inventory Management
 
 **Customer.laundry_bags_count** tracks how many NooraCare bags the customer has.
 
 **Increment Triggers:**
-- Bag delivery order marked as `completed`: `laundry_bags_count += Order.bag_quantity`
+- BagDelivery marked as `completed`: `laundry_bags_count += BagDelivery.bag_quantity`
 
 **Decrement Triggers:**
-- Laundry order marked as `picked_up`: `laundry_bags_count -= 1` (MVP uses 1 bag per laundry order)
+- Order marked as `picked_up`: `laundry_bags_count -= 1` (MVP uses 1 bag per order)
 
 **Validation:**
-- Cannot create laundry order if `laundry_bags_count = 0` (must order bags first)
+- Cannot create order if `laundry_bags_count = 0` and no `prerequisite_bag_delivery_id` is set (must have bags or order them)
 
-**Note:** While `Order.bag_quantity` field exists for bag deliveries (supports 1-10 bags), MVP laundry operations assume 1 bag per pickup.
+**Note:** While `BagDelivery.bag_quantity` supports 1-10 bags, MVP laundry operations assume 1 bag per pickup.
 
 ### Cleaner Assignment & Matching
 
@@ -182,7 +181,7 @@ Current billing period can be computed from `started_at` and `billing_period`:
 
 ### Order Number Format
 
-**Format:** `NO-YYYYMMDD-XXX`
+**Order Format:** `NO-YYYYMMDD-XXX`
 
 **Components:**
 - `NO`: Country code (Norway)
@@ -191,8 +190,18 @@ Current billing period can be computed from `started_at` and `billing_period`:
 
 **Example:** `NO-20251117-001`
 
+**BagDelivery Format:** `BD-YYYYMMDD-XXX`
+
+**Components:**
+- `BD`: Bag Delivery identifier
+- `YYYYMMDD`: Date delivery was created
+- `XXX`: Sequential number for that day (001, 002, etc.)
+
+**Example:** `BD-20251117-001`
+
 **Limits:**
 - Maximum 999 orders per day (XXX = 001 to 999)
+- Maximum 999 bag deliveries per day
 - Acceptable for MVP given Bergen/Oslo market size
 - No overflow handling needed for initial launch
 

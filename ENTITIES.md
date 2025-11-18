@@ -208,6 +208,53 @@
 
 ---
 
+### BagDelivery
+
+**Description:** Delivery of NooraCare laundry bags to customers. Managed by admins via driver dashboard.
+
+**Fields:**
+
+- `id` (uuid, PK) - Unique identifier
+- `delivery_number` (string, unique, required) - Human-readable delivery number
+  - **Format:** `BD-YYYYMMDD-XXX`
+  - **Examples:** `'BD-20251117-001'`
+- `customer_id` (uuid, FK → [Customer](#customer).id, required) - Customer reference
+  - **On Delete:** CASCADE
+- `address_id` (uuid, FK → [Address](#address).id, required) - Delivery location
+- `status` (enum → [BagDeliveryStatus](#bagdeliverystatus), required) - Delivery status
+  - **Default:** `pending`
+- `bag_quantity` (integer, required) - Number of bags to deliver
+  - **Default:** `1`
+  - **Constraints:** >= 1, <= 10
+- `scheduled_date` (date, required) - Scheduled delivery date
+  - **Validation:** Must be >= today
+- `special_instructions` (text, nullable) - One-time delivery notes
+  - **Validation:** Max 500 chars
+  - **Examples:** "Leave at door", "Call when arriving"
+- `delivered_at` (timestamp, nullable) - Actual delivery timestamp
+- `placement_photo_url` (string, nullable) - Photo of placed bags
+  - **Validation:** Max 500 chars
+- `cancelled_at` (timestamp, nullable) - Cancellation timestamp
+- `cancellation_reason` (text, nullable) - Reason for cancellation
+  - **Validation:** Required if status = `cancelled`, max 500 chars
+- `created_at` (timestamp) - Creation timestamp
+- `updated_at` (timestamp) - Last update timestamp
+
+**Relationships:**
+
+- Belongs to Customer
+- Has one Address
+- Referenced by many Orders (via Order.prerequisite_bag_delivery_id)
+
+**Indexes:**
+
+- Unique: delivery_number
+- Foreign: customer_id, address_id
+- Index: status, scheduled_date
+- Composite: (customer_id, created_at DESC)
+
+---
+
 ### SubscriptionPlan
 
 **Description:** Subscription plan templates (catalog).
@@ -299,118 +346,81 @@
 
 ### Order
 
-**Description:** Represents orders/tasks in the system. Supports two types: laundry orders (pickup and delivery) and bag deliveries. The `order_type` field determines which fields are applicable.
+**Description:** Laundry pickup and delivery orders. Customers submit laundry, cleaners process it, and it's delivered back.
 
 **Fields:**
 
-**Common Fields (all order types):**
-
 - `id` (uuid, PK) - Unique identifier
 - `order_number` (string, unique, required) - Human-readable order number
-- `order_type` (enum → [OrderType](#ordertype), required) - Type of order
-  - **Default:** `laundry`
-- `customer_id` (uuid, FK → [Customer](#2-customer).id, required) - Customer reference
+  - **Format:** `NO-YYYYMMDD-XXX`
+- `customer_id` (uuid, FK → [Customer](#customer).id, required) - Customer reference
   - **On Delete:** CASCADE
+- `subscription_id` (uuid, FK → [Subscription](#subscription).id, nullable) - Subscription reference
+  - **Note:** Set if order is part of subscription, null for one-time orders
+- `plan_id` (uuid, FK → [SubscriptionPlan](#subscriptionplan).id, required) - Plan reference
+- `cleaner_id` (uuid, FK → [Cleaner](#cleaner).id, nullable) - Assigned cleaner
 - `status` (enum → [OrderStatus](#orderstatus), required) - Order status
   - **Default:** `pending_assignment`
-- `address_id` (uuid, FK → [Address](#6-address).id, required) - Delivery/pickup location
-- `scheduled_date` (date, required) - Scheduled date for this task
+- `address_id` (uuid, FK → [Address](#address).id, required) - Pickup/delivery location
+- `scheduled_date` (date, required) - Scheduled pickup date
   - **Validation:** Must be >= today
   - **Note:** For MVP, Admin users handle pickup/delivery operations manually via driver dashboard
-- `special_instructions` (text, nullable) - One-time delivery notes for this specific order
+- `delivery_date` (date, required) - Scheduled/actual delivery date
+  - **Validation:** Must be >= scheduled_date
+- `pickup_method` (enum → [PickupMethod](#pickupmethod), required) - Pickup method
+- `pickup_location_description` (text, nullable) - Detailed pickup location
+  - **Validation:** Required if `pickup_method = 'other'`, max 500 chars
+- `special_instructions` (text, nullable) - One-time order notes
   - **Validation:** Max 1000 chars
   - **Examples:** "Leave on porch today", "Call when arriving", "Extra dirty items"
   - **Note:** For one-time order-specific notes. Permanent access instructions are in Address.special_instructions
+- `extra_kg` (integer) - Extra kg for this order
+  - **Default:** `0`
+  - **Constraints:** >= 0, <= 20
+- `delicate_items_count` (integer) - Delicate items count
+  - **Default:** `0`
+  - **Constraints:** >= 0, <= 50
+- `needs_ironing` (boolean) - Ironing needed
+  - **Default:** `false`
+- `total_cost_ore` (integer, required) - Total order cost in øre
+  - **Constraints:** >= 0
+  - **Calculation:** Plan price + extras (ironing, delicate items)
+  - **Note:** Weight overage charges not included in MVP
+- `prerequisite_bag_delivery_id` (uuid, FK → [BagDelivery](#bagdelivery).id, nullable) - Required bag delivery
+  - **Note:** If customer needs bags delivered before this order can proceed
+  - **Business Rule:** Order cannot move to `pickup_scheduled` status until prerequisite bag delivery is `completed`
 - `declined_by_cleaner_ids` (uuid[], nullable) - Array of cleaner IDs who declined this order
   - **Note:** Used during reassignment to prevent offering order to same cleaner again
-- `completed_at` (timestamp, nullable) - Task completion timestamp
+- `assigned_at` (timestamp, nullable) - Cleaner assignment timestamp
+- `picked_up_at` (timestamp, nullable) - Actual pickup timestamp
+- `delivered_at` (timestamp, nullable) - Actual delivery timestamp
+- `completed_at` (timestamp, nullable) - Order completion timestamp
 - `cancelled_at` (timestamp, nullable) - Cancellation timestamp
 - `cancellation_reason` (text, nullable) - Reason for cancellation
   - **Validation:** Required if status = `cancelled`, max 500 chars
-- `created_at` (timestamp) - Order creation timestamp
-- `updated_at` (timestamp) - Last update timestamp
-
-**Laundry Order Fields (order_type = 'laundry'):**
-
-- `subscription_id` (uuid, FK → [Subscription](#8-subscription).id, nullable) - Subscription reference
-  - **Note:** Set if order is part of subscription, null for one-time orders
-  - **Applicable to:** `laundry` type only
-- `plan_id` (uuid, FK → [SubscriptionPlan](#7-subscriptionplan).id, nullable) - Plan reference
-  - **Required for:** `laundry` type
-- `cleaner_id` (uuid, FK → [Cleaner](#3-cleaner).id, nullable) - Assigned cleaner
-  - **Applicable to:** `laundry` type only
-- `delivery_date` (date, nullable) - Scheduled/actual delivery date
-  - **Validation:** Must be >= scheduled_date
-  - **Applicable to:** `laundry` type
-  - **Note:** Uses scheduled_date as pickup date for routing and validation
-- `pickup_method` (enum → [PickupMethod](#pickupmethod), nullable) - Pickup method
-  - **Required for:** `laundry` type
-- `pickup_location_description` (text, nullable) - Detailed pickup location
-  - **Validation:** Required if `pickup_method = 'other'`, max 500 chars
-  - **Applicable to:** `laundry` type
-- `extra_kg` (integer, nullable) - Extra kg for this order
-  - **Default:** `0`
-  - **Constraints:** >= 0, <= 20
-  - **Applicable to:** `laundry` type
-- `delicate_items_count` (integer, nullable) - Delicate items count
-  - **Default:** `0`
-  - **Constraints:** >= 0, <= 50
-  - **Applicable to:** `laundry` type
-- `needs_ironing` (boolean, nullable) - Ironing needed
-  - **Default:** `false`
-  - **Applicable to:** `laundry` type
-- `total_cost_ore` (integer, nullable) - Total order cost in øre
-  - **Constraints:** >= 0
-  - **Required for:** `laundry` type
-  - **Calculation:** Plan price + extras (ironing, delicate items)
-  - **Note:** Weight overage charges not included in MVP
-- `assigned_at` (timestamp, nullable) - Cleaner assignment timestamp
-  - **Applicable to:** `laundry` type
-- `picked_up_at` (timestamp, nullable) - Actual pickup timestamp
-  - **Applicable to:** `laundry` type
-- `delivered_at` (timestamp, nullable) - Actual delivery timestamp
-  - **Applicable to:** `laundry` type
 - `mission_accepted_at` (timestamp, nullable) - When cleaner accepted the order
-  - **Applicable to:** `laundry` type
 - `mission_declined_at` (timestamp, nullable) - When cleaner declined the order
-  - **Applicable to:** `laundry` type
 - `mission_decline_reason` (text, nullable) - Reason for declining
   - **Validation:** Required if cleaner declines, max 500 chars
-  - **Applicable to:** `laundry` type
-- `related_bag_order_id` (uuid, FK → Order.id, nullable) - Reference to prerequisite bag delivery
-  - **Note:** If this laundry order requires bags to be delivered first. One-directional link (bag order → laundry order).
-  - **Applicable to:** `laundry` type
-  - **Business Rule:** Laundry order cannot move to pickup status until related bag order is completed
-  - **Constraint:** Should reference an order with `order_type = 'bag_delivery'`
-
-**Bag Delivery Fields (order_type = 'bag_delivery'):**
-
-- `bag_quantity` (integer, nullable) - Number of bags to deliver
-  - **Default:** `1`
-  - **Constraints:** >= 1, <= 10
-  - **Required for:** `bag_delivery` type
-- `bag_delivered_at` (timestamp, nullable) - Bag delivery timestamp
-  - **Applicable to:** `bag_delivery` type
-- `bag_placement_photo_url` (string, nullable) - Placement photo URL
-  - **Validation:** max 500 chars
-  - **Applicable to:** `bag_delivery` type
+- `created_at` (timestamp) - Order creation timestamp
+- `updated_at` (timestamp) - Last update timestamp
 
 **Relationships:**
 
 - Belongs to Customer
-- Belongs to SubscriptionPlan (laundry only)
-- Belongs to Subscription (laundry only, nullable)
-- Assigned to Cleaner (laundry only)
-- Has one Address (all types)
-- Has many Payments (laundry only)
-- Self-referential: laundry order links to prerequisite bag delivery via `related_bag_order_id` (one direction only)
+- Belongs to SubscriptionPlan
+- Belongs to Subscription (nullable)
+- Assigned to Cleaner
+- Has one Address
+- Has many Payments
+- Has one prerequisite BagDelivery (nullable)
 
 **Indexes:**
 
 - Unique: order_number
-- Foreign: customer_id, subscription_id, plan_id, cleaner_id, address_id
-- Index: order_type, status, scheduled_date
-- Composite: (order_type, customer_id, created_at), (order_type, cleaner_id, status)
+- Foreign: customer_id, subscription_id, plan_id, cleaner_id, address_id, prerequisite_bag_delivery_id
+- Index: status, scheduled_date
+- Composite: (customer_id, created_at DESC), (cleaner_id, status)
 
 ---
 
@@ -539,24 +549,26 @@
 - `entrance` - Leave outside entrance
 - `other` - Custom location (requires description)
 
-### OrderType
+### BagDeliveryStatus
 
-- `laundry` - Standard laundry pickup and delivery order
-- `bag_delivery` - NooraCare bag delivery to customer
+- `pending` - Awaiting scheduling
+- `scheduled` - Delivery date set
+- `en_route` - Driver heading to deliver
+- `delivered` - Bags delivered to customer
+- `completed` - Delivery confirmed, customer bag count updated
+- `cancelled` - Delivery cancelled
 
 ### OrderStatus
 
-- `pending_assignment` - Waiting for driver/cleaner assignment
-- `assigned` - Driver/cleaner assigned
-- `pickup_scheduled` - Pickup scheduled (laundry only)
-- `en_route_pickup` - Driver heading to location (for bag delivery: heading to deliver; for laundry: heading to pick up)
-- `picked_up` - Items picked up (laundry only)
-- `en_route_delivery` - Heading to delivery (laundry only)
-- `delivered` - Delivered to customer (for bag delivery: bags delivered; for laundry: laundry delivered)
+- `pending_assignment` - Waiting for cleaner assignment
+- `assigned` - Cleaner assigned
+- `pickup_scheduled` - Pickup scheduled
+- `en_route_pickup` - Driver heading to pick up laundry
+- `picked_up` - Laundry picked up from customer
+- `en_route_delivery` - Heading to deliver clean laundry
+- `delivered` - Clean laundry delivered to customer
 - `completed` - Order completed (final state)
 - `cancelled` - Order cancelled (final state)
-
-**Note:** Some statuses have different semantic meanings based on `order_type`. For `bag_delivery` orders, the flow is simpler: `pending_assignment` → `assigned` → `en_route_pickup` (heading to deliver bags) → `delivered` → `completed`.
 
 ---
 
@@ -566,7 +578,7 @@
 
 **CHECK Constraints:**
 - `Payment`: `(order_id IS NOT NULL) != (subscription_id IS NOT NULL)` - Payment must have EITHER order_id OR subscription_id, not both, not neither (XOR)
-- `Order`: `delivery_date >= scheduled_date` - Delivery cannot be before pickup (laundry orders)
+- `Order`: `delivery_date >= scheduled_date` - Delivery cannot be before pickup
 - `Subscription`: `expires_at >= started_at` - Expiration must be after start date (if set)
 - `Subscription`: `next_billing_date > started_at` - Next billing must be after start date (if set)
 
@@ -578,18 +590,21 @@
 - `Customer.user_id` → `User.id` (ON DELETE CASCADE)
 - `Cleaner.user_id` → `User.id` (ON DELETE CASCADE)
 - `Address.user_id` → `User.id` (ON DELETE CASCADE)
+- `BagDelivery.customer_id` → `Customer.id` (ON DELETE CASCADE)
+- `Order.customer_id` → `Customer.id` (ON DELETE CASCADE)
 
 ### Application-Level Validation (Enforced by Code)
 
 **Business Rules:**
-- Cannot create laundry order if `Customer.laundry_bags_count = 0` (must order bags first)
-- Laundry order cannot move to `pickup_scheduled` status until `related_bag_order_id` is completed
+- Cannot create order if `Customer.laundry_bags_count = 0` and no `prerequisite_bag_delivery_id` is set (must have bags or order them)
+- Order cannot move to `pickup_scheduled` status until `prerequisite_bag_delivery_id` (if set) is completed
 - Orders cannot be assigned to cleaner with `weekly_schedule` that doesn't include the pickup weekday
 - Orders cannot be assigned to cleaner with `verification_status != 'approved'`
 - Cleaner cannot receive assignments if `is_accepting_orders = false`
 - `business_name` and `business_address` required if `Cleaner.business_type = 'business'`
 - `pickup_location_description` required if `Order.pickup_method = 'other'`
 - Order number must be unique and follow format `NO-YYYYMMDD-XXX` (max 999 orders per day for MVP)
+- BagDelivery delivery_number must be unique and follow format `BD-YYYYMMDD-XXX`
 
 ---
 
