@@ -13,13 +13,20 @@
 **Workflow:**
 
 1. **Customer Subscribes:**
-   - Customer selects plan (e.g., monthly billing, weekly pickups)
+   - Customer selects plan (e.g., monthly billing, weekly pickups, one time order)
    - Selects preferences (extra_kg, needs_ironing, delicate_items_count)
-   - System creates Subscription with `status = 'active'`, `started_at = now()`, `next_billing_date = started_at + 1 month`
+   - System creates Subscription with:
+     - `status = 'pending_payment'`
+     - `started_at = null` (set on payment success)
+     - `next_billing_date = null` (set on payment success)
    - Initial payment is processed
 
 2. **Payment Success Triggers Order Generation:**
    - When payment status changes to `captured`:
+     - If subscription is `pending_payment` (initial payment):
+       - Set `started_at = now()`
+       - Set `next_billing_date = started_at + 1 month`
+       - Update status to `active`
      - Calculate how many orders needed for billing period
      - **Monthly billing:** Generate first 4 occurrences of `recurring_weekday` after billing_date
      - **Weekly frequency:** 4 orders per monthly billing period
@@ -273,11 +280,12 @@ These timestamps provide sufficient audit trail for MVP compliance.
 ### Payment Failure Handling
 
 **Subscription Creation with Failed Payment:**
-- Subscription is created with `status = 'active'`
+- Subscription is created with `status = 'pending_payment'`
 - Payment record created with `status = 'failed'`
 - No orders are generated until payment succeeds
 - Customer must retry payment to activate service
-- Subscription remains in database for retry attempts
+- Subscription remains `pending_payment` for retry attempts
+- Once payment succeeds, status transitions to `active`
 
 **Recurring Payment Failures:**
 - On billing date, attempt to charge customer

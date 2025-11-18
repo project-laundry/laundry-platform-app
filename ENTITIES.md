@@ -311,12 +311,15 @@
 - `recurring_weekday` (enum → [Weekday](#weekday), nullable) - Preferred weekday for recurring pickups based on subscription frequency
   - **Note:** For biweekly frequency, this weekday repeats every 2 weeks from `started_at`. For monthly, system generates first 4 occurrences of this weekday after billing_date.
 - `status` (enum → [SubscriptionStatus](#subscriptionstatus), required) - Subscription status
+  - **Default:** `pending_payment`
+  - **Note:** Transitions to `active` when initial payment succeeds
 - `billing_cost_ore` (integer, required) - Total billing cost in øre, calculated from plan price + permanent add-ons
   - **Constraints:** >= 0
   - **Note:** Named "billing" (not "monthly") because it applies to both monthly and one_time billing periods
 - `next_billing_date` (date, nullable) - Next scheduled payment date
   - **Note:** Updated after each successful payment. For monthly billing, set to started_at + N months. Null for one_time plans (billed per order, not on schedule).
-- `started_at` (timestamp, required) - Subscription start date
+- `started_at` (timestamp, nullable) - Subscription start date
+  - **Note:** Set when initial payment succeeds. Null while `status = 'pending_payment'`.
 - `paused_at` (timestamp, nullable) - Pause timestamp
 - `cancelled_at` (timestamp, nullable) - Cancellation timestamp
 - `expires_at` (timestamp, nullable) - Expiration timestamp
@@ -340,7 +343,7 @@
 
 - Foreign: customer_id, plan_id, assigned_cleaner_id
 - Index: status
-- Unique: (customer_id) WHERE status IN ('active', 'paused') - enforces one active subscription per customer
+- Unique: (customer_id) WHERE status IN ('pending_payment', 'active', 'paused') - enforces one active/pending subscription per customer
 
 ---
 
@@ -521,6 +524,7 @@
 
 ### SubscriptionStatus
 
+- `pending_payment` - Awaiting initial payment confirmation
 - `active` - Subscription is active and generating orders
 - `paused` - Temporarily paused by customer
 - `cancelled` - Cancelled by customer or admin
@@ -584,7 +588,7 @@
 
 **Unique Partial Indexes:**
 - `Address`: `(user_id) WHERE is_default = true` - Only one default address per user
-- `Subscription`: `(customer_id) WHERE status IN ('active', 'paused')` - Only one active/paused subscription per customer
+- `Subscription`: `(customer_id) WHERE status IN ('pending_payment', 'active', 'paused')` - Only one active/pending subscription per customer
 
 **Foreign Key Cascades:**
 - `Customer.user_id` → `User.id` (ON DELETE CASCADE)

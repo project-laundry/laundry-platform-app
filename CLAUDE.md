@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> **TEMPORARY SESSION NOTE:** For this session, focus only on `ENTITIES.md` and `BUSINESS_LOGIC.md`. We are planning the system design before implementation.
+
 ## Project Overview
 
 This is **NooraCare**, a peer-to-peer laundry platform that connects customers with local cleaners in Bergen and Oslo, Norway. The platform offers subscription-based pickup and delivery laundry services.
@@ -97,8 +99,3 @@ src/
 │   └── utils/          # General utilities
 └── types/              # TypeScript type definitions
 ```
-
-## Documentation Notes
-
-- When working with the `ENTITIES.md` file, don't implement schema migration yet as it's not implemented yet
-- Refer to `BUSINESS_LOGIC.md` for understanding application workflows and business rules when implementing features
