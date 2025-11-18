@@ -2,8 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> **TEMPORARY SESSION NOTE:** For this session, focus only on `ENTITIES.md` and `BUSINESS_LOGIC.md`. We are planning the system design before implementation.
-
 ## Project Overview
 
 This is **NooraCare**, a peer-to-peer laundry platform that connects customers with local cleaners in Bergen and Oslo, Norway. The platform offers subscription-based pickup and delivery laundry services.
