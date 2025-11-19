@@ -1,0 +1,305 @@
+// NooraCare Database Types
+// Generated from ENTITIES.md specification
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+export type UserRole = 'customer' | 'cleaner' | 'admin';
+
+export type CleanerVerificationStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
+
+export type CleanerBusinessType = 'individual' | 'business';
+
+export type CleanerExperienceLevel = 'beginner' | 'some' | 'experienced' | 'expert' | 'professional';
+
+export type CleanerSpecialization =
+  | 'wool'
+  | 'silk'
+  | 'down'
+  | 'sportswear'
+  | 'leather'
+  | 'delicate'
+  | 'formal'
+  | 'outerwear';
+
+export type SubscriptionBillingPeriod = 'monthly' | 'one_time';
+
+export type SubscriptionStatus = 'pending_payment' | 'active' | 'paused' | 'cancelled' | 'expired';
+
+export type SubscriptionFrequency = 'weekly' | 'biweekly' | 'monthly' | 'on_demand';
+
+export type Weekday = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+
+export type PickupMethod = 'home' | 'entrance' | 'other';
+
+export type BagDeliveryStatus = 'pending' | 'scheduled' | 'en_route' | 'delivered' | 'completed' | 'cancelled';
+
+export type OrderStatus =
+  | 'pending_assignment'
+  | 'pickup_scheduled'
+  | 'picked_up'
+  | 'in_cleaning'
+  | 'ready_for_delivery'
+  | 'out_for_delivery'
+  | 'completed'
+  | 'cancelled';
+
+export type PaymentType = 'recurring' | 'one_time' | 'refund';
+
+export type PaymentStatus = 'pending' | 'authorized' | 'captured' | 'failed' | 'refunded' | 'cancelled';
+
+export type PaymentProvider = 'vipps' | 'stripe' | 'manual';
+
+// =============================================================================
+// ENTITY TYPES
+// =============================================================================
+
+export interface User {
+  id: string;
+  email: string;
+  phone: string;
+  full_name: string;
+  role: UserRole;
+  created_at: string;
+  updated_at: string;
+  last_login_at: string | null;
+  deleted_at: string | null;
+}
+
+export interface Customer {
+  id: string;
+  user_id: string;
+  laundry_bags_count: number;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+export interface WeeklySchedule {
+  mon: boolean;
+  tue: boolean;
+  wed: boolean;
+  thu: boolean;
+  fri: boolean;
+  sat: boolean;
+  sun: boolean;
+}
+
+export interface Cleaner {
+  id: string;
+  user_id: string;
+  display_name: string;
+  profile_image_url: string | null;
+  bio: string | null;
+  verification_status: CleanerVerificationStatus;
+  business_type: CleanerBusinessType;
+  tax_id: string;
+  business_name: string | null;
+  business_address: string | null;
+  bank_account: string;
+  base_address_id: string;
+  experience_level: CleanerExperienceLevel;
+  languages: string[];
+  specializations: CleanerSpecialization[] | null;
+  weekly_schedule: WeeklySchedule;
+  is_accepting_orders: boolean;
+  created_at: string;
+  updated_at: string;
+  approved_at: string | null;
+  suspended_at: string | null;
+  deleted_at: string | null;
+}
+
+export interface Admin {
+  id: string;
+  user_id: string;
+  permissions: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Address {
+  id: string;
+  user_id: string;
+  label: string | null;
+  street: string;
+  postal_code: string;
+  city: string;
+  country: string;
+  special_instructions: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BagDelivery {
+  id: string;
+  delivery_number: string;
+  customer_id: string;
+  address_id: string;
+  status: BagDeliveryStatus;
+  bag_quantity: number;
+  scheduled_date: string;
+  special_instructions: string | null;
+  delivered_at: string | null;
+  placement_photo_url: string | null;
+  cancelled_at: string | null;
+  cancellation_reason: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SubscriptionPlan {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  price_ore: number;
+  billing_period: SubscriptionBillingPeriod;
+  included_kg: number;
+  features: string[];
+  frequency: SubscriptionFrequency;
+  is_popular: boolean;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Subscription {
+  id: string;
+  customer_id: string;
+  plan_id: string;
+  assigned_cleaner_id: string | null;
+  default_extra_kg: number;
+  default_needs_ironing: boolean;
+  default_delicate_items_count: number;
+  recurring_weekday: Weekday | null;
+  status: SubscriptionStatus;
+  billing_cost_ore: number;
+  next_billing_date: string | null;
+  started_at: string | null;
+  paused_at: string | null;
+  cancelled_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Order {
+  id: string;
+  order_number: string;
+  customer_id: string;
+  subscription_id: string | null;
+  plan_id: string;
+  cleaner_id: string | null;
+  status: OrderStatus;
+  address_id: string;
+  scheduled_date: string;
+  delivery_date: string;
+  pickup_method: PickupMethod;
+  pickup_location_description: string | null;
+  special_instructions: string | null;
+  extra_kg: number;
+  delicate_items_count: number;
+  needs_ironing: boolean;
+  total_cost_ore: number;
+  prerequisite_bag_delivery_id: string | null;
+  declined_by_cleaner_ids: string[] | null;
+  assigned_at: string | null;
+  picked_up_at: string | null;
+  in_cleaning_at: string | null;
+  ready_for_delivery_at: string | null;
+  out_for_delivery_at: string | null;
+  completed_at: string | null;
+  cancelled_at: string | null;
+  cancellation_reason: string | null;
+  mission_accepted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Payment {
+  id: string;
+  customer_id: string;
+  order_id: string | null;
+  subscription_id: string | null;
+  payment_type: PaymentType;
+  amount_ore: number;
+  status: PaymentStatus;
+  payment_provider: PaymentProvider;
+  provider_payment_id: string | null;
+  provider_metadata: Record<string, unknown> | null;
+  authorized_at: string | null;
+  captured_at: string | null;
+  failed_at: string | null;
+  failure_reason: string | null;
+  refunded_at: string | null;
+  refund_amount_ore: number | null;
+  refund_reason: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// =============================================================================
+// HELPER TYPES FOR RELATIONSHIPS
+// =============================================================================
+
+export interface UserWithProfile extends User {
+  customer?: Customer;
+  cleaner?: Cleaner;
+  admin?: Admin;
+  addresses?: Address[];
+}
+
+export interface CustomerWithRelations extends Customer {
+  user?: User;
+  subscriptions?: Subscription[];
+  orders?: Order[];
+}
+
+export interface CleanerWithRelations extends Cleaner {
+  user?: User;
+  base_address?: Address;
+  orders?: Order[];
+}
+
+export interface OrderWithRelations extends Order {
+  customer?: Customer;
+  cleaner?: Cleaner;
+  subscription?: Subscription;
+  plan?: SubscriptionPlan;
+  address?: Address;
+  prerequisite_bag_delivery?: BagDelivery;
+  payments?: Payment[];
+}
+
+export interface SubscriptionWithRelations extends Subscription {
+  customer?: Customer;
+  plan?: SubscriptionPlan;
+  assigned_cleaner?: Cleaner;
+  orders?: Order[];
+  payments?: Payment[];
+}
+
+// =============================================================================
+// DATABASE ROW TYPES (for Supabase client)
+// =============================================================================
+
+export type Tables = {
+  users: User;
+  customers: Customer;
+  cleaners: Cleaner;
+  admins: Admin;
+  addresses: Address;
+  bag_deliveries: BagDelivery;
+  subscription_plans: SubscriptionPlan;
+  subscriptions: Subscription;
+  orders: Order;
+  payments: Payment;
+};
+
+export type TableName = keyof Tables;

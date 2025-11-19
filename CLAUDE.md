@@ -41,13 +41,6 @@ The application supports three user roles:
   - See `BUSINESS_LOGIC.md` for application workflows, operational rules, and business process definitions
   - See `DASHBOARDS.md` for role-based UI specifications (Admin, Cleaner, Customer dashboards)
 
-### Environment Variables
-
-```bash
-NEXT_PUBLIC_SUPABASE_URL=https://uknariyagkmhdjqrllhf.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVrbmFyaXlhZ2ttaGRqcXJsbGhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMyOTc5OTEsImV4cCI6MjA3ODg3Mzk5MX0.wjxGV9tj3gtujZsf512SoNZnqbSy8oFSEqNOvpZyQbo
-```
-
 ## Development Commands
 
 ```bash
