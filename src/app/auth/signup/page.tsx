@@ -2,8 +2,11 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 
 export default function SignupPage() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -12,6 +15,8 @@ export default function SignupPage() {
     phone: '',
     acceptTerms: false,
   });
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -21,24 +26,47 @@ export default function SignupPage() {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+
     if (formData.password !== formData.confirmPassword) {
-      alert('Passordene stemmer ikke overens');
+      setError('Passordene stemmer ikke overens');
       return;
     }
     if (!formData.acceptTerms) {
-      alert('Du må akseptere vilkårene for å fortsette');
+      setError('Du må akseptere vilkårene for å fortsette');
       return;
     }
-    console.log('Signup attempt:', formData);
-    // Store user info and redirect to dashboard
-    const userInfo = encodeURIComponent(JSON.stringify({
-      name: formData.name,
+    if (formData.password.length < 6) {
+      setError('Passordet må være minst 6 tegn');
+      return;
+    }
+
+    setLoading(true);
+
+    const supabase = createClient();
+
+    const { error: signUpError } = await supabase.auth.signUp({
       email: formData.email,
-      phone: formData.phone
-    }));
-    window.location.href = `/dashboard?user=${userInfo}`;
+      password: formData.password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        data: {
+          full_name: formData.name,
+          phone: formData.phone,
+        },
+      },
+    });
+
+    if (signUpError) {
+      setError(signUpError.message);
+      setLoading(false);
+      return;
+    }
+
+    // Redirect to success page
+    router.push('/auth/success');
   };
 
   return (
@@ -56,6 +84,12 @@ export default function SignupPage() {
         {/* Signup Form */}
         <div className="bg-white rounded-2xl shadow-sm p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
+
             <div>
               <label htmlFor="name" className="block text-sm font-semibold text-dark-gray mb-2">
                 Fullt navn
@@ -160,9 +194,10 @@ export default function SignupPage() {
 
             <button
               type="submit"
-              className="w-full bg-nordic-blue text-white font-semibold py-3 rounded-lg hover:bg-blue-600 transition-colors"
+              disabled={loading}
+              className="w-full bg-nordic-blue text-white font-semibold py-3 rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Opprett konto
+              {loading ? 'Oppretter konto...' : 'Opprett konto'}
             </button>
           </form>
 
