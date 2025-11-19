@@ -53,6 +53,10 @@ export default function SchedulePage() {
   const searchParams = useSearchParams();
   const plan = searchParams.get('plan') || 'single';
   const hasBag = searchParams.get('hasBag') === 'true';
+  // Get additional services data
+  const additionalKg = parseInt(searchParams.get('additionalKg') || '0', 10);
+  const delicateItems = parseInt(searchParams.get('delicateItems') || '0', 10);
+  const needsIroning = searchParams.get('needsIroning') === 'true';
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedWeekday, setSelectedWeekday] = useState<Weekday | ''>('');
   const [address, setAddress] = useState({
@@ -154,7 +158,11 @@ export default function SchedulePage() {
       pickupTime: FIXED_PICKUP_TIME,
       address,
       pickupMethod,
-      otherLocation: pickupMethod === 'other' ? otherLocation : ''
+      otherLocation: pickupMethod === 'other' ? otherLocation : '',
+      // Additional services
+      additionalKg,
+      delicateItems,
+      needsIroning,
     };
 
     console.log('Complete order data:', fullOrderData);

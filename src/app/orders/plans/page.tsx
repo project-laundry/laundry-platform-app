@@ -1,79 +1,9 @@
-'use client';
-
-import { useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { PlanSelectButton } from './PlanSelectButton';
+import { getActiveSubscriptionPlans } from '@/lib/database/subscriptions';
 
-interface Plan {
-  id: 'weekly' | 'biweekly' | 'single';
-  name: string;
-  price: number;
-  description: string;
-  features: string[];
-  popular?: boolean;
-}
-
-const plans: Plan[] = [
-  {
-    id: 'biweekly',
-    name: 'Annenhver uke',
-    price: 249,
-    description: 'Vaskes annenhver uke',
-    features: [
-      'Henting annenhver uke',
-      'Fast vaskedag hver 14. dag',
-      'Inntil 5 kg tøy per henting',
-      'SMS-varsling',
-      'Standard vasketid (2-3 dager)',
-      'Kan avbrytes når som helst',
-    ]
-  },
-  {
-    id: 'weekly',
-    name: 'Ukentlig',
-    price: 399,
-    description: 'Vaskes hver uke',
-    popular: true,
-    features: [
-      'Ukentlig henting og levering',
-      'Fast vaskedag hver uke',
-      'Inntil 5 kg tøy per henting',
-      'SMS-varsling',
-      'Prioritert behandling',
-      'Kan avbrytes når som helst',
-    ]
-  },
-  {
-    id: 'single',
-    name: 'Enkeltvask',
-    price: 149,
-    description: 'Betal per vask',
-    features: [
-      'Ingen abonnement',
-      'Bestill når du trenger det',
-      'Inntil 5 kg tøy per vask',
-      'Standard vasketid (3-4 dager)',
-      'SMS-varsling',
-      'Ingen bindingstid',
-    ]
-  }
-];
-
-export default function PlansPage() {
-  const searchParams = useSearchParams();
-  const addressParam = searchParams.get('address');
-  const [selectedPlan, setSelectedPlan] = useState<string>('weekly');
-
-  const handlePlanSelect = (planId: string) => {
-    setSelectedPlan(planId);
-  };
-
-  const handleContinue = () => {
-    console.log('Selected plan:', selectedPlan);
-    // Redirect to additional services page after plan selection
-    window.location.href = `/orders/additional-services?plan=${selectedPlan}`;
-  };
-
+export default async function PlansPage() {
+  const plans = await getActiveSubscriptionPlans();
   return (
     <div className="min-h-screen bg-soft-gray">
       {/* Header */}
@@ -101,15 +31,15 @@ export default function PlansPage() {
         <div className="grid md:grid-cols-3 gap-8 mb-12">
           {plans.map((plan) => (
             <div
-              key={plan.id}
+              key={plan.slug}
               className={`bg-white rounded-2xl p-8 border-2 transition-all relative flex flex-col ${
-                plan.popular
+                plan.is_popular
                   ? 'border-nordic-blue'
                   : 'border-gray-200'
               }`}
             >
               {/* Popular Badge */}
-              {plan.popular && (
+              {plan.is_popular && (
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-nordic-blue text-white px-4 py-1 rounded-full text-sm font-semibold">
                   Mest populær
                 </div>
@@ -118,7 +48,7 @@ export default function PlansPage() {
               <div className="mb-6">
                 <h3 className="text-2xl font-bold text-dark-gray mb-2">{plan.name}</h3>
                 <div className="mb-3">
-                  <span className="text-4xl font-bold text-dark-gray">{plan.price}</span>
+                  <span className="text-4xl font-bold text-dark-gray">{plan.price_ore / 100}</span>
                   <span className="text-lg text-medium-gray font-normal"> NOK/mnd</span>
                 </div>
                 <p className="text-medium-gray">{plan.description}</p>
@@ -136,15 +66,7 @@ export default function PlansPage() {
               </ul>
 
               {/* Select Button */}
-              <button
-                onClick={() => {
-                  setSelectedPlan(plan.id);
-                  window.location.href = `/orders/additional-services?plan=${plan.id}`;
-                }}
-                className="w-full py-3 px-6 rounded-lg font-semibold transition-colors bg-white text-nordic-blue border-2 border-nordic-blue hover:bg-nordic-blue hover:text-white cursor-pointer"
-              >
-                Velg plan
-              </button>
+              <PlanSelectButton planSlug={plan.slug} />
             </div>
           ))}
         </div>

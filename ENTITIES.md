@@ -20,7 +20,6 @@
 - `email` (string, unique, required) - User email
   - **Validation:** max 255 chars
 - `phone` (string, unique, required) - Phone number
-  - **Validation:** Norwegian format `+47XXXXXXXX` (8 digits after +47)
 - `full_name` (string, required) - Full name
   - **Validation:** Min 2 chars, max 100 chars
 - `role` (enum → [UserRole](#userrole), required) - User role

@@ -1,28 +1,13 @@
-'use client';
-
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { NewOrderButton } from './NewOrderButton';
 
-export default function OrderSuccessPage() {
-  const searchParams = useSearchParams();
-  const [orderId, setOrderId] = useState<string>('');
+interface PageProps {
+  searchParams: Promise<{ subscriptionId?: string }>;
+}
 
-  useEffect(() => {
-    const id = searchParams.get('orderId');
-    if (id) {
-      setOrderId(id);
-    }
-  }, [searchParams]);
-
-  const handleTrackOrder = () => {
-    // Redirect to order tracking
-    window.location.href = `/orders/${orderId}`;
-  };
-
-  const handleNewOrder = () => {
-    window.location.href = '/orders/additional-services';
-  };
+export default async function OrderSuccessPage({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const subscriptionId = params.subscriptionId || '';
 
   return (
     <div className="min-h-screen bg-soft-gray">
@@ -46,76 +31,98 @@ export default function OrderSuccessPage() {
 
           {/* Success Message */}
           <h1 className="text-3xl font-bold text-dark-gray mb-4">
-            Bestilling bekreftet! 🎉
+            Abonnement opprettet!
           </h1>
           <p className="text-xl text-medium-gray mb-8">
-            Din henting er planlagt og vi sender deg varsling når renseren er på vei.
+            Ditt abonnement venter på betaling. Bruk instruksjonene under for å teste betalingsflyten.
           </p>
 
-          {/* Order Details Card */}
+          {/* Subscription ID Card */}
           <div className="bg-white rounded-2xl p-8 mb-8">
             <div className="flex items-center justify-center mb-6">
               <div className="bg-nordic-blue/10 rounded-lg p-4">
-                <h2 className="text-lg font-semibold text-nordic-blue">Bestillingsnummer</h2>
-                <p className="text-2xl font-bold text-dark-gray">{orderId}</p>
+                <h2 className="text-lg font-semibold text-nordic-blue">Abonnement-ID</h2>
+                <p className="text-sm font-mono text-dark-gray break-all">{subscriptionId}</p>
               </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6 text-left">
-              <div>
-                <h3 className="font-semibold text-dark-gray mb-2">Hva skjer nå?</h3>
-                <ul className="space-y-2 text-sm text-medium-gray">
-                  <li className="flex items-start">
-                    <span className="text-nordic-blue mr-2 mt-0.5">1.</span>
-                    Vi tildeler en renser til din bestilling
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-nordic-blue mr-2 mt-0.5">2.</span>
-                    Du får SMS når renseren er på vei
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-nordic-blue mr-2 mt-0.5">3.</span>
-                    Renseren henter klærne dine
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-nordic-blue mr-2 mt-0.5">4.</span>
-                    Klærne vaskes og leveres tilbake (2-3 dager)
-                  </li>
-                </ul>
-              </div>              
+            {/* Testing Instructions */}
+            <div className="text-left bg-gray-50 rounded-lg p-6">
+              <h3 className="font-semibold text-dark-gray mb-4">Testing: Simuler betaling</h3>
+              <p className="text-sm text-medium-gray mb-4">
+                For å simulere en vellykket betaling, send en POST-forespørsel til webhook-endepunktet:
+              </p>
+
+              <div className="bg-gray-900 text-green-400 rounded-lg p-4 mb-4 overflow-x-auto">
+                <pre className="text-xs">
+{`POST /api/webhooks/payment
+Content-Type: application/json
+
+{
+  "subscriptionId": "${subscriptionId}"
+}`}
+                </pre>
+              </div>
+
+              <p className="text-sm text-medium-gray mb-2">
+                <strong>Eksempel med cURL:</strong>
+              </p>
+              <div className="bg-gray-900 text-green-400 rounded-lg p-4 overflow-x-auto">
+                <pre className="text-xs">
+{`curl -X POST http://localhost:3000/api/webhooks/payment \\
+  -H "Content-Type: application/json" \\
+  -d '{"subscriptionId": "${subscriptionId}"}'`}
+                </pre>
+              </div>
             </div>
-          </div>          
+          </div>
+
+          {/* What happens next */}
+          <div className="bg-white rounded-2xl p-8 mb-8 text-left">
+            <h3 className="font-semibold text-dark-gray mb-4">Hva skjer når betalingen lykkes?</h3>
+            <ul className="space-y-2 text-sm text-medium-gray">
+              <li className="flex items-start">
+                <span className="text-nordic-blue mr-2 mt-0.5">1.</span>
+                Abonnementet aktiveres
+              </li>
+              <li className="flex items-start">
+                <span className="text-nordic-blue mr-2 mt-0.5">2.</span>
+                System finner en tilgjengelig renser
+              </li>
+              <li className="flex items-start">
+                <span className="text-nordic-blue mr-2 mt-0.5">3.</span>
+                Ordre genereres for faktureringsperioden
+              </li>
+              <li className="flex items-start">
+                <span className="text-nordic-blue mr-2 mt-0.5">4.</span>
+                Poselevering opprettes hvis du ikke har pose
+              </li>
+            </ul>
+          </div>
 
           {/* Important Notice */}
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-8">
             <div className="flex items-start">
               <div className="text-yellow-600 mr-3 mt-0.5">💡</div>
               <div className="text-left">
-                <h3 className="font-semibold text-yellow-800 mb-2">Viktige tips for første henting</h3>
-                <ul className="text-sm text-yellow-700 space-y-1">
-                  <li>• Ha klærne klare i NooraCare-posen</li>
-                  <li>• Sjekk lommene for verdisaker</li>
-                  <li>• Vær tilgjengelig på telefon under hentetiden</li>
-                  <li>• Gi beskjed hvis du ikke kan være hjemme</li>
-                </ul>
+                <h3 className="font-semibold text-yellow-800 mb-2">Status: Venter på betaling</h3>
+                <p className="text-sm text-yellow-700">
+                  Abonnementet er opprettet med status &quot;pending_payment&quot;.
+                  Ingen ordre blir generert før betalingen er bekreftet via webhook.
+                </p>
               </div>
             </div>
           </div>
 
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
-            <button
-              onClick={handleTrackOrder}
+            <Link
+              href="/admin/orders"
               className="bg-nordic-blue text-white font-semibold px-8 py-3 rounded-lg hover:bg-blue-600 transition-colors"
             >
-              Følg bestilling
-            </button>
-            <button
-              onClick={handleNewOrder}
-              className="border-2 border-nordic-blue text-nordic-blue font-semibold px-8 py-3 rounded-lg hover:bg-blue-50 transition-colors"
-            >
-              Ny bestilling
-            </button>
+              Admin: Se ordre
+            </Link>
+            <NewOrderButton />
           </div>
 
           {/* Back to Dashboard */}

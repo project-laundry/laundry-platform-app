@@ -20,6 +20,8 @@ The application supports three user roles:
 - Avoid over-engineering - build what's needed now, not what might be needed later
 - Prefer existing patterns and libraries over custom solutions
 - Keep code readable and maintainable rather than clever
+- Prefer Server Components over Client Components - only use "use client" when necessary for hooks, event handlers, or browser APIs
+- When modifying pages, always check for unnecessary "use client" directives and refactor to Server Components where possible (e.g., replace onClick navigation with Link components)
 
 ## Technology Stack
 
@@ -32,10 +34,7 @@ The application supports three user roles:
 ## Backend & Database
 
 - **Database**: Supabase (PostgreSQL)
-- **Project**: laundry-platform
-- **Project ID**: uknariyagkmhdjqrllhf
-- **Region**: eu-north-1 (Europe/Stockholm)
-- **API URL**: https://uknariyagkmhdjqrllhf.supabase.co
+- **Migrations**: Always create migration files in `supabase/migrations/` instead of applying changes directly via Supabase MCP. Use format `YYYYMMDDHHMMSS_description.sql`
 - **Schema Documentation**:
   - See `ENTITIES.md` for complete database schema, entity definitions, relationships, and data integrity rules
   - See `BUSINESS_LOGIC.md` for application workflows, operational rules, and business process definitions

@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { createSubscriptionAction } from '../actions';
+import type { Weekday, PickupMethod } from '@/types/database';
 
 interface LaundryItem {
   type: string;
@@ -24,7 +26,18 @@ interface OrderData {
   };
   pickupMethod: 'home' | 'entrance' | 'other';
   otherLocation: string;
+  // Additional services
+  additionalKg?: number;
+  delicateItems?: number;
+  needsIroning?: boolean;
 }
+
+// Map UI plan names to database slugs
+const planSlugMap: Record<string, string> = {
+  'weekly': 'ukentlig',
+  'biweekly': 'annenhver-uke',
+  'single': 'enkeltvask',
+};
 
 interface PaymentMethod {
   id: string;
@@ -157,20 +170,44 @@ export default function ConfirmPage() {
 
     setIsSubmitting(true);
 
-    // Mock payment processing
     try {
-      console.log('Processing payment:', {
-        order: orderData,
-        paymentMethod: selectedPayment,
-        cardForm: selectedPayment === 'card' ? cardForm : null,
-        billingAddress
+      // Get the plan slug for the database
+      const planSlug = planSlugMap[orderData.plan || 'single'] || 'enkeltvask';
+
+      // Get the recurring weekday (for subscriptions) or use the day from pickupDate
+      let recurringWeekday: Weekday;
+      if (orderData.pickupWeekday) {
+        recurringWeekday = orderData.pickupWeekday as Weekday;
+      } else if (orderData.pickupDate) {
+        // Convert date to weekday
+        const date = new Date(orderData.pickupDate);
+        const weekdays: Weekday[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        recurringWeekday = weekdays[date.getDay()];
+      } else {
+        recurringWeekday = 'monday'; // fallback
+      }
+
+      // Create subscription via server action
+      const result = await createSubscriptionAction({
+        planSlug,
+        recurringWeekday,
+        pickupMethod: orderData.pickupMethod as PickupMethod,
+        pickupLocationDescription: orderData.otherLocation || undefined,
+        specialInstructions: orderData.specialInstructions || undefined,
+        extraKg: orderData.additionalKg || 0,
+        needsIroning: orderData.needsIroning || false,
+        delicateItemsCount: orderData.delicateItems || 0,
       });
 
-      // Mock success - redirect to order success page
-      const mockOrderId = 'NC' + Math.random().toString(36).substr(2, 8).toUpperCase();
-      window.location.href = `/orders/success?orderId=${mockOrderId}`;
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create subscription');
+      }
+
+      // Redirect to success page with subscription ID
+      // The user can then manually trigger the payment webhook via Postman
+      window.location.href = `/orders/success?subscriptionId=${result.subscriptionId}`;
     } catch (error) {
-      console.error('Payment failed:', error);
+      console.error('Order creation failed:', error);
       alert('Det oppstod en feil. Vennligst prøv igjen.');
       setIsSubmitting(false);
     }
