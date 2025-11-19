@@ -11,6 +11,11 @@ export const PRICING = {
   vat_rate_percent: 25, // Norwegian MVA
 } as const;
 
+// NOK display values (for UI components)
+export const IRONING_PRICE_NOK = PRICING.ironing_price_ore / 100;
+export const DELICATE_PRICE_NOK = PRICING.delicate_item_price_ore / 100;
+export const EXTRA_KG_PRICE_NOK = PRICING.extra_kg_price_ore / 100;
+
 // Helper to convert øre to NOK for display
 export function oreToNok(ore: number): number {
   return ore / 100;
