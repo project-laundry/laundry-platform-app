@@ -7,7 +7,7 @@ import {
   getSubscriptionPlanById,
 } from '@/lib/database/subscriptions';
 import { findAvailableCleaner } from '@/lib/database/cleaners';
-import { getCustomerByUserId, getCustomerDefaultAddress } from '@/lib/database/customers';
+import { getCustomerDefaultAddress } from '@/lib/database/customers';
 import { generateOrdersForSubscription } from '@/lib/services/order-generation';
 import { createClient } from '@/lib/supabase/server';
 

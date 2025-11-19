@@ -6,7 +6,7 @@ import { createPayment } from '@/lib/database/payments';
 import { getSubscriptionPlanBySlug } from '@/lib/database/subscriptions';
 import { getCustomerByUserId } from '@/lib/database/customers';
 import { calculateBillingCostOre } from '@/lib/config/pricing';
-import type { Weekday, PickupMethod } from '@/types/database';
+import type { Weekday, PickupMethod, Customer } from '@/types/database';
 
 export interface CreateSubscriptionInput {
   planSlug: string;
@@ -103,7 +103,7 @@ export async function createSubscriptionAction(
 /**
  * Get the current user's customer data
  */
-export async function getCurrentCustomer() {
+export async function getCurrentCustomerAction(): Promise<Customer | null> {
   const supabase = await createClient();
 
   const {

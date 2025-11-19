@@ -3,14 +3,10 @@
 import { createClient } from '@/lib/supabase/server';
 import type { Customer, Address } from '@/types/database';
 
-export interface CustomerWithAddress extends Customer {
-  default_address: Address | null;
-}
-
 /**
  * Get a customer by user ID with their default address
  */
-export async function getCustomerByUserId(userId: string): Promise<CustomerWithAddress | null> {
+export async function getCustomerByUserId(userId: string): Promise<Customer | null> {
   const supabase = await createClient();
 
   // Get customer
@@ -24,18 +20,7 @@ export async function getCustomerByUserId(userId: string): Promise<CustomerWithA
     return null;
   }
 
-  // Get default address
-  const { data: address } = await supabase
-    .from('addresses')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('is_default', true)
-    .single();
-
-  return {
-    ...customer,
-    default_address: address || null,
-  };
+  return customer;
 }
 
 /**
