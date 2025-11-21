@@ -3,11 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-
-interface LaundryItem {
-  type: string;
-  quantity: number;
-}
+import { getAvailableWeekdaysAction } from '../actions';
+import type { Weekday } from '@/types/database';
 
 const FIXED_PICKUP_TIME = '15:00-20:00';
 
@@ -47,8 +44,6 @@ const getNextDeliveryDays = (hasBag: boolean, count: number = 7) => {
   return days;
 };
 
-type Weekday = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
-
 export default function SchedulePage() {
   const searchParams = useSearchParams();
   const plan = searchParams.get('plan') || 'single';
@@ -61,13 +56,44 @@ export default function SchedulePage() {
   const [selectedWeekday, setSelectedWeekday] = useState<Weekday | ''>('');
   const [address, setAddress] = useState({
     street: '',
-    city: 'Bergen',
+    city: '',
     postalCode: '',
     specialInstructions: ''
   });
 
   const [pickupMethod, setPickupMethod] = useState<'home' | 'entrance' | 'other'>('home');
   const [otherLocation, setOtherLocation] = useState('');
+
+  // Availability state
+  const [availableWeekdays, setAvailableWeekdays] = useState<Weekday[]>([]);
+  const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState<string>('');
+
+  // Fetch available weekdays when city changes
+  useEffect(() => {
+    if (!address.city) {
+      setAvailableWeekdays([]);
+      return;
+    }
+
+    const fetchAvailability = async () => {
+      setIsLoadingAvailability(true);
+      setAvailabilityError('');
+      try {
+        const weekdays = await getAvailableWeekdaysAction(address.city);
+        setAvailableWeekdays(weekdays);
+        if (weekdays.length === 0) {
+          setAvailabilityError('Ingen rensere tilgjengelige i dette området ennå.');
+        }
+      } catch {
+        setAvailabilityError('Kunne ikke hente tilgjengelighet. Prøv igjen.');
+      } finally {
+        setIsLoadingAvailability(false);
+      }
+    };
+
+    fetchAvailability();
+  }, [address.city]);
 
   // Helper function to get delivery date info (the selected date is the delivery date)
   const getDeliveryDateInfo = (dateString: string) => {
@@ -76,19 +102,6 @@ export default function SchedulePage() {
     return {
       deliveryDay: dayNames[date.getDay()],
       deliveryDate: `${date.getDate()}. ${['januar', 'februar', 'mars', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'desember'][date.getMonth()]}`
-    };
-  };
-
-  // Helper function to get bag delivery date (one day before delivery)
-  const getBagDeliveryInfo = (dateString: string) => {
-    const deliveryDate = new Date(dateString);
-    const bagDate = new Date(deliveryDate);
-    bagDate.setDate(deliveryDate.getDate() - 1);
-
-    const dayNames = ['Søndag', 'Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag'];
-    return {
-      bagDeliveryDay: dayNames[bagDate.getDay()],
-      bagDeliveryDate: `${bagDate.getDate()}. ${['januar', 'februar', 'mars', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'desember'][bagDate.getMonth()]}`
     };
   };
 
@@ -128,6 +141,12 @@ export default function SchedulePage() {
   };
 
   const handleContinue = () => {
+    // Validate city selection
+    if (!address.city) {
+      alert('Vennligst velg by');
+      return;
+    }
+
     // Validate date or weekday selection based on plan type
     if (plan === 'single') {
       if (!selectedDate) {
@@ -215,7 +234,34 @@ export default function SchedulePage() {
 
         {/* Page Header */}
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-dark-gray mb-4">Når skal vi hente?</h2>          
+          <h2 className="text-3xl font-bold text-dark-gray mb-4">Når skal vi hente?</h2>
+        </div>
+
+        {/* City Selection */}
+        <div className="bg-white rounded-2xl p-6 sm:p-8 mb-8">
+          <h3 className="text-lg font-semibold text-dark-gray mb-4">Velg by</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <button
+              onClick={() => setAddress(prev => ({ ...prev, city: 'Bergen' }))}
+              className={`p-4 rounded-lg border-2 text-center transition-colors ${
+                address.city === 'Bergen'
+                  ? 'border-nordic-blue bg-blue-50'
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <div className="font-semibold text-dark-gray">Bergen</div>
+            </button>
+            <button
+              onClick={() => setAddress(prev => ({ ...prev, city: 'Oslo' }))}
+              className={`p-4 rounded-lg border-2 text-center transition-colors ${
+                address.city === 'Oslo'
+                  ? 'border-nordic-blue bg-blue-50'
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <div className="font-semibold text-dark-gray">Oslo</div>
+            </button>
+          </div>
         </div>
 
         {/* Date or Weekday Selection based on plan type */}
@@ -224,64 +270,94 @@ export default function SchedulePage() {
           <div className="bg-white rounded-2xl p-6 sm:p-8 mb-8">
             <h3 className="text-lg font-semibold text-dark-gray mb-6">Velg første henting</h3>
 
+            {/* Show message if no city selected */}
+            {!address.city && (
+              <p className="text-medium-gray text-center py-4">Velg by først for å se tilgjengelige datoer</p>
+            )}
+
+            {/* Show loading state */}
+            {address.city && isLoadingAvailability && (
+              <p className="text-medium-gray text-center py-4">Laster tilgjengelighet...</p>
+            )}
+
+            {/* Show error if no cleaners available */}
+            {address.city && !isLoadingAvailability && availabilityError && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
+                <p className="text-yellow-800">{availabilityError}</p>
+              </div>
+            )}
+
             {/* Desktop: 7 column grid */}
-            <div className="hidden sm:grid grid-cols-7 gap-4">
-              {deliveryDays.map((day) => {
-                const dateString = `${day.date.getFullYear()}-${String(day.date.getMonth() + 1).padStart(2, '0')}-${String(day.date.getDate()).padStart(2, '0')}`;
-                const isSelected = selectedDate === dateString;
-
-                return (
-                  <button
-                    key={dateString}
-                    onClick={() => setSelectedDate(dateString)}
-                    className={`p-4 rounded-lg border-2 text-center transition-colors ${
-                      isSelected
-                        ? 'border-nordic-blue bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="text-sm text-medium-gray mb-1">
-                      {day.dayName}
-                    </div>
-                    <div className="font-bold text-dark-gray">{day.dayNum}</div>
-                    <div className="text-xs text-medium-gray">{day.monthName}</div>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Mobile: Horizontal scroll */}
-            <div className="sm:hidden">
-              <div className="flex gap-3 overflow-x-auto pb-2" style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
+            {address.city && !isLoadingAvailability && !availabilityError && (
+              <div className="hidden sm:grid grid-cols-7 gap-4">
                 {deliveryDays.map((day) => {
                   const dateString = `${day.date.getFullYear()}-${String(day.date.getMonth() + 1).padStart(2, '0')}-${String(day.date.getDate()).padStart(2, '0')}`;
                   const isSelected = selectedDate === dateString;
+                  const isAvailable = availableWeekdays.includes(day.weekdayValue);
 
                   return (
                     <button
                       key={dateString}
-                      onClick={() => setSelectedDate(dateString)}
-                      className={`flex-shrink-0 p-3 rounded-lg border-2 text-center transition-colors min-w-[80px] ${
-                        isSelected
+                      onClick={() => isAvailable && setSelectedDate(dateString)}
+                      disabled={!isAvailable}
+                      className={`p-4 rounded-lg border-2 text-center transition-colors ${
+                        !isAvailable
+                          ? 'border-gray-100 bg-gray-50 cursor-not-allowed opacity-50'
+                          : isSelected
                           ? 'border-nordic-blue bg-blue-50'
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
+                      title={!isAvailable ? 'Ingen rensere tilgjengelige denne dagen' : ''}
                     >
-                      <div className="text-xs text-medium-gray mb-1">
-                        {day.dayName.substring(0, 3)}
+                      <div className="text-sm text-medium-gray mb-1">
+                        {day.dayName}
                       </div>
-                      <div className="font-bold text-dark-gray text-lg">{day.dayNum}</div>
+                      <div className={`font-bold ${isAvailable ? 'text-dark-gray' : 'text-gray-400'}`}>{day.dayNum}</div>
                       <div className="text-xs text-medium-gray">{day.monthName}</div>
                     </button>
                   );
                 })}
               </div>
-              <style jsx>{`
-                div::-webkit-scrollbar {
-                  display: none;
-                }
-              `}</style>
-            </div>
+            )}
+
+            {/* Mobile: Horizontal scroll */}
+            {address.city && !isLoadingAvailability && !availabilityError && (
+              <div className="sm:hidden">
+                <div className="flex gap-3 overflow-x-auto pb-2" style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
+                  {deliveryDays.map((day) => {
+                    const dateString = `${day.date.getFullYear()}-${String(day.date.getMonth() + 1).padStart(2, '0')}-${String(day.date.getDate()).padStart(2, '0')}`;
+                    const isSelected = selectedDate === dateString;
+                    const isAvailable = availableWeekdays.includes(day.weekdayValue);
+
+                    return (
+                      <button
+                        key={dateString}
+                        onClick={() => isAvailable && setSelectedDate(dateString)}
+                        disabled={!isAvailable}
+                        className={`flex-shrink-0 p-3 rounded-lg border-2 text-center transition-colors min-w-[80px] ${
+                          !isAvailable
+                            ? 'border-gray-100 bg-gray-50 cursor-not-allowed opacity-50'
+                            : isSelected
+                            ? 'border-nordic-blue bg-blue-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="text-xs text-medium-gray mb-1">
+                          {day.dayName.substring(0, 3)}
+                        </div>
+                        <div className={`font-bold text-lg ${isAvailable ? 'text-dark-gray' : 'text-gray-400'}`}>{day.dayNum}</div>
+                        <div className="text-xs text-medium-gray">{day.monthName}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+                <style jsx>{`
+                  div::-webkit-scrollbar {
+                    display: none;
+                  }
+                `}</style>
+              </div>
+            )}
           </div>
         ) : (
           /* Weekday Selection for recurring plans */
@@ -291,62 +367,92 @@ export default function SchedulePage() {
               Velg dag for din første henting. Dette blir din faste ukedag for alle fremtidige hentinger.
             </p>
 
+            {/* Show message if no city selected */}
+            {!address.city && (
+              <p className="text-medium-gray text-center py-4">Velg by først for å se tilgjengelige datoer</p>
+            )}
+
+            {/* Show loading state */}
+            {address.city && isLoadingAvailability && (
+              <p className="text-medium-gray text-center py-4">Laster tilgjengelighet...</p>
+            )}
+
+            {/* Show error if no cleaners available */}
+            {address.city && !isLoadingAvailability && availabilityError && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
+                <p className="text-yellow-800">{availabilityError}</p>
+              </div>
+            )}
+
             {/* Desktop: 7 column grid */}
-            <div className="hidden sm:grid grid-cols-7 gap-4">
-              {deliveryDays.map((day) => {
-                const isSelected = selectedWeekday === day.weekdayValue;
-
-                return (
-                  <button
-                    key={`${day.date.getTime()}`}
-                    onClick={() => setSelectedWeekday(day.weekdayValue)}
-                    className={`p-4 rounded-lg border-2 text-center transition-colors ${
-                      isSelected
-                        ? 'border-nordic-blue bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="text-sm text-medium-gray mb-1">
-                      {day.dayName}
-                    </div>
-                    <div className="font-bold text-dark-gray">{day.dayNum}</div>
-                    <div className="text-xs text-medium-gray">{day.monthName}</div>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Mobile: Horizontal scroll */}
-            <div className="sm:hidden">
-              <div className="flex gap-3 overflow-x-auto pb-2" style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
+            {address.city && !isLoadingAvailability && !availabilityError && (
+              <div className="hidden sm:grid grid-cols-7 gap-4">
                 {deliveryDays.map((day) => {
                   const isSelected = selectedWeekday === day.weekdayValue;
+                  const isAvailable = availableWeekdays.includes(day.weekdayValue);
 
                   return (
                     <button
                       key={`${day.date.getTime()}`}
-                      onClick={() => setSelectedWeekday(day.weekdayValue)}
-                      className={`flex-shrink-0 p-3 rounded-lg border-2 text-center transition-colors min-w-[80px] ${
-                        isSelected
+                      onClick={() => isAvailable && setSelectedWeekday(day.weekdayValue)}
+                      disabled={!isAvailable}
+                      className={`p-4 rounded-lg border-2 text-center transition-colors ${
+                        !isAvailable
+                          ? 'border-gray-100 bg-gray-50 cursor-not-allowed opacity-50'
+                          : isSelected
                           ? 'border-nordic-blue bg-blue-50'
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
+                      title={!isAvailable ? 'Ingen rensere tilgjengelige denne dagen' : ''}
                     >
-                      <div className="text-xs text-medium-gray mb-1">
-                        {day.dayName.substring(0, 3)}
+                      <div className="text-sm text-medium-gray mb-1">
+                        {day.dayName}
                       </div>
-                      <div className="font-bold text-dark-gray text-lg">{day.dayNum}</div>
+                      <div className={`font-bold ${isAvailable ? 'text-dark-gray' : 'text-gray-400'}`}>{day.dayNum}</div>
                       <div className="text-xs text-medium-gray">{day.monthName}</div>
                     </button>
                   );
                 })}
               </div>
-              <style jsx>{`
-                div::-webkit-scrollbar {
-                  display: none;
-                }
-              `}</style>
-            </div>
+            )}
+
+            {/* Mobile: Horizontal scroll */}
+            {address.city && !isLoadingAvailability && !availabilityError && (
+              <div className="sm:hidden">
+                <div className="flex gap-3 overflow-x-auto pb-2" style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
+                  {deliveryDays.map((day) => {
+                    const isSelected = selectedWeekday === day.weekdayValue;
+                    const isAvailable = availableWeekdays.includes(day.weekdayValue);
+
+                    return (
+                      <button
+                        key={`${day.date.getTime()}`}
+                        onClick={() => isAvailable && setSelectedWeekday(day.weekdayValue)}
+                        disabled={!isAvailable}
+                        className={`flex-shrink-0 p-3 rounded-lg border-2 text-center transition-colors min-w-[80px] ${
+                          !isAvailable
+                            ? 'border-gray-100 bg-gray-50 cursor-not-allowed opacity-50'
+                            : isSelected
+                            ? 'border-nordic-blue bg-blue-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="text-xs text-medium-gray mb-1">
+                          {day.dayName.substring(0, 3)}
+                        </div>
+                        <div className={`font-bold text-lg ${isAvailable ? 'text-dark-gray' : 'text-gray-400'}`}>{day.dayNum}</div>
+                        <div className="text-xs text-medium-gray">{day.monthName}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+                <style jsx>{`
+                  div::-webkit-scrollbar {
+                    display: none;
+                  }
+                `}</style>
+              </div>
+            )}
           </div>
         )}
 
@@ -543,19 +649,6 @@ export default function SchedulePage() {
                 required
               />
             </div>
-            <div>
-              <label className="block text-sm font-semibold text-dark-gray mb-2">
-                By
-              </label>
-              <input
-                type="text"
-                name="city"
-                value={address.city}
-                onChange={handleAddressChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue"
-                placeholder="Bergen"
-              />
-            </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-semibold text-dark-gray mb-2">
                 Tilleggsinformasjon (valgfritt)
@@ -584,12 +677,14 @@ export default function SchedulePage() {
           <button
             onClick={handleContinue}
             disabled={
+              !address.city ||
               (plan === 'single' ? !selectedDate : !selectedWeekday) ||
               !address.street ||
               !address.postalCode ||
               (pickupMethod === 'other' && !otherLocation.trim())
             }
             className={`px-8 py-3 rounded-lg font-semibold text-lg transition-colors ${
+              address.city &&
               (plan === 'single' ? selectedDate : selectedWeekday) &&
               address.street &&
               address.postalCode &&

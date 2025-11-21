@@ -118,3 +118,21 @@ export async function getAvailableCleanersForCity(city: string): Promise<Cleaner
       base_address: cleaner.base_address as Address,
     }));
 }
+
+/**
+ * Get all weekdays that have at least one available cleaner in a city
+ */
+export async function getAvailableWeekdaysForCity(city: string): Promise<Weekday[]> {
+  const cleaners = await getAvailableCleanersForCity(city);
+
+  if (cleaners.length === 0) {
+    return [];
+  }
+
+  const allWeekdays: Weekday[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
+  // Return weekdays where at least one cleaner is available
+  return allWeekdays.filter(weekday =>
+    cleaners.some(cleaner => isWeekdayInSchedule(cleaner.weekly_schedule, weekday))
+  );
+}

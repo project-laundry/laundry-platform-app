@@ -5,6 +5,7 @@ import { createSubscription } from '@/lib/database/subscriptions';
 import { createPayment } from '@/lib/database/payments';
 import { getSubscriptionPlanBySlug } from '@/lib/database/subscriptions';
 import { getCustomerByUserId } from '@/lib/database/customers';
+import { getAvailableWeekdaysForCity } from '@/lib/database/cleaners';
 import { calculateBillingCostOre } from '@/lib/config/pricing';
 import type { Weekday, PickupMethod, Customer } from '@/types/database';
 
@@ -115,4 +116,11 @@ export async function getCurrentCustomerAction(): Promise<Customer | null> {
   }
 
   return getCustomerByUserId(user.id);
+}
+
+/**
+ * Get available weekdays for a city based on cleaner availability
+ */
+export async function getAvailableWeekdaysAction(city: string): Promise<Weekday[]> {
+  return getAvailableWeekdaysForCity(city);
 }
