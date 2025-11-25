@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createCustomer } from '@/lib/database/customers';
 import { NextResponse } from 'next/server';
 
 export async function GET(request: Request) {
@@ -8,9 +9,16 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = await createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
-    if (!error) {
+    if (!error && data?.user) {
+      // Create customer record for new users
+      const { error: customerError } = await createCustomer(data.user.id);
+      if (customerError) {
+        console.error('Failed to create customer:', customerError);
+        // Continue anyway - customer might already exist (MVP: edge case handling)
+      }
+
       return NextResponse.redirect(`${origin}${next}`);
     }
   }

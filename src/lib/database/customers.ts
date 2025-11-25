@@ -91,3 +91,19 @@ export async function getCustomerDefaultAddress(userId: string): Promise<Address
 
   return data;
 }
+
+/**
+ * Create a new customer record
+ */
+export async function createCustomer(userId: string) {
+  const supabase = await createClient();
+
+  return await supabase
+    .from('customers')
+    .insert({
+      user_id: userId,
+      laundry_bags_count: 0
+    })
+    .select()
+    .single();
+}
