@@ -2,35 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { createSubscriptionAction } from '../actions';
 import type { Weekday, PickupMethod } from '@/types/database';
-
-interface LaundryItem {
-  type: string;
-  quantity: number;
-}
-
-interface OrderData {
-  specialInstructions: string;
-  pickupDate?: string;
-  pickupWeekday?: string;
-  pickupTime: string;
-  hasBag?: boolean;
-  plan?: string;
-  address: {
-    street: string;
-    city: string;
-    postalCode: string;
-    specialInstructions: string;
-  };
-  pickupMethod: 'home' | 'entrance' | 'other';
-  otherLocation: string;
-  // Additional services
-  additionalKg?: number;
-  delicateItems?: number;
-  needsIroning?: boolean;
-}
 
 // Map UI plan names to database slugs
 const planSlugMap: Record<string, string> = {
@@ -51,18 +26,6 @@ const paymentMethods: PaymentMethod[] = [
   { id: 'card', name: 'Bankkort', type: 'card', icon: '💳' },
 ];
 
-const laundryTypeNames: { [key: string]: string } = {
-  'shirts': 'Skjorter/bluser',
-  'pants': 'Bukser',
-  'dresses': 'Kjoler',
-  'suits': 'Dresser/jakker',
-  'bedding': 'Sengetøy',
-  'towels': 'Håndklær',
-  'delicates': 'Undertøy/silke',
-  'outerwear': 'Yttertøy',
-  'other': 'Annet'
-};
-
 const getPlanDetails = (plan: string) => {
   const plans: { [key: string]: { name: string; price: number } } = {
     'weekly': { name: 'Ukentlig', price: 399 },
@@ -73,8 +36,9 @@ const getPlanDetails = (plan: string) => {
 };
 
 export default function ConfirmPage() {
-  const searchParams = useSearchParams();
-  const [orderData, setOrderData] = useState<OrderData | null>(null);
+  const router = useRouter();
+  const orderData = useOrderFlowStore((state) => state.orderData);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<string>('vipps');
   const [showCardForm, setShowCardForm] = useState(false);
@@ -91,18 +55,6 @@ export default function ConfirmPage() {
     postalCode: '',
     country: 'Norge',
   });
-
-  useEffect(() => {
-    const data = searchParams.get('data');
-    if (data) {
-      try {
-        const parsed = JSON.parse(decodeURIComponent(data));
-        setOrderData(parsed);
-      } catch (e) {
-        console.error('Failed to parse order data:', e);
-      }
-    }
-  }, [searchParams]);
 
   useEffect(() => {
     setShowCardForm(selectedPayment === 'card');
@@ -205,7 +157,7 @@ export default function ConfirmPage() {
 
       // Redirect to success page with subscription ID
       // The user can then manually trigger the payment webhook via Postman
-      window.location.href = `/orders/success?subscriptionId=${result.subscriptionId}`;
+      router.push(`/orders/success?subscriptionId=${result.subscriptionId}`);
     } catch (error) {
       console.error('Order creation failed:', error);
       alert('Det oppstod en feil. Vennligst prøv igjen.');
@@ -298,7 +250,7 @@ export default function ConfirmPage() {
             {orderData.specialInstructions && (
               <div className="bg-white rounded-2xl p-8">
                 <h3 className="text-lg font-semibold text-dark-gray mb-4">Spesielle instruksjoner</h3>
-                <p className="text-medium-gray italic">"{orderData.specialInstructions}"</p>
+                <p className="text-medium-gray italic">&ldquo;{orderData.specialInstructions}&rdquo;</p>
               </div>
             )}
 
@@ -323,7 +275,7 @@ export default function ConfirmPage() {
                   </p>
                   {orderData.address.specialInstructions && (
                     <p className="text-medium-gray italic mt-1">
-                      "{orderData.address.specialInstructions}"
+                      &ldquo;{orderData.address.specialInstructions}&rdquo;
                     </p>
                   )}
                 </div>
@@ -337,7 +289,7 @@ export default function ConfirmPage() {
                   </p>
                   {orderData.pickupMethod === 'other' && orderData.otherLocation && (
                     <p className="text-medium-gray italic mt-1">
-                      "Plassering: {orderData.otherLocation}"
+                      Plassering: {orderData.otherLocation}
                     </p>
                   )}
                   {orderData.pickupMethod !== 'home' && (

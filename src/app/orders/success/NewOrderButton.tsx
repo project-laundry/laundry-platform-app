@@ -1,10 +1,14 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
+
 export function NewOrderButton() {
+  const router = useRouter();
+
   return (
     <button
       onClick={() => {
-        window.location.href = '/orders/plans';
+        router.push('/orders/plans');
       }}
       className="border-2 border-nordic-blue text-nordic-blue font-semibold px-8 py-3 rounded-lg hover:bg-blue-50 transition-colors"
     >

@@ -124,3 +124,10 @@ export async function getCurrentCustomerAction(): Promise<Customer | null> {
 export async function getAvailableWeekdaysAction(city: string): Promise<Weekday[]> {
   return getAvailableWeekdaysForCity(city);
 }
+
+/**
+ * Get subscription plan by slug
+ */
+export async function getSubscriptionPlanBySlugAction(slug: string) {
+  return getSubscriptionPlanBySlug(slug);
+}

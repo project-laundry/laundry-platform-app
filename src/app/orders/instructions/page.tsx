@@ -2,57 +2,26 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
-
-interface OrderData {
-  pickupDate: string;
-  pickupTime: string;
-  address: {
-    street: string;
-    city: string;
-    postalCode: string;
-    specialInstructions: string;
-  };
-  pickupMethod: 'home' | 'entrance' | 'other';
-  otherLocation: string;
-}
+import { useRouter } from 'next/navigation';
+import { useOrderFlowStore } from '@/stores/order-flow-store';
 
 export default function InstructionsPage() {
-  const searchParams = useSearchParams();
-  const [orderData, setOrderData] = useState<OrderData | null>(null);
+  const router = useRouter();
+  const orderData = useOrderFlowStore((state) => state.orderData);
+  const updateOrderData = useOrderFlowStore((state) => state.updateOrderData);
+
   const [specialInstructions, setSpecialInstructions] = useState('');
 
+  // Initialize from store
   useEffect(() => {
-    const data = searchParams.get('data');
-    if (data) {
-      try {
-        const parsed = JSON.parse(decodeURIComponent(data));
-        setOrderData(parsed);
-      } catch (e) {
-        console.error('Failed to parse order data:', e);
-      }
+    if (orderData?.specialInstructions) {
+      setSpecialInstructions(orderData.specialInstructions);
     }
-  }, [searchParams]);
+  }, [orderData]);
 
   const handleContinue = () => {
-    if (!orderData) return;
-
-    const fullOrderData = {
-      ...orderData,
-      specialInstructions
-    };
-
-    console.log('Complete order data with instructions:', fullOrderData);
-    const encodedData = encodeURIComponent(JSON.stringify(fullOrderData));
-    window.location.href = `/orders/confirm?data=${encodedData}`;
-  };
-
-  const handleQuickAdd = (instruction: string) => {
-    if (specialInstructions.trim()) {
-      setSpecialInstructions(prev => prev + '\n' + instruction);
-    } else {
-      setSpecialInstructions(instruction);
-    }
+    updateOrderData({ specialInstructions });
+    router.push('/orders/confirm');
   };
 
   if (!orderData) {
@@ -134,7 +103,7 @@ export default function InstructionsPage() {
         <div className="mt-12 bg-white rounded-2xl p-8">
           <div className="flex justify-between items-center">
             <Link
-              href={`/orders/schedule?data=${searchParams.get('data')}`}
+              href="/orders/schedule"
               className="text-medium-gray hover:text-dark-gray"
             >
               ← Tilbake til tidsvalg

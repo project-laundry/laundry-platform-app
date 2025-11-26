@@ -1,18 +1,47 @@
-import { getSubscriptionPlanBySlug } from '@/lib/database/subscriptions';
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { AdditionalServicesForm } from './AdditionalServicesForm';
+import { getSubscriptionPlanBySlugAction } from '../actions';
+import type { SubscriptionFrequency } from '@/types/database';
 
-interface PageProps {
-  searchParams: Promise<{ plan?: string }>;
-}
+export default function AdditionalServicesPage() {
+  const orderData = useOrderFlowStore((state) => state.orderData);
+  const [planData, setPlanData] = useState<{
+    slug: string;
+    name: string;
+    price_ore: number;
+    frequency: SubscriptionFrequency;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
 
-export default async function AdditionalServicesPage({ searchParams }: PageProps) {
-  const params = await searchParams;
-  const planSlug = params.plan || 'single';
+  useEffect(() => {
+    async function fetchPlan() {
+      if (!orderData?.plan) {
+        setLoading(false);
+        return;
+      }
 
-  // Fetch plan from database
-  const plan = await getSubscriptionPlanBySlug(planSlug);
+      const plan = await getSubscriptionPlanBySlugAction(orderData.plan);
+      setPlanData(plan);
+      setLoading(false);
+    }
 
-  if (!plan) {
+    fetchPlan();
+  }, [orderData?.plan]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-soft-gray flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-medium-gray">Laster...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!planData) {
     return (
       <div className="min-h-screen bg-soft-gray flex items-center justify-center">
         <div className="text-center">
@@ -25,10 +54,10 @@ export default async function AdditionalServicesPage({ searchParams }: PageProps
 
   return (
     <AdditionalServicesForm
-      planSlug={plan.slug}
-      planName={plan.name}
-      planPriceOre={plan.price_ore}
-      planFrequency={plan.frequency}
+      planSlug={planData.slug}
+      planName={planData.name}
+      planPriceOre={planData.price_ore}
+      planFrequency={planData.frequency}
     />
   );
 }

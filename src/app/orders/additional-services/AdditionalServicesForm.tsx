@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useOrderFlowStore } from '@/stores/order-flow-store';
 import {
   IRONING_PRICE_NOK,
   DELICATE_PRICE_NOK,
@@ -18,14 +20,26 @@ interface AdditionalServicesFormProps {
 }
 
 export function AdditionalServicesForm({
-  planSlug,
   planName,
   planPriceOre,
   planFrequency,
 }: AdditionalServicesFormProps) {
+  const router = useRouter();
+  const orderData = useOrderFlowStore((state) => state.orderData);
+  const updateOrderData = useOrderFlowStore((state) => state.updateOrderData);
+
   const [additionalKg, setAdditionalKg] = useState(0);
   const [delicateItems, setDelicateItems] = useState(0);
   const [needsIroning, setNeedsIroning] = useState(false);
+
+  // Initialize form state from store
+  useEffect(() => {
+    if (orderData) {
+      setAdditionalKg(orderData.additionalKg ?? 0);
+      setDelicateItems(orderData.delicateItems ?? 0);
+      setNeedsIroning(orderData.needsIroning ?? false);
+    }
+  }, [orderData]);
 
   // Additional kg step size
   const KG_STEP = 5;
@@ -50,14 +64,12 @@ export function AdditionalServicesForm({
   }, [additionalKg, delicateItems, needsIroning, planPriceNok]);
 
   const handleContinue = () => {
-    const params = new URLSearchParams({
-      plan: planSlug,
-      additionalKg: additionalKg.toString(),
-      delicateItems: delicateItems.toString(),
-      needsIroning: needsIroning.toString(),
-      monthlyRecurringCost: monthlyRecurringCost.toString(),
+    updateOrderData({
+      additionalKg,
+      delicateItems,
+      needsIroning
     });
-    window.location.href = `/orders/schedule?${params.toString()}`;
+    router.push('/orders/schedule');
   };
 
   // Get display name for plan frequency

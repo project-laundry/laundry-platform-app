@@ -1,13 +1,20 @@
+'use client';
+
+import { useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { NewOrderButton } from './NewOrderButton';
 
-interface PageProps {
-  searchParams: Promise<{ subscriptionId?: string }>;
-}
+export default function OrderSuccessPage() {
+  const searchParams = useSearchParams();
+  const subscriptionId = searchParams.get('subscriptionId') || '';
+  const resetOrderData = useOrderFlowStore((state) => state.resetOrderData);
 
-export default async function OrderSuccessPage({ searchParams }: PageProps) {
-  const params = await searchParams;
-  const subscriptionId = params.subscriptionId || '';
+  // Reset order flow state when success page loads
+  useEffect(() => {
+    resetOrderData();
+  }, [resetOrderData]);
 
   return (
     <div className="min-h-screen bg-soft-gray">

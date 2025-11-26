@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { getAvailableWeekdaysAction } from '../actions';
 import type { Weekday } from '@/types/database';
 
@@ -45,13 +46,14 @@ const getNextDeliveryDays = (hasBag: boolean, count: number = 7) => {
 };
 
 export default function SchedulePage() {
-  const searchParams = useSearchParams();
-  const plan = searchParams.get('plan') || 'single';
-  const hasBag = searchParams.get('hasBag') === 'true';
-  // Get additional services data
-  const additionalKg = parseInt(searchParams.get('additionalKg') || '0', 10);
-  const delicateItems = parseInt(searchParams.get('delicateItems') || '0', 10);
-  const needsIroning = searchParams.get('needsIroning') === 'true';
+  const router = useRouter();
+  const orderData = useOrderFlowStore((state) => state.orderData);
+  const updateOrderData = useOrderFlowStore((state) => state.updateOrderData);
+
+  // Get plan and services data from store
+  const plan = orderData?.plan || 'single';
+  const hasBag = orderData?.hasBag || false;
+
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedWeekday, setSelectedWeekday] = useState<Weekday | ''>('');
   const [address, setAddress] = useState({
@@ -63,6 +65,23 @@ export default function SchedulePage() {
 
   const [pickupMethod, setPickupMethod] = useState<'home' | 'entrance' | 'other'>('home');
   const [otherLocation, setOtherLocation] = useState('');
+
+  // Initialize form state from store
+  useEffect(() => {
+    if (orderData) {
+      setSelectedDate(orderData.pickupDate || '');
+      setSelectedWeekday(orderData.pickupWeekday || '');
+      if (orderData.address) {
+        setAddress(orderData.address);
+      }
+      if (orderData.pickupMethod) {
+        setPickupMethod(orderData.pickupMethod);
+      }
+      if (orderData.otherLocation) {
+        setOtherLocation(orderData.otherLocation);
+      }
+    }
+  }, [orderData]);
 
   // Availability state
   const [availableWeekdays, setAvailableWeekdays] = useState<Weekday[]>([]);
@@ -169,24 +188,17 @@ export default function SchedulePage() {
       return;
     }
 
-    const fullOrderData = {
-      plan,
-      hasBag,
+    // Update store with schedule data
+    updateOrderData({
       pickupDate: plan === 'single' ? selectedDate : undefined,
-      pickupWeekday: plan !== 'single' ? selectedWeekday : undefined,
+      pickupWeekday: plan !== 'single' ? (selectedWeekday as Weekday) : undefined,
       pickupTime: FIXED_PICKUP_TIME,
       address,
       pickupMethod,
-      otherLocation: pickupMethod === 'other' ? otherLocation : '',
-      // Additional services
-      additionalKg,
-      delicateItems,
-      needsIroning,
-    };
+      otherLocation: pickupMethod === 'other' ? otherLocation : ''
+    });
 
-    console.log('Complete order data:', fullOrderData);
-    const encodedData = encodeURIComponent(JSON.stringify(fullOrderData));
-    window.location.href = `/orders/instructions?data=${encodedData}`;
+    router.push('/orders/instructions');
   };
 
   // No items to count since bag-based subscription
