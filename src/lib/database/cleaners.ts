@@ -1,6 +1,6 @@
 // Cleaner database operations and matching logic
 
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import type { Cleaner, Address, Weekday } from '@/types/database';
 import { isWeekdayInSchedule } from '@/lib/utils/date';
 
@@ -20,7 +20,7 @@ export async function findAvailableCleaner(
   pickupWeekday: Weekday,
   excludeCleanerIds: string[] = []
 ): Promise<CleanerWithAddress | null> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   // Get all approved cleaners who are accepting orders
   const { data: cleaners, error } = await supabase
@@ -73,7 +73,7 @@ export async function findAvailableCleaner(
  * Get a cleaner by ID
  */
 export async function getCleanerById(cleanerId: string): Promise<Cleaner | null> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from('cleaners')
@@ -92,7 +92,7 @@ export async function getCleanerById(cleanerId: string): Promise<Cleaner | null>
  * Get all available cleaners for a city
  */
 export async function getAvailableCleanersForCity(city: string): Promise<CleanerWithAddress[]> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data: cleaners, error } = await supabase
     .from('cleaners')

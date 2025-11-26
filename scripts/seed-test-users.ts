@@ -1,5 +1,10 @@
+import { config } from 'dotenv';
+import { resolve } from 'path';
 import { createAdminClient } from './lib/admin-client';
 import { generateRandomCleaner } from './lib/test-user-data';
+
+// Load environment variables from .env.local
+config({ path: resolve(__dirname, '../.env.local') });
 
 async function seedTestUsers() {
   // Parse command line arguments
