@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { NewOrderButton } from './NewOrderButton';
 
-export default function OrderSuccessPage() {
+function OrderSuccessPageContent() {
   const searchParams = useSearchParams();
   const subscriptionId = searchParams.get('subscriptionId') || '';
   const resetOrderData = useOrderFlowStore((state) => state.resetOrderData);
@@ -145,5 +145,20 @@ Content-Type: application/json
         </div>
       </div>
     </div>
+  );
+}
+
+export default function OrderSuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-soft-gray flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-nordic-blue"></div>
+          <p className="mt-4 text-medium-gray">Laster...</p>
+        </div>
+      </div>
+    }>
+      <OrderSuccessPageContent />
+    </Suspense>
   );
 }

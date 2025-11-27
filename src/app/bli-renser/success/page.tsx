@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function RegistrationSuccessPage() {
   return (
     <div className="min-h-screen bg-white">
@@ -5,7 +7,7 @@ export default function RegistrationSuccessPage() {
       <header className="bg-white border-b border-soft-gray">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex justify-between items-center">
-            <a href="/" className="text-2xl font-bold text-nordic-blue">NooraCare</a>
+            <Link href="/" className="text-2xl font-bold text-nordic-blue">NooraCare</Link>
             <div className="text-sm text-success-green font-medium">
               Registrering fullført!
             </div>
@@ -115,12 +117,12 @@ export default function RegistrationSuccessPage() {
 
           {/* Action Buttons */}
           <div className="space-y-4">
-            <a
+            <Link
               href="/"
               className="w-full bg-nordic-blue text-white font-medium py-3 px-6 rounded-lg hover:bg-blue-600 inline-block"
             >
               Tilbake til forsiden
-            </a>
+            </Link>
             <a
               href="/auth/login"
               className="w-full border border-soft-gray text-medium-gray font-medium py-3 px-6 rounded-lg hover:bg-soft-gray inline-block"

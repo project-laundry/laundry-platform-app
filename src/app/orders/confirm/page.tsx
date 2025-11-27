@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { createSubscriptionAction } from '../actions';
 import type { Weekday, PickupMethod } from '@/types/database';
@@ -35,8 +35,9 @@ const getPlanDetails = (plan: string) => {
   return plans[plan] || { name: 'Abonnement', price: 0 };
 };
 
-export default function ConfirmPage() {
+function ConfirmPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const orderData = useOrderFlowStore((state) => state.orderData);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -267,18 +268,20 @@ export default function ConfirmPage() {
                   </p>
                 </div>
 
-                <div>
-                  <h4 className="font-semibold text-dark-gray mb-1">Adresse</h4>
-                  <p className="text-medium-gray">
-                    {orderData.address.street}<br/>
-                    {orderData.address.postalCode} {orderData.address.city}
-                  </p>
-                  {orderData.address.specialInstructions && (
-                    <p className="text-medium-gray italic mt-1">
-                      &ldquo;{orderData.address.specialInstructions}&rdquo;
+                {orderData.address && (
+                  <div>
+                    <h4 className="font-semibold text-dark-gray mb-1">Adresse</h4>
+                    <p className="text-medium-gray">
+                      {orderData.address.street}<br/>
+                      {orderData.address.postalCode} {orderData.address.city}
                     </p>
-                  )}
-                </div>
+                    {orderData.address.specialInstructions && (
+                      <p className="text-medium-gray italic mt-1">
+                        &ldquo;{orderData.address.specialInstructions}&rdquo;
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <div>
                   <h4 className="font-semibold text-dark-gray mb-1">Hentingsmåte</h4>
@@ -559,5 +562,20 @@ export default function ConfirmPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ConfirmPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-soft-gray flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-nordic-blue"></div>
+          <p className="mt-4 text-medium-gray">Laster...</p>
+        </div>
+      </div>
+    }>
+      <ConfirmPageContent />
+    </Suspense>
   );
 }

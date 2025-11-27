@@ -53,9 +53,9 @@ export default async function DashboardPage() {
             <p className="text-medium-gray mb-4">
               Få klærne dine hentet og vasket
             </p>
-            <a href="/orders/plans" className="block w-full bg-nordic-blue text-white text-center font-semibold py-2 rounded-lg hover:bg-blue-600 transition-colors">
+            <Link href="/orders/plans" className="block w-full bg-nordic-blue text-white text-center font-semibold py-2 rounded-lg hover:bg-blue-600 transition-colors">
               Bestill klesvask
-            </a>
+            </Link>
           </div>
 
           <div className="bg-white rounded-2xl p-6 border border-gray-200">

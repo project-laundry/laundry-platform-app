@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function EquipmentPage() {
   return (
     <div className="min-h-screen bg-white">
@@ -5,7 +7,7 @@ export default function EquipmentPage() {
       <header className="bg-white border-b border-soft-gray">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex justify-between items-center">
-            <a href="/" className="text-2xl font-bold text-nordic-blue">NooraCare</a>
+            <Link href="/" className="text-2xl font-bold text-nordic-blue">NooraCare</Link>
             <div className="text-sm text-medium-gray">
               Steg 4 av 5
             </div>

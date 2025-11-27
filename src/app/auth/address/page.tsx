@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
-export default function AddressPage() {
+function AddressPageContent() {
   const searchParams = useSearchParams();
   const userInfo = searchParams.get('user');
 
@@ -208,5 +208,20 @@ export default function AddressPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AddressPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-soft-gray flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-nordic-blue"></div>
+          <p className="mt-4 text-medium-gray">Laster...</p>
+        </div>
+      </div>
+    }>
+      <AddressPageContent />
+    </Suspense>
   );
 }

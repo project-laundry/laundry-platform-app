@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function BecomeCleanerPage() {
   return (
     <div className="min-h-screen bg-white">
@@ -5,7 +7,7 @@ export default function BecomeCleanerPage() {
       <header className="bg-white border-b border-soft-gray">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex justify-between items-center">
-            <a href="/" className="text-2xl font-bold text-nordic-blue">NooraCare</a>
+            <Link href="/" className="text-2xl font-bold text-nordic-blue">NooraCare</Link>
             <nav className="hidden md:flex gap-8">
               <a href="#hvorfor" className="text-medium-gray hover:text-dark-gray font-medium">Hvorfor</a>
               <a href="#kom-i-gang" className="text-medium-gray hover:text-dark-gray font-medium">Kom i gang</a>
@@ -395,7 +397,7 @@ export default function BecomeCleanerPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
-              <a href="/" className="text-2xl font-bold text-nordic-blue mb-4 block">NooraCare</a>
+              <Link href="/" className="text-2xl font-bold text-nordic-blue mb-4 block">NooraCare</Link>
               <p className="text-gray-400 leading-relaxed">
                 Kobler deg med pålitelige lokale rensere i Norge.
               </p>
