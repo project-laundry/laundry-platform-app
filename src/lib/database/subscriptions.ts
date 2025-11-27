@@ -16,6 +16,11 @@ export interface CreateSubscriptionData {
   default_needs_ironing?: boolean;
   default_delicate_items_count?: number;
   recurring_weekday?: Weekday | null;
+  delivery_street: string;
+  delivery_postal_code: string;
+  delivery_city: string;
+  delivery_country: string;
+  delivery_special_instructions?: string | null;
   billing_cost_ore: number;
 }
 
@@ -37,6 +42,11 @@ export async function createSubscription(
       default_needs_ironing: data.default_needs_ironing || false,
       default_delicate_items_count: data.default_delicate_items_count || 0,
       recurring_weekday: data.recurring_weekday || null,
+      delivery_street: data.delivery_street,
+      delivery_postal_code: data.delivery_postal_code,
+      delivery_city: data.delivery_city,
+      delivery_country: data.delivery_country,
+      delivery_special_instructions: data.delivery_special_instructions || null,
       billing_cost_ore: data.billing_cost_ore,
       status: 'pending_payment' as SubscriptionStatus,
       started_at: null,

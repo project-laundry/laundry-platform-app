@@ -6,7 +6,11 @@ import { generateOrderNumber } from '@/lib/utils/order-number';
 
 export interface CreateBagDeliveryData {
   customer_id: string;
-  address_id: string;
+  delivery_street: string;
+  delivery_postal_code: string;
+  delivery_city: string;
+  delivery_country: string;
+  delivery_special_instructions?: string | null;
   scheduled_date: string; // ISO date string
   bag_quantity?: number;
   special_instructions?: string | null;
@@ -50,7 +54,11 @@ export async function createBagDelivery(
     .insert({
       delivery_number: deliveryNumber,
       customer_id: data.customer_id,
-      address_id: data.address_id,
+      delivery_street: data.delivery_street,
+      delivery_postal_code: data.delivery_postal_code,
+      delivery_city: data.delivery_city,
+      delivery_country: data.delivery_country,
+      delivery_special_instructions: data.delivery_special_instructions || null,
       status: 'pending' as BagDeliveryStatus,
       bag_quantity: data.bag_quantity || 1,
       scheduled_date: data.scheduled_date,

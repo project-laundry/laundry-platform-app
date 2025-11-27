@@ -1,7 +1,7 @@
 // Customer database operations
 
 import { createClient } from '@/lib/supabase/server';
-import type { Customer, Address } from '@/types/database';
+import type { Customer } from '@/types/database';
 
 /**
  * Get a customer by user ID with their default address
@@ -70,26 +70,6 @@ export async function updateLaundryBagsCount(
     .eq('id', customerId);
 
   return !error;
-}
-
-/**
- * Get customer's default address
- */
-export async function getCustomerDefaultAddress(userId: string): Promise<Address | null> {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from('addresses')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('is_default', true)
-    .single();
-
-  if (error) {
-    return null;
-  }
-
-  return data;
 }
 
 /**

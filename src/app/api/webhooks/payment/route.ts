@@ -7,9 +7,7 @@ import {
   getSubscriptionPlanById,
 } from '@/lib/database/subscriptions';
 import { findAvailableCleaner } from '@/lib/database/cleaners';
-import { getCustomerDefaultAddress } from '@/lib/database/customers';
 import { generateOrdersForSubscription } from '@/lib/services/order-generation';
-import { createClient } from '@/lib/supabase/server';
 
 interface PaymentWebhookBody {
   subscriptionId: string;
@@ -83,26 +81,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 5. Get customer's default address for cleaner matching
-    const supabase = await createClient();
-    const { data: customer } = await supabase
-      .from('customers')
-      .select('user_id')
-      .eq('id', subscription.customer_id)
-      .single();
-
-    if (!customer) {
+    // 5. Validate subscription has address
+    if (!subscription.delivery_street || !subscription.delivery_city) {
       return NextResponse.json(
-        { error: 'Customer not found' },
-        { status: 404 }
-      );
-    }
-
-    const address = await getCustomerDefaultAddress(customer.user_id);
-    if (!address) {
-      return NextResponse.json(
-        { error: 'Customer address not found' },
-        { status: 404 }
+        { error: 'Subscription must have delivery address' },
+        { status: 400 }
       );
     }
 
@@ -111,7 +94,7 @@ export async function POST(request: NextRequest) {
 
     if (subscription.recurring_weekday) {
       const cleaner = await findAvailableCleaner(
-        address.city,
+        subscription.delivery_city,
         subscription.recurring_weekday
       );
       cleanerId = cleaner?.id || null;
@@ -142,7 +125,13 @@ export async function POST(request: NextRequest) {
     const { orders, bagDelivery } = await generateOrdersForSubscription(
       activatedSubscription,
       plan,
-      address.id
+      {
+        street: subscription.delivery_street,
+        postal_code: subscription.delivery_postal_code,
+        city: subscription.delivery_city,
+        country: subscription.delivery_country,
+        special_instructions: subscription.delivery_special_instructions,
+      }
     );
 
     // Return success response

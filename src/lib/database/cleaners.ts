@@ -1,12 +1,8 @@
 // Cleaner database operations and matching logic
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import type { Cleaner, Address, Weekday } from '@/types/database';
+import type { Cleaner, Weekday } from '@/types/database';
 import { isWeekdayInSchedule } from '@/lib/utils/date';
-
-export interface CleanerWithAddress extends Cleaner {
-  base_address: Address;
-}
 
 /**
  * Find an available cleaner for a customer based on matching criteria
@@ -19,18 +15,16 @@ export async function findAvailableCleaner(
   customerCity: string,
   pickupWeekday: Weekday,
   excludeCleanerIds: string[] = []
-): Promise<CleanerWithAddress | null> {
+): Promise<Cleaner | null> {
   const supabase = createAdminClient();
 
-  // Get all approved cleaners who are accepting orders
+  // Get all approved cleaners who are accepting orders in the customer's city
   const { data: cleaners, error } = await supabase
     .from('cleaners')
-    .select(`
-      *,
-      base_address:addresses!base_address_id(*)
-    `)
+    .select('*')
     .eq('verification_status', 'approved')
-    .eq('is_accepting_orders', true);
+    .eq('is_accepting_orders', true)
+    .ilike('base_city', customerCity);
 
   if (error || !cleaners || cleaners.length === 0) {
     return null;
@@ -40,12 +34,6 @@ export async function findAvailableCleaner(
   const matchingCleaners = cleaners.filter((cleaner) => {
     // Skip excluded cleaners
     if (excludeCleanerIds.includes(cleaner.id)) {
-      return false;
-    }
-
-    // Check city match
-    const cleanerAddress = cleaner.base_address as Address;
-    if (!cleanerAddress || cleanerAddress.city.toLowerCase() !== customerCity.toLowerCase()) {
       return false;
     }
 
@@ -62,11 +50,7 @@ export async function findAvailableCleaner(
   }
 
   // Return first matching cleaner (could implement load balancing here)
-  const selected = matchingCleaners[0];
-  return {
-    ...selected,
-    base_address: selected.base_address as Address,
-  };
+  return matchingCleaners[0];
 }
 
 /**
@@ -91,32 +75,21 @@ export async function getCleanerById(cleanerId: string): Promise<Cleaner | null>
 /**
  * Get all available cleaners for a city
  */
-export async function getAvailableCleanersForCity(city: string): Promise<CleanerWithAddress[]> {
+export async function getAvailableCleanersForCity(city: string): Promise<Cleaner[]> {
   const supabase = createAdminClient();
 
   const { data: cleaners, error } = await supabase
     .from('cleaners')
-    .select(`
-      *,
-      base_address:addresses!base_address_id(*)
-    `)
+    .select('*')
     .eq('verification_status', 'approved')
-    .eq('is_accepting_orders', true);
+    .eq('is_accepting_orders', true)
+    .ilike('base_city', city);
 
   if (error || !cleaners) {
     return [];
   }
 
-  // Filter by city
-  return cleaners
-    .filter((cleaner) => {
-      const cleanerAddress = cleaner.base_address as Address;
-      return cleanerAddress && cleanerAddress.city.toLowerCase() === city.toLowerCase();
-    })
-    .map((cleaner) => ({
-      ...cleaner,
-      base_address: cleaner.base_address as Address,
-    }));
+  return cleaners;
 }
 
 /**

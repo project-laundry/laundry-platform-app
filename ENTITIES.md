@@ -36,7 +36,6 @@
 - Has one Customer profile (if role = customer)
 - Has one Cleaner profile (if role = cleaner)
 - Has one Admin profile (if role = admin)
-- Has many Addresses
 
 **Indexes:**
 
@@ -100,7 +99,18 @@
   - **Note:** Stored as text for MVP. Contains legal business registration address for accounting/compliance purposes.
 - `bank_account` (string, required) - Norwegian bank account
   - **Validation:** 11 digits (Norwegian bank account format)
-- `base_address_id` (uuid, FK → [Address](#6-address).id, required) - Base operation address
+- `base_street` (string, required) - Base operation street address
+  - **Validation:** Min 3 chars, max 200 chars
+- `base_postal_code` (string, required) - Base operation postal code
+  - **Validation:** Exactly 4 digits
+- `base_city` (string, required) - Base operation city
+  - **Validation:** Min 2 chars, max 100 chars
+  - **MVP Constraint:** Must be 'Bergen' or 'Oslo'
+- `base_country` (string, required) - Base operation country
+  - **Default:** `'Norway'`
+  - **Validation:** Max 100 chars
+- `base_special_instructions` (text, nullable) - Permanent access instructions for base location
+  - **Validation:** Max 500 chars
 - `experience_level` (enum → [CleanerExperienceLevel](#cleanerexperiencelevel), required) - Experience level
 - `languages` (string[], required) - Languages spoken
   - **Validation:** ISO 639-1 codes (e.g., `['no', 'en']`), at least 1 language
@@ -124,14 +134,12 @@
 **Relationships:**
 
 - Belongs to User
-- Has one base Address
 - Has many Orders (assigned orders)
 
 **Indexes:**
 
 - Unique: user_id, tax_id
-- Index: verification_status, base_address_id
-- GeoIndex: base_address_id (for location-based queries)
+- Index: verification_status, base_city
 
 ---
 
@@ -157,56 +165,6 @@
 
 ---
 
-### Address
-
-**Description:** Physical addresses for pickup, delivery, and business locations.
-
-**Fields:**
-
-- `id` (uuid, PK) - Unique identifier
-- `user_id` (uuid, FK → [User](#1-user).id, required) - Owner of address
-  - **On Delete:** CASCADE
-- `label` (string, nullable) - Address nickname
-  - **Validation:** Max 50 chars
-- `street` (string, required) - Street address
-  - **Validation:** Min 3 chars, max 200 chars
-- `postal_code` (string, required) - Norwegian postal code
-  - **Validation:** Exactly 4 digits
-- `city` (string, required) - City name
-  - **Validation:** Min 2 chars, max 100 chars
-  - **MVP Constraint:** Must be 'Bergen' or 'Oslo' - system only operates in these cities initially
-- `country` (string) - Country
-  - **Default:** `'Norway'`
-  - **Validation:** Max 100 chars
-- `special_instructions` (text, nullable) - Permanent access instructions
-  - **Validation:** Max 500 chars
-  - **Examples:** "Use side entrance", "Gate code 1234", "Ring doorbell twice"
-  - **Note:** For permanent access details. One-time delivery notes go in Order.special_instructions
-- `latitude` (decimal(10,8), nullable) - GPS latitude
-  - **Validation:** Range -90 to 90
-- `longitude` (decimal(11,8), nullable) - GPS longitude
-  - **Validation:** Range -180 to 180
-- `is_default` (boolean) - Default address for user
-  - **Default:** `false`
-  - **Rule:** Only one default address per user
-- `created_at` (timestamp) - Creation timestamp
-- `updated_at` (timestamp) - Last update timestamp
-
-**Relationships:**
-
-- Belongs to User
-- Used by many Orders (pickup/delivery)
-- Used by Cleaners (base address)
-
-**Indexes:**
-
-- Foreign: user_id
-- GeoIndex: (latitude, longitude)
-- Index: postal_code, city
-- Unique: (user_id) WHERE is_default = true - enforces one default address per user
-
----
-
 ### BagDelivery
 
 **Description:** Delivery of NooraCare laundry bags to customers. Managed by admins via driver dashboard.
@@ -219,7 +177,17 @@
   - **Examples:** `'P3M8NV'`, `'K2X9HJ'`
 - `customer_id` (uuid, FK → [Customer](#customer).id, required) - Customer reference
   - **On Delete:** CASCADE
-- `address_id` (uuid, FK → [Address](#address).id, required) - Delivery location
+- `delivery_street` (string, required) - Delivery street address
+  - **Validation:** Min 3 chars, max 200 chars
+- `delivery_postal_code` (string, required) - Delivery postal code
+  - **Validation:** Exactly 4 digits
+- `delivery_city` (string, required) - Delivery city
+  - **Validation:** Min 2 chars, max 100 chars
+- `delivery_country` (string, required) - Delivery country
+  - **Default:** `'Norway'`
+  - **Validation:** Max 100 chars
+- `delivery_special_instructions` (text, nullable) - Permanent access instructions for delivery location
+  - **Validation:** Max 500 chars
 - `status` (enum → [BagDeliveryStatus](#bagdeliverystatus), required) - Delivery status
   - **Default:** `pending`
 - `bag_quantity` (integer, required) - Number of bags to deliver
@@ -242,13 +210,12 @@
 **Relationships:**
 
 - Belongs to Customer
-- Has one Address
 - Referenced by many Orders (via Order.prerequisite_bag_delivery_id)
 
 **Indexes:**
 
 - Unique: delivery_number
-- Foreign: customer_id, address_id
+- Foreign: customer_id
 - Index: status, scheduled_date
 - Composite: (customer_id, created_at DESC)
 
@@ -309,6 +276,17 @@
 - `default_delicate_items_count` (integer, default: 0) - Permanent delicate items count
 - `recurring_weekday` (enum → [Weekday](#weekday), nullable) - Preferred weekday for recurring pickups based on subscription frequency
   - **Note:** For biweekly frequency, this weekday repeats every 2 weeks from `started_at`. For monthly, system generates first 4 occurrences of this weekday after billing_date.
+- `delivery_street` (string, required) - Customer's delivery street address
+  - **Validation:** Min 3 chars, max 200 chars
+- `delivery_postal_code` (string, required) - Customer's delivery postal code
+  - **Validation:** Exactly 4 digits
+- `delivery_city` (string, required) - Customer's delivery city
+  - **Validation:** Min 2 chars, max 100 chars
+- `delivery_country` (string, required) - Customer's delivery country
+  - **Default:** `'Norway'`
+  - **Validation:** Max 100 chars
+- `delivery_special_instructions` (text, nullable) - Permanent access instructions for delivery location
+  - **Validation:** Max 500 chars
 - `status` (enum → [SubscriptionStatus](#subscriptionstatus), required) - Subscription status
   - **Default:** `pending_payment`
   - **Note:** Transitions to `active` when initial payment succeeds
@@ -364,7 +342,17 @@
 - `cleaner_id` (uuid, FK → [Cleaner](#cleaner).id, nullable) - Assigned cleaner
 - `status` (enum → [OrderStatus](#orderstatus), required) - Order status
   - **Default:** `pending_assignment`
-- `address_id` (uuid, FK → [Address](#address).id, required) - Pickup/delivery location
+- `pickup_street` (string, required) - Pickup street address
+  - **Validation:** Min 3 chars, max 200 chars
+- `pickup_postal_code` (string, required) - Pickup postal code
+  - **Validation:** Exactly 4 digits
+- `pickup_city` (string, required) - Pickup city
+  - **Validation:** Min 2 chars, max 100 chars
+- `pickup_country` (string, required) - Pickup country
+  - **Default:** `'Norway'`
+  - **Validation:** Max 100 chars
+- `pickup_special_instructions` (text, nullable) - Permanent access instructions for pickup location
+  - **Validation:** Max 500 chars
 - `scheduled_date` (date, required) - Scheduled pickup date
   - **Validation:** Must be >= today
   - **Note:** For MVP, Admin users handle pickup/delivery operations manually via driver dashboard
@@ -413,14 +401,13 @@
 - Belongs to SubscriptionPlan
 - Belongs to Subscription (nullable)
 - Assigned to Cleaner
-- Has one Address
 - Has many Payments
 - Has one prerequisite BagDelivery (nullable)
 
 **Indexes:**
 
 - Unique: order_number
-- Foreign: customer_id, subscription_id, plan_id, cleaner_id, address_id, prerequisite_bag_delivery_id
+- Foreign: customer_id, subscription_id, plan_id, cleaner_id, prerequisite_bag_delivery_id
 - Index: status, scheduled_date
 - Composite: (customer_id, created_at DESC), (cleaner_id, status)
 

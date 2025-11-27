@@ -9,7 +9,11 @@ export interface CreateOrderData {
   subscription_id?: string | null;
   plan_id: string;
   cleaner_id?: string | null;
-  address_id: string;
+  pickup_street: string;
+  pickup_postal_code: string;
+  pickup_city: string;
+  pickup_country: string;
+  pickup_special_instructions?: string | null;
   scheduled_date: string; // ISO date string
   delivery_date: string; // ISO date string
   pickup_method: PickupMethod;
@@ -65,7 +69,11 @@ export async function createOrder(data: CreateOrderData): Promise<Order | null> 
       plan_id: data.plan_id,
       cleaner_id: data.cleaner_id || null,
       status,
-      address_id: data.address_id,
+      pickup_street: data.pickup_street,
+      pickup_postal_code: data.pickup_postal_code,
+      pickup_city: data.pickup_city,
+      pickup_country: data.pickup_country,
+      pickup_special_instructions: data.pickup_special_instructions || null,
       scheduled_date: data.scheduled_date,
       delivery_date: data.delivery_date,
       pickup_method: data.pickup_method,

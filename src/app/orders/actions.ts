@@ -15,6 +15,12 @@ export interface CreateSubscriptionInput {
   pickupMethod: PickupMethod;
   pickupLocationDescription?: string;
   specialInstructions?: string;
+  // Delivery address
+  deliveryStreet: string;
+  deliveryPostalCode: string;
+  deliveryCity: string;
+  deliveryCountry: string;
+  deliverySpecialInstructions?: string;
   // Add-ons
   extraKg?: number;
   needsIroning?: boolean;
@@ -73,6 +79,11 @@ export async function createSubscriptionAction(
     default_needs_ironing: input.needsIroning || false,
     default_delicate_items_count: input.delicateItemsCount || 0,
     recurring_weekday: input.recurringWeekday,
+    delivery_street: input.deliveryStreet,
+    delivery_postal_code: input.deliveryPostalCode,
+    delivery_city: input.deliveryCity,
+    delivery_country: input.deliveryCountry,
+    delivery_special_instructions: input.deliverySpecialInstructions,
     billing_cost_ore: billingCostOre,
   });
 

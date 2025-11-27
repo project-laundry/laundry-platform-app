@@ -81,30 +81,7 @@ async function seedTestUsers() {
 
       console.log(`  ✅ Role updated to cleaner`);
 
-      // Step 4: Insert address
-      const { data: addressData, error: addressError } = await adminClient
-        .from('addresses')
-        .insert({
-          user_id: userId,
-          label: testCleaner.address.label,
-          street: testCleaner.address.street,
-          postal_code: testCleaner.address.postal_code,
-          city: testCleaner.address.city,
-          country: testCleaner.address.country,
-          latitude: testCleaner.address.latitude,
-          longitude: testCleaner.address.longitude,
-          is_default: true,
-        })
-        .select()
-        .single();
-
-      if (addressError || !addressData) {
-        throw addressError || new Error('Failed to create address');
-      }
-
-      console.log(`  ✅ Address created`);
-
-      // Step 5: Create cleaner profile
+      // Step 4: Create cleaner profile with embedded address
       const { error: cleanerError } = await adminClient
         .from('cleaners')
         .insert({
@@ -117,7 +94,11 @@ async function seedTestUsers() {
           business_name: testCleaner.cleaner_profile.business_name,
           business_address: testCleaner.cleaner_profile.business_address,
           bank_account: testCleaner.cleaner_profile.bank_account,
-          base_address_id: addressData.id,
+          base_street: testCleaner.address.street,
+          base_postal_code: testCleaner.address.postal_code,
+          base_city: testCleaner.address.city,
+          base_country: testCleaner.address.country,
+          base_special_instructions: null,
           experience_level: testCleaner.cleaner_profile.experience_level,
           languages: testCleaner.cleaner_profile.languages,
           specializations: testCleaner.cleaner_profile.specializations,

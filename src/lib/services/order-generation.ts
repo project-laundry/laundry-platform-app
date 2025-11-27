@@ -44,19 +44,27 @@ function calculateOrderCount(
   }
 }
 
+export interface AddressData {
+  street: string;
+  postal_code: string;
+  city: string;
+  country: string;
+  special_instructions?: string | null;
+}
+
 /**
  * Generate orders for a subscription after payment success
  *
  * @param subscription - The activated subscription
  * @param plan - The subscription plan
- * @param addressId - Customer's delivery address ID
+ * @param address - Customer's delivery address
  * @param pickupMethod - How the pickup should be done
  * @returns Generated orders and optional bag delivery
  */
 export async function generateOrdersForSubscription(
   subscription: Subscription,
   plan: SubscriptionPlan,
-  addressId: string,
+  address: AddressData,
   pickupMethod: PickupMethod = 'home'
 ): Promise<GeneratedOrders> {
   const supabase = await createClient();
@@ -115,7 +123,11 @@ export async function generateOrdersForSubscription(
 
     bagDelivery = await createBagDelivery({
       customer_id: subscription.customer_id,
-      address_id: addressId,
+      delivery_street: address.street,
+      delivery_postal_code: address.postal_code,
+      delivery_city: address.city,
+      delivery_country: address.country,
+      delivery_special_instructions: address.special_instructions || null,
       scheduled_date: toISODateString(bagDeliveryDate),
       bag_quantity: 1,
     });
@@ -135,7 +147,11 @@ export async function generateOrdersForSubscription(
       subscription_id: subscription.id,
       plan_id: plan.id,
       cleaner_id: subscription.assigned_cleaner_id,
-      address_id: addressId,
+      pickup_street: address.street,
+      pickup_postal_code: address.postal_code,
+      pickup_city: address.city,
+      pickup_country: address.country,
+      pickup_special_instructions: address.special_instructions || null,
       scheduled_date: toISODateString(pickupDate),
       delivery_date: toISODateString(deliveryDate),
       pickup_method: pickupMethod,

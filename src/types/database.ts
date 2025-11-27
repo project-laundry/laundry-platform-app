@@ -98,7 +98,11 @@ export interface Cleaner {
   business_name: string | null;
   business_address: string | null;
   bank_account: string;
-  base_address_id: string;
+  base_street: string;
+  base_postal_code: string;
+  base_city: string;
+  base_country: string;
+  base_special_instructions: string | null;
   experience_level: CleanerExperienceLevel;
   languages: string[];
   specializations: CleanerSpecialization[] | null;
@@ -119,27 +123,15 @@ export interface Admin {
   updated_at: string;
 }
 
-export interface Address {
-  id: string;
-  user_id: string;
-  label: string | null;
-  street: string;
-  postal_code: string;
-  city: string;
-  country: string;
-  special_instructions: string | null;
-  latitude: number | null;
-  longitude: number | null;
-  is_default: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface BagDelivery {
   id: string;
   delivery_number: string;
   customer_id: string;
-  address_id: string;
+  delivery_street: string;
+  delivery_postal_code: string;
+  delivery_city: string;
+  delivery_country: string;
+  delivery_special_instructions: string | null;
   status: BagDeliveryStatus;
   bag_quantity: number;
   scheduled_date: string;
@@ -178,6 +170,11 @@ export interface Subscription {
   default_needs_ironing: boolean;
   default_delicate_items_count: number;
   recurring_weekday: Weekday | null;
+  delivery_street: string;
+  delivery_postal_code: string;
+  delivery_city: string;
+  delivery_country: string;
+  delivery_special_instructions: string | null;
   status: SubscriptionStatus;
   billing_cost_ore: number;
   next_billing_date: string | null;
@@ -197,7 +194,11 @@ export interface Order {
   plan_id: string;
   cleaner_id: string | null;
   status: OrderStatus;
-  address_id: string;
+  pickup_street: string;
+  pickup_postal_code: string;
+  pickup_city: string;
+  pickup_country: string;
+  pickup_special_instructions: string | null;
   scheduled_date: string;
   delivery_date: string;
   pickup_method: PickupMethod;
@@ -252,7 +253,6 @@ export interface UserWithProfile extends User {
   customer?: Customer;
   cleaner?: Cleaner;
   admin?: Admin;
-  addresses?: Address[];
 }
 
 export interface CustomerWithRelations extends Customer {
@@ -263,7 +263,6 @@ export interface CustomerWithRelations extends Customer {
 
 export interface CleanerWithRelations extends Cleaner {
   user?: User;
-  base_address?: Address;
   orders?: Order[];
 }
 
@@ -272,7 +271,6 @@ export interface OrderWithRelations extends Order {
   cleaner?: Cleaner;
   subscription?: Subscription;
   plan?: SubscriptionPlan;
-  address?: Address;
   prerequisite_bag_delivery?: BagDelivery;
   payments?: Payment[];
 }
@@ -294,7 +292,6 @@ export type Tables = {
   customers: Customer;
   cleaners: Cleaner;
   admins: Admin;
-  addresses: Address;
   bag_deliveries: BagDelivery;
   subscription_plans: SubscriptionPlan;
   subscriptions: Subscription;
