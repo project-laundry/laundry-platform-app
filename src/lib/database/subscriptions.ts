@@ -196,10 +196,63 @@ export async function getSubscriptionPlanBySlug(
 ): Promise<SubscriptionPlan | null> {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
+  const { data, error} = await supabase
     .from('subscription_plans')
     .select('*')
     .eq('slug', slug)
+    .single();
+
+  if (error) {
+    return null;
+  }
+
+  return data;
+}
+
+// =============================================================================
+// VIPPS AGREEMENT MANAGEMENT
+// =============================================================================
+
+/**
+ * Update subscription with Vipps agreement details
+ */
+export async function updateSubscriptionVippsAgreement(
+  subscriptionId: string,
+  agreementId: string,
+  metadata: Record<string, unknown>
+): Promise<Subscription | null> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('subscriptions')
+    .update({
+      provider_agreement_id: agreementId,
+      provider_agreement_metadata: metadata,
+    })
+    .eq('id', subscriptionId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating subscription Vipps agreement:', error);
+    return null;
+  }
+
+  return data;
+}
+
+/**
+ * Get subscription by Vipps agreement ID
+ */
+export async function getSubscriptionByAgreementId(
+  agreementId: string
+): Promise<Subscription | null> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('subscriptions')
+    .select('*')
+    .eq('provider_agreement_id', agreementId)
     .single();
 
   if (error) {

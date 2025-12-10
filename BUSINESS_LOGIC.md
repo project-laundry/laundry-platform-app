@@ -276,6 +276,74 @@ These timestamps provide sufficient audit trail for MVP compliance.
 
 ## Payment Processing
 
+### Vipps Recurring Payment Integration
+
+**Payment Provider:** Vipps Recurring API (RESERVE_CAPTURE flow)
+
+**Core Principle:** Two-step payment authorization and capture for compliance.
+
+**Initial Subscription Payment Flow:**
+
+1. Customer completes subscription form and selects Vipps payment
+2. System creates subscription with `status = 'pending_payment'` and payment with `status = 'pending'`
+3. Frontend calls `/api/vipps/agreements/create` to create Vipps recurring agreement with initial charge
+4. User redirected to Vipps app, approves agreement
+5. Vipps redirects to `/api/vipps/agreements/callback` (verifies approval, redirects to success page)
+6. **First webhook:** `POST /api/webhooks/vipps` receives `CHARGE_UPDATED` with status `RESERVED`
+   - Payment updated to `status = 'authorized'`, `authorized_at = now()`
+   - System automatically calls Vipps capture API to capture the reserved funds
+7. **Second webhook:** `POST /api/webhooks/vipps` receives `CHARGE_UPDATED` with status `CHARGED`
+   - Payment updated to `status = 'captured'`, `captured_at = now()`
+   - Subscription activated: `status = 'active'`, `started_at = now()`
+   - Cleaner assigned via matching algorithm
+   - Orders generated for billing period
+8. Customer receives confirmation and can track orders
+
+**Recurring Monthly Billing Flow:**
+
+1. Cron job runs daily at 2:00 AM (`/api/cron/billing`)
+2. Queries subscriptions where `status = 'active'` AND `next_billing_date <= today` AND `provider_agreement_id IS NOT NULL`
+3. For each subscription:
+   - Creates new Vipps charge (due date = today + 2 days minimum per Vipps requirement)
+   - Creates payment record with `status = 'pending'`
+   - Stores charge ID in payment metadata
+4. Vipps processes charge on due date → webhook triggered → same capture flow as initial payment
+5. On successful capture:
+   - New batch of orders generated for next billing period
+   - `next_billing_date` updated to next month
+
+**Agreement Lifecycle:**
+
+- **PENDING:** User hasn't approved agreement yet
+- **ACTIVE:** User approved, subscription can bill recurring charges
+- **STOPPED:** User cancelled subscription or agreement stopped by Vipps
+- **EXPIRED:** Agreement reached expiration date (if set)
+
+**Charge States:**
+
+- **PENDING:** Charge created, not yet due
+- **DUE:** Vipps processing payment (attempting to reserve funds)
+- **RESERVED:** Funds reserved (authorization successful), awaiting capture
+- **CHARGED:** Funds captured (final success state)
+- **FAILED:** Payment failed (insufficient funds, card declined, etc.)
+- **CANCELLED:** Charge cancelled by merchant before processing
+- **REFUNDED:** Full refund issued after capture
+
+**Key Implementation Details:**
+
+- Vipps agreements stored in `subscriptions.provider_agreement_id`
+- Charge metadata stored in `payment.provider_metadata` (JSONB)
+- Minimum 2 days between charge creation and due date (Vipps requirement)
+- Reserved funds must be captured within 180 days
+- Automatic capture recommended for MVP (capture immediately when reserved)
+- Idempotency keys used for charge creation and capture to prevent duplicates
+- Webhook authentication via Basic Auth (client_id:client_secret)
+
+**Manual Payment Fallback:**
+
+- `payment_provider = 'manual'` still supported for testing and development
+- Manual payments skip Vipps integration, use mock webhook at `/api/webhooks/payment`
+
 ### Payment Types & Amount Calculation
 
 **Recurring Payments** (`payment_type = 'recurring'`):

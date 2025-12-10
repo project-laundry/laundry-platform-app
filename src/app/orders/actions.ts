@@ -7,7 +7,10 @@ import { getSubscriptionPlanBySlug } from '@/lib/database/subscriptions';
 import { getCustomerByUserId } from '@/lib/database/customers';
 import { getAvailableWeekdaysForCity } from '@/lib/database/cleaners';
 import { calculateBillingCostOre } from '@/lib/config/pricing';
-import type { Weekday, PickupMethod, Customer } from '@/types/database';
+import { createVippsAgreementForSubscription } from '@/lib/payments/vipps/service';
+import { updateSubscriptionVippsAgreement } from '@/lib/database/subscriptions';
+import { updatePaymentWithMetadata } from '@/lib/database/payments';
+import type { Weekday, PickupMethod, Customer, VippsAgreementMetadata } from '@/types/database';
 
 export interface CreateSubscriptionInput {
   planSlug: string;
@@ -141,4 +144,75 @@ export async function getAvailableWeekdaysAction(city: string): Promise<Weekday[
  */
 export async function getSubscriptionPlanBySlugAction(slug: string) {
   return getSubscriptionPlanBySlug(slug);
+}
+
+export interface CreateVippsAgreementResult {
+  success: boolean;
+  agreementId?: string;
+  checkoutUrl?: string;
+  paymentId?: string;
+  error?: string;
+}
+
+/**
+ * Create Vipps recurring agreement for a subscription
+ * Called from the order confirmation page after subscription is created
+ */
+export async function createVippsAgreementAction(
+  subscriptionId: string
+): Promise<CreateVippsAgreementResult> {
+  try {
+    // Authenticate user
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    // Create Vipps agreement
+    const result = await createVippsAgreementForSubscription(subscriptionId);
+
+    // Update subscription with agreement metadata
+    const agreementMetadata: VippsAgreementMetadata = {
+      vipps_agreement_id: result.agreementId,
+      vipps_checkout_url: result.checkoutUrl,
+      agreement_status: 'PENDING',
+      created_at: new Date().toISOString(),
+    };
+
+    await updateSubscriptionVippsAgreement(
+      subscriptionId,
+      result.agreementId,
+      agreementMetadata
+    );
+
+    // Update payment with initial metadata
+    await updatePaymentWithMetadata(
+      result.paymentId,
+      result.agreementId,
+      {
+        vipps_agreement_id: result.agreementId,
+        vipps_checkout_url: result.checkoutUrl,
+      }
+    );
+
+    // Return success with checkout URL
+    return {
+      success: true,
+      agreementId: result.agreementId,
+      checkoutUrl: result.checkoutUrl,
+      paymentId: result.paymentId,
+    };
+  } catch (error) {
+    console.error('Vipps agreement creation error:', error);
+
+    // Return user-friendly error message
+    const errorMessage = error instanceof Error ? error.message : 'Failed to create Vipps agreement';
+
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
 }

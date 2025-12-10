@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
-import { createSubscriptionAction } from '../actions';
+import { createSubscriptionAction, createVippsAgreementAction } from '../actions';
 import type { Weekday, PickupMethod } from '@/types/database';
 
 // Map UI plan names to database slugs
@@ -161,9 +161,22 @@ function ConfirmPageContent() {
         throw new Error(result.error || 'Failed to create subscription');
       }
 
-      // Redirect to success page with subscription ID
-      // The user can then manually trigger the payment webhook via Postman
-      router.push(`/orders/success?subscriptionId=${result.subscriptionId}`);
+      // Handle payment based on selected method
+      if (selectedPayment === 'vipps') {
+        // Create Vipps agreement via server action
+        const vippsResult = await createVippsAgreementAction(result.subscriptionId);
+
+        if (!vippsResult.success) {
+          throw new Error(vippsResult.error || 'Failed to create Vipps agreement');
+        }
+
+        // Redirect to Vipps checkout
+        window.location.href = vippsResult.checkoutUrl!;
+      } else {
+        // Manual/test payment - redirect to success page
+        // User can manually trigger webhook for testing
+        router.push(`/orders/success?subscriptionId=${result.subscriptionId}`);
+      }
     } catch (error) {
       console.error('Order creation failed:', error);
       alert('Det oppstod en feil. Vennligst prøv igjen.');

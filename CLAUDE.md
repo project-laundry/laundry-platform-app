@@ -57,8 +57,15 @@ src/
 │   ├── admin/              # Admin dashboard
 │   │   └── orders/         # Order management & cleaner assignment
 │   ├── api/                # API routes
-│   │   ├── auth/vipps/     # Vipps OAuth callback
-│   │   └── webhooks/payment/  # Payment webhooks
+│   │   ├── auth/vipps/     # Vipps OAuth callback (legacy)
+│   │   ├── cron/
+│   │   │   └── billing/    # Recurring billing scheduler (Vercel Cron)
+│   │   ├── vipps/
+│   │   │   └── agreements/
+│   │   │       └── callback/ # Vipps agreement callback (external redirect)
+│   │   └── webhooks/
+│   │       ├── payment/    # Manual payment webhook (testing)
+│   │       └── vipps/      # Vipps payment webhooks (production)
 │   ├── auth/               # Authentication flow
 │   │   ├── address/        # Address input step
 │   │   ├── callback/       # Supabase auth callback
@@ -103,9 +110,13 @@ src/
 │   │   ├── cleaners.ts     # Cleaner queries & matching
 │   │   ├── customers.ts    # Customer queries
 │   │   ├── orders.ts       # Order CRUD
-│   │   ├── payments.ts     # Payment operations
-│   │   └── subscriptions.ts   # Subscription operations
-│   ├── payments/           # Payment processing (empty - integration ready)
+│   │   ├── payments.ts     # Payment operations (includes Vipps metadata management)
+│   │   └── subscriptions.ts   # Subscription operations (includes Vipps agreement management)
+│   ├── payments/           # Payment processing integrations
+│   │   └── vipps/          # Vipps Recurring API integration
+│   │       ├── client.ts   # Vipps API client (auth, agreements, charges, capture)
+│   │       ├── service.ts  # High-level Vipps service layer
+│   │       └── config.ts   # Vipps configuration validation
 │   ├── services/
 │   │   └── order-generation.ts  # Subscription to orders logic
 │   ├── supabase/
@@ -128,8 +139,10 @@ src/
 
 Server actions handle mutations from the UI:
 
-- `app/orders/actions.ts` - Subscription creation, customer queries
+- `app/orders/actions.ts` - Subscription creation, Vipps agreement creation, customer queries
 - `app/admin/orders/actions.ts` - Pending orders, cleaner assignment
+
+**Note:** Vipps agreement creation uses server actions (not API routes) for consistency with the codebase pattern. API routes are only used where external services need to call in (webhooks, callbacks, cron).
 
 ### Database Access
 
@@ -149,3 +162,45 @@ All database operations use dedicated functions in `lib/database/`:
 ### Middleware
 
 `src/middleware.ts` refreshes Supabase auth sessions on every request.
+
+## Payment Processing
+
+### Vipps Integration
+
+The platform uses Vipps Recurring API for production payments with RESERVE_CAPTURE flow:
+
+**Key Files:**
+- `lib/payments/vipps/client.ts` - Vipps API client with OAuth, agreements, charges, and capture methods
+- `lib/payments/vipps/service.ts` - High-level service layer orchestrating Vipps + database operations
+- `lib/payments/vipps/config.ts` - Configuration validation and environment checks
+- `app/orders/actions.ts` - Server actions including `createVippsAgreementAction()` for agreement creation
+- `app/api/vipps/agreements/callback/route.ts` - Post-approval redirect handler (API route)
+- `app/api/webhooks/vipps/route.ts` - **Critical** webhook handler for payment events (API route)
+- `app/api/cron/billing/route.ts` - Recurring billing scheduler (Vercel Cron, API route)
+
+**Payment Flow:**
+1. RESERVE_CAPTURE (two-step): pending → authorized (funds reserved) → captured (funds taken)
+2. Webhook-driven activation: Subscriptions activate when payment captured
+3. Automatic capture: System immediately captures reserved funds (no manual intervention)
+4. Recurring billing: Cron job runs daily to create charges for subscriptions due for billing
+
+**Environment Variables:**
+- `VIPPS_CLIENT_ID` - Vipps API client ID
+- `VIPPS_CLIENT_SECRET` - Vipps API client secret
+- `VIPPS_SUBSCRIPTION_KEY` - Vipps API subscription key
+- `VIPPS_MERCHANT_SERIAL_NUMBER` - Vipps merchant serial number (MSN)
+- `VIPPS_API_URL` - Vipps API base URL (test: https://apitest.vipps.no, prod: https://api.vipps.no)
+- `CRON_SECRET` - Optional secret for billing cron authentication
+
+**Testing:**
+- Manual payment option (`payment_provider = 'manual'`) preserved for development
+- Vipps test environment available at https://apitest.vipps.no
+- Mock webhook at `/api/webhooks/payment` for manual testing
+
+**Database Changes:**
+- `subscriptions.provider_agreement_id` - Stores Vipps agreement ID
+- `subscriptions.provider_agreement_metadata` - Stores Vipps agreement details (JSONB)
+- `payments.status` - Added 'authorized' status for RESERVE_CAPTURE flow
+- `payments.provider_metadata` - Stores Vipps charge/transaction details (JSONB)
+
+See migration: `supabase/migrations/20250210000000_add_vipps_support.sql`
