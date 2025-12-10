@@ -26,7 +26,7 @@ export default function AdminOrdersPage() {
     setOrders(pendingOrders);
 
     // Load cleaners for each unique city
-    const cities = [...new Set(pendingOrders.map((o) => o.address.city))];
+    const cities = [...new Set(pendingOrders.map((o) => o.pickup_city))];
     const cleanersMap: Record<string, CleanerOption[]> = {};
 
     for (const city of cities) {
@@ -74,7 +74,7 @@ export default function AdminOrdersPage() {
         ) : (
           <div className="space-y-4">
             {orders.map((order) => {
-              const city = order.address.city;
+              const city = order.pickup_city;
               const availableCleaners = cleanersByCity[city] || [];
 
               return (
@@ -120,7 +120,7 @@ export default function AdminOrdersPage() {
                     <div>
                       <p className="text-gray-500">Adresse</p>
                       <p className="font-medium">
-                        {order.address.street}, {order.address.postal_code} {city}
+                        {order.pickup_street}, {order.pickup_postal_code} {city}
                       </p>
                     </div>
                     <div>

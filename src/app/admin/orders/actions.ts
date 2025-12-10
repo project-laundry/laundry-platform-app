@@ -3,11 +3,10 @@
 import { assignCleanerToOrder, getOrdersPendingAssignment } from '@/lib/database/orders';
 import { getAvailableCleanersForCity } from '@/lib/database/cleaners';
 import { createClient } from '@/lib/supabase/server';
-import type { Order, Address, Customer, User } from '@/types/database';
+import type { Order, Customer, User } from '@/types/database';
 
 export interface OrderWithDetails extends Order {
   customer: Customer & { user: User };
-  address: Address;
 }
 
 export interface CleanerOption {
@@ -29,8 +28,7 @@ export async function getPendingAssignmentOrders(): Promise<OrderWithDetails[]> 
       customer:customers!customer_id(
         *,
         user:users!user_id(*)
-      ),
-      address:addresses!address_id(*)
+      )
     `)
     .eq('status', 'pending_assignment')
     .order('scheduled_date', { ascending: true });
@@ -52,7 +50,7 @@ export async function getCleanersForCity(city: string): Promise<CleanerOption[]>
   return cleaners.map((cleaner) => ({
     id: cleaner.id,
     display_name: cleaner.display_name,
-    city: cleaner.base_address.city,
+    city: cleaner.base_city,
   }));
 }
 
