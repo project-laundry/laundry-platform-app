@@ -178,6 +178,8 @@ export interface Subscription {
   status: SubscriptionStatus;
   billing_cost_ore: number;
   next_billing_date: string | null;
+  provider_agreement_id: string | null;
+  provider_agreement_metadata: Record<string, unknown> | null;
   started_at: string | null;
   paused_at: string | null;
   cancelled_at: string | null;
@@ -281,6 +283,47 @@ export interface SubscriptionWithRelations extends Subscription {
   assigned_cleaner?: Cleaner;
   orders?: Order[];
   payments?: Payment[];
+}
+
+// =============================================================================
+// VIPPS PAYMENT PROVIDER METADATA TYPES
+// =============================================================================
+
+/**
+ * Vipps agreement status types
+ */
+export type VippsAgreementStatus = 'PENDING' | 'ACTIVE' | 'STOPPED' | 'EXPIRED';
+
+/**
+ * Vipps charge status types (RESERVE_CAPTURE flow)
+ */
+export type VippsChargeStatus = 'PENDING' | 'DUE' | 'RESERVED' | 'CHARGED' | 'FAILED' | 'CANCELLED' | 'REFUNDED' | 'PARTIALLY_CAPTURED';
+
+/**
+ * Vipps agreement metadata structure
+ * Stored in subscriptions.provider_agreement_metadata
+ */
+export interface VippsAgreementMetadata {
+  vipps_agreement_id: string;
+  vipps_initial_charge_id?: string;
+  vipps_checkout_url?: string;
+  agreement_status?: VippsAgreementStatus;
+  created_at?: string;
+}
+
+/**
+ * Vipps payment (charge) metadata structure
+ * Stored in payments.provider_metadata
+ */
+export interface VippsPaymentMetadata {
+  vipps_agreement_id: string;
+  vipps_charge_id: string;
+  vipps_transaction_id?: string;
+  vipps_status?: VippsChargeStatus;
+  retry_count?: number;
+  last_retry_at?: string;
+  reserved_at?: string;
+  captured_at?: string;
 }
 
 // =============================================================================

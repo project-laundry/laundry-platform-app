@@ -295,6 +295,13 @@
   - **Note:** Named "billing" (not "monthly") because it applies to both monthly and one_time billing periods
 - `next_billing_date` (date, nullable) - Next scheduled payment date
   - **Note:** Updated after each successful payment. For monthly billing, set to started_at + N months. Null for one_time plans (billed per order, not on schedule).
+- `provider_agreement_id` (string, nullable, unique) - Vipps recurring agreement ID
+  - **Format:** `agr_*` (Vipps format)
+  - **Note:** Set when customer approves Vipps agreement. Used for recurring billing and subscription management.
+- `provider_agreement_metadata` (jsonb, nullable) - Vipps agreement metadata
+  - **Default:** `{}`
+  - **Example:** `{"vipps_agreement_id": "agr_Abc123", "agreement_status": "ACTIVE", "vipps_initial_charge_id": "chr_Xyz789", "created_at": "2025-01-15T10:00:00Z"}`
+  - **Note:** Stores Vipps-specific agreement details for debugging and audit trail.
 - `started_at` (timestamp, nullable) - Subscription start date
   - **Note:** Set when initial payment succeeds. Null while `status = 'pending_payment'`.
 - `paused_at` (timestamp, nullable) - Pause timestamp
@@ -319,8 +326,10 @@
 **Indexes:**
 
 - Foreign: customer_id, plan_id, assigned_cleaner_id
-- Index: status
+- Index: status, provider_agreement_id
+- Composite: (status, next_billing_date) - for recurring billing scheduler queries
 - Unique: (customer_id) WHERE status IN ('pending_payment', 'active', 'paused') - enforces one active/pending subscription per customer
+- Unique: provider_agreement_id (for Vipps agreement lookups)
 
 ---
 
@@ -427,11 +436,15 @@
 - `amount_ore` (integer, required) - Amount in øre
   - **Constraints:** >= 0
 - `status` (enum, required) - Status: `pending`, `authorized`, `captured`, `failed`, `refunded`, `cancelled`
+  - **Flow (RESERVE_CAPTURE):** pending → authorized → captured/failed
+  - **Note:** `authorized` status indicates funds are reserved but not yet captured (Vipps RESERVE_CAPTURE)
 - `payment_provider` (enum, required) - Provider: `vipps`, `stripe`, `manual`
-- `provider_payment_id` (string, nullable) - External payment ID
+- `provider_payment_id` (string, nullable) - External payment ID (Vipps charge ID or Stripe payment intent ID)
 - `provider_metadata` (jsonb, nullable) - Provider response data
-- `authorized_at` (timestamp, nullable) - Authorization timestamp
-- `captured_at` (timestamp, nullable) - Capture timestamp
+  - **Example (Vipps):** `{"vipps_agreement_id": "agr_Abc123", "vipps_charge_id": "chr_Xyz789", "vipps_transaction_id": "txn_Def456", "vipps_status": "CHARGED", "retry_count": 0}`
+  - **Note:** Stores provider-specific details for debugging, reconciliation, and audit trail.
+- `authorized_at` (timestamp, nullable) - Authorization timestamp (when funds reserved via RESERVE_CAPTURE)
+- `captured_at` (timestamp, nullable) - Capture timestamp (when funds actually captured)
 - `failed_at` (timestamp, nullable) - Failure timestamp
 - `failure_reason` (text, nullable) - Failure reason
 - `refunded_at` (timestamp, nullable) - Refund timestamp
