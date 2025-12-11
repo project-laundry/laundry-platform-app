@@ -157,7 +157,7 @@ function ConfirmPageContent() {
         delicateItemsCount: orderData.delicateItems || 0,
       });
 
-      if (!result.success) {
+      if (!result.success || !result.subscriptionId) {
         throw new Error(result.error || 'Failed to create subscription');
       }
 
