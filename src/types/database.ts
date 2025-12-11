@@ -309,6 +309,7 @@ export interface VippsAgreementMetadata {
   vipps_checkout_url?: string;
   agreement_status?: VippsAgreementStatus;
   created_at?: string;
+  [key: string]: unknown;
 }
 
 /**
@@ -324,6 +325,7 @@ export interface VippsPaymentMetadata {
   last_retry_at?: string;
   reserved_at?: string;
   captured_at?: string;
+  [key: string]: unknown;
 }
 
 // =============================================================================

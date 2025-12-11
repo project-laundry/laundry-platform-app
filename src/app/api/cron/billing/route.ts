@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     console.log('[Billing Cron] Starting recurring billing job...');
 
     // Initialize Supabase client with service role
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Find subscriptions due for billing
     // - status = 'active'

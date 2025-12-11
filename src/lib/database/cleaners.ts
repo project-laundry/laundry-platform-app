@@ -1,7 +1,7 @@
 // Cleaner database operations and matching logic
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import type { Cleaner, Weekday } from '@/types/database';
+import type { Cleaner, Weekday, Subscription } from '@/types/database';
 import { isWeekdayInSchedule } from '@/lib/utils/date';
 
 /**
@@ -107,5 +107,35 @@ export async function getAvailableWeekdaysForCity(city: string): Promise<Weekday
   // Return weekdays where at least one cleaner is available
   return allWeekdays.filter(weekday =>
     cleaners.some(cleaner => isWeekdayInSchedule(cleaner.weekly_schedule, weekday))
+  );
+}
+
+/**
+ * Find available cleaners for a subscription based on delivery city and recurring weekday
+ */
+export async function findAvailableCleanerForSubscription(subscription: Subscription): Promise<Cleaner[]> {
+  const supabase = createAdminClient();
+
+  // Get all approved cleaners who are accepting orders in the subscription's city
+  const { data: cleaners, error } = await supabase
+    .from('cleaners')
+    .select('*')
+    .eq('verification_status', 'approved')
+    .eq('is_accepting_orders', true)
+    .ilike('base_city', subscription.delivery_city);
+
+  if (error || !cleaners || cleaners.length === 0) {
+    return [];
+  }
+
+  // If no recurring weekday is set, return all cleaners in the city
+  const recurringWeekday = subscription.recurring_weekday;
+  if (!recurringWeekday) {
+    return cleaners;
+  }
+
+  // Filter cleaners who work on the subscription's recurring weekday
+  return cleaners.filter(cleaner =>
+    isWeekdayInSchedule(cleaner.weekly_schedule, recurringWeekday)
   );
 }
