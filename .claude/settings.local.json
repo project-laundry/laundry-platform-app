@@ -5,7 +5,8 @@
       "Bash(npm run build:*)",
       "mcp__context7__get-library-docs",
       "Bash(ls:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "mcp__context7__resolve-library-id"
     ],
     "deny": [],
     "ask": []
