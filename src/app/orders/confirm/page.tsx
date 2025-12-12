@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { createSubscriptionAction, createVippsAgreementAction, createStandaloneOrderAction } from '../actions';
 import type { Weekday, PickupMethod } from '@/types/database';
+import { OrderData } from '@/types/order-flow';
 
 interface PaymentMethod {
   id: string;
@@ -31,7 +32,7 @@ const getPlanDetails = (plan: string) => {
 function ConfirmPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const orderData = useOrderFlowStore((state) => state.orderData);
+  const orderData = useOrderFlowStore<Partial<OrderData> | null>((state) => state.orderData);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<string>('vipps');
@@ -150,14 +151,11 @@ function ConfirmPageContent() {
           paymentProvider: selectedPayment === 'vipps' ? 'vipps' : 'manual',
         });
 
-        if (!result.success || !result.orderId) {
+        if (result.error) {
           throw new Error(result.error || 'Failed to create order');
         }
-
-        // Order created with pending_payment status
-        // Webhook will update to pending_assignment after payment capture
-        // TODO: Implement Vipps ePayment flow for standalone orders
-        router.push(`/orders/success?orderId=${result.orderId}`);
+        
+        window.location.href = result.redirectUrl!;
       } else {
         // Create subscription for recurring plans
         // Get the recurring weekday (for subscriptions) or use the day from pickupDate

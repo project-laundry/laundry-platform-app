@@ -9,7 +9,8 @@ export interface CreatePaymentData {
   subscription_id?: string | null;
   payment_type: PaymentType;
   amount_ore: number;
-  payment_provider?: PaymentProvider;
+  payment_provider?: PaymentProvider,
+  provider_reference: string;
 }
 
 /**
@@ -28,6 +29,7 @@ export async function createPayment(data: CreatePaymentData): Promise<Payment | 
       amount_ore: data.amount_ore,
       status: 'pending' as PaymentStatus,
       payment_provider: data.payment_provider || 'manual',
+      provider_reference: data.provider_reference,
     })
     .select()
     .single();
@@ -322,7 +324,7 @@ export async function getPaymentByReference(reference: string): Promise<Payment 
   const { data, error } = await supabase
     .from('payments')
     .select('*')
-    .eq('provider_payment_id', reference)
+    .eq('provider_reference', reference)
     .single();
 
   if (error) {

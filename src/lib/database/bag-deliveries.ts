@@ -25,7 +25,7 @@ export async function createBagDelivery(
   const supabase = await createAdminClient();
 
   // Generate unique delivery number (same format as order number)
-  let deliveryNumber = generateOrderNumber();
+  let deliveryNumber = generateOrderNumber(6);
   let attempts = 0;
   const maxAttempts = 10;
 
@@ -40,14 +40,14 @@ export async function createBagDelivery(
       break;
     }
 
-    deliveryNumber = generateOrderNumber();
+    deliveryNumber = generateOrderNumber(6);
     attempts++;
   }
 
   if (attempts >= maxAttempts) {
     console.error('Failed to generate unique delivery number');
     return null;
-  }
+  }  
 
   const { data: bagDelivery, error } = await supabase
     .from('bag_deliveries')
