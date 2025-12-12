@@ -34,7 +34,11 @@ The application supports three user roles:
 ## Backend & Database
 
 - **Database**: Supabase (PostgreSQL)
-- **Migrations**: Always create migration files in `supabase/migrations/` instead of applying changes directly via Supabase MCP. Use format `YYYYMMDDHHMMSS_description.sql`
+- **Migrations**:
+  - Always create migration files in `supabase/migrations/` instead of applying changes directly via Supabase MCP
+  - Use format `YYYYMMDDHHMMSS_description.sql`
+  - **IMPORTANT**: Never run migrations automatically - the user will apply them manually
+  - Only create the migration file and inform the user
 - **Schema Documentation**:
   - See `ENTITIES.md` for complete database schema, entity definitions, relationships, and data integrity rules
   - See `BUSINESS_LOGIC.md` for application workflows, operational rules, and business process definitions
