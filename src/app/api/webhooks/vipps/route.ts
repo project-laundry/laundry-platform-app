@@ -41,7 +41,8 @@ import {
 } from '@/lib/database/payments';
 import { findAvailableCleanerForSubscription } from '@/lib/database/cleaners';
 import { generateOrdersForSubscription } from '@/lib/services/order-generation';
-import type { VippsPaymentMetadata } from '@/types/database';
+import { updateOrderStatus } from '@/lib/database/orders';
+import type { VippsPaymentMetadata, Payment } from '@/types/database';
 
 // =============================================================================
 // TYPES (Official Vipps API Contract)
@@ -908,6 +909,7 @@ async function handleEPaymentAuthorized(webhook: VippsEPaymentWebhookBody): Prom
  * Handle epayments.payment.captured.v1
  *
  * Payment was captured (payment completed successfully).
+ * Updates order status from pending_payment to pending_assignment/pickup_scheduled.
  */
 async function handleEPaymentCaptured(webhook: VippsEPaymentWebhookBody): Promise<void> {
   const { reference, pspReference, amount, timestamp, success } = webhook;
@@ -938,10 +940,11 @@ async function handleEPaymentCaptured(webhook: VippsEPaymentWebhookBody): Promis
 
   console.log(`[Vipps Webhook] Payment ${payment.id} captured successfully`);
 
-  // If payment is for an order, update order status
+  // If payment is for an order, update order status from pending_payment
   if (payment.order_id) {
-    // TODO: Implement updateOrderStatus or similar function
-    console.log(`[Vipps Webhook] Order ${payment.order_id} payment captured`);
+    // Update order status to pending_assignment (will be auto-assigned later)
+    await updateOrderStatus(payment.order_id, 'pending_assignment');
+    console.log(`[Vipps Webhook] Order ${payment.order_id} status updated to pending_assignment`);
   }
 }
 

@@ -7,13 +7,6 @@ import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { createSubscriptionAction, createVippsAgreementAction, createStandaloneOrderAction } from '../actions';
 import type { Weekday, PickupMethod } from '@/types/database';
 
-// Map UI plan names to database slugs
-const planSlugMap: Record<string, string> = {
-  'weekly': 'ukentlig',
-  'biweekly': 'annenhver-uke',
-  'single': 'enkeltvask',
-};
-
 interface PaymentMethod {
   id: string;
   name: string;
@@ -135,7 +128,7 @@ function ConfirmPageContent() {
       const isSinglePlan = planSlug === 'single';
 
       if (isSinglePlan) {
-        // Create standalone order for single plan
+        // Create standalone order with pending_payment status
         if (!orderData.pickupDate) {
           throw new Error('Pickup date is required for single plan');
         }
@@ -161,8 +154,9 @@ function ConfirmPageContent() {
           throw new Error(result.error || 'Failed to create order');
         }
 
-        // For single orders, redirect to success page with orderId
-        // TODO: Handle Vipps payment for standalone orders in the future
+        // Order created with pending_payment status
+        // Webhook will update to pending_assignment after payment capture
+        // TODO: Implement Vipps ePayment flow for standalone orders
         router.push(`/orders/success?orderId=${result.orderId}`);
       } else {
         // Create subscription for recurring plans

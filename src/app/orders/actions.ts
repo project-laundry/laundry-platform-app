@@ -5,13 +5,12 @@ import { createSubscription } from '@/lib/database/subscriptions';
 import { createPayment } from '@/lib/database/payments';
 import { getSubscriptionPlanBySlug } from '@/lib/database/subscriptions';
 import { getCustomerByUserId } from '@/lib/database/customers';
-import { getAvailableWeekdaysForCity } from '@/lib/database/cleaners';
+import { getAvailableWeekdaysForCity, findAvailableCleaner } from '@/lib/database/cleaners';
 import { calculateBillingCostOre } from '@/lib/config/pricing';
 import { createVippsAgreementForSubscription } from '@/lib/payments/vipps/service';
 import { updateSubscriptionVippsAgreement } from '@/lib/database/subscriptions';
 import { updatePaymentWithMetadata } from '@/lib/database/payments';
 import { createOrder } from '@/lib/database/orders';
-import { findAvailableCleaner } from '@/lib/database/cleaners';
 import { createBagDelivery } from '@/lib/database/bag-deliveries';
 import { toISODateString, addDays } from '@/lib/utils/date';
 import type { Weekday, PickupMethod, Customer, VippsAgreementMetadata } from '@/types/database';
@@ -252,8 +251,9 @@ export interface CreateStandaloneOrderResult {
 }
 
 /**
- * Create a standalone order without subscription (for plans with billing_period = 'one_time')
+ * Create a standalone order with pending_payment status
  * Called from the order confirmation page for one-time orders
+ * Webhook will update status to pending_assignment/pickup_scheduled after payment capture
  */
 export async function createStandaloneOrderAction(
   input: CreateStandaloneOrderInput
@@ -299,8 +299,7 @@ export async function createStandaloneOrderAction(
   const pickupWeekday = weekdays[scheduledDate.getDay()];
 
   // Calculate delivery date (3 days after pickup)
-  const deliveryDate = new Date(scheduledDate);
-  deliveryDate.setDate(deliveryDate.getDate() + 3);
+  const deliveryDate = addDays(scheduledDate, 3);
 
   try {
     // Find available cleaner
@@ -327,7 +326,7 @@ export async function createStandaloneOrderAction(
       }
     }
 
-    // Create order
+    // Create order with pending_payment status
     const order = await createOrder({
       customer_id: customer.id,
       subscription_id: null, // No subscription for standalone orders
@@ -348,13 +347,14 @@ export async function createStandaloneOrderAction(
       needs_ironing: input.needsIroning || false,
       total_cost_ore: totalCostOre,
       prerequisite_bag_delivery_id: bagDeliveryId,
+      status: 'pending_payment', // Order awaiting payment
     });
 
     if (!order) {
       return { success: false, error: 'Failed to create order' };
     }
 
-    // Create payment record for the order
+    // Create payment record linked to order
     const payment = await createPayment({
       customer_id: customer.id,
       order_id: order.id,
@@ -365,7 +365,7 @@ export async function createStandaloneOrderAction(
     });
 
     if (!payment) {
-      return { success: false, error: 'Failed to create order' };
+      return { success: false, error: 'Failed to create payment' };
     }
 
     return {

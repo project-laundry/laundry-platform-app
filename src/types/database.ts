@@ -36,6 +36,7 @@ export type PickupMethod = 'home' | 'entrance' | 'other';
 export type BagDeliveryStatus = 'pending' | 'scheduled' | 'en_route' | 'delivered' | 'completed' | 'cancelled';
 
 export type OrderStatus =
+  | 'pending_payment'
   | 'pending_assignment'
   | 'pickup_scheduled'
   | 'picked_up'

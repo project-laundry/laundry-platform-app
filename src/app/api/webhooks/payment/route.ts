@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { capturePayment, getPaymentForSubscription } from '@/lib/database/payments';
+import { capturePayment, getPaymentForSubscription, getPaymentById } from '@/lib/database/payments';
 import {
   getSubscriptionById,
   activateSubscription,
@@ -8,12 +8,87 @@ import {
 } from '@/lib/database/subscriptions';
 import { findAvailableCleaner } from '@/lib/database/cleaners';
 import { generateOrdersForSubscription } from '@/lib/services/order-generation';
+import { updateOrderStatus } from '@/lib/database/orders';
 
 interface PaymentWebhookBody {
-  subscriptionId: string;
+  subscriptionId?: string;
+  paymentId?: string;
   // For real payment providers, would include:
   // providerPaymentId?: string;
   // status?: string;
+}
+
+/**
+ * Handle standalone order payment capture
+ * Updates order status from pending_payment to pending_assignment
+ */
+async function handleStandaloneOrderPayment(paymentId: string) {
+  try {
+    // Get payment record
+    const payment = await getPaymentById(paymentId);
+    if (!payment) {
+      return NextResponse.json(
+        { error: 'Payment not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check payment status
+    if (payment.status === 'captured') {
+      return NextResponse.json(
+        { error: 'Payment already captured' },
+        { status: 400 }
+      );
+    }
+
+    // Check if payment has an order
+    if (!payment.order_id) {
+      return NextResponse.json(
+        { error: 'No order associated with this payment' },
+        { status: 400 }
+      );
+    }
+
+    // Capture payment
+    const capturedPayment = await capturePayment(paymentId);
+    if (!capturedPayment) {
+      return NextResponse.json(
+        { error: 'Failed to capture payment' },
+        { status: 500 }
+      );
+    }
+
+    // Update order status from pending_payment to pending_assignment
+    const updatedOrder = await updateOrderStatus(payment.order_id, 'pending_assignment');
+    if (!updatedOrder) {
+      return NextResponse.json(
+        { error: 'Failed to update order status' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      payment: {
+        id: capturedPayment.id,
+        status: capturedPayment.status,
+        captured_at: capturedPayment.captured_at,
+      },
+      order: {
+        id: updatedOrder.id,
+        order_number: updatedOrder.order_number,
+        status: updatedOrder.status,
+        scheduled_date: updatedOrder.scheduled_date,
+        delivery_date: updatedOrder.delivery_date,
+      },
+    });
+  } catch (error) {
+    console.error('Standalone order payment webhook error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
 }
 
 /**
@@ -23,13 +98,26 @@ interface PaymentWebhookBody {
  * For real payments: Will be called by Vipps/Stripe
  *
  * POST /api/webhooks/payment
- * Body: { subscriptionId: "uuid" }
+ * Body: { subscriptionId: "uuid" } OR { paymentId: "uuid" }
  */
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as PaymentWebhookBody;
-    const { subscriptionId } = body;
+    const { subscriptionId, paymentId } = body;
 
+    if (!subscriptionId && !paymentId) {
+      return NextResponse.json(
+        { error: 'Either subscriptionId or paymentId is required' },
+        { status: 400 }
+      );
+    }
+
+    // Handle standalone order payment
+    if (paymentId) {
+      return handleStandaloneOrderPayment(paymentId);
+    }
+
+    // Handle subscription payment (existing logic)
     if (!subscriptionId) {
       return NextResponse.json(
         { error: 'subscriptionId is required' },
