@@ -22,8 +22,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { createVippsClient } from '@/lib/payments/vipps/client';
-import { captureVippsCharge } from '@/lib/payments/vipps/service';
+import { captureVippsCharge, captureVippsEPayment } from '@/lib/payments/vipps/service';
 import {
   getSubscriptionByAgreementId,
   activateSubscription,
@@ -33,6 +32,7 @@ import {
 import {
   getPaymentByAgreementAndCharge,
   getPaymentById,
+  getPaymentByReference,
   authorizePayment,
   capturePaymentWithMetadata,
   failPaymentWithMetadata,
@@ -42,7 +42,6 @@ import {
 import { findAvailableCleanerForSubscription } from '@/lib/database/cleaners';
 import { generateOrdersForSubscription } from '@/lib/services/order-generation';
 import { updateOrderStatus } from '@/lib/database/orders';
-import type { VippsPaymentMetadata, Payment } from '@/types/database';
 
 // =============================================================================
 // TYPES (Official Vipps API Contract)
@@ -849,20 +848,12 @@ async function handleAgreementExpired(
 // =============================================================================
 
 /**
- * Get payment by reference (merchant's unique payment ID)
- */
-async function getPaymentByReference(reference: string) {
-  // The reference is our payment ID
-  return await getPaymentById(reference);
-}
-
-/**
  * Handle epayments.payment.created.v1
  *
  * Payment session was created.
  */
 async function handleEPaymentCreated(webhook: VippsEPaymentWebhookBody): Promise<void> {
-  const { reference, pspReference, amount, timestamp } = webhook;
+  const { reference, amount } = webhook;
 
   console.log(`[Vipps Webhook] ePayment created: ${reference} (${amount.value/100} ${amount.currency})`);
 
@@ -895,6 +886,7 @@ async function handleEPaymentAuthorized(webhook: VippsEPaymentWebhookBody): Prom
 
   // Update payment to authorized
   await authorizePayment(payment.id, pspReference, {
+    vipps_reference: reference,
     vipps_psp_reference: pspReference,
     vipps_status: 'AUTHORIZED',
     vipps_amount: amount.value,
@@ -902,7 +894,16 @@ async function handleEPaymentAuthorized(webhook: VippsEPaymentWebhookBody): Prom
     authorized_at: timestamp,
   });
 
-  console.log(`[Vipps Webhook] Payment ${payment.id} authorized`);
+  console.log(`[Vipps Webhook] Payment ${payment.id} authorized - triggering auto-capture`);
+
+  // Auto-capture immediately (same pattern as Recurring API)
+  try {
+    await captureVippsEPayment(reference, amount.value);
+    console.log(`[Vipps Webhook] Auto-capture triggered for payment ${payment.id}`);
+  } catch (error) {
+    console.error(`[Vipps Webhook] Auto-capture failed for payment ${payment.id}:`, error);
+    // Note: Capture webhook will handle the final status update
+  }
 }
 
 /**

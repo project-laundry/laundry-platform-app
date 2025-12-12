@@ -1,12 +1,17 @@
 // Vipps Service Layer
 // High-level functions that orchestrate Vipps API calls with database operations
 
-import { createVippsClient } from './client';
+import { createVippsRecurringClient } from './recurring-client';
+import { createVippsEPaymentClient } from './epayment-client';
 import {
   getSubscriptionById,
   getSubscriptionPlanById,
 } from '@/lib/database/subscriptions';
-import { createPayment } from '@/lib/database/payments';
+import {
+  createPayment,
+  updatePaymentWithMetadata,
+} from '@/lib/database/payments';
+import { getOrderById } from '@/lib/database/orders';
 import type { Subscription, SubscriptionPlan } from '@/types/database';
 
 // =============================================================================
@@ -55,8 +60,8 @@ export async function createVippsAgreementForSubscription(
     throw new Error('Subscription plan not found');
   }
 
-  // Initialize Vipps client
-  const vipps = createVippsClient();
+  // Initialize Vipps Recurring client
+  const vipps = createVippsRecurringClient();
 
   // Determine interval based on billing period
   const interval = plan.billing_period === 'one_time' ? 'MONTH' : 'MONTH';
@@ -137,8 +142,8 @@ export async function createRecurringChargeForSubscription(
     throw new Error('Subscription plan not found');
   }
 
-  // Initialize Vipps client
-  const vipps = createVippsClient();
+  // Initialize Vipps Recurring client
+  const vipps = createVippsRecurringClient();
 
   // Calculate due date (minimum 2 days in future per Vipps requirement)
   const dueDate = new Date();
@@ -193,7 +198,7 @@ export async function captureVippsCharge(
   amount: number,
   description: string
 ): Promise<void> {
-  const vipps = createVippsClient();
+  const vipps = createVippsRecurringClient();
 
   await vipps.captureCharge(agreementId, chargeId, {
     amount,
@@ -216,6 +221,112 @@ export async function cancelVippsAgreement(subscriptionId: string): Promise<void
     throw new Error('Subscription or Vipps agreement not found');
   }
 
-  const vipps = createVippsClient();
+  const vipps = createVippsRecurringClient();
   await vipps.stopAgreement(subscription.provider_agreement_id);
+}
+
+// =============================================================================
+// EPAYMENT API (ONE-TIME PAYMENTS)
+// =============================================================================
+
+export interface CreateEPaymentResult {
+  paymentId: string;
+  redirectUrl: string;
+}
+
+/**
+ * Create Vipps ePayment for a standalone order
+ *
+ * Flow:
+ * 1. Fetch order details
+ * 2. Validate order status (must be pending_payment)
+ * 3. Create Vipps ePayment via API
+ * 4. Update payment record with provider_reference and metadata
+ * 5. Return redirect URL for user payment
+ *
+ * @param orderId - Order ID to create ePayment for
+ * @param reference - Unique merchant reference for this payment (8-64 chars)
+ * @returns Payment ID and checkout URL
+ */
+export async function createVippsEPaymentForOrder(
+  orderId: string,
+  reference: string
+): Promise<CreateEPaymentResult> {
+  // Get order
+  const order = await getOrderById(orderId);
+  if (!order) {
+    throw new Error('Order not found');
+  }
+
+  if (order.status !== 'pending_payment') {
+    throw new Error(`Cannot create ePayment for order with status: ${order.status}`);
+  }
+
+  // Create payment record for this order
+  // Note: createStandaloneOrderAction may have already created one,
+  // but this ensures we have a payment record linked to this specific ePayment
+  const payment = await createPayment({
+    customer_id: order.customer_id,
+    order_id: order.id,
+    subscription_id: null,
+    payment_type: 'one_time',
+    amount_ore: order.total_cost_ore,
+    payment_provider: 'vipps',
+  });
+
+  if (!payment) {
+    throw new Error('Failed to create payment record');
+  }
+
+  // Initialize Vipps ePayment client
+  const vipps = createVippsEPaymentClient();
+
+  // Create ePayment
+  const result = await vipps.createPayment({
+    reference,
+    amount: order.total_cost_ore,
+    paymentDescription: `NooraCare - Laundry service for order ${order.id}`,
+    userFlow: 'WEB_REDIRECT', // Most common flow
+    returnUrl: `${process.env.NEXT_PUBLIC_APP_URL}/orders/success?orderId=${orderId}`,
+    paymentMethod: {
+      type: 'WALLET', // Vipps app payment
+    },
+  });
+
+  // Update payment with ePayment metadata
+  await updatePaymentWithMetadata(
+    payment.id,
+    reference, // Store reference as provider_payment_id
+    {
+      vipps_reference: reference,
+      vipps_checkout_url: result.redirectUrl,
+      created_at: new Date().toISOString(),
+    }
+  );
+
+  return {
+    paymentId: payment.id,
+    redirectUrl: result.redirectUrl || '',
+  };
+}
+
+/**
+ * Capture authorized Vipps ePayment
+ *
+ * Called automatically by webhook when payment is authorized
+ *
+ * @param reference - Merchant reference
+ * @param amount - Amount to capture in øre
+ * @returns void
+ */
+export async function captureVippsEPayment(
+  reference: string,
+  amount: number
+): Promise<void> {
+  const vipps = createVippsEPaymentClient();
+
+  await vipps.capturePayment(reference, {
+    amount,
+    description: 'Payment capture',
+  });
 }

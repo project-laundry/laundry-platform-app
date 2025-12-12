@@ -381,3 +381,56 @@ export async function createStandaloneOrderAction(
     };
   }
 }
+
+// =============================================================================
+// VIPPS EPAYMENT (ONE-TIME PAYMENTS)
+// =============================================================================
+
+export interface CreateVippsPaymentResult {
+  success: boolean;
+  reference?: string;
+  checkoutUrl?: string;
+  paymentId?: string;
+  error?: string;
+}
+
+/**
+ * Create Vipps ePayment for a standalone order
+ * Called from the order confirmation page after order is created
+ * Follows same pattern as createVippsAgreementAction
+ */
+export async function createVippsPaymentForOrder(
+  orderId: string
+): Promise<CreateVippsPaymentResult> {
+  try {
+    // Authenticate user
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    // Generate unique merchant reference
+    const reference = `order-${orderId}-${Date.now()}`;
+
+    // Create Vipps ePayment via service layer
+    const { createVippsEPaymentForOrder: createEPayment } = await import('@/lib/payments/vipps/service');
+    const result = await createEPayment(orderId, reference);
+
+    // Return success with checkout URL
+    return {
+      success: true,
+      reference: reference,
+      checkoutUrl: result.redirectUrl,
+      paymentId: result.paymentId,
+    };
+  } catch (error) {
+    console.error('Vipps ePayment creation error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to create Vipps payment';
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
+}
