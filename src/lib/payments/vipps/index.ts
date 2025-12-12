@@ -36,7 +36,7 @@ export {
   cancelVippsAgreement,
   type CreateAgreementResult,
   // ePayment API (One-time Orders)
-  createVippsEPaymentForOrder,
+  createVippsEPayment,
   captureVippsEPayment,
   type CreateEPaymentResult,
 } from './service';

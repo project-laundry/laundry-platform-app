@@ -5,10 +5,7 @@
       "name": "Next.js: debug server-side",
       "type": "node-terminal",
       "request": "launch",
-      "command": "npm run dev",
-      "env": {
-        "NODE_OPTIONS": "--inspect"
-      }
+      "command": "npm run dev -- --inspect"
     },
     {
       "name": "Next.js: debug client-side",
