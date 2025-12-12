@@ -24,6 +24,7 @@ export interface CreateOrderData {
   needs_ironing?: boolean;
   total_cost_ore: number;
   prerequisite_bag_delivery_id?: string | null;
+  status?: OrderStatus; // Optional: override auto-determined status
 }
 
 /**
@@ -57,9 +58,6 @@ export async function createOrder(data: CreateOrderData): Promise<Order | null> 
     return null;
   }
 
-  // Determine initial status
-  const status: OrderStatus = data.cleaner_id ? 'pickup_scheduled' : 'pending_assignment';
-
   const { data: order, error } = await supabase
     .from('orders')
     .insert({
@@ -68,7 +66,7 @@ export async function createOrder(data: CreateOrderData): Promise<Order | null> 
       subscription_id: data.subscription_id || null,
       plan_id: data.plan_id,
       cleaner_id: data.cleaner_id || null,
-      status,
+      status: data.status,
       pickup_street: data.pickup_street,
       pickup_postal_code: data.pickup_postal_code,
       pickup_city: data.pickup_city,
@@ -212,6 +210,7 @@ export async function updateOrderStatus(
 
   // Map status to timestamp field
   const timestampField: Record<OrderStatus, string | null> = {
+    pending_payment: null,
     pending_assignment: null,
     pickup_scheduled: null,
     picked_up: 'picked_up_at',
