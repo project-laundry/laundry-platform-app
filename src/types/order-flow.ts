@@ -1,8 +1,10 @@
 import type { Weekday, PickupMethod } from './database';
 
+export type Plan = 'single' | 'weekly' | 'biweekly';
+
 export interface OrderData {
   // Plan selection
-  plan: 'single' | 'weekly' | 'biweekly';
+  plan: Plan;
   hasBag: boolean;
 
   // Schedule

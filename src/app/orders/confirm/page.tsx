@@ -125,7 +125,11 @@ function ConfirmPageContent() {
 
     try {
       // Get the plan slug for the database
-      const planSlug = planSlugMap[orderData.plan || 'single'] || 'enkeltvask';
+      const planSlug = orderData.plan;
+
+      if(!planSlug) {
+        throw new Error('Plan is missing');
+      }
 
       // Get the recurring weekday (for subscriptions) or use the day from pickupDate
       let recurringWeekday: Weekday;
@@ -155,6 +159,7 @@ function ConfirmPageContent() {
         extraKg: orderData.additionalKg || 0,
         needsIroning: orderData.needsIroning || false,
         delicateItemsCount: orderData.delicateItems || 0,
+        paymentProvider: selectedPayment === 'vipps' ? 'vipps' : 'manual',
       });
 
       if (!result.success || !result.subscriptionId) {
