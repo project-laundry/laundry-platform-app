@@ -1,6 +1,6 @@
 // Payment database operations
 
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import type { Payment, PaymentStatus, PaymentType, PaymentProvider } from '@/types/database';
 
 export interface CreatePaymentData {
@@ -16,7 +16,7 @@ export interface CreatePaymentData {
  * Create a new payment record
  */
 export async function createPayment(data: CreatePaymentData): Promise<Payment | null> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { data: payment, error } = await supabase
     .from('payments')
@@ -44,7 +44,7 @@ export async function createPayment(data: CreatePaymentData): Promise<Payment | 
  * Get a payment by ID
  */
 export async function getPaymentById(paymentId: string): Promise<Payment | null> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { data, error } = await supabase
     .from('payments')
@@ -65,7 +65,7 @@ export async function getPaymentById(paymentId: string): Promise<Payment | null>
 export async function getPaymentForSubscription(
   subscriptionId: string
 ): Promise<Payment | null> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { data, error } = await supabase
     .from('payments')
@@ -89,7 +89,7 @@ export async function capturePayment(
   paymentId: string,
   providerPaymentId?: string
 ): Promise<Payment | null> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { data, error } = await supabase
     .from('payments')
@@ -117,7 +117,7 @@ export async function failPayment(
   paymentId: string,
   failureReason?: string
 ): Promise<Payment | null> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { data, error } = await supabase
     .from('payments')
@@ -142,7 +142,7 @@ export async function failPayment(
  * Get payments for a customer
  */
 export async function getPaymentsForCustomer(customerId: string): Promise<Payment[]> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { data, error } = await supabase
     .from('payments')
@@ -169,7 +169,7 @@ export async function updatePaymentWithMetadata(
   providerPaymentId: string,
   metadata: Record<string, unknown>
 ): Promise<Payment | null> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { data, error } = await supabase
     .from('payments')
@@ -196,7 +196,7 @@ export async function getPaymentByAgreementAndCharge(
   agreementId: string,
   chargeId: string
 ): Promise<Payment | null> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { data, error } = await supabase
     .from('payments')
@@ -223,7 +223,7 @@ export async function authorizePayment(
   providerPaymentId: string,
   metadata: Record<string, unknown>
 ): Promise<Payment | null> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { data, error } = await supabase
     .from('payments')
@@ -254,7 +254,7 @@ export async function capturePaymentWithMetadata(
   providerPaymentId: string,
   metadata: Record<string, unknown>
 ): Promise<Payment | null> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { data, error } = await supabase
     .from('payments')
@@ -284,7 +284,7 @@ export async function failPaymentWithMetadata(
   failureReason: string,
   metadata: Record<string, unknown>
 ): Promise<Payment | null> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { data, error } = await supabase
     .from('payments')

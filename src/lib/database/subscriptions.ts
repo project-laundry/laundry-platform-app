@@ -1,6 +1,7 @@
 // Subscription database operations
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import type {
   Subscription,
   SubscriptionPlan,
@@ -26,11 +27,12 @@ export interface CreateSubscriptionData {
 
 /**
  * Create a new subscription with pending_payment status
+ * Uses admin client to bypass RLS (no INSERT policy on subscriptions table)
  */
 export async function createSubscription(
   data: CreateSubscriptionData
 ): Promise<Subscription | null> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data: subscription, error } = await supabase
     .from('subscriptions')
@@ -86,12 +88,13 @@ export async function getSubscriptionById(
 
 /**
  * Update subscription status to active and set timestamps
+ * Uses admin client to bypass RLS (no UPDATE policy on subscriptions table)
  */
 export async function activateSubscription(
   subscriptionId: string,
   cleanerId: string | null
 ): Promise<Subscription | null> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const now = new Date();
   const nextBillingDate = new Date(now);
@@ -119,12 +122,13 @@ export async function activateSubscription(
 
 /**
  * Activate a one-time subscription (no next billing date)
+ * Uses admin client to bypass RLS (no UPDATE policy on subscriptions table)
  */
 export async function activateOneTimeSubscription(
   subscriptionId: string,
   cleanerId: string | null
 ): Promise<Subscription | null> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const now = new Date();
 
@@ -215,13 +219,14 @@ export async function getSubscriptionPlanBySlug(
 
 /**
  * Update subscription with Vipps agreement details
+ * Uses admin client to bypass RLS (no UPDATE policy on subscriptions table)
  */
 export async function updateSubscriptionVippsAgreement(
   subscriptionId: string,
   agreementId: string,
   metadata: Record<string, unknown>
 ): Promise<Subscription | null> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from('subscriptions')

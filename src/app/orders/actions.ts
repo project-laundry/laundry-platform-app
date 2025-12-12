@@ -11,9 +11,10 @@ import { createVippsAgreementForSubscription } from '@/lib/payments/vipps/servic
 import { updateSubscriptionVippsAgreement } from '@/lib/database/subscriptions';
 import { updatePaymentWithMetadata } from '@/lib/database/payments';
 import type { Weekday, PickupMethod, Customer, VippsAgreementMetadata } from '@/types/database';
+import { Plan } from '@/types/order-flow';
 
 export interface CreateSubscriptionInput {
-  planSlug: string;
+  planSlug: Plan;
   recurringWeekday: Weekday;
   pickupMethod: PickupMethod;
   pickupLocationDescription?: string;
@@ -28,6 +29,8 @@ export interface CreateSubscriptionInput {
   extraKg?: number;
   needsIroning?: boolean;
   delicateItemsCount?: number;
+  // Payment
+  paymentProvider?: 'manual' | 'vipps';
 }
 
 export interface CreateSubscriptionResult {
@@ -101,7 +104,7 @@ export async function createSubscriptionAction(
     subscription_id: subscription.id,
     payment_type: paymentType,
     amount_ore: billingCostOre,
-    payment_provider: 'manual', // Mock payment for now
+    payment_provider: input.paymentProvider || 'manual',
   });
 
   if (!payment) {
