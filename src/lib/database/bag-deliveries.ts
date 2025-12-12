@@ -1,6 +1,6 @@
 // Bag delivery database operations
 
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import type { BagDelivery, BagDeliveryStatus } from '@/types/database';
 import { generateOrderNumber } from '@/lib/utils/order-number';
 
@@ -22,7 +22,7 @@ export interface CreateBagDeliveryData {
 export async function createBagDelivery(
   data: CreateBagDeliveryData
 ): Promise<BagDelivery | null> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   // Generate unique delivery number (same format as order number)
   let deliveryNumber = generateOrderNumber();
@@ -81,7 +81,7 @@ export async function createBagDelivery(
 export async function getBagDeliveryById(
   bagDeliveryId: string
 ): Promise<BagDelivery | null> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { data, error } = await supabase
     .from('bag_deliveries')
@@ -102,7 +102,7 @@ export async function getBagDeliveryById(
 export async function completeBagDelivery(
   bagDeliveryId: string
 ): Promise<BagDelivery | null> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   // Get the bag delivery
   const { data: delivery } = await supabase
@@ -156,7 +156,7 @@ export async function completeBagDelivery(
 export async function getBagDeliveriesForCustomer(
   customerId: string
 ): Promise<BagDelivery[]> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { data, error } = await supabase
     .from('bag_deliveries')
@@ -175,7 +175,7 @@ export async function getBagDeliveriesForCustomer(
  * Get pending bag deliveries
  */
 export async function getPendingBagDeliveries(): Promise<BagDelivery[]> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { data, error } = await supabase
     .from('bag_deliveries')

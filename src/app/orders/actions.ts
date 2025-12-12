@@ -10,6 +10,10 @@ import { calculateBillingCostOre } from '@/lib/config/pricing';
 import { createVippsAgreementForSubscription } from '@/lib/payments/vipps/service';
 import { updateSubscriptionVippsAgreement } from '@/lib/database/subscriptions';
 import { updatePaymentWithMetadata } from '@/lib/database/payments';
+import { createOrder } from '@/lib/database/orders';
+import { findAvailableCleaner } from '@/lib/database/cleaners';
+import { createBagDelivery } from '@/lib/database/bag-deliveries';
+import { toISODateString, addDays } from '@/lib/utils/date';
 import type { Weekday, PickupMethod, Customer, VippsAgreementMetadata } from '@/types/database';
 import { Plan } from '@/types/order-flow';
 
@@ -216,6 +220,164 @@ export async function createVippsAgreementAction(
     return {
       success: false,
       error: errorMessage,
+    };
+  }
+}
+
+export interface CreateStandaloneOrderInput {
+  planSlug: Plan;
+  scheduledDate: string; // ISO date string
+  pickupMethod: PickupMethod;
+  pickupLocationDescription?: string;
+  specialInstructions?: string;
+  // Delivery address
+  deliveryStreet: string;
+  deliveryPostalCode: string;
+  deliveryCity: string;
+  deliveryCountry: string;
+  deliverySpecialInstructions?: string;
+  // Add-ons
+  extraKg?: number;
+  needsIroning?: boolean;
+  delicateItemsCount?: number;
+  // Payment
+  paymentProvider?: 'manual' | 'vipps';
+}
+
+export interface CreateStandaloneOrderResult {
+  success: boolean;
+  orderId?: string;
+  paymentId?: string;
+  error?: string;
+}
+
+/**
+ * Create a standalone order without subscription (for plans with billing_period = 'one_time')
+ * Called from the order confirmation page for one-time orders
+ */
+export async function createStandaloneOrderAction(
+  input: CreateStandaloneOrderInput
+): Promise<CreateStandaloneOrderResult> {
+  const supabase = await createClient();
+
+  // Get current user
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: 'Not authenticated' };
+  }
+
+  // Get customer record
+  const customer = await getCustomerByUserId(user.id);
+  if (!customer) {
+    return { success: false, error: 'Customer not found' };
+  }
+
+  // Get subscription plan
+  const plan = await getSubscriptionPlanBySlug(input.planSlug);
+  if (!plan) {
+    return { success: false, error: 'Plan not found' };
+  }
+
+  // Verify this is a one-time plan
+  if (plan.billing_period !== 'one_time') {
+    return { success: false, error: 'This action is only for one-time plans' };
+  }
+
+  // Calculate order cost
+  const totalCostOre = calculateBillingCostOre(plan.price_ore, {
+    needsIroning: input.needsIroning,
+    delicateItemsCount: input.delicateItemsCount,
+    extraKg: input.extraKg,
+  });
+
+  // Get weekday from scheduled date for cleaner matching
+  const scheduledDate = new Date(input.scheduledDate);
+  const weekdays: Weekday[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const pickupWeekday = weekdays[scheduledDate.getDay()];
+
+  // Calculate delivery date (3 days after pickup)
+  const deliveryDate = new Date(scheduledDate);
+  deliveryDate.setDate(deliveryDate.getDate() + 3);
+
+  try {
+    // Find available cleaner
+    const cleaner = await findAvailableCleaner(input.deliveryCity, pickupWeekday);
+
+    // Handle bag delivery if customer doesn't have a bag
+    let bagDeliveryId: string | null = null;
+    if (customer.laundry_bags_count === 0) {
+      // Create bag delivery 1 day before pickup
+      const bagDeliveryDate = addDays(scheduledDate, -1);
+      const bagDelivery = await createBagDelivery({
+        customer_id: customer.id,
+        delivery_street: input.deliveryStreet,
+        delivery_postal_code: input.deliveryPostalCode,
+        delivery_city: input.deliveryCity,
+        delivery_country: input.deliveryCountry,
+        delivery_special_instructions: input.deliverySpecialInstructions || null,
+        scheduled_date: toISODateString(bagDeliveryDate),
+        bag_quantity: 1,
+      });
+
+      if (bagDelivery) {
+        bagDeliveryId = bagDelivery.id;
+      }
+    }
+
+    // Create order
+    const order = await createOrder({
+      customer_id: customer.id,
+      subscription_id: null, // No subscription for standalone orders
+      plan_id: plan.id,
+      cleaner_id: cleaner?.id || null,
+      pickup_street: input.deliveryStreet,
+      pickup_postal_code: input.deliveryPostalCode,
+      pickup_city: input.deliveryCity,
+      pickup_country: input.deliveryCountry,
+      pickup_special_instructions: input.deliverySpecialInstructions || null,
+      scheduled_date: toISODateString(scheduledDate),
+      delivery_date: toISODateString(deliveryDate),
+      pickup_method: input.pickupMethod,
+      pickup_location_description: input.pickupLocationDescription || null,
+      special_instructions: input.specialInstructions || null,
+      extra_kg: input.extraKg || 0,
+      delicate_items_count: input.delicateItemsCount || 0,
+      needs_ironing: input.needsIroning || false,
+      total_cost_ore: totalCostOre,
+      prerequisite_bag_delivery_id: bagDeliveryId,
+    });
+
+    if (!order) {
+      return { success: false, error: 'Failed to create order' };
+    }
+
+    // Create payment record for the order
+    const payment = await createPayment({
+      customer_id: customer.id,
+      order_id: order.id,
+      subscription_id: null,
+      payment_type: 'one_time',
+      amount_ore: totalCostOre,
+      payment_provider: input.paymentProvider || 'manual',
+    });
+
+    if (!payment) {
+      return { success: false, error: 'Failed to create order' };
+    }
+
+    return {
+      success: true,
+      orderId: order.id,
+      paymentId: payment.id,
+    };
+  } catch (error) {
+    console.error('Standalone order creation error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to create order',
     };
   }
 }

@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
-import { createSubscriptionAction, createVippsAgreementAction } from '../actions';
+import { createSubscriptionAction, createVippsAgreementAction, createStandaloneOrderAction } from '../actions';
 import type { Weekday, PickupMethod } from '@/types/database';
 
 // Map UI plan names to database slugs
@@ -131,56 +131,91 @@ function ConfirmPageContent() {
         throw new Error('Plan is missing');
       }
 
-      // Get the recurring weekday (for subscriptions) or use the day from pickupDate
-      let recurringWeekday: Weekday;
-      if (orderData.pickupWeekday) {
-        recurringWeekday = orderData.pickupWeekday as Weekday;
-      } else if (orderData.pickupDate) {
-        // Convert date to weekday
-        const date = new Date(orderData.pickupDate);
-        const weekdays: Weekday[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-        recurringWeekday = weekdays[date.getDay()];
-      } else {
-        recurringWeekday = 'monday'; // fallback
-      }
+      // Check if this is a single/one-time plan
+      const isSinglePlan = planSlug === 'single';
 
-      // Create subscription via server action
-      const result = await createSubscriptionAction({
-        planSlug,
-        recurringWeekday,
-        pickupMethod: orderData.pickupMethod as PickupMethod,
-        pickupLocationDescription: orderData.otherLocation || undefined,
-        specialInstructions: orderData.specialInstructions || undefined,
-        deliveryStreet: orderData.address?.street || '',
-        deliveryPostalCode: orderData.address?.postalCode || '',
-        deliveryCity: orderData.address?.city || '',
-        deliveryCountry: 'Norge',
-        deliverySpecialInstructions: orderData.address?.specialInstructions,
-        extraKg: orderData.additionalKg || 0,
-        needsIroning: orderData.needsIroning || false,
-        delicateItemsCount: orderData.delicateItems || 0,
-        paymentProvider: selectedPayment === 'vipps' ? 'vipps' : 'manual',
-      });
-
-      if (!result.success || !result.subscriptionId) {
-        throw new Error(result.error || 'Failed to create subscription');
-      }
-
-      // Handle payment based on selected method
-      if (selectedPayment === 'vipps') {
-        // Create Vipps agreement via server action
-        const vippsResult = await createVippsAgreementAction(result.subscriptionId);
-
-        if (!vippsResult.success) {
-          throw new Error(vippsResult.error || 'Failed to create Vipps agreement');
+      if (isSinglePlan) {
+        // Create standalone order for single plan
+        if (!orderData.pickupDate) {
+          throw new Error('Pickup date is required for single plan');
         }
 
-        // Redirect to Vipps checkout
-        window.location.href = vippsResult.checkoutUrl!;
+        const result = await createStandaloneOrderAction({
+          planSlug,
+          scheduledDate: orderData.pickupDate,
+          pickupMethod: orderData.pickupMethod as PickupMethod,
+          pickupLocationDescription: orderData.otherLocation || undefined,
+          specialInstructions: orderData.specialInstructions || undefined,
+          deliveryStreet: orderData.address?.street || '',
+          deliveryPostalCode: orderData.address?.postalCode || '',
+          deliveryCity: orderData.address?.city || '',
+          deliveryCountry: 'Norge',
+          deliverySpecialInstructions: orderData.address?.specialInstructions,
+          extraKg: orderData.additionalKg || 0,
+          needsIroning: orderData.needsIroning || false,
+          delicateItemsCount: orderData.delicateItems || 0,
+          paymentProvider: selectedPayment === 'vipps' ? 'vipps' : 'manual',
+        });
+
+        if (!result.success || !result.orderId) {
+          throw new Error(result.error || 'Failed to create order');
+        }
+
+        // For single orders, redirect to success page with orderId
+        // TODO: Handle Vipps payment for standalone orders in the future
+        router.push(`/orders/success?orderId=${result.orderId}`);
       } else {
-        // Manual/test payment - redirect to success page
-        // User can manually trigger webhook for testing
-        router.push(`/orders/success?subscriptionId=${result.subscriptionId}`);
+        // Create subscription for recurring plans
+        // Get the recurring weekday (for subscriptions) or use the day from pickupDate
+        let recurringWeekday: Weekday;
+        if (orderData.pickupWeekday) {
+          recurringWeekday = orderData.pickupWeekday as Weekday;
+        } else if (orderData.pickupDate) {
+          // Convert date to weekday
+          const date = new Date(orderData.pickupDate);
+          const weekdays: Weekday[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+          recurringWeekday = weekdays[date.getDay()];
+        } else {
+          recurringWeekday = 'monday'; // fallback
+        }
+
+        const result = await createSubscriptionAction({
+          planSlug,
+          recurringWeekday,
+          pickupMethod: orderData.pickupMethod as PickupMethod,
+          pickupLocationDescription: orderData.otherLocation || undefined,
+          specialInstructions: orderData.specialInstructions || undefined,
+          deliveryStreet: orderData.address?.street || '',
+          deliveryPostalCode: orderData.address?.postalCode || '',
+          deliveryCity: orderData.address?.city || '',
+          deliveryCountry: 'Norge',
+          deliverySpecialInstructions: orderData.address?.specialInstructions,
+          extraKg: orderData.additionalKg || 0,
+          needsIroning: orderData.needsIroning || false,
+          delicateItemsCount: orderData.delicateItems || 0,
+          paymentProvider: selectedPayment === 'vipps' ? 'vipps' : 'manual',
+        });
+
+        if (!result.success || !result.subscriptionId) {
+          throw new Error(result.error || 'Failed to create subscription');
+        }
+
+        // Handle payment based on selected method
+        if (selectedPayment === 'vipps') {
+          // Create Vipps agreement via server action
+          const vippsResult = await createVippsAgreementAction(result.subscriptionId);
+
+          if (!vippsResult.success) {
+            throw new Error(vippsResult.error || 'Failed to create Vipps agreement');
+          }
+
+          // Redirect to Vipps checkout
+          window.location.href = vippsResult.checkoutUrl!;
+        } else {
+          // Manual/test payment - redirect to success page
+          // User can manually trigger webhook for testing
+          router.push(`/orders/success?subscriptionId=${result.subscriptionId}`);
+        }
       }
     } catch (error) {
       console.error('Order creation failed:', error);

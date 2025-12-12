@@ -1,6 +1,6 @@
 // Order database operations
 
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import type { Order, OrderStatus, PickupMethod } from '@/types/database';
 import { generateOrderNumber } from '@/lib/utils/order-number';
 
@@ -30,7 +30,7 @@ export interface CreateOrderData {
  * Create a new order with a unique order number
  */
 export async function createOrder(data: CreateOrderData): Promise<Order | null> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   // Generate unique order number with collision checking
   let orderNumber = generateOrderNumber();
@@ -101,7 +101,7 @@ export async function createOrder(data: CreateOrderData): Promise<Order | null> 
  * Get an order by ID
  */
 export async function getOrderById(orderId: string): Promise<Order | null> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { data, error } = await supabase
     .from('orders')
@@ -120,7 +120,7 @@ export async function getOrderById(orderId: string): Promise<Order | null> {
  * Get orders pending assignment
  */
 export async function getOrdersPendingAssignment(): Promise<Order[]> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { data, error } = await supabase
     .from('orders')
@@ -142,7 +142,7 @@ export async function assignCleanerToOrder(
   orderId: string,
   cleanerId: string
 ): Promise<Order | null> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { data, error } = await supabase
     .from('orders')
@@ -167,7 +167,7 @@ export async function assignCleanerToOrder(
  * Get orders for a subscription
  */
 export async function getOrdersForSubscription(subscriptionId: string): Promise<Order[]> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { data, error } = await supabase
     .from('orders')
@@ -186,7 +186,7 @@ export async function getOrdersForSubscription(subscriptionId: string): Promise<
  * Get orders for a customer
  */
 export async function getOrdersForCustomer(customerId: string): Promise<Order[]> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { data, error } = await supabase
     .from('orders')
@@ -208,7 +208,7 @@ export async function updateOrderStatus(
   orderId: string,
   status: OrderStatus
 ): Promise<Order | null> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   // Map status to timestamp field
   const timestampField: Record<OrderStatus, string | null> = {

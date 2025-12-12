@@ -8,8 +8,12 @@ import { NewOrderButton } from './NewOrderButton';
 
 function OrderSuccessPageContent() {
   const searchParams = useSearchParams();
-  const subscriptionId = searchParams.get('subscriptionId') || '';
+  const subscriptionId = searchParams.get('subscriptionId');
+  const orderId = searchParams.get('orderId');
   const resetOrderData = useOrderFlowStore((state) => state.resetOrderData);
+
+  // Determine if this is a subscription or standalone order
+  const isStandaloneOrder = !!orderId;
 
   // Reset order flow state when success page loads
   useEffect(() => {
@@ -38,18 +42,25 @@ function OrderSuccessPageContent() {
 
           {/* Success Message */}
           <h1 className="text-3xl font-bold text-dark-gray mb-4">
-            Abonnement opprettet!
+            {isStandaloneOrder ? 'Bestilling opprettet!' : 'Abonnement opprettet!'}
           </h1>
           <p className="text-xl text-medium-gray mb-8">
-            Ditt abonnement venter på betaling. Bruk instruksjonene under for å teste betalingsflyten.
+            {isStandaloneOrder
+              ? 'Din bestilling venter på betaling. Bruk instruksjonene under for å teste betalingsflyten.'
+              : 'Ditt abonnement venter på betaling. Bruk instruksjonene under for å teste betalingsflyten.'
+            }
           </p>
 
-          {/* Subscription ID Card */}
+          {/* ID Card */}
           <div className="bg-white rounded-2xl p-8 mb-8">
             <div className="flex items-center justify-center mb-6">
               <div className="bg-nordic-blue/10 rounded-lg p-4">
-                <h2 className="text-lg font-semibold text-nordic-blue">Abonnement-ID</h2>
-                <p className="text-sm font-mono text-dark-gray break-all">{subscriptionId}</p>
+                <h2 className="text-lg font-semibold text-nordic-blue">
+                  {isStandaloneOrder ? 'Ordre-ID' : 'Abonnement-ID'}
+                </h2>
+                <p className="text-sm font-mono text-dark-gray break-all">
+                  {isStandaloneOrder ? orderId : subscriptionId}
+                </p>
               </div>
             </div>
 
@@ -66,7 +77,7 @@ function OrderSuccessPageContent() {
 Content-Type: application/json
 
 {
-  "subscriptionId": "${subscriptionId}"
+  ${isStandaloneOrder ? `"orderId": "${orderId}"` : `"subscriptionId": "${subscriptionId}"`}
 }`}
                 </pre>
               </div>
@@ -78,7 +89,7 @@ Content-Type: application/json
                 <pre className="text-xs">
 {`curl -X POST http://localhost:3000/api/webhooks/payment \\
   -H "Content-Type: application/json" \\
-  -d '{"subscriptionId": "${subscriptionId}"}'`}
+  -d '${isStandaloneOrder ? `{"orderId": "${orderId}"}` : `{"subscriptionId": "${subscriptionId}"}`}'`}
                 </pre>
               </div>
             </div>
@@ -87,24 +98,45 @@ Content-Type: application/json
           {/* What happens next */}
           <div className="bg-white rounded-2xl p-8 mb-8 text-left">
             <h3 className="font-semibold text-dark-gray mb-4">Hva skjer når betalingen lykkes?</h3>
-            <ul className="space-y-2 text-sm text-medium-gray">
-              <li className="flex items-start">
-                <span className="text-nordic-blue mr-2 mt-0.5">1.</span>
-                Abonnementet aktiveres
-              </li>
-              <li className="flex items-start">
-                <span className="text-nordic-blue mr-2 mt-0.5">2.</span>
-                System finner en tilgjengelig renser
-              </li>
-              <li className="flex items-start">
-                <span className="text-nordic-blue mr-2 mt-0.5">3.</span>
-                Ordre genereres for faktureringsperioden
-              </li>
-              <li className="flex items-start">
-                <span className="text-nordic-blue mr-2 mt-0.5">4.</span>
-                Poselevering opprettes hvis du ikke har pose
-              </li>
-            </ul>
+            {isStandaloneOrder ? (
+              <ul className="space-y-2 text-sm text-medium-gray">
+                <li className="flex items-start">
+                  <span className="text-nordic-blue mr-2 mt-0.5">1.</span>
+                  Betalingen bekreftes
+                </li>
+                <li className="flex items-start">
+                  <span className="text-nordic-blue mr-2 mt-0.5">2.</span>
+                  Ordren aktiveres og sendes til renser
+                </li>
+                <li className="flex items-start">
+                  <span className="text-nordic-blue mr-2 mt-0.5">3.</span>
+                  Poselevering opprettes hvis du ikke har pose
+                </li>
+                <li className="flex items-start">
+                  <span className="text-nordic-blue mr-2 mt-0.5">4.</span>
+                  Du får SMS når renseren er på vei
+                </li>
+              </ul>
+            ) : (
+              <ul className="space-y-2 text-sm text-medium-gray">
+                <li className="flex items-start">
+                  <span className="text-nordic-blue mr-2 mt-0.5">1.</span>
+                  Abonnementet aktiveres
+                </li>
+                <li className="flex items-start">
+                  <span className="text-nordic-blue mr-2 mt-0.5">2.</span>
+                  System finner en tilgjengelig renser
+                </li>
+                <li className="flex items-start">
+                  <span className="text-nordic-blue mr-2 mt-0.5">3.</span>
+                  Ordre genereres for faktureringsperioden
+                </li>
+                <li className="flex items-start">
+                  <span className="text-nordic-blue mr-2 mt-0.5">4.</span>
+                  Poselevering opprettes hvis du ikke har pose
+                </li>
+              </ul>
+            )}
           </div>
 
           {/* Important Notice */}
@@ -114,8 +146,10 @@ Content-Type: application/json
               <div className="text-left">
                 <h3 className="font-semibold text-yellow-800 mb-2">Status: Venter på betaling</h3>
                 <p className="text-sm text-yellow-700">
-                  Abonnementet er opprettet med status &quot;pending_payment&quot;.
-                  Ingen ordre blir generert før betalingen er bekreftet via webhook.
+                  {isStandaloneOrder
+                    ? 'Ordren er opprettet med status "pending_assignment". Renseren blir tildelt når betalingen er bekreftet via webhook.'
+                    : 'Abonnementet er opprettet med status "pending_payment". Ingen ordre blir generert før betalingen er bekreftet via webhook.'
+                  }
                 </p>
               </div>
             </div>
