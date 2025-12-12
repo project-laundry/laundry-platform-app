@@ -30,5 +30,6 @@
         "uriFormat": "%s",
         "webRoot": "${workspaceFolder}"
       }
+    }
   ]
 }

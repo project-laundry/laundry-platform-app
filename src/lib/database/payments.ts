@@ -305,3 +305,30 @@ export async function failPaymentWithMetadata(
 
   return data;
 }
+
+// =============================================================================
+// EPAYMENT QUERIES
+// =============================================================================
+
+/**
+ * Get payment by Vipps ePayment reference
+ * Used by webhook handler to look up payments by merchant reference
+ *
+ * Note: Queries provider_payment_id which stores the reference for ePayments
+ */
+export async function getPaymentByReference(reference: string): Promise<Payment | null> {
+  const supabase = await createAdminClient();
+
+  const { data, error } = await supabase
+    .from('payments')
+    .select('*')
+    .eq('provider_payment_id', reference)
+    .single();
+
+  if (error) {
+    console.error('Error fetching payment by reference:', error);
+    return null;
+  }
+
+  return data;
+}
