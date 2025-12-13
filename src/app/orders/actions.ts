@@ -17,7 +17,6 @@ import { createOrder } from "@/lib/database/orders";
 import { createBagDelivery } from "@/lib/database/bag-deliveries";
 import { addDays, toISODateString } from "@/lib/utils/date";
 import type {
-  Customer,
   PickupMethod,
   VippsAgreementMetadata,
   Weekday,
@@ -118,6 +117,7 @@ export async function createSubscriptionAction(
     payment_type: paymentType,
     amount_ore: billingCostOre,
     payment_provider: input.paymentProvider || "manual",
+    provider_reference: subscription.id,
   });
 
   if (!payment) {
