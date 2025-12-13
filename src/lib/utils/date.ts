@@ -66,3 +66,70 @@ export function isWeekdayInSchedule(
 
   return scheduleMap[weekday];
 }
+
+/**
+ * Get the next occurrence of a specific weekday after (or on) a start date
+ * @param startDate - The starting date
+ * @param targetWeekday - The target weekday to find
+ * @returns The next occurrence of the target weekday
+ */
+export function getNextOccurrenceOfWeekday(
+  startDate: Date,
+  targetWeekday: Weekday
+): Date {
+  const weekdayMap: Record<Weekday, number> = {
+    sunday: 0,
+    monday: 1,
+    tuesday: 2,
+    wednesday: 3,
+    thursday: 4,
+    friday: 5,
+    saturday: 6,
+  };
+
+  const targetDay = weekdayMap[targetWeekday];
+  const current = new Date(startDate);
+  current.setHours(0, 0, 0, 0); // Normalize to midnight
+
+  // Calculate days to add to reach target weekday
+  let daysToAdd = (targetDay - current.getDay() + 7) % 7;
+
+  // If we're already on the target day, start from next week
+  if (daysToAdd === 0) {
+    daysToAdd = 7;
+  }
+
+  current.setDate(current.getDate() + daysToAdd);
+  return current;
+}
+
+/**
+ * Add months to a date
+ * @param date - The starting date
+ * @param months - Number of months to add
+ * @returns New date
+ */
+export function addMonths(date: Date, months: number): Date {
+  const result = new Date(date);
+  result.setMonth(result.getMonth() + months);
+  return result;
+}
+
+/**
+ * Calculate next billing date based on billing period
+ * @param currentDate - The current/reference date
+ * @param billingPeriod - The billing period type
+ * @returns ISO date string for next billing date, or null for one-time billing
+ */
+export function calculateNextBillingDate(
+  currentDate: Date,
+  billingPeriod: 'monthly' | 'one_time'
+): string | null {
+  if (billingPeriod === 'one_time') {
+    return null;
+  }
+
+  // Monthly: Add 1 month
+  const nextDate = addMonths(currentDate, 1);
+  return nextDate.toISOString();
+}

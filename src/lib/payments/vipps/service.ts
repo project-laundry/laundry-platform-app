@@ -74,6 +74,7 @@ export async function createVippsAgreement(
  */
 export async function createRecurringChargeForSubscription(
   subscriptionId: string,
+  dueDate?: string,
 ): Promise<string> {
   // Get subscription
   const subscription = await getSubscriptionById(subscriptionId);
@@ -97,9 +98,14 @@ export async function createRecurringChargeForSubscription(
   const vipps = createVippsRecurringClient();
 
   // Calculate due date (minimum 2 days in future per Vipps requirement)
-  const dueDate = new Date();
-  dueDate.setDate(dueDate.getDate() + 2);
-  const dueDateString = dueDate.toISOString().split("T")[0]; // YYYY-MM-DD
+  let dueDateString: string;
+  if (dueDate) {
+    dueDateString = dueDate;
+  } else {
+    const defaultDueDate = new Date();
+    defaultDueDate.setDate(defaultDueDate.getDate() + 2);
+    dueDateString = defaultDueDate.toISOString().split("T")[0]; // YYYY-MM-DD
+  }
 
   // Create charge
   const result = await vipps.createCharge(subscription.provider_agreement_id, {
