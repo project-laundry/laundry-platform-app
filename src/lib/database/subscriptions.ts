@@ -73,7 +73,7 @@ export async function createSubscription(
 export async function getSubscriptionById(
   subscriptionId: string
 ): Promise<Subscription | null> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { data, error } = await supabase
     .from('subscriptions')

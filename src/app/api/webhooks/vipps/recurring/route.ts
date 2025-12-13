@@ -317,9 +317,21 @@ async function handleChargeCaptured(
   console.log(`[Vipps Recurring Webhook] Charge type: ${isInitialCharge ? 'INITIAL' : 'RECURRING'}`);
 
   // Calculate reference date for order generation
-  const referenceDate = isInitialCharge
-    ? new Date(subscription.started_at)
-    : new Date(subscription.next_billing_date);
+  // For initial charge: use started_at if available, otherwise use current time
+  // For recurring charge: use next_billing_date
+  let referenceDate: Date;
+  if (isInitialCharge) {
+    if (subscription.started_at) {
+      referenceDate = new Date(subscription.started_at);
+      console.log(`[Vipps Recurring Webhook] Using started_at as reference: ${subscription.started_at}`);
+    } else {
+      referenceDate = new Date();
+      console.warn(`[Vipps Recurring Webhook] started_at is null, using current time as reference`);
+    }
+  } else {
+    referenceDate = new Date(subscription.next_billing_date);
+    console.log(`[Vipps Recurring Webhook] Using next_billing_date as reference: ${subscription.next_billing_date}`);
+  }
 
   // Calculate next billing date
   const nextBillingDate = plan.billing_period === 'monthly'
