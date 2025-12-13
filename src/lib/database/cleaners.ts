@@ -2,18 +2,18 @@
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { Cleaner, Weekday, Subscription } from '@/types/database';
-import { isWeekdayInSchedule } from '@/lib/utils/date';
+import { getWeekdayFromDate, isWeekdayInSchedule } from '@/lib/utils/date';
 
 /**
  * Find an available cleaner for a customer based on matching criteria
  * @param customerCity - The city from customer's address
- * @param pickupWeekday - The recurring weekday for pickups
+ * @param pickupWeekday - The date of the scheduled pickup
  * @param excludeCleanerIds - Cleaners to exclude (e.g., declined)
  * @returns Matching cleaner or null if none found
  */
 export async function findAvailableCleaner(
   customerCity: string,
-  pickupWeekday: Weekday,
+  scheduledDate: Date,
   excludeCleanerIds: string[] = []
 ): Promise<Cleaner | null> {
   const supabase = createAdminClient();
@@ -36,6 +36,8 @@ export async function findAvailableCleaner(
     if (excludeCleanerIds.includes(cleaner.id)) {
       return false;
     }
+
+    const pickupWeekday = getWeekdayFromDate(scheduledDate);
 
     // Check if cleaner works on the pickup weekday
     if (!isWeekdayInSchedule(cleaner.weekly_schedule, pickupWeekday)) {
