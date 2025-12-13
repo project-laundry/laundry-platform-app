@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
-import { createSubscriptionAction, createVippsAgreementAction, createStandaloneOrderAction } from '../actions';
+import { createSubscriptionAction, createStandaloneOrderAction } from '../actions';
 import type { Weekday, PickupMethod } from '@/types/database';
 import { OrderData } from '@/types/order-flow';
 import { getWeekdayFromDate } from '@/lib/utils/date';
@@ -148,12 +148,11 @@ function ConfirmPageContent() {
         // Derive the recurring weekday from the pickupDate
         if (!orderData.pickupDate) {
           throw new Error('Pickup date is required');
-        }
-        const recurringWeekday = getWeekdayFromDate(orderData.pickupDate);
+        }        
 
         const result = await createSubscriptionAction({
           planSlug,
-          recurringWeekday,
+          firstPickupDate: orderData.pickupDate,
           pickupMethod: orderData.pickupMethod as PickupMethod,
           pickupLocationDescription: orderData.otherLocation || undefined,
           specialInstructions: orderData.specialInstructions || undefined,
@@ -168,26 +167,11 @@ function ConfirmPageContent() {
           paymentProvider: selectedPayment === 'vipps' ? 'vipps' : 'manual',
         });
 
-        if (!result.success || !result.subscriptionId) {
+        if (result.error) {
           throw new Error(result.error || 'Failed to create subscription');
         }
 
-        // Handle payment based on selected method
-        if (selectedPayment === 'vipps') {
-          // Create Vipps agreement via server action
-          const vippsResult = await createVippsAgreementAction(result.subscriptionId);
-
-          if (!vippsResult.success) {
-            throw new Error(vippsResult.error || 'Failed to create Vipps agreement');
-          }
-
-          // Redirect to Vipps checkout
-          window.location.href = vippsResult.checkoutUrl!;
-        } else {
-          // Manual/test payment - redirect to success page
-          // User can manually trigger webhook for testing
-          router.push(`/orders/success?subscriptionId=${result.subscriptionId}`);
-        }
+        window.location.href = result.redirectUrl!;
       }
     } catch (error) {
       console.error('Order creation failed:', error);
