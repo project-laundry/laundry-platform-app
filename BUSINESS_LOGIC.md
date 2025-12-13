@@ -21,25 +21,24 @@
      - `next_billing_date = null` (set on payment success)
    - Initial payment is processed
 
-2. **Payment Success Triggers Order Generation:**
+2. **Payment Success Triggers Order Generation** (via `recurring.charge-captured.v1` webhook):
    - When payment status changes to `captured`:
-     - If subscription is `pending_payment` (initial payment):
-       - Set `started_at = now()`
-       - Set `next_billing_date = started_at + 1 month`
-       - Update status to `active`
-     - Calculate how many orders needed for billing period
-     - **Monthly billing:** Generate first 4 occurrences of `recurring_weekday` after billing_date
-     - **Weekly frequency:** 4 orders per monthly billing period
-     - **Biweekly frequency:** 2 orders per monthly billing period
-     - Generate ALL orders for the period at once
+     - Determine if initial or recurring charge (check `next_billing_date === null`)
+     - Calculate `next_billing_date = current_date + 1 month`
+     - Generate orders for current billing period:
+       - **Weekly frequency:** Generate all occurrences of `recurring_weekday` in next month (typically 4-5 orders)
+       - **Biweekly frequency:** Generate 2 orders (every 14 days)
+       - **Monthly frequency:** Generate 1 order
      - All orders assigned to same cleaner (`Subscription.assigned_cleaner_id`)
      - Each order inherits subscription defaults (extra_kg, needs_ironing, etc.)
-     - Pickup dates calculated from `recurring_weekday` and billing period
+     - Pickup dates calculated using `recurring_weekday` and plan frequency
+     - **Create next charge** with Vipps with `due_date = next_billing_date` (self-perpetuating)
+     - If initial charge and customer has no bags: Create bag delivery 1 day before first pickup
 
-3. **Next Billing Cycle:**
-   - On `next_billing_date`, charge customer
-   - If payment succeeds, generate next batch of orders
-   - Update `next_billing_date` to next period
+3. **Next Billing Cycle (Automatic - Self-Perpetuating):**
+   - Vipps automatically processes charge on `next_billing_date` (no cron needed)
+   - Webhook receives capture event → Cycle repeats from step 2
+   - Each charge capture creates the next charge → Eliminates polling/cron
 
 **Example (Monthly Billing, Weekly Pickups):**
 ```
@@ -299,18 +298,23 @@ These timestamps provide sufficient audit trail for MVP compliance.
    - Orders generated for billing period
 8. Customer receives confirmation and can track orders
 
-**Recurring Monthly Billing Flow:**
+**Recurring Monthly Billing Flow (Self-Perpetuating):**
 
-1. Cron job runs daily at 2:00 AM (`/api/cron/billing`)
-2. Queries subscriptions where `status = 'active'` AND `next_billing_date <= today` AND `provider_agreement_id IS NOT NULL`
-3. For each subscription:
-   - Creates new Vipps charge (due date = today + 2 days minimum per Vipps requirement)
-   - Creates payment record with `status = 'pending'`
-   - Stores charge ID in payment metadata
-4. Vipps processes charge on due date → webhook triggered → same capture flow as initial payment
-5. On successful capture:
-   - New batch of orders generated for next billing period
-   - `next_billing_date` updated to next month
+1. **Initial Charge Captured** (after subscription creation):
+   - Webhook receives `recurring.charge-captured.v1` event
+   - Orders generated for first billing period (4 for weekly, 2 for biweekly, 1 for monthly)
+   - `next_billing_date` set to `started_at + 1 month`
+   - **Next charge created** with Vipps with `due_date = next_billing_date`
+
+2. **Subsequent Monthly Charges** (automatic):
+   - Vipps processes charge on `due_date` (no cron needed)
+   - Webhook receives `recurring.charge-captured.v1` event
+   - Orders generated for current billing period
+   - `next_billing_date` updated to `next_billing_date + 1 month`
+   - **Next charge created** with `due_date = new next_billing_date`
+   - Cycle repeats monthly
+
+This self-perpetuating pattern eliminates the need for polling or cron jobs - each charge capture schedules the next charge.
 
 **Agreement Lifecycle:**
 

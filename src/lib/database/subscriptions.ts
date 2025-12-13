@@ -208,3 +208,28 @@ export async function activateSubscriptionOnAgreementActivation(
 
   return data;
 }
+
+/**
+ * Update a subscription with partial data
+ * Uses admin client to bypass RLS (no UPDATE policy on subscriptions table)
+ */
+export async function updateSubscription(
+  subscriptionId: string,
+  updates: Partial<Subscription>
+): Promise<Subscription | null> {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from('subscriptions')
+    .update(updates)
+    .eq('id', subscriptionId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating subscription:', error);
+    return null;
+  }
+
+  return data;
+}

@@ -30,7 +30,7 @@ export {
 
 export {
   // Recurring API (Subscriptions)
-  createVippsAgreementForSubscription,
+  createVippsAgreement,
   createRecurringChargeForSubscription,
   captureVippsCharge,
   cancelVippsAgreement,

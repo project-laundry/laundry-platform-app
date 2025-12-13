@@ -62,15 +62,13 @@ src/
 │   │   └── orders/         # Order management & cleaner assignment
 │   ├── api/                # API routes
 │   │   ├── auth/vipps/     # Vipps OAuth callback (legacy)
-│   │   ├── cron/
-│   │   │   └── billing/    # Recurring billing scheduler (Vercel Cron)
 │   │   ├── vipps/
 │   │   │   └── agreements/
 │   │   │       └── callback/ # Vipps agreement callback (external redirect)
 │   │   └── webhooks/
 │   │       ├── payment/    # Manual payment webhook (testing)
 │   │       └── vipps/
-│   │           ├── recurring/ # Vipps Recurring API webhooks (subscriptions)
+│   │           ├── recurring/ # Vipps Recurring API webhooks (subscriptions, order generation)
 │   │           └── epayment/  # Vipps ePayment API webhooks (one-time payments)
 │   ├── auth/               # Authentication flow
 │   │   ├── address/        # Address input step
@@ -184,15 +182,16 @@ The platform uses Vipps Recurring API for production payments with RESERVE_CAPTU
 - `lib/payments/vipps/config.ts` - Configuration validation and environment checks
 - `app/orders/actions.ts` - Server actions including `createVippsAgreementAction()` for agreement creation
 - `app/api/vipps/agreements/callback/route.ts` - Post-approval redirect handler (API route)
-- `app/api/webhooks/vipps/recurring/route.ts` - **Critical** webhook handler for Recurring API events (subscriptions)
+- `app/api/webhooks/vipps/recurring/route.ts` - **Critical** webhook handler for Recurring API events (subscriptions) - handles order generation and self-perpetuating charge creation
 - `app/api/webhooks/vipps/epayment/route.ts` - **Critical** webhook handler for ePayment API events (one-time payments)
-- `app/api/cron/billing/route.ts` - Recurring billing scheduler (Vercel Cron, API route)
+- `lib/services/order-generation.ts` - Order generation service (calculates pickup dates based on subscription frequency)
 
 **Payment Flow:**
 1. RESERVE_CAPTURE (two-step): pending → authorized (funds reserved) → captured (funds taken)
-2. Webhook-driven activation: Subscriptions activate when payment captured
+2. Webhook-driven activation: Subscriptions activate when agreement approved (status → 'active')
 3. Automatic capture: System immediately captures reserved funds (no manual intervention)
-4. Recurring billing: Cron job runs daily to create charges for subscriptions due for billing
+4. **Self-perpetuating billing**: When charge captured → Generate orders for current period → Create next charge with due_date = next_billing_date → Vipps processes automatically on that date
+5. Order generation: Based on plan frequency (weekly → 4 orders/month, biweekly → 2 orders/month, monthly → 1 order/month)
 
 **Environment Variables:**
 - `VIPPS_CLIENT_ID` - Vipps API client ID
@@ -203,7 +202,6 @@ The platform uses Vipps Recurring API for production payments with RESERVE_CAPTU
 - `VIPPS_WEBHOOK_SECRET` - Shared webhook secret for HMAC-SHA256 signature verification (used by both webhooks)
 - `VIPPS_WEBHOOK_SECRET_RECURRING` - Optional: Recurring API webhook-specific secret (overrides VIPPS_WEBHOOK_SECRET)
 - `VIPPS_WEBHOOK_SECRET_EPAYMENT` - Optional: ePayment API webhook-specific secret (overrides VIPPS_WEBHOOK_SECRET)
-- `CRON_SECRET` - Optional secret for billing cron authentication
 
 **Webhook Configuration:**
 The platform provides two separate webhook endpoints that can be registered in the Vipps dashboard:
@@ -225,7 +223,17 @@ Both webhooks use HMAC-SHA256 signature verification. You can use a shared secre
 **Database Changes:**
 - `subscriptions.provider_agreement_id` - Stores Vipps agreement ID
 - `subscriptions.provider_agreement_metadata` - Stores Vipps agreement details (JSONB)
+- `subscriptions.next_billing_date` - Set when charge captured, drives self-perpetuating billing
 - `payments.status` - Added 'authorized' status for RESERVE_CAPTURE flow
 - `payments.provider_metadata` - Stores Vipps charge/transaction details (JSONB)
 
 See migration: `supabase/migrations/20250210000000_add_vipps_support.sql`
+
+**Recurring Billing Architecture:**
+The platform uses a **self-perpetuating** pattern where each charge capture automatically schedules the next charge:
+1. Charge captured → Orders generated for current period
+2. `next_billing_date` set to current date + 1 month
+3. Next charge created with Vipps with `due_date = next_billing_date`
+4. Vipps automatically processes charge on that date → Cycle repeats
+
+This eliminates the need for polling or cron jobs - Vipps handles the scheduling.

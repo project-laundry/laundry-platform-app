@@ -23,9 +23,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateVippsWebhook, getVippsWebhookSecret } from '@/lib/payments/vipps/webhook-auth';
 import {
-  getSubscriptionByAgreementId,  
+  getSubscriptionByAgreementId,
   activateSubscriptionOnAgreementActivation,
   getSubscriptionPlanById,
+  updateSubscription,
 } from '@/lib/database/subscriptions';
 import {
   getPaymentByAgreementAndCharge,
@@ -35,6 +36,15 @@ import {
   updatePaymentWithMetadata,
   getPaymentForSubscription,
 } from '@/lib/database/payments';
+import { getCustomerById } from '@/lib/database/customers';
+import { createOrder } from '@/lib/database/orders';
+import { createBagDelivery } from '@/lib/database/bag-deliveries';
+import { generatePickupDates } from '@/lib/services/order-generation';
+import { addDays, toISODateString, addMonths } from '@/lib/utils/date';
+import { calculateBillingCostOre } from '@/lib/config/pricing';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { createRecurringChargeForSubscription } from '@/lib/payments/vipps/service';
+import type { OrderStatus } from '@/types/database';
 
 
 // =============================================================================
@@ -260,7 +270,7 @@ async function handleRecurringAgreementWebhook(body: VippsAgreementWebhookBody):
 /**
  * Handle recurring.charge-captured.v1
  *
- * Charge was captured (payment completed). Activate subscription and generate orders.
+ * Charge was captured (payment completed). Generate orders and schedule next charge.
  */
 async function handleChargeCaptured(
   webhook: VippsChargeWebhookBody,
@@ -289,11 +299,190 @@ async function handleChargeCaptured(
   });
 
   // Get subscription plan
-    const plan = await getSubscriptionPlanById(subscription.plan_id);
+  const plan = await getSubscriptionPlanById(subscription.plan_id);
 
-    if (!plan) {
-      throw new Error('Subscription plan not found');
+  if (!plan) {
+    throw new Error('Subscription plan not found');
+  }
+
+  // Get customer data
+  const customer = await getCustomerById(subscription.customer_id);
+
+  if (!customer) {
+    throw new Error('Customer not found');
+  }
+
+  // Determine if this is initial or recurring charge
+  const isInitialCharge = subscription.next_billing_date === null;
+  console.log(`[Vipps Recurring Webhook] Charge type: ${isInitialCharge ? 'INITIAL' : 'RECURRING'}`);
+
+  // Calculate reference date for order generation
+  const referenceDate = isInitialCharge
+    ? new Date(subscription.started_at)
+    : new Date(subscription.next_billing_date);
+
+  // Calculate next billing date
+  const nextBillingDate = plan.billing_period === 'monthly'
+    ? addMonths(referenceDate, 1)
+    : null;
+
+  // Check for existing orders (idempotency)
+  if (nextBillingDate) {
+    const billingPeriodStart = toISODateString(referenceDate);
+    const billingPeriodEnd = toISODateString(nextBillingDate);
+
+    const supabase = await createAdminClient();
+    const { data: existingOrders } = await supabase
+      .from('orders')
+      .select('id')
+      .eq('subscription_id', subscription.id)
+      .gte('scheduled_date', billingPeriodStart)
+      .lt('scheduled_date', billingPeriodEnd);
+
+    if (existingOrders && existingOrders.length > 0) {
+      console.log(`[Vipps Recurring Webhook] ${existingOrders.length} orders already exist for billing period, skipping generation`);
+      return;
     }
+  }
+
+  // Generate pickup dates
+  const pickupDates = generatePickupDates(
+    plan.billing_period,
+    plan.frequency,
+    subscription.recurring_weekday!,
+    referenceDate
+  );
+
+  if (pickupDates.length === 0) {
+    console.log(`[Vipps Recurring Webhook] No orders to generate (on_demand frequency)`);
+
+    // Still update next_billing_date even if no orders
+    if (nextBillingDate) {
+      await updateSubscription(subscription.id, {
+        next_billing_date: nextBillingDate.toISOString(),
+      });
+    }
+    return;
+  }
+
+  console.log(`[Vipps Recurring Webhook] Generating ${pickupDates.length} orders for subscription ${subscription.id}`);
+
+  // Create bag delivery (initial charge only)
+  let bagDeliveryId: string | null = null;
+  if (isInitialCharge && customer.laundry_bags_count === 0) {
+    try {
+      const bagDelivery = await createBagDelivery({
+        customer_id: subscription.customer_id,
+        delivery_street: subscription.delivery_street,
+        delivery_postal_code: subscription.delivery_postal_code,
+        delivery_city: subscription.delivery_city,
+        delivery_country: subscription.delivery_country,
+        delivery_special_instructions: subscription.delivery_special_instructions,
+        scheduled_date: toISODateString(addDays(pickupDates[0], -1)), // 1 day before first pickup
+        bag_quantity: 1,
+      });
+
+      if (bagDelivery) {
+        bagDeliveryId = bagDelivery.id;
+        console.log(`[Vipps Recurring Webhook] Bag delivery ${bagDelivery.delivery_number} created`);
+      }
+    } catch (error) {
+      console.error(`[Vipps Recurring Webhook] Failed to create bag delivery:`, error);
+      // Continue with order creation
+    }
+  }
+
+  // Create orders
+  const results = {
+    totalAttempted: pickupDates.length,
+    successful: 0,
+    failed: 0,
+    errors: [] as string[],
+  };
+
+  for (let i = 0; i < pickupDates.length; i++) {
+    const pickupDate = pickupDates[i];
+    const deliveryDate = addDays(pickupDate, 3); // Delivery 3 days after pickup
+
+    try {
+      // Calculate total cost for this order
+      const totalCostOre = calculateBillingCostOre(plan.price_ore, {
+        needsIroning: subscription.default_needs_ironing,
+        delicateItemsCount: subscription.default_delicate_items_count,
+        extraKg: subscription.default_extra_kg,
+      });
+
+      // Determine order status
+      const orderStatus: OrderStatus = subscription.assigned_cleaner_id
+        ? 'pickup_scheduled'
+        : 'pending_assignment';
+
+      // Create order
+      const order = await createOrder({
+        customer_id: subscription.customer_id,
+        subscription_id: subscription.id,
+        plan_id: subscription.plan_id,
+        cleaner_id: subscription.assigned_cleaner_id,
+        status: orderStatus,
+        pickup_street: subscription.delivery_street,
+        pickup_postal_code: subscription.delivery_postal_code,
+        pickup_city: subscription.delivery_city,
+        pickup_country: subscription.delivery_country,
+        pickup_special_instructions: subscription.delivery_special_instructions,
+        scheduled_date: toISODateString(pickupDate),
+        delivery_date: toISODateString(deliveryDate),
+        pickup_method: 'home', // Default for auto-generated orders
+        extra_kg: subscription.default_extra_kg,
+        delicate_items_count: subscription.default_delicate_items_count,
+        needs_ironing: subscription.default_needs_ironing,
+        total_cost_ore: totalCostOre,
+        prerequisite_bag_delivery_id: i === 0 ? bagDeliveryId : null, // Only first order
+      });
+
+      if (order) {
+        results.successful++;
+        console.log(`[Vipps Recurring Webhook] Order ${order.order_number} created (pickup: ${order.scheduled_date})`);
+      } else {
+        results.failed++;
+        results.errors.push(`Failed to create order for ${toISODateString(pickupDate)}`);
+      }
+    } catch (error) {
+      results.failed++;
+      results.errors.push(`Error creating order: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error(`[Vipps Recurring Webhook] Error creating order for ${toISODateString(pickupDate)}:`, error);
+    }
+  }
+
+  console.log(`[Vipps Recurring Webhook] Order generation complete:`, results);
+
+  if (results.failed > 0) {
+    console.error(`[Vipps Recurring Webhook] ${results.failed} orders failed to create`);
+  }
+
+  // Update subscription with next billing date
+  if (nextBillingDate) {
+    await updateSubscription(subscription.id, {
+      next_billing_date: nextBillingDate.toISOString(),
+    });
+    console.log(`[Vipps Recurring Webhook] Next billing date updated to ${nextBillingDate.toISOString()}`);
+  }
+
+  // Create next charge with Vipps (self-perpetuating for monthly billing)
+  if (plan.billing_period === 'monthly' && nextBillingDate) {
+    try {
+      const nextChargePaymentId = await createRecurringChargeForSubscription(
+        subscription.id,
+        toISODateString(nextBillingDate) // Use next_billing_date as due_date
+      );
+
+      if (nextChargePaymentId) {
+        console.log(`[Vipps Recurring Webhook] Next charge created (payment ID: ${nextChargePaymentId}) with due date ${toISODateString(nextBillingDate)}`);
+      }
+    } catch (error) {
+      // Log error but don't throw - orders are already created
+      console.error(`[Vipps Recurring Webhook] Failed to create next charge:`, error);
+    }
+  }
 }
 
 /**
