@@ -206,7 +206,7 @@ async function handleEPaymentAuthorized(webhook: VippsEPaymentWebhookBody): Prom
   }
 
   // Update payment to authorized
-  await authorizePayment(payment.id, pspReference, {
+  await authorizePayment(payment.id, {
     vipps_reference: reference,
     vipps_psp_reference: pspReference,
     vipps_status: 'AUTHORIZED',
@@ -252,7 +252,7 @@ async function handleEPaymentCaptured(webhook: VippsEPaymentWebhookBody): Promis
   }
 
   // Update payment to captured
-  await capturePaymentWithMetadata(payment.id, pspReference, {
+  await capturePaymentWithMetadata(payment.id, {
     vipps_psp_reference: pspReference,
     vipps_status: 'CAPTURED',
     vipps_amount: amount.value,
@@ -299,7 +299,7 @@ async function handleEPaymentRefunded(webhook: VippsEPaymentWebhookBody): Promis
   }
 
   // Update payment with refund info
-  await updatePaymentWithMetadata(payment.id, pspReference, {
+  await updatePaymentWithMetadata(payment.id, {
     vipps_psp_reference: pspReference,
     vipps_status: 'REFUNDED',
     vipps_amount_refunded: amount.value,
@@ -329,7 +329,7 @@ async function handleEPaymentCancelled(webhook: VippsEPaymentWebhookBody): Promi
   }
 
   // Update payment with cancellation info
-  await updatePaymentWithMetadata(payment.id, pspReference, {
+  await updatePaymentWithMetadata(payment.id, {
     vipps_psp_reference: pspReference,
     vipps_status: 'CANCELLED',
     canceled_at: timestamp,

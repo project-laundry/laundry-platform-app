@@ -29,7 +29,7 @@ import {
   updateSubscription,
 } from '@/lib/database/subscriptions';
 import {
-  getPaymentByAgreementAndCharge,
+  getPaymentByReference,
   capturePaymentWithMetadata,
   failPaymentWithMetadata,
   updatePaymentWithMetadata,
@@ -281,14 +281,14 @@ async function handleChargeCaptured(
   console.log(`[Vipps Recurring Webhook] Charge captured: ${chargeId} (${(amountCaptured || amount)/100} ${currency})`);
 
   // Find payment record
-  const payment = await getPaymentByAgreementAndCharge(agreementId, chargeId);
+  const payment = await getPaymentByReference(chargeId);
 
   if (!payment) {
     throw new Error(`Payment not found for captured charge ${chargeId}`);
   }
 
   // Update payment to captured
-  await capturePaymentWithMetadata(payment.id, chargeId, {
+  await capturePaymentWithMetadata(payment.id, {
     vipps_agreement_id: agreementId,
     vipps_charge_id: chargeId,
     vipps_status: 'CHARGED',
@@ -511,7 +511,7 @@ async function handleChargeCanceled(
   console.log(`[Vipps Recurring Webhook] Charge canceled: ${chargeId} (${(amountCanceled || 0)/100} canceled)`);
 
   // Find payment record
-  const payment = await getPaymentByAgreementAndCharge(agreementId, chargeId);
+  const payment = await getPaymentByReference(chargeId);
 
   if (!payment) {
     console.warn(`[Vipps Recurring Webhook] Payment not found for canceled charge ${chargeId}`);
@@ -519,7 +519,7 @@ async function handleChargeCanceled(
   }
 
   // Update payment status to canceled
-  await updatePaymentWithMetadata(payment.id, chargeId, {
+  await updatePaymentWithMetadata(payment.id, {
     vipps_agreement_id: agreementId,
     vipps_charge_id: chargeId,
     vipps_status: 'CANCELLED',
@@ -544,7 +544,7 @@ async function handleChargeRefunded(
   console.log(`[Vipps Recurring Webhook] Charge refunded: ${chargeId} (${(amountRefunded || 0)/100} refunded)`);
 
   // Find payment record
-  const payment = await getPaymentByAgreementAndCharge(agreementId, chargeId);
+  const payment = await getPaymentByReference(chargeId);
 
   if (!payment) {
     console.warn(`[Vipps Recurring Webhook] Payment not found for refunded charge ${chargeId}`);
@@ -552,7 +552,7 @@ async function handleChargeRefunded(
   }
 
   // Update payment status to refunded
-  await updatePaymentWithMetadata(payment.id, chargeId, {
+  await updatePaymentWithMetadata(payment.id, {
     vipps_agreement_id: agreementId,
     vipps_charge_id: chargeId,
     vipps_status: 'REFUNDED',
@@ -578,7 +578,7 @@ async function handleChargeFailed(
   console.error(`[Vipps Recurring Webhook] Charge failed: ${chargeId} - ${failureReason} (code: ${failureCode})`);
 
   // Find payment record
-  let payment = await getPaymentByAgreementAndCharge(agreementId, chargeId);
+  let payment = await getPaymentByReference(chargeId);
 
   if (!payment) {
     // Try to find by subscription

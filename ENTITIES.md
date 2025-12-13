@@ -439,10 +439,14 @@
   - **Flow (RESERVE_CAPTURE):** pending → authorized → captured/failed
   - **Note:** `authorized` status indicates funds are reserved but not yet captured (Vipps RESERVE_CAPTURE)
 - `payment_provider` (enum, required) - Provider: `vipps`, `stripe`, `manual`
-- `provider_payment_id` (string, nullable) - External payment ID (Vipps charge ID or Stripe payment intent ID)
-- `provider_metadata` (jsonb, nullable) - Provider response data
-  - **Example (Vipps):** `{"vipps_agreement_id": "agr_Abc123", "vipps_charge_id": "chr_Xyz789", "vipps_transaction_id": "txn_Def456", "vipps_status": "CHARGED", "retry_count": 0}`
-  - **Note:** Stores provider-specific details for debugging, reconciliation, and audit trail.
+- `provider_reference` (string, nullable) - Merchant reference for webhook lookups
+  - **Recurring API:** Vipps charge ID (chr_Xyz789)
+  - **ePayment API:** Order number or custom reference
+  - **Indexed:** For fast webhook processing
+- `provider_metadata` (jsonb, nullable) - Complete provider response data (single source of truth)
+  - **Recurring:** `{"vipps_agreement_id": "agr_Abc123", "vipps_charge_id": "chr_Xyz789", "vipps_transaction_id": "txn_Def456", "vipps_status": "CHARGED", "retry_count": 0}`
+  - **ePayment:** `{"vipps_psp_reference": "psp_Xyz789", "vipps_status": "CAPTURED", "vipps_amount": 50000, "vipps_currency": "NOK"}`
+  - **Note:** Stores all provider-specific details for debugging, reconciliation, and audit trail.
 - `authorized_at` (timestamp, nullable) - Authorization timestamp (when funds reserved via RESERVE_CAPTURE)
 - `captured_at` (timestamp, nullable) - Capture timestamp (when funds actually captured)
 - `failed_at` (timestamp, nullable) - Failure timestamp
@@ -466,7 +470,7 @@
 
 **Indexes:**
 
-- Unique: provider_payment_id
+- Index: provider_reference (for webhook lookups)
 - Foreign: customer_id, order_id, subscription_id
 - Index: status, payment_provider, payment_type, created_at
 - Composite: (customer_id, created_at DESC), (subscription_id, created_at DESC)
