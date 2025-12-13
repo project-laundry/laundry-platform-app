@@ -10,22 +10,19 @@ import {
   getAvailableWeekdaysForCity,
 } from "@/lib/database/cleaners";
 import { calculateBillingCostOre } from "@/lib/config/pricing";
-import { createVippsAgreementForSubscription, createVippsEPayment } from "@/lib/payments/vipps/service";
-import { updateSubscriptionVippsAgreement } from "@/lib/database/subscriptions";
-import { updatePaymentWithMetadata } from "@/lib/database/payments";
+import { createVippsAgreement, createVippsEPayment } from "@/lib/payments/vipps/service";
 import { createOrder } from "@/lib/database/orders";
 import { createBagDelivery } from "@/lib/database/bag-deliveries";
 import { addDays, toISODateString, getWeekdayFromDate } from "@/lib/utils/date";
 import type {
-  PickupMethod,
-  VippsAgreementMetadata,
+  PickupMethod,  
   Weekday,
 } from "@/types/database";
 import { Plan } from "@/types/order-flow";
 
 export interface CreateSubscriptionInput {
   planSlug: Plan;
-  recurringWeekday: Weekday;
+  firstPickupDate: string;  
   pickupMethod: PickupMethod;
   pickupLocationDescription?: string;
   specialInstructions?: string;
@@ -44,9 +41,7 @@ export interface CreateSubscriptionInput {
 }
 
 export interface CreateSubscriptionResult {
-  success: boolean;
-  subscriptionId?: string;
-  paymentId?: string;
+  redirectUrl?: string;
   error?: string;
 }
 
@@ -65,19 +60,19 @@ export async function createSubscriptionAction(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return { success: false, error: "Not authenticated" };
+    return { error: "Not authenticated" };
   }
 
   // Get customer record
   const customer = await getCustomerByUserId(user.id);
   if (!customer) {
-    return { success: false, error: "Customer not found" };
+    return { error: "Customer not found" };
   }
 
   // Get subscription plan
   const plan = await getSubscriptionPlanBySlug(input.planSlug);
   if (!plan) {
-    return { success: false, error: "Plan not found" };
+    return { error: "Plan not found" };
   }
 
   // Calculate billing cost
@@ -87,14 +82,23 @@ export async function createSubscriptionAction(
     extraKg: input.extraKg,
   });
 
+  const recurringWeekday = getWeekdayFromDate(input.firstPickupDate);
+
+  // Find available cleaner
+  const cleaner = await findAvailableCleaner(
+    input.deliveryCity,
+    new Date(input.firstPickupDate),
+  );
+
   // Create subscription
   const subscription = await createSubscription({
     customer_id: customer.id,
     plan_id: plan.id,
+    assigned_cleaner_id: cleaner?.id,
     default_extra_kg: input.extraKg || 0,
     default_needs_ironing: input.needsIroning || false,
     default_delicate_items_count: input.delicateItemsCount || 0,
-    recurring_weekday: input.recurringWeekday,
+    recurring_weekday: recurringWeekday,
     delivery_street: input.deliveryStreet,
     delivery_postal_code: input.deliveryPostalCode,
     delivery_city: input.deliveryCity,
@@ -104,30 +108,30 @@ export async function createSubscriptionAction(
   });
 
   if (!subscription) {
-    return { success: false, error: "Failed to create subscription" };
+    return { error: "Failed to create subscription" };
   }
 
-  // Create payment record
-  const paymentType = plan.billing_period === "one_time"
-    ? "one_time"
-    : "recurring";
+  const agreementResponse = await createVippsAgreement({
+    price: billingCostOre,
+    productName: `${plan.name}`,
+    productDescription: `Abonnement på ${plan.name}`,
+    subscriptionId: subscription.id,
+  });
+  
   const payment = await createPayment({
     customer_id: customer.id,
     subscription_id: subscription.id,
-    payment_type: paymentType,
+    payment_type: "recurring",
     amount_ore: billingCostOre,
-    payment_provider: input.paymentProvider || "manual",
-    provider_reference: subscription.id,
+    payment_provider: input.paymentProvider
   });
 
   if (!payment) {
-    return { success: false, error: "Failed to create payment" };
+    return { error: "Failed to create payment" };
   }
 
-  return {
-    success: true,
-    subscriptionId: subscription.id,
-    paymentId: payment.id,
+  return {    
+    redirectUrl: agreementResponse.vippsConfirmationUrl,
   };
 }
 
@@ -153,71 +157,6 @@ export interface CreateVippsAgreementResult {
   checkoutUrl?: string;
   paymentId?: string;
   error?: string;
-}
-
-/**
- * Create Vipps recurring agreement for a subscription
- * Called from the order confirmation page after subscription is created
- */
-export async function createVippsAgreementAction(
-  subscriptionId: string,
-): Promise<CreateVippsAgreementResult> {
-  try {
-    // Authenticate user
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return { success: false, error: "Not authenticated" };
-    }
-
-    // Create Vipps agreement
-    const result = await createVippsAgreementForSubscription(subscriptionId);
-
-    // Update subscription with agreement metadata
-    const agreementMetadata: VippsAgreementMetadata = {
-      vipps_agreement_id: result.agreementId,
-      vipps_checkout_url: result.checkoutUrl,
-      agreement_status: "PENDING",
-      created_at: new Date().toISOString(),
-    };
-
-    await updateSubscriptionVippsAgreement(
-      subscriptionId,
-      result.agreementId,
-      agreementMetadata,
-    );
-
-    // Update payment with initial metadata
-    await updatePaymentWithMetadata(
-      result.paymentId,
-      result.agreementId,
-      {
-        vipps_agreement_id: result.agreementId,
-        vipps_checkout_url: result.checkoutUrl,
-      },
-    );
-
-    // Return success with checkout URL
-    return {
-      success: true,
-      agreementId: result.agreementId,
-      checkoutUrl: result.checkoutUrl,
-      paymentId: result.paymentId,
-    };
-  } catch (error) {
-    console.error("Vipps agreement creation error:", error);
-
-    // Return user-friendly error message
-    const errorMessage = error instanceof Error
-      ? error.message
-      : "Failed to create Vipps agreement";
-
-    return {
-      success: false,
-      error: errorMessage,
-    };
-  }
 }
 
 export interface CreateStandaloneOrderInput {

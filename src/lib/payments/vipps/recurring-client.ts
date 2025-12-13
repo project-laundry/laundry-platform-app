@@ -11,15 +11,8 @@ import type { VippsAgreementStatus, VippsChargeStatus } from '@/types/database';
 
 interface VippsCreateAgreementParams {
   productName: string;
-  productDescription?: string;
-  price: number; // in øre (1 NOK = 100 øre)
-  interval: 'MONTH' | 'YEAR';
-  phoneNumber?: string; // Customer phone number to simplify the flow
-  initialCharge?: {
-    amount: number; // in øre
-    description: string;
-    transactionType?: 'DIRECT_CAPTURE' | 'RESERVE_CAPTURE'; // Default: DIRECT_CAPTURE for recurring
-  };
+  productDescription: string;
+  price: number; // in øre (1 NOK = 100 øre)    
   merchantRedirectUrl: string;
   merchantAgreementUrl: string;
 }
@@ -121,27 +114,24 @@ export class VippsRecurringClient {
 
     const body = {
       productName: params.productName,
-      ...(params.productDescription && { productDescription: params.productDescription }),
+      productDescription: params.productDescription,
       pricing: {
-        type: 'LEGACY', // Required field per API spec
+        type: 'LEGACY',
         amount: params.price,
         currency: 'NOK',
       },
       interval: {
-        unit: params.interval,
+        unit: 'MONTH',
         count: 1,
       },
       merchantRedirectUrl: params.merchantRedirectUrl,
-      merchantAgreementUrl: params.merchantAgreementUrl,
-      ...(params.phoneNumber && { phoneNumber: params.phoneNumber }),
-      ...(params.initialCharge && {
-        initialCharge: {
-          amount: params.initialCharge.amount,
+      merchantAgreementUrl: params.merchantAgreementUrl,      
+      initialCharge: {
+          amount: params.price,
           currency: 'NOK',
-          description: params.initialCharge.description,
-          transactionType: params.initialCharge.transactionType || 'DIRECT_CAPTURE', // Default: DIRECT_CAPTURE for recurring
-        },
-      }),
+          description: params.productDescription,
+          transactionType: 'DIRECT_CAPTURE',
+        }
     };
 
     const response = await fetch(

@@ -10,7 +10,7 @@ export interface CreatePaymentData {
   payment_type: PaymentType;
   amount_ore: number;
   payment_provider?: PaymentProvider,
-  provider_reference: string;
+  provider_reference?: string;
 }
 
 /**
@@ -28,7 +28,7 @@ export async function createPayment(data: CreatePaymentData): Promise<Payment | 
       payment_type: data.payment_type,
       amount_ore: data.amount_ore,
       status: 'pending' as PaymentStatus,
-      payment_provider: data.payment_provider || 'manual',
+      payment_provider: data.payment_provider,
       provider_reference: data.provider_reference,
     })
     .select()
