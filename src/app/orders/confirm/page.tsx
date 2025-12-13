@@ -83,20 +83,6 @@ function ConfirmPageContent() {
     return `${dayNames[date.getDay()]} ${date.getDate()}. ${monthNames[date.getMonth()]}`;
   };
 
-  const formatWeekday = (weekday: string | undefined) => {
-    if (!weekday) return 'Ikke valgt';
-    const weekdayMap: { [key: string]: string } = {
-      'monday': 'Mandag',
-      'tuesday': 'Tirsdag',
-      'wednesday': 'Onsdag',
-      'thursday': 'Torsdag',
-      'friday': 'Fredag',
-      'saturday': 'Lørdag',
-      'sunday': 'Søndag'
-    };
-    return weekdayMap[weekday] || weekday;
-  };
-
   const handlePaymentSelect = (paymentId: string) => {
     setSelectedPayment(paymentId);
   };
@@ -158,18 +144,13 @@ function ConfirmPageContent() {
         window.location.href = result.redirectUrl!;
       } else {
         // Create subscription for recurring plans
-        // Get the recurring weekday (for subscriptions) or use the day from pickupDate
-        let recurringWeekday: Weekday;
-        if (orderData.pickupWeekday) {
-          recurringWeekday = orderData.pickupWeekday as Weekday;
-        } else if (orderData.pickupDate) {
-          // Convert date to weekday
-          const date = new Date(orderData.pickupDate);
-          const weekdays: Weekday[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-          recurringWeekday = weekdays[date.getDay()];
-        } else {
-          recurringWeekday = 'monday'; // fallback
+        // Derive the recurring weekday from the pickupDate
+        if (!orderData.pickupDate) {
+          throw new Error('Pickup date is required');
         }
+        const date = new Date(orderData.pickupDate);
+        const weekdays: Weekday[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const recurringWeekday = weekdays[date.getDay()];
 
         const result = await createSubscriptionAction({
           planSlug,
@@ -312,9 +293,7 @@ function ConfirmPageContent() {
                 <div>
                   <h4 className="font-semibold text-dark-gray mb-1">Dato og tid</h4>
                   <p className="text-medium-gray">
-                    {orderData.pickupDate
-                      ? `${formatDate(orderData.pickupDate)} kl. ${orderData.pickupTime}`
-                      : `${formatWeekday(orderData.pickupWeekday)} kl. ${orderData.pickupTime}`}
+                    {formatDate(orderData.pickupDate)} kl. {orderData.pickupTime}
                   </p>
                 </div>
 

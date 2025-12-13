@@ -1,4 +1,4 @@
-import type { Weekday, PickupMethod } from './database';
+import type { PickupMethod } from './database';
 
 export type Plan = 'single' | 'weekly' | 'biweekly';
 
@@ -9,7 +9,6 @@ export interface OrderData {
 
   // Schedule
   pickupDate?: string;
-  pickupWeekday?: Weekday;
   pickupTime: string;
 
   // Address
