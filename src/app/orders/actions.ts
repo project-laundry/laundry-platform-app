@@ -82,6 +82,12 @@ export async function createSubscriptionAction(
     extraKg: input.extraKg,
   });
 
+  const agreementResponse = await createVippsAgreement({
+    price: billingCostOre,
+    productName: `${plan.name}`,
+    productDescription: `Abonnement på ${plan.name}`
+  });
+
   const recurringWeekday = getWeekdayFromDate(input.firstPickupDate);
 
   // Find available cleaner
@@ -105,18 +111,14 @@ export async function createSubscriptionAction(
     delivery_country: input.deliveryCountry,
     delivery_special_instructions: input.deliverySpecialInstructions,
     billing_cost_ore: billingCostOre,
+    provider_agreement_id: agreementResponse.agreementId,
   });
 
   if (!subscription) {
     return { error: "Failed to create subscription" };
   }
 
-  const agreementResponse = await createVippsAgreement({
-    price: billingCostOre,
-    productName: `${plan.name}`,
-    productDescription: `Abonnement på ${plan.name}`,
-    subscriptionId: subscription.id,
-  });
+  
   
   const payment = await createPayment({
     customer_id: customer.id,

@@ -27,6 +27,7 @@ import {
   getSubscriptionByAgreementId,
   activateSubscription,
   activateOneTimeSubscription,
+  activateSubscriptionOnAgreementActivation,
   getSubscriptionPlanById,
 } from '@/lib/database/subscriptions';
 import {
@@ -191,11 +192,7 @@ async function handleRecurringChargeWebhook(body: VippsChargeWebhookBody): Promi
   }
 
   // Route to appropriate handler
-  switch (eventType) {
-    case 'recurring.charge-reserved.v1':
-      await handleChargeReserved(body, subscription);
-      break;
-
+  switch (eventType) {    
     case 'recurring.charge-captured.v1':
       await handleChargeCaptured(body, subscription);
       break;
@@ -263,73 +260,6 @@ async function handleRecurringAgreementWebhook(body: VippsAgreementWebhookBody):
 // =============================================================================
 // CHARGE EVENT HANDLERS
 // =============================================================================
-
-/**
- * Handle recurring.charge-reserved.v1
- *
- * Charge was reserved (funds held). This is the first step in RESERVE_CAPTURE flow.
- * We immediately trigger capture to complete the payment.
- */
-async function handleChargeReserved(
-  webhook: VippsChargeWebhookBody,
-  subscription: any
-): Promise<void> {
-  const { chargeId, agreementId, amount, currency, occurred } = webhook;
-
-  console.log(`[Vipps Recurring Webhook] Charge reserved: ${chargeId} (${amount/100} ${currency})`);
-
-  // Find or create payment record
-  let payment = await getPaymentByAgreementAndCharge(agreementId, chargeId);
-
-  if (!payment) {
-    // Payment not found - might be initial charge, try to find by subscription
-    console.warn(`[Vipps Recurring Webhook] Payment not found for charge ${chargeId}, finding by subscription`);
-    const fallbackPayment = await getPaymentForSubscription(subscription.id);
-
-    if (!fallbackPayment) {
-      throw new Error(`Payment not found for charge ${chargeId}`);
-    }
-
-    // Update payment with charge metadata
-    await updatePaymentWithMetadata(fallbackPayment.id, chargeId, {
-      vipps_agreement_id: agreementId,
-      vipps_charge_id: chargeId,
-      vipps_status: 'RESERVED',
-      vipps_amount: amount,
-      vipps_currency: currency,
-      occurred,
-    });
-
-    payment = fallbackPayment;
-  }
-
-  // Mark payment as authorized
-  await authorizePayment(payment.id, chargeId, {
-    vipps_agreement_id: agreementId,
-    vipps_charge_id: chargeId,
-    vipps_status: 'RESERVED',
-    vipps_amount: amount,
-    vipps_currency: currency,
-    reserved_at: occurred,
-  });
-
-  // Immediately capture the reserved amount (automatic capture)
-  try {
-    const plan = await getSubscriptionPlanById(subscription.plan_id);
-    await captureVippsCharge(
-      agreementId,
-      chargeId,
-      amount,
-      plan ? `${plan.name} - Payment capture` : 'Subscription payment capture'
-    );
-
-    console.log(`[Vipps Recurring Webhook] Capture triggered for charge ${chargeId}`);
-    // Webhook will fire again with recurring.charge-captured.v1
-  } catch (captureError) {
-    console.error(`[Vipps Recurring Webhook] Capture failed:`, captureError);
-    throw captureError;
-  }
-}
 
 /**
  * Handle recurring.charge-captured.v1
@@ -576,6 +506,7 @@ async function handleChargeCreationFailed(
  * Handle recurring.agreement-activated.v1
  *
  * Agreement was accepted/activated by the user.
+ * Activates the subscription with status='active', started_at=now, expires_at=one month from now
  */
 async function handleAgreementActivated(
   webhook: VippsAgreementWebhookBody,
@@ -585,11 +516,14 @@ async function handleAgreementActivated(
 
   console.log(`[Vipps Recurring Webhook] Agreement activated: ${agreementId}`);
 
-  // Agreement is now active - this usually happens before first charge
-  // Update subscription metadata to track activation
-  // TODO: Update subscription with agreement activation timestamp if needed
+  // Activate subscription when agreement is activated
+  const activatedSubscription = await activateSubscriptionOnAgreementActivation(subscription.id);
 
-  console.log(`[Vipps Recurring Webhook] Agreement ${agreementId} is active for subscription ${subscription.id}`);
+  if (!activatedSubscription) {
+    throw new Error(`Failed to activate subscription ${subscription.id} on agreement activation`);
+  }
+
+  console.log(`[Vipps Recurring Webhook] Subscription ${subscription.id} activated with status='active', started_at=${activatedSubscription.started_at}, expires_at=${activatedSubscription.expires_at}`);
 }
 
 /**

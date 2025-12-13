@@ -13,8 +13,7 @@ import { createPayment } from "@/lib/database/payments";
 // TYPES
 // =============================================================================
 
-export interface CreateAgreementData {
-  subscriptionId: string;
+export interface CreateAgreementData {  
   productName: string;
   productDescription: string;
   price: number;
@@ -46,7 +45,7 @@ export async function createVippsAgreement(
     productDescription: createAgreementData.productDescription,
     price: createAgreementData.price,
     merchantRedirectUrl:
-      `${process.env.NEXT_PUBLIC_APP_URL}/api/vipps/agreements/callback?subscriptionId=${createAgreementData.subscriptionId}`,
+      `${process.env.NEXT_PUBLIC_APP_URL}/api/vipps/agreements/callback`,
     merchantAgreementUrl: `https://laundry-landing-page-rho.vercel.app`,
   });
 
