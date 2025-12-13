@@ -943,9 +943,14 @@ async function handleEPaymentCaptured(webhook: VippsEPaymentWebhookBody): Promis
 
   // If payment is for an order, update order status from pending_payment
   if (payment.order_id) {
-    // Update order status to pending_assignment (will be auto-assigned later)
-    await updateOrderStatus(payment.order_id, 'pending_assignment');
-    console.log(`[Vipps Webhook] Order ${payment.order_id} status updated to pending_assignment`);
+    // Check if cleaner is already assigned during order creation
+    const { getOrderById } = await import('@/lib/database/orders');
+    const order = await getOrderById(payment.order_id);
+
+    // If cleaner already assigned, move to pickup_scheduled; otherwise pending_assignment
+    const newStatus = order?.cleaner_id ? 'pickup_scheduled' : 'pending_assignment';
+    await updateOrderStatus(payment.order_id, newStatus);
+    console.log(`[Vipps Webhook] Order ${payment.order_id} status updated to ${newStatus}`);
   }
 }
 

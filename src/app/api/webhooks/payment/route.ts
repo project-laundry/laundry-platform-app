@@ -58,8 +58,13 @@ async function handleStandaloneOrderPayment(paymentId: string) {
       );
     }
 
-    // Update order status from pending_payment to pending_assignment
-    const updatedOrder = await updateOrderStatus(payment.order_id, 'pending_assignment');
+    // Update order status from pending_payment
+    // Check if cleaner is already assigned during order creation
+    const { getOrderById } = await import('@/lib/database/orders');
+    const order = await getOrderById(payment.order_id);
+
+    const newStatus = order?.cleaner_id ? 'pickup_scheduled' : 'pending_assignment';
+    const updatedOrder = await updateOrderStatus(payment.order_id, newStatus);
     if (!updatedOrder) {
       return NextResponse.json(
         { error: 'Failed to update order status' },
