@@ -7,6 +7,7 @@ import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { createSubscriptionAction, createVippsAgreementAction, createStandaloneOrderAction } from '../actions';
 import type { Weekday, PickupMethod } from '@/types/database';
 import { OrderData } from '@/types/order-flow';
+import { getWeekdayFromDate } from '@/lib/utils/date';
 
 interface PaymentMethod {
   id: string;
@@ -148,9 +149,7 @@ function ConfirmPageContent() {
         if (!orderData.pickupDate) {
           throw new Error('Pickup date is required');
         }
-        const date = new Date(orderData.pickupDate);
-        const weekdays: Weekday[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-        const recurringWeekday = weekdays[date.getDay()];
+        const recurringWeekday = getWeekdayFromDate(orderData.pickupDate);
 
         const result = await createSubscriptionAction({
           planSlug,

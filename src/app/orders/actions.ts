@@ -15,7 +15,7 @@ import { updateSubscriptionVippsAgreement } from "@/lib/database/subscriptions";
 import { updatePaymentWithMetadata } from "@/lib/database/payments";
 import { createOrder } from "@/lib/database/orders";
 import { createBagDelivery } from "@/lib/database/bag-deliveries";
-import { addDays, toISODateString } from "@/lib/utils/date";
+import { addDays, toISODateString, getWeekdayFromDate } from "@/lib/utils/date";
 import type {
   PickupMethod,
   VippsAgreementMetadata,
@@ -290,16 +290,7 @@ export async function createStandaloneOrderAction(
 
   // Get weekday from scheduled date for cleaner matching
   const scheduledDate = new Date(input.scheduledDate);
-  const weekdays: Weekday[] = [
-    "sunday",
-    "monday",
-    "tuesday",
-    "wednesday",
-    "thursday",
-    "friday",
-    "saturday",
-  ];
-  const pickupWeekday = weekdays[scheduledDate.getDay()];
+  const pickupWeekday = getWeekdayFromDate(scheduledDate);
 
   // Calculate delivery date (3 days after pickup)
   const deliveryDate = addDays(scheduledDate, 3);

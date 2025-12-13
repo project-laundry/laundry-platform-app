@@ -13,6 +13,27 @@ const WEEKDAY_TO_DAY_NUMBER: Record<Weekday, number> = {
   saturday: 6,
 };
 
+// Map JavaScript day number to Weekday type
+const DAY_NUMBER_TO_WEEKDAY: Weekday[] = [
+  'sunday',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+];
+
+/**
+ * Get the weekday from a Date object
+ * @param date - The date to get the weekday from
+ * @returns The weekday as a Weekday type
+ */
+export function getWeekdayFromDate(date: Date | string): Weekday {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  return DAY_NUMBER_TO_WEEKDAY[dateObj.getDay()];
+}
+
 /**
  * Get the next N occurrences of a specific weekday after a given date
  * @param startDate - The date to start from (exclusive)
