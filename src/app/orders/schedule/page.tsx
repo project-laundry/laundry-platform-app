@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { getAvailableWeekdaysAction } from '../actions';
 import type { Weekday } from '@/types/database';
+import { getWeekdayFromDate } from '@/lib/utils/date';
 
 const FIXED_PICKUP_TIME = '15:00-20:00';
 
@@ -37,7 +38,7 @@ const getNextDeliveryDays = (hasBag: boolean, count: number = 30) => {
       dayName: dayNames[date.getDay()],
       dayNum: date.getDate(),
       monthName: monthNames[date.getMonth()],
-      weekdayValue: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][date.getDay()] as Weekday,
+      weekdayValue: getWeekdayFromDate(date),
       isFirstOption: i === 0
     });
   }
