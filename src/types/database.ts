@@ -235,7 +235,7 @@ export interface Payment {
   amount_ore: number;
   status: PaymentStatus;
   payment_provider: PaymentProvider;
-  provider_payment_id: string | null;
+  provider_reference: string | null;
   provider_metadata: Record<string, unknown> | null;
   authorized_at: string | null;
   captured_at: string | null;

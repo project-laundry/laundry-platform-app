@@ -131,6 +131,7 @@ export async function createSubscriptionAction(
     payment_type: "recurring",
     amount_ore: billingCostOre,
     payment_provider: input.paymentProvider,
+    provider_reference: agreementResponse.chargeId,
     provider_metadata: {
       vipps_agreement_id: agreementResponse.agreementId,
       vipps_charge_id: agreementResponse.chargeId,

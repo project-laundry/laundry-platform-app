@@ -76,7 +76,6 @@ export async function getPaymentForSubscription(
  */
 export async function updatePaymentWithMetadata(
   paymentId: string,
-  providerPaymentId: string,
   metadata: Record<string, unknown>
 ): Promise<Payment | null> {
   const supabase = await createAdminClient();
@@ -84,7 +83,6 @@ export async function updatePaymentWithMetadata(
   const { data, error } = await supabase
     .from('payments')
     .update({
-      provider_payment_id: providerPaymentId,
       provider_metadata: metadata,
     })
     .eq('id', paymentId)
@@ -100,37 +98,11 @@ export async function updatePaymentWithMetadata(
 }
 
 /**
- * Get payment by Vipps agreement ID and charge ID
- */
-export async function getPaymentByAgreementAndCharge(
-  agreementId: string,
-  chargeId: string
-): Promise<Payment | null> {
-  const supabase = await createAdminClient();
-
-  const { data, error } = await supabase
-    .from('payments')
-    .select('*')
-    .eq('provider_metadata->>vipps_agreement_id', agreementId)
-    .eq('provider_metadata->>vipps_charge_id', chargeId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single();
-
-  if (error) {
-    return null;
-  }
-
-  return data;
-}
-
-/**
  * Authorize payment (RESERVE_CAPTURE: first step)
  * Sets status to 'authorized' and records timestamp
  */
 export async function authorizePayment(
   paymentId: string,
-  providerPaymentId: string,
   metadata: Record<string, unknown>
 ): Promise<Payment | null> {
   const supabase = await createAdminClient();
@@ -140,7 +112,6 @@ export async function authorizePayment(
     .update({
       status: 'authorized' as PaymentStatus,
       authorized_at: new Date().toISOString(),
-      provider_payment_id: providerPaymentId,
       provider_metadata: metadata,
     })
     .eq('id', paymentId)
@@ -161,7 +132,6 @@ export async function authorizePayment(
  */
 export async function capturePaymentWithMetadata(
   paymentId: string,
-  providerPaymentId: string,
   metadata: Record<string, unknown>
 ): Promise<Payment | null> {
   const supabase = await createAdminClient();
@@ -171,7 +141,6 @@ export async function capturePaymentWithMetadata(
     .update({
       status: 'captured' as PaymentStatus,
       captured_at: new Date().toISOString(),
-      provider_payment_id: providerPaymentId,
       provider_metadata: metadata,
     })
     .eq('id', paymentId)
@@ -249,10 +218,12 @@ export async function cancelPendingPaymentsForSubscription(
 // =============================================================================
 
 /**
- * Get payment by Vipps ePayment reference
- * Used by webhook handler to look up payments by merchant reference
+ * Get payment by provider reference
  *
- * Note: Queries provider_payment_id which stores the reference for ePayments
+ * Queries provider_reference field to find payment by merchant reference.
+ * Used by both Recurring and ePayment webhook handlers.
+ *
+ * @param reference - For Recurring API: Vipps chargeId. For ePayment API: order number or custom reference.
  */
 export async function getPaymentByReference(reference: string): Promise<Payment | null> {
   const supabase = await createAdminClient();
