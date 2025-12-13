@@ -88,71 +88,6 @@ export async function getSubscriptionById(
   return data;
 }
 
-/**
- * Update subscription status to active and set timestamps
- * Uses admin client to bypass RLS (no UPDATE policy on subscriptions table)
- */
-export async function activateSubscription(
-  subscriptionId: string,
-  cleanerId: string | null
-): Promise<Subscription | null> {
-  const supabase = createAdminClient();
-
-  const now = new Date();
-  const nextBillingDate = new Date(now);
-  nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
-
-  const { data, error } = await supabase
-    .from('subscriptions')
-    .update({
-      status: 'active' as SubscriptionStatus,
-      assigned_cleaner_id: cleanerId,
-      started_at: now.toISOString(),
-      next_billing_date: nextBillingDate.toISOString(),
-    })
-    .eq('id', subscriptionId)
-    .select()
-    .single();
-
-  if (error) {
-    console.error('Error activating subscription:', error);
-    return null;
-  }
-
-  return data;
-}
-
-/**
- * Activate a one-time subscription (no next billing date)
- * Uses admin client to bypass RLS (no UPDATE policy on subscriptions table)
- */
-export async function activateOneTimeSubscription(
-  subscriptionId: string,
-  cleanerId: string | null
-): Promise<Subscription | null> {
-  const supabase = createAdminClient();
-
-  const now = new Date();
-
-  const { data, error } = await supabase
-    .from('subscriptions')
-    .update({
-      status: 'active' as SubscriptionStatus,
-      assigned_cleaner_id: cleanerId,
-      started_at: now.toISOString(),
-      next_billing_date: null, // No recurring billing
-    })
-    .eq('id', subscriptionId)
-    .select()
-    .single();
-
-  if (error) {
-    console.error('Error activating one-time subscription:', error);
-    return null;
-  }
-
-  return data;
-}
 
 /**
  * Get subscription plan by ID
@@ -218,35 +153,6 @@ export async function getSubscriptionPlanBySlug(
 // =============================================================================
 // VIPPS AGREEMENT MANAGEMENT
 // =============================================================================
-
-/**
- * Update subscription with Vipps agreement details
- * Uses admin client to bypass RLS (no UPDATE policy on subscriptions table)
- */
-export async function updateSubscriptionVippsAgreement(
-  subscriptionId: string,
-  agreementId: string,
-  metadata: Record<string, unknown>
-): Promise<Subscription | null> {
-  const supabase = createAdminClient();
-
-  const { data, error } = await supabase
-    .from('subscriptions')
-    .update({
-      provider_agreement_id: agreementId,
-      provider_agreement_metadata: metadata,
-    })
-    .eq('id', subscriptionId)
-    .select()
-    .single();
-
-  if (error) {
-    console.error('Error updating subscription Vipps agreement:', error);
-    return null;
-  }
-
-  return data;
-}
 
 /**
  * Get subscription by Vipps agreement ID

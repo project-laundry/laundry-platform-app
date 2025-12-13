@@ -45,25 +45,6 @@ export async function createPayment(data: CreatePaymentData): Promise<Payment | 
 }
 
 /**
- * Get a payment by ID
- */
-export async function getPaymentById(paymentId: string): Promise<Payment | null> {
-  const supabase = await createAdminClient();
-
-  const { data, error } = await supabase
-    .from('payments')
-    .select('*')
-    .eq('id', paymentId)
-    .single();
-
-  if (error) {
-    return null;
-  }
-
-  return data;
-}
-
-/**
  * Get payment for a subscription
  */
 export async function getPaymentForSubscription(
@@ -81,81 +62,6 @@ export async function getPaymentForSubscription(
 
   if (error) {
     return null;
-  }
-
-  return data;
-}
-
-/**
- * Update payment status to captured (payment successful)
- */
-export async function capturePayment(
-  paymentId: string,
-  providerPaymentId?: string
-): Promise<Payment | null> {
-  const supabase = await createAdminClient();
-
-  const { data, error } = await supabase
-    .from('payments')
-    .update({
-      status: 'captured' as PaymentStatus,
-      captured_at: new Date().toISOString(),
-      provider_payment_id: providerPaymentId || null,
-    })
-    .eq('id', paymentId)
-    .select()
-    .single();
-
-  if (error) {
-    console.error('Error capturing payment:', error);
-    return null;
-  }
-
-  return data;
-}
-
-/**
- * Update payment status to failed
- */
-export async function failPayment(
-  paymentId: string,
-  failureReason?: string
-): Promise<Payment | null> {
-  const supabase = await createAdminClient();
-
-  const { data, error } = await supabase
-    .from('payments')
-    .update({
-      status: 'failed' as PaymentStatus,
-      failed_at: new Date().toISOString(),
-      failure_reason: failureReason || null,
-    })
-    .eq('id', paymentId)
-    .select()
-    .single();
-
-  if (error) {
-    console.error('Error failing payment:', error);
-    return null;
-  }
-
-  return data;
-}
-
-/**
- * Get payments for a customer
- */
-export async function getPaymentsForCustomer(customerId: string): Promise<Payment[]> {
-  const supabase = await createAdminClient();
-
-  const { data, error } = await supabase
-    .from('payments')
-    .select('*')
-    .eq('customer_id', customerId)
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    return [];
   }
 
   return data;
