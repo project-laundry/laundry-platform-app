@@ -150,6 +150,33 @@ export async function getSubscriptionPlanBySlug(
   return data;
 }
 
+/**
+ * Get active subscription for a customer
+ * Returns subscription with status 'pending_payment' or 'active'
+ * Uses admin client to bypass RLS (no SELECT policy on subscriptions table)
+ */
+export async function getActiveSubscriptionByCustomerId(
+  customerId: string
+): Promise<Subscription | null> {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from('subscriptions')
+    .select('*')
+    .eq('customer_id', customerId)
+    .in('status', ['pending_payment', 'active'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching active subscription:', error);
+    return null;
+  }
+
+  return data;
+}
+
 // =============================================================================
 // VIPPS AGREEMENT MANAGEMENT
 // =============================================================================
@@ -161,7 +188,7 @@ export async function getSubscriptionPlanBySlug(
 export async function getSubscriptionByAgreementId(
   agreementId: string
 ): Promise<Subscription | null> {
-  const supabase = await createAdminClient();
+  const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from('subscriptions')

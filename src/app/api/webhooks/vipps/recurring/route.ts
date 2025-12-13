@@ -29,8 +29,7 @@ import {
   updateSubscription,
 } from '@/lib/database/subscriptions';
 import {
-  getPaymentByAgreementAndCharge,
-  authorizePayment,
+  getPaymentByAgreementAndCharge,  
   capturePaymentWithMetadata,
   failPaymentWithMetadata,
   updatePaymentWithMetadata,
