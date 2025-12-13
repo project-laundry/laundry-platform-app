@@ -23,6 +23,7 @@ export interface CreateSubscriptionData {
   delivery_country: string;
   delivery_special_instructions?: string | null;
   billing_cost_ore: number;
+  provider_agreement_id: string;
 }
 
 /**
@@ -53,6 +54,7 @@ export async function createSubscription(
       status: 'pending_payment' as SubscriptionStatus,
       started_at: null,
       next_billing_date: null,
+      provider_agreement_id: data.provider_agreement_id,
     })
     .select()
     .single();
@@ -248,11 +250,12 @@ export async function updateSubscriptionVippsAgreement(
 
 /**
  * Get subscription by Vipps agreement ID
+ * Uses admin client to bypass RLS (no SELECT policy on subscriptions table)
  */
 export async function getSubscriptionByAgreementId(
   agreementId: string
 ): Promise<Subscription | null> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { data, error } = await supabase
     .from('subscriptions')
@@ -261,6 +264,39 @@ export async function getSubscriptionByAgreementId(
     .single();
 
   if (error) {
+    return null;
+  }
+
+  return data;
+}
+
+/**
+ * Activate subscription when Vipps agreement is activated
+ * Sets status to active, started_at to now, and expires_at to one month from now
+ * Uses admin client to bypass RLS (no UPDATE policy on subscriptions table)
+ */
+export async function activateSubscriptionOnAgreementActivation(
+  subscriptionId: string
+): Promise<Subscription | null> {
+  const supabase = createAdminClient();
+
+  const now = new Date();
+  const expiresAt = new Date(now);
+  expiresAt.setMonth(expiresAt.getMonth() + 1);
+
+  const { data, error } = await supabase
+    .from('subscriptions')
+    .update({
+      status: 'active' as SubscriptionStatus,
+      started_at: now.toISOString(),
+      expires_at: expiresAt.toISOString(),
+    })
+    .eq('id', subscriptionId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error activating subscription on agreement activation:', error);
     return null;
   }
 
