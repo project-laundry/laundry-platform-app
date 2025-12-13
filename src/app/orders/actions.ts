@@ -279,27 +279,9 @@ export async function createStandaloneOrderAction(
   // Verify this is a one-time plan
   if (plan.billing_period !== "one_time") {
     return { error: "This action is only for one-time plans" };
-  }
-
-  // Calculate order cost
-  const totalCostOre = calculateBillingCostOre(plan.price_ore, {
-    needsIroning: input.needsIroning,
-    delicateItemsCount: input.delicateItemsCount,
-    extraKg: input.extraKg,
-  });
-
-  // Get weekday from scheduled date for cleaner matching
+  }  
+  
   const scheduledDate = new Date(input.scheduledDate);
-  const pickupWeekday = getWeekdayFromDate(scheduledDate);
-
-  // Calculate delivery date (3 days after pickup)
-  const deliveryDate = addDays(scheduledDate, 3);
-
-  // Find available cleaner
-  const cleaner = await findAvailableCleaner(
-    input.deliveryCity,
-    pickupWeekday,
-  );
 
   // Handle bag delivery if customer doesn't have a bag
   let bagDeliveryId: string | null = null;
@@ -327,7 +309,23 @@ export async function createStandaloneOrderAction(
       console.error("Bag delivery creation error:", error);
       return { error: "Failed to create bag delivery" };
     }
-  }
+  }  
+
+  // Calculate delivery date (3 days after pickup)
+  const deliveryDate = addDays(scheduledDate, 3);
+
+  // Find available cleaner
+  const cleaner = await findAvailableCleaner(
+    input.deliveryCity,
+    scheduledDate,
+  );
+
+  // Calculate order cost
+  const totalCostOre = calculateBillingCostOre(plan.price_ore, {
+    needsIroning: input.needsIroning,
+    delicateItemsCount: input.delicateItemsCount,
+    extraKg: input.extraKg,
+  });
 
   // Create order with pending_payment status
   const order = await createOrder({
