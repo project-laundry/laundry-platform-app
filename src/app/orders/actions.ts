@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { createSubscription } from "@/lib/database/subscriptions";
+import { createSubscription, getActiveSubscriptionByCustomerId } from "@/lib/database/subscriptions";
 import { createPayment } from "@/lib/database/payments";
 import { getSubscriptionPlanBySlug } from "@/lib/database/subscriptions";
 import { getCustomerByUserId } from "@/lib/database/customers";
@@ -43,6 +43,7 @@ export interface CreateSubscriptionInput {
 export interface CreateSubscriptionResult {
   redirectUrl?: string;
   error?: string;
+  displayError?: string;
 }
 
 /**
@@ -67,6 +68,12 @@ export async function createSubscriptionAction(
   const customer = await getCustomerByUserId(user.id);
   if (!customer) {
     return { error: "Customer not found" };
+  }
+
+  // Check if customer already has an active subscription
+  const existingSubscription = await getActiveSubscriptionByCustomerId(customer.id);
+  if (existingSubscription) {
+    return { displayError: "Du har allerede et aktivt abonnement", error: "Customer already has an active subscription" };
   }
 
   // Get subscription plan

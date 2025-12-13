@@ -167,6 +167,10 @@ function ConfirmPageContent() {
           paymentProvider: selectedPayment === 'vipps' ? 'vipps' : 'manual',
         });
 
+        if (result.displayError) {
+          alert(result.displayError);          
+        }
+
         if (result.error) {
           throw new Error(result.error || 'Failed to create subscription');
         }
