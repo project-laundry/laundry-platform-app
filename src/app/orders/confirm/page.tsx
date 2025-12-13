@@ -5,9 +5,8 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { createSubscriptionAction, createStandaloneOrderAction } from '../actions';
-import type { Weekday, PickupMethod } from '@/types/database';
+import type { PickupMethod } from '@/types/database';
 import { OrderData } from '@/types/order-flow';
-import { getWeekdayFromDate } from '@/lib/utils/date';
 
 interface PaymentMethod {
   id: string;

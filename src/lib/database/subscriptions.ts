@@ -260,3 +260,34 @@ export async function updateSubscription(
 
   return data;
 }
+
+/**
+ * Get active subscription with plan details for customer
+ * Returns subscription joined with plan for display purposes
+ * @param customerId - Customer UUID
+ * @returns Subscription with plan details or null
+ */
+export async function getSubscriptionWithPlanByCustomerId(
+  customerId: string
+): Promise<Subscription | null> {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from('subscriptions')
+    .select(`
+      *,
+      plan:subscription_plans!plan_id (*)
+    `)
+    .eq('customer_id', customerId)
+    .in('status', ['pending_payment', 'active'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching subscription with plan:', error);
+    return null;
+  }
+
+  return data;
+}

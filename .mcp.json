@@ -1,19 +1,11 @@
 {
-  "mcpServers": {
-    "clickup": {
-      "type": "stdio",
+  "mcpServers": {    
+    "shadcn": {
       "command": "npx",
       "args": [
-        "-y",
-        "@hauptsache.net/clickup-mcp"
-      ],
-      "env": {
-        "CLICKUP_API_KEY": "pk_260442172_1T953X4JPNZ6GT5HZQS8IK6QMTUG5827",
-        "CLICKUP_TEAM_ID": "90151979469",
-        "CLICKUP_MCP_MODE": "write",
-        "MAX_IMAGES": "16",
-        "MAX_RESPONSE_SIZE_MB": "4"
-      }
+        "shadcn@latest",
+        "mcp"
+      ]
     }
   }
 }

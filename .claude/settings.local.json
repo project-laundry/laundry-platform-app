@@ -7,12 +7,17 @@
       "Bash(ls:*)",
       "Bash(grep:*)",
       "mcp__context7__resolve-library-id",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "Bash(find:*)",
+      "mcp__shadcn__search_items_in_registries",
+      "mcp__shadcn__get_project_registries",
+      "mcp__shadcn__list_items_in_registries",
+      "mcp__shadcn__view_items_in_registries"
     ],
     "deny": [],
     "ask": []
   },
   "enabledMcpjsonServers": [
-    "clickup"
+    "shadcn"
   ]
 }
