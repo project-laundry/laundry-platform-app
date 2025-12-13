@@ -2,17 +2,6 @@
 
 import type { Weekday } from '@/types/database';
 
-// Map Weekday type to JavaScript day number (0 = Sunday, 1 = Monday, etc.)
-const WEEKDAY_TO_DAY_NUMBER: Record<Weekday, number> = {
-  sunday: 0,
-  monday: 1,
-  tuesday: 2,
-  wednesday: 3,
-  thursday: 4,
-  friday: 5,
-  saturday: 6,
-};
-
 // Map JavaScript day number to Weekday type
 const DAY_NUMBER_TO_WEEKDAY: Weekday[] = [
   'sunday',
@@ -43,18 +32,6 @@ export function getWeekdayFromDate(date: Date | string): Weekday {
 export function addDays(date: Date, days: number): Date {
   const result = new Date(date);
   result.setDate(result.getDate() + days);
-  return result;
-}
-
-/**
- * Add months to a date
- * @param date - The starting date
- * @param months - Number of months to add
- * @returns New date
- */
-export function addMonths(date: Date, months: number): Date {
-  const result = new Date(date);
-  result.setMonth(result.getMonth() + months);
   return result;
 }
 

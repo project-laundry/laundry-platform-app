@@ -1,6 +1,6 @@
 'use server';
 
-import { assignCleanerToOrder, getOrdersPendingAssignment } from '@/lib/database/orders';
+import { assignCleanerToOrder } from '@/lib/database/orders';
 import { getAvailableCleanersForCity } from '@/lib/database/cleaners';
 import { createClient } from '@/lib/supabase/server';
 import type { Order, Customer, User } from '@/types/database';

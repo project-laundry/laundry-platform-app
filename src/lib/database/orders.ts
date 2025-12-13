@@ -115,25 +115,6 @@ export async function getOrderById(orderId: string): Promise<Order | null> {
 }
 
 /**
- * Get orders pending assignment
- */
-export async function getOrdersPendingAssignment(): Promise<Order[]> {
-  const supabase = await createAdminClient();
-
-  const { data, error } = await supabase
-    .from('orders')
-    .select('*')
-    .eq('status', 'pending_assignment')
-    .order('scheduled_date', { ascending: true });
-
-  if (error) {
-    return [];
-  }
-
-  return data;
-}
-
-/**
  * Assign a cleaner to an order
  */
 export async function assignCleanerToOrder(
@@ -161,43 +142,6 @@ export async function assignCleanerToOrder(
   return data;
 }
 
-/**
- * Get orders for a subscription
- */
-export async function getOrdersForSubscription(subscriptionId: string): Promise<Order[]> {
-  const supabase = await createAdminClient();
-
-  const { data, error } = await supabase
-    .from('orders')
-    .select('*')
-    .eq('subscription_id', subscriptionId)
-    .order('scheduled_date', { ascending: true });
-
-  if (error) {
-    return [];
-  }
-
-  return data;
-}
-
-/**
- * Get orders for a customer
- */
-export async function getOrdersForCustomer(customerId: string): Promise<Order[]> {
-  const supabase = await createAdminClient();
-
-  const { data, error } = await supabase
-    .from('orders')
-    .select('*')
-    .eq('customer_id', customerId)
-    .order('scheduled_date', { ascending: false });
-
-  if (error) {
-    return [];
-  }
-
-  return data;
-}
 
 /**
  * Update order status

@@ -23,9 +23,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateVippsWebhook, getVippsWebhookSecret } from '@/lib/payments/vipps/webhook-auth';
 import {
-  getSubscriptionByAgreementId,
-  activateSubscription,
-  activateOneTimeSubscription,
+  getSubscriptionByAgreementId,  
   activateSubscriptionOnAgreementActivation,
   getSubscriptionPlanById,
 } from '@/lib/database/subscriptions';

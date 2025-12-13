@@ -1,7 +1,6 @@
 // Customer database operations
 
 import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 import type { Customer } from '@/types/database';
 
 /**
@@ -22,55 +21,6 @@ export async function getCustomerByUserId(userId: string): Promise<Customer | nu
   }
 
   return customer;
-}
-
-/**
- * Get a customer by ID
- */
-export async function getCustomerById(customerId: string): Promise<Customer | null> {
-  const supabase = await createAdminClient();
-
-  const { data, error } = await supabase
-    .from('customers')
-    .select('*')
-    .eq('id', customerId)
-    .single();
-
-  if (error) {
-    return null;
-  }
-
-  return data;
-}
-
-/**
- * Update customer's laundry bags count
- */
-export async function updateLaundryBagsCount(
-  customerId: string,
-  increment: number
-): Promise<boolean> {
-  const supabase = await createClient();
-
-  // Get current count
-  const { data: customer } = await supabase
-    .from('customers')
-    .select('laundry_bags_count')
-    .eq('id', customerId)
-    .single();
-
-  if (!customer) {
-    return false;
-  }
-
-  const newCount = customer.laundry_bags_count + increment;
-
-  const { error } = await supabase
-    .from('customers')
-    .update({ laundry_bags_count: newCount })
-    .eq('id', customerId);
-
-  return !error;
 }
 
 /**
