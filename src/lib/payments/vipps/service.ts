@@ -7,12 +7,7 @@ import {
   getSubscriptionById,
   getSubscriptionPlanById,
 } from '@/lib/database/subscriptions';
-import {
-  createPayment,
-  updatePaymentWithMetadata,
-} from '@/lib/database/payments';
-import { getOrderById } from '@/lib/database/orders';
-import type { Subscription, SubscriptionPlan } from '@/types/database';
+import { createPayment } from '@/lib/database/payments';
 
 // =============================================================================
 // TYPES
@@ -33,7 +28,7 @@ export interface CreateAgreementResult {
  *
  * Flow:
  * 1. Fetch subscription and plan details
- * 2. Create Vipps agreement with initial charge (RESERVE_CAPTURE)
+ * 2. Create Vipps agreement with initial charge (DIRECT_CAPTURE)
  * 3. Create payment record in database
  * 4. Update subscription with agreement metadata
  * 5. Return checkout URL for user redirect
@@ -66,7 +61,7 @@ export async function createVippsAgreementForSubscription(
   // Determine interval based on billing period
   const interval = plan.billing_period === 'one_time' ? 'MONTH' : 'MONTH';
 
-  // Create agreement with initial charge (RESERVE_CAPTURE)
+  // Create agreement with initial charge (DIRECT_CAPTURE)
   const result = await vipps.createAgreement({
     productName: plan.name,
     productDescription: plan.description,
@@ -75,19 +70,21 @@ export async function createVippsAgreementForSubscription(
     initialCharge: {
       amount: subscription.billing_cost_ore,
       description: `${plan.name} - Initial payment`,
-      transactionType: 'RESERVE_CAPTURE', // Two-step: reserve then capture
+      transactionType: 'DIRECT_CAPTURE', // Direct capture for recurring payments
     },
     merchantRedirectUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/vipps/agreements/callback?subscriptionId=${subscriptionId}`,
     merchantAgreementUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
   });
 
   // Create payment record
+  // Use chargeId as provider_reference if initial charge exists, otherwise use agreementId
   const payment = await createPayment({
     customer_id: subscription.customer_id,
     subscription_id: subscription.id,
     payment_type: plan.billing_period === 'one_time' ? 'one_time' : 'recurring',
     amount_ore: subscription.billing_cost_ore,
     payment_provider: 'vipps',
+    provider_reference: result.chargeId || result.agreementId,
   });
 
   if (!payment) {
@@ -116,9 +113,9 @@ export async function createVippsAgreementForSubscription(
  *
  * Flow:
  * 1. Validate subscription has active Vipps agreement
- * 2. Create charge via Vipps API (RESERVE_CAPTURE)
+ * 2. Create charge via Vipps API (DIRECT_CAPTURE)
  * 3. Create payment record in database
- * 4. Webhook will handle reservation and capture
+ * 4. Webhook will handle payment confirmation
  *
  * @param subscriptionId - Subscription ID to create charge for
  * @returns Payment ID for the new charge
@@ -156,7 +153,7 @@ export async function createRecurringChargeForSubscription(
     description: `${plan.name} - Monthly payment`,
     due: dueDateString,
     retryDays: 3, // Vipps will retry for 3 days if payment fails
-    transactionType: 'RESERVE_CAPTURE', // Two-step: reserve then capture
+    transactionType: 'DIRECT_CAPTURE', // Direct capture for recurring payments
   });
 
   // Create payment record
@@ -166,6 +163,7 @@ export async function createRecurringChargeForSubscription(
     payment_type: 'recurring',
     amount_ore: subscription.billing_cost_ore,
     payment_provider: 'vipps',
+    provider_reference: result.chargeId,
   });
 
   if (!payment) {
