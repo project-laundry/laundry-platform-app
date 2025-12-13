@@ -22,7 +22,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { validateVippsWebhook, getVippsWebhookSecret } from '@/lib/payments/vipps/webhook-auth';
-import { captureVippsCharge } from '@/lib/payments/vipps/service';
 import {
   getSubscriptionByAgreementId,
   activateSubscription,
@@ -38,8 +37,7 @@ import {
   updatePaymentWithMetadata,
   getPaymentForSubscription,
 } from '@/lib/database/payments';
-import { findAvailableCleanerForSubscription } from '@/lib/database/cleaners';
-import { generateOrdersForSubscription } from '@/lib/services/order-generation';
+
 
 // =============================================================================
 // TYPES (Official Vipps API Contract)
@@ -292,71 +290,12 @@ async function handleChargeCaptured(
     captured_at: occurred,
   });
 
-  // Activate subscription if it's pending payment
-  if (subscription.status === 'pending_payment') {
-    console.log(`[Vipps Recurring Webhook] Activating new subscription ${subscription.id}`);
-
-    // Get subscription plan
+  // Get subscription plan
     const plan = await getSubscriptionPlanById(subscription.plan_id);
 
     if (!plan) {
       throw new Error('Subscription plan not found');
     }
-
-    // Find available cleaner
-    const availableCleaners = await findAvailableCleanerForSubscription(subscription);
-    const cleanerId = availableCleaners.length > 0 ? availableCleaners[0].id : null;
-
-    // Activate subscription
-    let activatedSubscription;
-    if (plan.billing_period === 'one_time') {
-      activatedSubscription = await activateOneTimeSubscription(subscription.id, cleanerId);
-    } else {
-      activatedSubscription = await activateSubscription(subscription.id, cleanerId);
-    }
-
-    if (!activatedSubscription) {
-      throw new Error('Failed to activate subscription');
-    }
-
-    console.log(`[Vipps Recurring Webhook] Subscription ${subscription.id} activated`);
-
-    // Generate orders
-    await generateOrdersForSubscription(
-      activatedSubscription,
-      plan,
-      {
-        street: subscription.delivery_street,
-        postal_code: subscription.delivery_postal_code,
-        city: subscription.delivery_city,
-        country: subscription.delivery_country,
-        special_instructions: subscription.delivery_special_instructions,
-      }
-    );
-
-    console.log(`[Vipps Recurring Webhook] Initial orders generated for subscription ${subscription.id}`);
-  } else {
-    // Recurring charge succeeded - generate next batch of orders
-    console.log(`[Vipps Recurring Webhook] Recurring charge succeeded for subscription ${subscription.id}`);
-
-    const plan = await getSubscriptionPlanById(subscription.plan_id);
-
-    if (plan) {
-      await generateOrdersForSubscription(
-        subscription,
-        plan,
-        {
-          street: subscription.delivery_street,
-          postal_code: subscription.delivery_postal_code,
-          city: subscription.delivery_city,
-          country: subscription.delivery_country,
-          special_instructions: subscription.delivery_special_instructions,
-        }
-      );
-
-      console.log(`[Vipps Recurring Webhook] Recurring orders generated for subscription ${subscription.id}`);
-    }
-  }
 }
 
 /**

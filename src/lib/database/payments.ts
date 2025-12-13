@@ -11,6 +11,7 @@ export interface CreatePaymentData {
   amount_ore: number;
   payment_provider?: PaymentProvider,
   provider_reference?: string;
+  provider_metadata?: Record<string, unknown>;
 }
 
 /**
@@ -30,6 +31,7 @@ export async function createPayment(data: CreatePaymentData): Promise<Payment | 
       status: 'pending' as PaymentStatus,
       payment_provider: data.payment_provider,
       provider_reference: data.provider_reference,
+      provider_metadata: data.provider_metadata || null,
     })
     .select()
     .single();
