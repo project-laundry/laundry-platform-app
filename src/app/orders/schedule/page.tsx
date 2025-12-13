@@ -195,13 +195,9 @@ export default function SchedulePage() {
       return;
     }
 
-    // Derive weekday from the selected date for recurring plans
-    const pickupWeekday = plan !== 'single' ? getWeekdayFromDate(selectedDate) : undefined;
-
     // Update store with schedule data
     updateOrderData({
       pickupDate: selectedDate, // Always store the selected date (first pickup date)
-      pickupWeekday, // Derived weekday for recurring plans
       pickupTime: FIXED_PICKUP_TIME,
       address,
       pickupMethod,
