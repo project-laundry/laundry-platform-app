@@ -11,16 +11,24 @@ import type { VippsAgreementStatus, VippsChargeStatus } from '@/types/database';
 
 interface VippsCreateAgreementParams {
   productName: string;
-  productDescription: string;
+  productDescription?: string;
   price: number; // in øre (1 NOK = 100 øre)
   interval: 'MONTH' | 'YEAR';
+  phoneNumber?: string; // Customer phone number to simplify the flow
   initialCharge?: {
     amount: number; // in øre
     description: string;
-    transactionType: 'RESERVE_CAPTURE'; // Always use RESERVE_CAPTURE
+    transactionType?: 'DIRECT_CAPTURE' | 'RESERVE_CAPTURE'; // Default: DIRECT_CAPTURE for recurring
   };
   merchantRedirectUrl: string;
   merchantAgreementUrl: string;
+}
+
+interface VippsListAgreementsParams {
+  status?: 'PENDING' | 'ACTIVE' | 'STOPPED' | 'EXPIRED';
+  createdAfter?: number; // Unix timestamp in milliseconds
+  pageNumber?: number;
+  pageSize?: number;
 }
 
 interface VippsCreateChargeParams {
@@ -28,7 +36,7 @@ interface VippsCreateChargeParams {
   description: string;
   due: string; // ISO date (YYYY-MM-DD), minimum 2 days in future
   retryDays: number;
-  transactionType: 'RESERVE_CAPTURE';
+  transactionType?: 'DIRECT_CAPTURE' | 'RESERVE_CAPTURE'; // Default: DIRECT_CAPTURE for recurring
 }
 
 interface VippsCaptureChargeParams {
@@ -58,19 +66,64 @@ export class VippsRecurringClient {
   // ---------------------------------------------------------------------------
 
   /**
+   * List all agreements
+   * Filter by status, creation date, and paginate results
+   */
+  async listAgreements(params?: VippsListAgreementsParams): Promise<Array<{
+    id: string;
+    status: VippsAgreementStatus;
+    start?: string;
+    stop?: string;
+    pricing: {
+      type: string;
+      amount: number;
+      currency: string;
+    };
+    interval: {
+      unit: string;
+      count: number;
+    };
+  }>> {
+    const headers = await this.baseClient.getCommonHeaders();
+
+    // Build query parameters
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.createdAfter) queryParams.append('createdAfter', params.createdAfter.toString());
+    if (params?.pageNumber) queryParams.append('pageNumber', params.pageNumber.toString());
+    if (params?.pageSize) queryParams.append('pageSize', params.pageSize.toString());
+
+    const queryString = queryParams.toString();
+    const url = `${this.baseClient.getBaseUrl()}/recurring/v3/agreements${queryString ? `?${queryString}` : ''}`;
+
+    const response = await fetch(url, { headers });
+
+    if (!response.ok) {
+      await this.baseClient.handleVippsError(response, 'list agreements');
+    }
+
+    return response.json();
+  }
+
+  /**
    * Create recurring payment agreement
    * Returns agreement ID and checkout URL for user approval
    */
   async createAgreement(params: VippsCreateAgreementParams): Promise<{
     agreementId: string;
     vippsConfirmationUrl: string;
+    chargeId?: string;
   }> {
     const headers = await this.baseClient.getCommonHeaders();
 
+    // Generate idempotency key
+    const idempotencyKey = `agreement-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+
     const body = {
       productName: params.productName,
-      productDescription: params.productDescription,
+      ...(params.productDescription && { productDescription: params.productDescription }),
       pricing: {
+        type: 'LEGACY', // Required field per API spec
         amount: params.price,
         currency: 'NOK',
       },
@@ -80,12 +133,13 @@ export class VippsRecurringClient {
       },
       merchantRedirectUrl: params.merchantRedirectUrl,
       merchantAgreementUrl: params.merchantAgreementUrl,
+      ...(params.phoneNumber && { phoneNumber: params.phoneNumber }),
       ...(params.initialCharge && {
         initialCharge: {
           amount: params.initialCharge.amount,
           currency: 'NOK',
           description: params.initialCharge.description,
-          transactionType: 'RESERVE_CAPTURE', // Always use RESERVE_CAPTURE
+          transactionType: params.initialCharge.transactionType || 'DIRECT_CAPTURE', // Default: DIRECT_CAPTURE for recurring
         },
       }),
     };
@@ -94,7 +148,10 @@ export class VippsRecurringClient {
       `${this.baseClient.getBaseUrl()}/recurring/v3/agreements`,
       {
         method: 'POST',
-        headers,
+        headers: {
+          ...headers,
+          'Idempotency-Key': idempotencyKey,
+        },
         body: JSON.stringify(body),
       }
     );
@@ -141,11 +198,17 @@ export class VippsRecurringClient {
   async stopAgreement(agreementId: string): Promise<void> {
     const headers = await this.baseClient.getCommonHeaders();
 
+    // Generate idempotency key
+    const idempotencyKey = `stop-${agreementId}-${Date.now()}`;
+
     const response = await fetch(
       `${this.baseClient.getBaseUrl()}/recurring/v3/agreements/${agreementId}`,
       {
         method: 'PATCH',
-        headers,
+        headers: {
+          ...headers,
+          'Idempotency-Key': idempotencyKey,
+        },
         body: JSON.stringify({
           status: 'STOPPED',
         }),
@@ -157,13 +220,46 @@ export class VippsRecurringClient {
     }
   }
 
+  /**
+   * Force accept an agreement (TEST ENVIRONMENT ONLY)
+   * Used for automated testing without user interaction in the app
+   *
+   * @param agreementId - Agreement ID to force accept
+   * @param phoneNumber - Customer phone number (format: '4712345678')
+   */
+  async forceAcceptAgreement(agreementId: string, phoneNumber: string): Promise<void> {
+    const headers = await this.baseClient.getCommonHeaders();
+
+    // Generate idempotency key
+    const idempotencyKey = `accept-${agreementId}-${Date.now()}`;
+
+    const response = await fetch(
+      `${this.baseClient.getBaseUrl()}/recurring/v3/agreements/${agreementId}/accept`,
+      {
+        method: 'PATCH',
+        headers: {
+          ...headers,
+          'Idempotency-Key': idempotencyKey,
+        },
+        body: JSON.stringify({
+          phoneNumber,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      await this.baseClient.handleVippsError(response, 'force accept agreement');
+    }
+  }
+
   // ---------------------------------------------------------------------------
-  // CHARGES (RESERVE_CAPTURE)
+  // CHARGES
   // ---------------------------------------------------------------------------
 
   /**
    * Create charge on agreement (scheduled recurring payment)
-   * Uses RESERVE_CAPTURE - funds will be reserved first, then must be captured
+   * Default: DIRECT_CAPTURE (immediate payment)
+   * Optional: RESERVE_CAPTURE (two-step: reserve then capture)
    */
   async createCharge(agreementId: string, params: VippsCreateChargeParams): Promise<{
     chargeId: string;
@@ -171,7 +267,7 @@ export class VippsRecurringClient {
     const headers = await this.baseClient.getCommonHeaders();
 
     // Generate idempotency key to prevent duplicate charges
-    const idempotencyKey = `${agreementId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const idempotencyKey = `${agreementId}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 
     const body = {
       amount: params.amount,
@@ -179,7 +275,7 @@ export class VippsRecurringClient {
       description: params.description,
       due: params.due,
       retryDays: params.retryDays,
-      transactionType: 'RESERVE_CAPTURE', // Always use RESERVE_CAPTURE
+      transactionType: params.transactionType || 'DIRECT_CAPTURE', // Default: DIRECT_CAPTURE for recurring
       type: 'RECURRING',
     };
 
@@ -236,7 +332,44 @@ export class VippsRecurringClient {
   }
 
   /**
-   * Capture reserved charge (CRITICAL for RESERVE_CAPTURE flow)
+   * Get charge by ID only (without knowing agreement ID)
+   * This is a special endpoint useful for investigating customer claims
+   * NOT intended for automation - use getCharge() for normal operations
+   */
+  async getChargeById(chargeId: string): Promise<{
+    id: string;
+    agreementId: string;
+    status: VippsChargeStatus;
+    amount: number;
+    transactionId?: string;
+    due: string;
+    type: string;
+    transactionType: string;
+    summary?: {
+      captured: number;
+      refunded: number;
+      cancelled: number;
+    };
+  }> {
+    const headers = await this.baseClient.getCommonHeaders();
+
+    const response = await fetch(
+      `${this.baseClient.getBaseUrl()}/recurring/v3/charges/${chargeId}`,
+      {
+        headers,
+      }
+    );
+
+    if (!response.ok) {
+      await this.baseClient.handleVippsError(response, 'get charge by id');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Capture reserved charge (ONLY for RESERVE_CAPTURE flow)
+   * NOT needed for DIRECT_CAPTURE (default for recurring payments)
    * Must be called after charge status becomes RESERVED
    * Supports full or partial capture
    */
