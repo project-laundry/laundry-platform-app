@@ -43,16 +43,16 @@ Register these two webhooks in your Vipps dashboard:
 
 - URL: <https://yourdomain.com/api/webhooks/vipps/recurring>
 - Events to subscribe:
-  - recurring.charge.reserved.v1
-  - recurring.charge.captured.v1
-  - recurring.charge.canceled.v1
-  - recurring.charge.refunded.v1
-  - recurring.charge.failed.v1
-  - recurring.charge.creation-failed.v1
-  - recurring.agreement.activated.v1
-  - recurring.agreement.rejected.v1
-  - recurring.agreement.stopped.v1
-  - recurring.agreement.expired.v1
+  - recurring.charge-reserved.v1
+  - recurring.charge-captured.v1
+  - recurring.charge-canceled.v1
+  - recurring.charge-refunded.v1
+  - recurring.charge-failed.v1
+  - recurring.charge-creation-failed.v1
+  - recurring.agreement-activated.v1
+  - recurring.agreement-rejected.v1
+  - recurring.agreement-stopped.v1
+  - recurring.agreement-expired.v1
 
   Webhook 2: One-Time Payments
 
