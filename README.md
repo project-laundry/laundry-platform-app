@@ -35,48 +35,47 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
-## Register vipps webhook
+## Webhook Configuration in Vipps Dashboard
 
-First fetch a token
+Register these two webhooks in your Vipps dashboard:
 
-```bash
-curl -X POST 'https://apitest.vipps.no/accesstoken/get' \
--H "Content-Type: application/json" \
--H 'client_id: 363e40cc-cb69-4624-93a6-ba14b84985aa' \
--H 'client_secret: cre8Q~u9Y9nmtGMVOJkqFpqbWUm6BFCMZNdCicL3' \
--H 'Ocp-Apim-Subscription-Key: 32d03ef6150cddb7a4a35624fcfd1a96' \
--H 'Merchant-Serial-Number: 427700' \
---data ''
-```
+  Webhook 1: Recurring Payments
 
-Then register the webhook
+- URL: <https://yourdomain.com/api/webhooks/vipps/recurring>
+- Events to subscribe:
+  - recurring.charge.reserved.v1
+  - recurring.charge.captured.v1
+  - recurring.charge.canceled.v1
+  - recurring.charge.refunded.v1
+  - recurring.charge.failed.v1
+  - recurring.charge.creation-failed.v1
+  - recurring.agreement.activated.v1
+  - recurring.agreement.rejected.v1
+  - recurring.agreement.stopped.v1
+  - recurring.agreement.expired.v1
 
-```bash
-curl -X POST https://apitest.vipps.no/webhooks/v1/webhooks \
--H "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6InJ0c0ZULWItN0x1WTdEVlllU05LY0lKN1ZuYyIsImtpZCI6InJ0c0ZULWItN0x1WTdEVlllU05LY0lKN1ZuYyJ9.eyJhdWQiOiIzNjNlNDBjYy1jYjY5LTQ2MjQtOTNhNi1iYTE0Yjg0OTg1YWEiLCJpc3MiOiJodHRwczovL3N0cy53aW5kb3dzLm5ldC9lNTExNjUyNi01MWRjLTRjMTQtYjA4Ni1hNWNiNDcxNmJjNGIvIiwiaWF0IjoxNzY1NDY2MjMyLCJuYmYiOjE3NjU0NjYyMzIsImV4cCI6MTc2NTQ3MDEzMiwiYWlvIjoiazJKZ1lQaFM5WWxobHBPMU1NdnVSMWFLRE9VbkFRPT0iLCJhcHBpZCI6IjM2M2U0MGNjLWNiNjktNDYyNC05M2E2LWJhMTRiODQ5ODVhYSIsImFwcGlkYWNyIjoiMSIsImlkcCI6Imh0dHBzOi8vc3RzLndpbmRvd3MubmV0L2U1MTE2NTI2LTUxZGMtNGMxNC1iMDg2LWE1Y2I0NzE2YmM0Yi8iLCJvaWQiOiJkNGYyNzlmNi1mZDI5LTRjYzQtYThiYy1lNjg5MTE2NDllNTQiLCJyaCI6IjEuQVNBQUptVVI1ZHhSRkV5d2hxWExSeGE4Uzh4QVBqWnB5eVJHazZhNkZMaEpoYW85QVFBZ0FBLiIsInN1YiI6ImQ0ZjI3OWY2LWZkMjktNGNjNC1hOGJjLWU2ODkxMTY0OWU1NCIsInRpZCI6ImU1MTE2NTI2LTUxZGMtNGMxNC1iMDg2LWE1Y2I0NzE2YmM0YiIsInV0aSI6IkxXLWJnaHVrUmtPMHdSUFNPWEVTQUEiLCJ2ZXIiOiIxLjAiLCJ4bXNfZnRkIjoiZ2FSbmVVb0VtWUw1d01IeTFkUl9lbHAtcnBZeWhuMFdPY1dUbTVXejZQb0JjM2RsWkdWdVl5MWtjMjF6In0.hJ325vAvCRNdtKmHqgyUT0Zh4bFvw-TdBegW6SnqyYg3hem2xuZx50wSMspDFPVl_Cdr6QgJq9rHbNH8XQ5O3myGP7jWWmPbjq7J1ejG4EcJ5ujErCilD25Y3k6uIaNV6rUnWC5jQMUM2leF8dop6ZkPuKw75EtI076UeWPJ7qV6b3G5y2wdVipMFVnJi9nH908RPRBDChRvCGxHvhREBQb-1MaXZEB4GTyHT2ruD9q3_pX-IIixQgZrh7M_0xQFhag7tTnGm-yW1aJjM2yptZYK-xax5_igWto8Lbx4j043HrorDXM84AZLdQHFkwwsPVQX_gQC5ACwmH2ul9OEuQ" \
--H "Ocp-Apim-Subscription-Key: 32d03ef6150cddb7a4a35624fcfd1a96" \
--H "Merchant-Serial-Number: 427700" \
---data '{
-    "url": "https://charlotte-unbearing-odiously.ngrok-free.dev/api/webhooks/vipps",
-    "events": ["epayments.payment.created.v1"]
-}'
-```
+  Webhook 2: One-Time Payments
 
+- URL: <https://yourdomain.com/api/webhooks/vipps/epayment>
+- Events to subscribe:
+  - epayments.payment.created.v1
+  - epayments.payment.authorized.v1
+  - epayments.payment.captured.v1
+  - epayments.payment.refunded.v1
+  - epayments.payment.cancelled.v1
+  - epayments.payment.aborted.v1
+  - epayments.payment.expired.v1
+  - epayments.payment.terminated.v1
 
-```bash
-curl -X GET https://apitest.vipps.no/webhooks/v1/webhooks \
--H "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6InJ0c0ZULWItN0x1WTdEVlllU05LY0lKN1ZuYyIsImtpZCI6InJ0c0ZULWItN0x1WTdEVlllU05LY0lKN1ZuYyJ9.eyJhdWQiOiIzNjNlNDBjYy1jYjY5LTQ2MjQtOTNhNi1iYTE0Yjg0OTg1YWEiLCJpc3MiOiJodHRwczovL3N0cy53aW5kb3dzLm5ldC9lNTExNjUyNi01MWRjLTRjMTQtYjA4Ni1hNWNiNDcxNmJjNGIvIiwiaWF0IjoxNzY1NDY2MjMyLCJuYmYiOjE3NjU0NjYyMzIsImV4cCI6MTc2NTQ3MDEzMiwiYWlvIjoiazJKZ1lQaFM5WWxobHBPMU1NdnVSMWFLRE9VbkFRPT0iLCJhcHBpZCI6IjM2M2U0MGNjLWNiNjktNDYyNC05M2E2LWJhMTRiODQ5ODVhYSIsImFwcGlkYWNyIjoiMSIsImlkcCI6Imh0dHBzOi8vc3RzLndpbmRvd3MubmV0L2U1MTE2NTI2LTUxZGMtNGMxNC1iMDg2LWE1Y2I0NzE2YmM0Yi8iLCJvaWQiOiJkNGYyNzlmNi1mZDI5LTRjYzQtYThiYy1lNjg5MTE2NDllNTQiLCJyaCI6IjEuQVNBQUptVVI1ZHhSRkV5d2hxWExSeGE4Uzh4QVBqWnB5eVJHazZhNkZMaEpoYW85QVFBZ0FBLiIsInN1YiI6ImQ0ZjI3OWY2LWZkMjktNGNjNC1hOGJjLWU2ODkxMTY0OWU1NCIsInRpZCI6ImU1MTE2NTI2LTUxZGMtNGMxNC1iMDg2LWE1Y2I0NzE2YmM0YiIsInV0aSI6IkxXLWJnaHVrUmtPMHdSUFNPWEVTQUEiLCJ2ZXIiOiIxLjAiLCJ4bXNfZnRkIjoiZ2FSbmVVb0VtWUw1d01IeTFkUl9lbHAtcnBZeWhuMFdPY1dUbTVXejZQb0JjM2RsWkdWdVl5MWtjMjF6In0.hJ325vAvCRNdtKmHqgyUT0Zh4bFvw-TdBegW6SnqyYg3hem2xuZx50wSMspDFPVl_Cdr6QgJq9rHbNH8XQ5O3myGP7jWWmPbjq7J1ejG4EcJ5ujErCilD25Y3k6uIaNV6rUnWC5jQMUM2leF8dop6ZkPuKw75EtI076UeWPJ7qV6b3G5y2wdVipMFVnJi9nH908RPRBDChRvCGxHvhREBQb-1MaXZEB4GTyHT2ruD9q3_pX-IIixQgZrh7M_0xQFhag7tTnGm-yW1aJjM2yptZYK-xax5_igWto8Lbx4j043HrorDXM84AZLdQHFkwwsPVQX_gQC5ACwmH2ul9OEuQ" \
--H "Ocp-Apim-Subscription-Key: 32d03ef6150cddb7a4a35624fcfd1a96" \
--H "Merchant-Serial-Number: 427700" \
---data ''
-```
+  Environment Variables
 
+  You can use either a shared secret or separate secrets:
 
-| 'epayments.payment.created.v1'
-  | 'epayments.payment.aborted.v1'
-  | 'epayments.payment.expired.v1'
-  | 'epayments.payment.cancelled.v1'
-  | 'epayments.payment.captured.v1'
-  | 'epayments.payment.refunded.v1'
-  | 'epayments.payment.authorized.v1'
-  | 'epayments.payment.terminated.v1';
+  Option 1: Shared Secret (simpler)
+  VIPPS_WEBHOOK_SECRET=your-webhook-secret
+
+  Option 2: Separate Secrets (more secure)
+  VIPPS_WEBHOOK_SECRET_RECURRING=your-recurring-webhook-secret
+  VIPPS_WEBHOOK_SECRET_EPAYMENT=your-epayment-webhook-secret
+
+  The webhook utility will try the endpoint-specific secret first, then fall back to the shared secret if not found.
