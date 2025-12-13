@@ -117,15 +117,17 @@ export async function createSubscriptionAction(
   if (!subscription) {
     return { error: "Failed to create subscription" };
   }
-
-  
   
   const payment = await createPayment({
     customer_id: customer.id,
     subscription_id: subscription.id,
     payment_type: "recurring",
     amount_ore: billingCostOre,
-    payment_provider: input.paymentProvider
+    payment_provider: input.paymentProvider,
+    provider_metadata: {
+      vipps_agreement_id: agreementResponse.agreementId,
+      vipps_charge_id: agreementResponse.chargeId,
+    }
   });
 
   if (!payment) {

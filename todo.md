@@ -1,0 +1,1 @@
+- I think we can remove payment_type from Payment. All payments should be tracked. And also we can just see the subscription_id if the payment is a subscription or not.

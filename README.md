@@ -79,3 +79,6 @@ Register these two webhooks in your Vipps dashboard:
   VIPPS_WEBHOOK_SECRET_EPAYMENT=your-epayment-webhook-secret
 
   The webhook utility will try the endpoint-specific secret first, then fall back to the shared secret if not found.
+
+
+I need a new column in subscription called reference. There should be generated a string that should be set in the database and also set at the externalId field in CreateAgreement endpoint to Vipps.  

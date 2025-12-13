@@ -35,35 +35,6 @@ export function getWeekdayFromDate(date: Date | string): Weekday {
 }
 
 /**
- * Get the next N occurrences of a specific weekday after a given date
- * @param startDate - The date to start from (exclusive)
- * @param weekday - The target weekday
- * @param count - Number of occurrences to find
- * @returns Array of dates
- */
-export function getNextWeekdayOccurrences(
-  startDate: Date,
-  weekday: Weekday,
-  count: number
-): Date[] {
-  const targetDay = WEEKDAY_TO_DAY_NUMBER[weekday];
-  const dates: Date[] = [];
-
-  // Start from the day after startDate
-  const current = new Date(startDate);
-  current.setDate(current.getDate() + 1);
-
-  while (dates.length < count) {
-    if (current.getDay() === targetDay) {
-      dates.push(new Date(current));
-    }
-    current.setDate(current.getDate() + 1);
-  }
-
-  return dates;
-}
-
-/**
  * Add days to a date
  * @param date - The starting date
  * @param days - Number of days to add

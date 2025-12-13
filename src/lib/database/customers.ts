@@ -1,6 +1,7 @@
 // Customer database operations
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import type { Customer } from '@/types/database';
 
 /**
@@ -27,7 +28,7 @@ export async function getCustomerByUserId(userId: string): Promise<Customer | nu
  * Get a customer by ID
  */
 export async function getCustomerById(customerId: string): Promise<Customer | null> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { data, error } = await supabase
     .from('customers')
