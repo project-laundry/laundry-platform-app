@@ -8,7 +8,8 @@ import {
   getSubscriptionStatusVariant,
   getSubscriptionFrequencyLabel,
 } from '@/lib/utils/subscription-status';
-import type { Subscription } from '@/types/database';
+import { getOrderStatusLabel, getOrderStatusVariant } from '@/lib/utils/order-status';
+import type { Subscription, OrderWithRelations } from '@/types/database';
 
 interface SubscriptionCardProps {
   subscription: Subscription & {
@@ -18,9 +19,10 @@ interface SubscriptionCardProps {
       included_kg: number;
     } | null;
   };
+  nextOrder?: OrderWithRelations | null;
 }
 
-export function SubscriptionCard({ subscription }: SubscriptionCardProps) {
+export function SubscriptionCard({ subscription, nextOrder }: SubscriptionCardProps) {
   const { plan, status, billing_cost_ore, next_billing_date, recurring_weekday } = subscription;
 
   return (
@@ -66,8 +68,57 @@ export function SubscriptionCard({ subscription }: SubscriptionCardProps) {
             )}
           </div>
 
-          {next_billing_date && (
+          {/* Next Order Section */}
+          {nextOrder && (
             <div className="mt-6 pt-6 border-t border-gray-100">
+              <div className="bg-blue-50/30 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm text-medium-gray font-medium">Kommende vask</p>
+                  <Badge variant={getOrderStatusVariant(nextOrder.status)}>
+                    {getOrderStatusLabel(nextOrder.status)}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-medium-gray mb-1">Bestilling</p>
+                    <Link href={`/orders/${nextOrder.id}`} className="text-nordic-blue hover:underline font-semibold text-sm">
+                      #{nextOrder.order_number}
+                    </Link>
+                  </div>
+                  <div>
+                    <p className="text-xs text-medium-gray mb-1">Renser</p>
+                    <p className="text-sm font-medium text-dark-gray">
+                      {nextOrder.cleaner?.display_name || 'Ikke tildelt'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-medium-gray mb-1">Henting</p>
+                    <p className="text-sm font-medium text-dark-gray">
+                      {new Date(nextOrder.scheduled_date).toLocaleDateString('no-NO', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-medium-gray mb-1">Levering</p>
+                    <p className="text-sm font-medium text-dark-gray">
+                      {new Date(nextOrder.delivery_date).toLocaleDateString('no-NO', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Next Billing Date Section */}
+          {next_billing_date && (
+            <div className={nextOrder ? 'mt-4' : 'mt-6 pt-6 border-t border-gray-100'}>
               <div className="bg-blue-50/30 rounded-lg p-4">
                 <p className="text-sm text-medium-gray mb-1 font-medium">Neste faktura</p>
                 <p className="text-base font-semibold text-dark-gray">

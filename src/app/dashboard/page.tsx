@@ -7,7 +7,6 @@ import { getUpcomingOrdersByCustomerId, getCompletedOrdersByCustomerId } from '@
 import { LogoutButton } from '@/components/ui/LogoutButton';
 import { SubscriptionCard } from '@/components/dashboard/SubscriptionCard';
 import { EmptySubscriptionState } from '@/components/dashboard/EmptySubscriptionState';
-import { UpcomingOrdersList } from '@/components/dashboard/UpcomingOrdersList';
 import { OrderHistorySection } from '@/components/dashboard/OrderHistorySection';
 
 export default async function DashboardPage() {
@@ -28,6 +27,7 @@ export default async function DashboardPage() {
   // Get subscription and orders
   const subscription = await getSubscriptionWithPlanByCustomerId(customer.id);
   const upcomingOrders = await getUpcomingOrdersByCustomerId(customer.id);
+  const nextOrder = upcomingOrders.length > 0 ? upcomingOrders[0] : null;
   const completedOrders = await getCompletedOrdersByCustomerId(customer.id);
 
   const userName = user.user_metadata?.full_name || 'Bruker';
@@ -55,16 +55,10 @@ export default async function DashboardPage() {
         <section className="mb-10">
           <h2 className="text-3xl font-bold text-dark-gray mb-6">Min abonnement</h2>
           {subscription ? (
-            <SubscriptionCard subscription={subscription} />
+            <SubscriptionCard subscription={subscription} nextOrder={nextOrder} />
           ) : (
             <EmptySubscriptionState />
           )}
-        </section>
-
-        {/* Upcoming Orders Section */}
-        <section className="mb-10">
-          <h2 className="text-3xl font-bold text-dark-gray mb-6">Kommende vasker</h2>
-          <UpcomingOrdersList orders={upcomingOrders} />
         </section>
 
         {/* Order History Section */}
