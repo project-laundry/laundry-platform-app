@@ -1,7 +1,7 @@
 // Order database operations
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import type { Order, OrderStatus, PickupMethod } from '@/types/database';
+import type { Order, OrderStatus, PickupMethod, OrderWithRelations } from '@/types/database';
 import { generateOrderNumber } from '@/lib/utils/order-number';
 
 export interface CreateOrderData {
@@ -184,4 +184,108 @@ export async function updateOrderStatus(
   }
 
   return data;
+}
+
+/**
+ * Get upcoming orders for a customer
+ * Returns orders that are not yet completed or cancelled
+ */
+export async function getUpcomingOrdersByCustomerId(
+  customerId: string
+): Promise<OrderWithRelations[]> {
+  const supabase = await createAdminClient();
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select(`
+      *,
+      plan:subscription_plans(*),
+      cleaner:cleaners(
+        *,
+        user:users(*)
+      ),
+      subscription:subscriptions(*)
+    `)
+    .eq('customer_id', customerId)
+    .in('status', [
+      'pending_assignment',
+      'pickup_scheduled',
+      'picked_up',
+      'in_cleaning',
+      'ready_for_delivery',
+      'out_for_delivery'
+    ])
+    .order('scheduled_date', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching upcoming orders:', error);
+    return [];
+  }
+
+  return data as OrderWithRelations[];
+}
+
+/**
+ * Get completed orders for a customer
+ * Returns orders that are completed or cancelled
+ */
+export async function getCompletedOrdersByCustomerId(
+  customerId: string
+): Promise<OrderWithRelations[]> {
+  const supabase = await createAdminClient();
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select(`
+      *,
+      plan:subscription_plans(*),
+      cleaner:cleaners(
+        *,
+        user:users(*)
+      ),
+      subscription:subscriptions(*)
+    `)
+    .eq('customer_id', customerId)
+    .in('status', ['completed', 'cancelled'])
+    .order('completed_at', { ascending: false, nullsFirst: false });
+
+  if (error) {
+    console.error('Error fetching completed orders:', error);
+    return [];
+  }
+
+  return data as OrderWithRelations[];
+}
+
+/**
+ * Get a single order with full details for a customer
+ * Returns null if order doesn't exist or doesn't belong to customer
+ */
+export async function getOrderWithDetailsByIdAndCustomerId(
+  orderId: string,
+  customerId: string
+): Promise<OrderWithRelations | null> {
+  const supabase = await createAdminClient();
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select(`
+      *,
+      plan:subscription_plans(*),
+      cleaner:cleaners(
+        *,
+        user:users(*)
+      ),
+      subscription:subscriptions(*)
+    `)
+    .eq('id', orderId)
+    .eq('customer_id', customerId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching order details:', error);
+    return null;
+  }
+
+  return data as OrderWithRelations;
 }

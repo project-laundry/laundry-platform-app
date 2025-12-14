@@ -24,7 +24,7 @@ export function SubscriptionCard({ subscription }: SubscriptionCardProps) {
   const { plan, status, billing_cost_ore, next_billing_date, recurring_weekday } = subscription;
 
   return (
-    <div className="max-w-md mx-auto space-y-4">
+    <div className="space-y-4">
       {/* Subscription Details Card */}
       <Card>
         <CardContent className="p-6">
@@ -80,11 +80,11 @@ export function SubscriptionCard({ subscription }: SubscriptionCardProps) {
         </CardContent>
       </Card>
 
-      {/* Discrete Additional Order Button */}
-      <div className="text-center">
-        <Link href="/orders/schedule">
-          <Button variant="ghost" size="sm" className="text-medium-gray hover:text-dark-gray">
-            Trenger du ekstra vask?
+      {/* Manage Subscription Button */}
+      <div>
+        <Link href="/dashboard/subscription/manage">
+          <Button variant="outline" size="lg" className="w-full">
+            Administrer abonnement
           </Button>
         </Link>
       </div>

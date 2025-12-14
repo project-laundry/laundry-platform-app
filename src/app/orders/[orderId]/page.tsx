@@ -1,79 +1,65 @@
-'use client';
-
-import { useState, useEffect } from 'react';
+import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server';
+import { getCustomerByUserId } from '@/lib/database/customers';
+import { getOrderWithDetailsByIdAndCustomerId } from '@/lib/database/orders';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { getOrderStatusLabel, getOrderStatusVariant } from '@/lib/utils/order-status';
+import { oreToNok } from '@/lib/config/pricing';
+import type { OrderStatus } from '@/types/database';
 
-interface OrderStatus {
-  id: string;
-  status: 'pending' | 'assigned' | 'awaiting_pickup' | 'picked_up' | 'in_progress' | 'ready_for_delivery' | 'delivered';
-  assignedCleaner?: {
-    name: string;
-    rating: number;
-    phone: string;
-  };
-  photoUploaded?: boolean;
+interface OrderPageProps {
+  params: Promise<{ orderId: string }>;
 }
 
-const statusLabels = {
-  pending: 'Venter på tildeling',
-  assigned: 'Tildelt renser',
-  awaiting_pickup: 'Venter på henting',
-  picked_up: 'Hentet',
-  in_progress: 'Under vask',
-  ready_for_delivery: 'Klar for levering',
-  delivered: 'Levert'
-};
-
-const statusSteps = [
-  { key: 'pending', label: 'Bestilling mottatt', icon: '📝' },
-  { key: 'assigned', label: 'Renser tildelt', icon: '👤' },
-  { key: 'awaiting_pickup', label: 'Last opp bilde av pose', icon: '📸' },
-  { key: 'picked_up', label: 'Hentet', icon: '🚗' },  
-  { key: 'delivered', label: 'Levert', icon: '✅' }
+// Define status steps for timeline
+const STATUS_TIMELINE: { status: OrderStatus; label: string }[] = [
+  { status: 'pending_assignment', label: 'Bestilling mottatt' },
+  { status: 'pickup_scheduled', label: 'Renser tildelt' },
+  { status: 'picked_up', label: 'Hentet' },
+  { status: 'in_cleaning', label: 'Under vask' },
+  { status: 'ready_for_delivery', label: 'Klar for levering' },
+  { status: 'out_for_delivery', label: 'Leveres' },
+  { status: 'completed', label: 'Fullført' },
 ];
 
-export default function OrderTrackingPage() {
-  const params = useParams();
-  const orderId = params.orderId as string;
-  const [orderData, setOrderData] = useState<OrderStatus | null>(null);
+function getStatusStep(currentStatus: OrderStatus): number {
+  const index = STATUS_TIMELINE.findIndex(s => s.status === currentStatus);
+  return index >= 0 ? index : -1;
+}
 
-  useEffect(() => {
-    // Mock order data - in real app this would come from API
-    const mockOrder: OrderStatus = {
-      id: orderId,
-      status: 'awaiting_pickup',
-      assignedCleaner: {
-        name: 'Lisa Hansen',
-        rating: 4.9,
-        phone: '+47 987 65 432'
-      },
-      photoUploaded: false
-    };
+function getStepState(stepIndex: number, currentStepIndex: number, orderStatus: OrderStatus): 'completed' | 'current' | 'upcoming' {
+  if (orderStatus === 'cancelled') return 'upcoming';
+  if (stepIndex < currentStepIndex) return 'completed';
+  if (stepIndex === currentStepIndex) return 'current';
+  return 'upcoming';
+}
 
-    setOrderData(mockOrder);
-  }, [orderId]);
+export default async function OrderDetailPage({ params }: OrderPageProps) {
+  const { orderId } = await params;
 
-  const getStepStatus = (stepKey: string) => {
-    if (!orderData) return 'upcoming';
+  // Auth check
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-    const currentIndex = statusSteps.findIndex(step => step.key === orderData.status);
-    const stepIndex = statusSteps.findIndex(step => step.key === stepKey);
-
-    if (stepIndex < currentIndex) return 'completed';
-    if (stepIndex === currentIndex) return 'current';
-    return 'upcoming';
-  };
-
-  if (!orderData) {
-    return (
-      <div className="min-h-screen bg-soft-gray flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-dark-gray mb-4">Laster bestilling...</h2>
-        </div>
-      </div>
-    );
+  if (!user) {
+    redirect('/auth/login');
   }
+
+  // Get customer
+  const customer = await getCustomerByUserId(user.id);
+  if (!customer) {
+    redirect('/auth/signup');
+  }
+
+  // Get order with details
+  const order = await getOrderWithDetailsByIdAndCustomerId(orderId, customer.id);
+  if (!order) {
+    notFound();
+  }
+
+  const currentStepIndex = getStatusStep(order.status);
 
   return (
     <div className="min-h-screen bg-soft-gray">
@@ -84,165 +70,247 @@ export default function OrderTrackingPage() {
             <Link href="/dashboard" className="inline-block">
               <h1 className="text-2xl font-bold text-nordic-blue">NooraCare</h1>
             </Link>
-            <span className="text-medium-gray">Bestilling {orderId}</span>
+            <span className="text-medium-gray">Bestilling #{order.order_number}</span>
           </div>
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-dark-gray mb-4">Følg din bestilling</h2>
-          <p className="text-xl text-medium-gray">
-            Bestilling #{orderId} • {statusLabels[orderData.status]}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-3xl font-bold text-dark-gray">Bestilling #{order.order_number}</h2>
+            <Badge variant={getOrderStatusVariant(order.status)} className="text-sm">
+              {getOrderStatusLabel(order.status)}
+            </Badge>
+          </div>
+          <p className="text-medium-gray">
+            {order.plan?.name || 'Klesvask'}
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
+        <div className="grid lg:grid-cols-3 gap-6">
           {/* Status Timeline */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-2xl p-8">
-              <h3 className="text-xl font-semibold text-dark-gray mb-8">Status</h3>
-
-              <div className="space-y-8">
-                {statusSteps.map((step, index) => {
-                  const status = getStepStatus(step.key);
-                  return (
-                    <div key={step.key} className="flex items-start">
-                      {/* Icon */}
-                      <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center text-xl ${
-                        status === 'completed' ? 'bg-success-green text-white' :
-                        status === 'current' ? 'bg-nordic-blue text-white' :
-                        'bg-gray-200 text-gray-500'
-                      }`}>
-                        {status === 'completed' ? '✓' : step.icon}
-                      </div>
-
-                      {/* Content */}
-                      <div className="ml-4 flex-1">
-                        <h4 className={`text-lg font-semibold ${
-                          status === 'completed' ? 'text-success-green' :
-                          status === 'current' ? 'text-nordic-blue' :
-                          'text-gray-500'
-                        }`}>
-                          {step.label}
-                        </h4>
-
-                        {/* Special content for current step */}
-                        {status === 'current' && step.key === 'assigned' && orderData.assignedCleaner && (
-                          <div className="mt-2 p-4 bg-blue-50 rounded-lg">
-                            <p className="text-sm text-blue-800 mb-2">
-                              <strong>{orderData.assignedCleaner.name}</strong> er tildelt din bestilling
-                            </p>
-                            <div className="flex items-center space-x-4 text-sm text-blue-700">
-                              <span>⭐ {orderData.assignedCleaner.rating}/5</span>
-                              <span>📞 {orderData.assignedCleaner.phone}</span>
-                            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Status</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {order.status === 'cancelled' ? (
+                  <div className="text-center py-8">
+                    <p className="text-lg font-semibold text-red-600 mb-2">Bestilling kansellert</p>
+                    {order.cancellation_reason && (
+                      <p className="text-sm text-medium-gray">{order.cancellation_reason}</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {STATUS_TIMELINE.map((step, index) => {
+                      const state = getStepState(index, currentStepIndex, order.status);
+                      return (
+                        <div key={step.status} className="flex items-start">
+                          {/* Icon */}
+                          <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold ${
+                            state === 'completed' ? 'bg-success-green text-white' :
+                            state === 'current' ? 'bg-nordic-blue text-white' :
+                            'bg-gray-200 text-gray-500'
+                          }`}>
+                            {state === 'completed' ? '✓' : index + 1}
                           </div>
-                        )}
 
-                        {status === 'current' && step.key === 'awaiting_pickup' && (
-                          <div className="mt-2 p-4 bg-blue-50 rounded-lg">
-                            <p className="text-sm text-blue-800 mb-3">
-                              Last opp et bilde av vaskepose så sjåføren enkelt kan finne den
-                            </p>
-                            {!orderData.photoUploaded ? (
-                              <Link
-                                href="/orders/upload-photo"
-                                className="inline-block bg-nordic-blue text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors"
-                              >
-                                📸 Last opp bilde nå
-                              </Link>
-                            ) : (
-                              <div className="flex items-center text-sm text-green-700">
-                                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                </svg>
-                                Bilde lastet opp
-                              </div>
+                          {/* Content */}
+                          <div className="ml-4 flex-1">
+                            <h4 className={`font-semibold ${
+                              state === 'completed' ? 'text-success-green' :
+                              state === 'current' ? 'text-nordic-blue' :
+                              'text-gray-500'
+                            }`}>
+                              {step.label}
+                            </h4>
+
+                            {/* Show timestamp if available */}
+                            {state === 'completed' && (
+                              <p className="text-sm text-medium-gray mt-1">
+                                {step.status === 'picked_up' && order.picked_up_at &&
+                                  new Date(order.picked_up_at).toLocaleString('no-NO', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                {step.status === 'in_cleaning' && order.in_cleaning_at &&
+                                  new Date(order.in_cleaning_at).toLocaleString('no-NO', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                {step.status === 'ready_for_delivery' && order.ready_for_delivery_at &&
+                                  new Date(order.ready_for_delivery_at).toLocaleString('no-NO', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                {step.status === 'out_for_delivery' && order.out_for_delivery_at &&
+                                  new Date(order.out_for_delivery_at).toLocaleString('no-NO', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                {step.status === 'completed' && order.completed_at &&
+                                  new Date(order.completed_at).toLocaleString('no-NO', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                              </p>
                             )}
                           </div>
-                        )}
-
-                        {status === 'current' && step.key === 'picked_up' && (
-                          <div className="mt-2 p-4 bg-blue-50 rounded-lg">
-                            <p className="text-sm text-blue-800">
-                              Klærne dine er hentet og er på vei til renseri
-                            </p>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Connector Line */}
-                      {index < statusSteps.length - 1 && (
-                        <div className={`absolute left-6 mt-12 w-0.5 h-8 ${
-                          getStepStatus(statusSteps[index + 1].key) === 'completed' ? 'bg-success-green' :
-                          status === 'current' ? 'bg-nordic-blue' :
-                          'bg-gray-200'
-                        }`} style={{ marginLeft: '1.5rem' }} />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
           {/* Order Details Sidebar */}
           <div className="space-y-6">
-            {/* Quick Actions */}
-            <div className="bg-white rounded-2xl p-6">
-              <h3 className="text-lg font-semibold text-dark-gray mb-4">Handlinger</h3>
-              <div className="space-y-3">                
-                <button className="w-full text-left p-3 border border-gray-200 rounded-lg hover:border-nordic-blue transition-colors">
-                  <div className="font-medium text-dark-gray">Endre leveringsadresse</div>
-                  <div className="text-sm text-medium-gray">Hvis du ikke er hjemme</div>
-                </button>
-                <button className="w-full text-left p-3 border border-gray-200 rounded-lg hover:border-red-300 transition-colors text-red-600">
-                  <div className="font-medium">Avbryt bestilling</div>
-                  <div className="text-sm text-red-500">Kun mulig før henting</div>
-                </button>
-              </div>
-            </div>
-
-            {/* Estimated Times */}
-            <div className="bg-white rounded-2xl p-6">
-              <h3 className="text-lg font-semibold text-dark-gray mb-4">Forventet tid</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-medium-gray">Henting:</span>
-                  <span className="font-medium text-dark-gray">I dag 14:00-16:00</span>
+            {/* Dates */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Datoer</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <p className="text-sm text-medium-gray mb-1">Henting</p>
+                  <p className="font-semibold text-dark-gray">
+                    {new Date(order.scheduled_date).toLocaleDateString('no-NO', {
+                      weekday: 'long',
+                      day: 'numeric',
+                      month: 'long',
+                    })}
+                  </p>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-medium-gray">Levering:</span>
-                  <span className="font-medium text-dark-gray">Torsdag 14:00-16:00</span>
+                <div>
+                  <p className="text-sm text-medium-gray mb-1">Levering</p>
+                  <p className="font-semibold text-dark-gray">
+                    {new Date(order.delivery_date).toLocaleDateString('no-NO', {
+                      weekday: 'long',
+                      day: 'numeric',
+                      month: 'long',
+                    })}
+                  </p>
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
-            {/* Support */}
-            <div className="bg-nordic-blue/5 rounded-2xl p-6 border border-nordic-blue/20">
-              <h3 className="text-lg font-semibold text-dark-gray mb-2">Trenger du hjelp?</h3>
-              <p className="text-sm text-medium-gray mb-4">
-                Vi er her for å hjelpe deg med spørsmål om bestillingen din.
-              </p>
-              <div className="flex gap-2">
-                <a
-                  href="mailto:hei@renvask.no"
-                  className="text-sm bg-nordic-blue text-white px-4 py-2 rounded-lg hover:bg-blue-600"
-                >
-                  E-post
-                </a>                
-              </div>
-            </div>
+            {/* Cleaner Info */}
+            {order.cleaner?.user && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Din renser</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="font-semibold text-dark-gray mb-1">{order.cleaner.display_name}</p>
+                  <p className="text-sm text-medium-gray">{order.cleaner.user.phone}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Cost Breakdown */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Kostnad</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-medium-gray">Grunnpris</span>
+                    <span className="font-medium text-dark-gray">
+                      {oreToNok(order.plan?.price_ore || 0)} kr
+                    </span>
+                  </div>
+                  {order.extra_kg > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-medium-gray">Ekstra kg ({order.extra_kg})</span>
+                      <span className="font-medium text-dark-gray">
+                        {oreToNok(order.extra_kg * 1000)} kr
+                      </span>
+                    </div>
+                  )}
+                  {order.needs_ironing && (
+                    <div className="flex justify-between">
+                      <span className="text-medium-gray">Stryking</span>
+                      <span className="font-medium text-dark-gray">40 kr</span>
+                    </div>
+                  )}
+                  {order.delicate_items_count > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-medium-gray">Delikate plagg ({order.delicate_items_count})</span>
+                      <span className="font-medium text-dark-gray">
+                        {oreToNok(order.delicate_items_count * 7500)} kr
+                      </span>
+                    </div>
+                  )}
+                  <div className="border-t border-gray-200 pt-2 mt-2 flex justify-between font-semibold">
+                    <span className="text-dark-gray">Totalt</span>
+                    <span className="text-dark-gray">{oreToNok(order.total_cost_ore)} kr</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Special Instructions */}
+            {order.special_instructions && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Spesielle instruksjoner</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-dark-gray">{order.special_instructions}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Pickup Details */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Hentested</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm space-y-2">
+                <div>
+                  <p className="text-medium-gray mb-1">Adresse</p>
+                  <p className="text-dark-gray">
+                    {order.pickup_street}<br />
+                    {order.pickup_postal_code} {order.pickup_city}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-medium-gray mb-1">Hentemetode</p>
+                  <p className="text-dark-gray capitalize">{order.pickup_method}</p>
+                </div>
+                {order.pickup_location_description && (
+                  <div>
+                    <p className="text-medium-gray mb-1">Beskrivelse</p>
+                    <p className="text-dark-gray">{order.pickup_location_description}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </div>
 
         {/* Back Link */}
-        <div className="text-center mt-12">
+        <div className="text-center mt-8">
           <Link
             href="/dashboard"
-            className="inline-flex items-center text-medium-gray hover:text-dark-gray"
+            className="inline-flex items-center text-medium-gray hover:text-dark-gray transition-colors"
           >
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />

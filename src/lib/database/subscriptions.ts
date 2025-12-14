@@ -291,3 +291,57 @@ export async function getSubscriptionWithPlanByCustomerId(
 
   return data;
 }
+
+/**
+ * Pause a subscription
+ * Sets status to 'paused' and records the timestamp
+ */
+export async function pauseSubscription(
+  subscriptionId: string
+): Promise<Subscription | null> {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from('subscriptions')
+    .update({
+      status: 'paused' as SubscriptionStatus,
+      paused_at: new Date().toISOString(),
+    })
+    .eq('id', subscriptionId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error pausing subscription:', error);
+    return null;
+  }
+
+  return data;
+}
+
+/**
+ * Cancel a subscription
+ * Sets status to 'cancelled' and records the timestamp
+ */
+export async function cancelSubscription(
+  subscriptionId: string
+): Promise<Subscription | null> {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from('subscriptions')
+    .update({
+      status: 'cancelled' as SubscriptionStatus,
+      cancelled_at: new Date().toISOString(),
+    })
+    .eq('id', subscriptionId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error cancelling subscription:', error);
+    return null;
+  }
+
+  return data;
+}
