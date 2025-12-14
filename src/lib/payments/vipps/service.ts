@@ -7,7 +7,11 @@ import {
   getSubscriptionById,
   getSubscriptionPlanById,
 } from "@/lib/database/subscriptions";
-import { createPayment } from "@/lib/database/payments";
+import {
+  createPayment,
+  getPendingPaymentsForSubscription,
+  cancelPendingPaymentsForSubscription,
+} from "@/lib/database/payments";
 
 // =============================================================================
 // TYPES
@@ -183,6 +187,60 @@ export async function cancelVippsAgreement(
 
   const vipps = createVippsRecurringClient();
   await vipps.stopAgreement(subscription.provider_agreement_id);
+}
+
+/**
+ * Cancel pending Vipps charges for a subscription when pausing
+ *
+ * Flow:
+ * 1. Fetch all pending/authorized payments for subscription
+ * 2. For each Vipps payment, cancel the charge via Vipps API
+ * 3. If all Vipps cancellations succeed, update database
+ * 4. If any Vipps cancellation fails, throw error (preserving subscription state)
+ *
+ * @param subscriptionId - Subscription ID to cancel payments for
+ * @param providerAgreementId - Vipps agreement ID
+ * @throws Error if Vipps API call fails or subscription not found
+ */
+export async function cancelPendingVippsChargesForSubscription(
+  subscriptionId: string,
+  providerAgreementId: string,
+): Promise<void> {
+  // Get subscription
+  // Get pending payments
+  const pendingPayments = await getPendingPaymentsForSubscription(subscriptionId);
+
+  // Filter for Vipps payments with charge IDs
+  const vippsPayments = pendingPayments.filter(
+    (p) => p.payment_provider === 'vipps' && p.provider_reference
+  );
+
+  // If no Vipps payments to cancel, return early
+  if (vippsPayments.length === 0) {
+    return;
+  }  
+
+  // Cancel all charges in Vipps first (fail-fast on errors)
+  const vipps = createVippsRecurringClient();
+
+  for (const payment of vippsPayments) {
+    const chargeId = payment.provider_reference!;
+
+    try {
+      await vipps.cancelCharge(providerAgreementId, chargeId);
+    } catch (error) {
+      // Re-throw Vipps errors to prevent subscription pause
+      throw new Error(
+        `Failed to cancel Vipps charge ${chargeId}: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  // All Vipps cancellations succeeded - now update database
+  await cancelPendingPaymentsForSubscription(
+    subscriptionId,
+    'Subscription paused by customer'
+  );
 }
 
 // =============================================================================

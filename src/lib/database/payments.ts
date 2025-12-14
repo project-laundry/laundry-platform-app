@@ -67,6 +67,30 @@ export async function getPaymentForSubscription(
   return data;
 }
 
+/**
+ * Get all pending/authorized payments for a subscription
+ * Used when pausing subscription to find charges that need to be cancelled
+ */
+export async function getPendingPaymentsForSubscription(
+  subscriptionId: string
+): Promise<Payment[]> {
+  const supabase = await createAdminClient();
+
+  const { data, error } = await supabase
+    .from('payments')
+    .select('*')
+    .eq('subscription_id', subscriptionId)
+    .in('status', ['pending', 'authorized'])
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching pending payments:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
 // =============================================================================
 // VIPPS PAYMENT METADATA MANAGEMENT
 // =============================================================================
