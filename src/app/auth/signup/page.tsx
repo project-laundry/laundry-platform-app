@@ -66,7 +66,7 @@ export default function SignupPage() {
     }
 
     // Redirect to success page
-    router.push('/auth/success');
+    router.push('/dashboard');
   };
 
   return (
