@@ -12,7 +12,7 @@ import {
   getSubscriptionStatusVariant,
   getSubscriptionFrequencyLabel,
 } from '@/lib/utils/subscription-status';
-import { pauseSubscriptionAction, cancelSubscriptionAction } from '../actions';
+import { cancelSubscriptionAction } from '../actions';
 
 export default async function ManageSubscriptionPage() {
   // Auth check
@@ -37,8 +37,7 @@ export default async function ManageSubscriptionPage() {
     redirect('/dashboard');
   }
 
-  const { plan, status } = subscription;
-  const canPause = status === 'active';
+  const { plan, status } = subscription as any;
   const canCancel = status !== 'cancelled';
 
   return (
@@ -122,34 +121,6 @@ export default async function ManageSubscriptionPage() {
 
         {/* Action Cards */}
         <div className="space-y-4">
-          {/* Pause Action */}
-          <Card className={!canPause ? 'opacity-50' : ''}>
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold text-dark-gray mb-2">
-                Sett abonnementet på pause
-              </h3>
-              <p className="text-medium-gray text-sm mb-4">
-                Hopp over neste fakturering. Du kan aktivere abonnementet igjen når som helst.
-                Vipps-avtalen forblir aktiv.
-              </p>
-              <form
-                action={async () => {
-                  'use server';
-                  await pauseSubscriptionAction(subscription.id);
-                }}
-              >
-                <Button
-                  type="submit"
-                  variant="outline"
-                  disabled={!canPause}
-                  className="w-full"
-                >
-                  {status === 'paused' ? 'Allerede pauset' : 'Pause abonnement'}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-
           {/* Cancel Action */}
           <Card className={!canCancel ? 'opacity-50' : ''}>
             <CardContent className="p-6">

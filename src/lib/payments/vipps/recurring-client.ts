@@ -399,11 +399,17 @@ export class VippsRecurringClient {
   async cancelCharge(agreementId: string, chargeId: string): Promise<void> {
     const headers = await this.baseClient.getCommonHeaders();
 
+    // Generate idempotency key
+    const idempotencyKey = `cancel-${chargeId}-${Date.now()}`;
+
     const response = await fetch(
       `${this.baseClient.getBaseUrl()}/recurring/v3/agreements/${agreementId}/charges/${chargeId}`,
       {
         method: 'DELETE',
-        headers,
+        headers: {
+          ...headers,
+          'Idempotency-Key': idempotencyKey,
+        },
       }
     );
 
