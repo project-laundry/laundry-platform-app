@@ -24,12 +24,12 @@ export const SUBSCRIPTION_FREQUENCY_LABELS: Record<SubscriptionFrequency, string
 /**
  * Badge variants for subscription statuses
  */
-export const SUBSCRIPTION_STATUS_VARIANT: Record<SubscriptionStatus, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  pending_payment: 'outline',
-  active: 'default',
-  paused: 'secondary',
+export const SUBSCRIPTION_STATUS_VARIANT: Record<SubscriptionStatus, 'default' | 'secondary' | 'outline' | 'destructive' | 'success' | 'info' | 'warning' | 'neutral'> = {
+  pending_payment: 'warning',
+  active: 'success',
+  paused: 'neutral',
   cancelled: 'destructive',
-  expired: 'secondary',
+  expired: 'neutral',
 };
 
 /**
@@ -49,6 +49,6 @@ export function getSubscriptionFrequencyLabel(frequency: SubscriptionFrequency):
 /**
  * Get badge variant for subscription status
  */
-export function getSubscriptionStatusVariant(status: SubscriptionStatus): 'default' | 'secondary' | 'outline' | 'destructive' {
+export function getSubscriptionStatusVariant(status: SubscriptionStatus): 'default' | 'secondary' | 'outline' | 'destructive' | 'success' | 'info' | 'warning' | 'neutral' {
   return SUBSCRIPTION_STATUS_VARIANT[status];
 }

@@ -211,14 +211,13 @@ export default async function OrderDetailPage({ params }: OrderPageProps) {
             </Card>
 
             {/* Cleaner Info */}
-            {order.cleaner?.user && (
+            {order.cleaner && (
               <Card>
                 <CardHeader>
                   <CardTitle>Din renser</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="font-semibold text-dark-gray mb-1">{order.cleaner.display_name}</p>
-                  <p className="text-sm text-medium-gray">{order.cleaner.user.phone}</p>
                 </CardContent>
               </Card>
             )}

@@ -50,10 +50,10 @@ export default async function DashboardPage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* Subscription Section */}
-        <section className="mb-8">
-          <h2 className="text-2xl font-bold text-dark-gray mb-4">Min abonnement</h2>
+        <section className="mb-10">
+          <h2 className="text-3xl font-bold text-dark-gray mb-6">Min abonnement</h2>
           {subscription ? (
             <SubscriptionCard subscription={subscription} />
           ) : (
@@ -62,8 +62,8 @@ export default async function DashboardPage() {
         </section>
 
         {/* Upcoming Orders Section */}
-        <section className="mb-8">
-          <h2 className="text-2xl font-bold text-dark-gray mb-4">Kommende vasker</h2>
+        <section className="mb-10">
+          <h2 className="text-3xl font-bold text-dark-gray mb-6">Kommende vasker</h2>
           <UpcomingOrdersList orders={upcomingOrders} />
         </section>
 

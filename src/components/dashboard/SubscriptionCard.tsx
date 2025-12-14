@@ -24,12 +24,12 @@ export function SubscriptionCard({ subscription }: SubscriptionCardProps) {
   const { plan, status, billing_cost_ore, next_billing_date, recurring_weekday } = subscription;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Subscription Details Card */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-dark-gray">
+      <Card className="rounded-2xl">
+        <CardContent className="p-8">
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-2xl font-bold text-dark-gray">
               {plan?.name}
             </h3>
             <Badge variant={getSubscriptionStatusVariant(status)}>
@@ -37,37 +37,40 @@ export function SubscriptionCard({ subscription }: SubscriptionCardProps) {
             </Badge>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-6">
             <div>
-              <p className="text-sm text-medium-gray mb-1">Frekvens</p>
-              <p className="font-medium text-dark-gray">
+              <p className="text-sm text-medium-gray mb-2 font-medium">Frekvens</p>
+              <p className="text-base font-semibold text-dark-gray">
                 {plan?.frequency ? getSubscriptionFrequencyLabel(plan.frequency as any) : 'Månedlig'}
               </p>
             </div>
             <div>
-              <p className="text-sm text-medium-gray mb-1">Pris/måned</p>
-              <p className="font-medium text-dark-gray">
+              <p className="text-sm text-medium-gray mb-2 font-medium">Pris/måned</p>
+              <p className="text-base font-semibold text-dark-gray">
                 {oreToNok(billing_cost_ore)} kr
               </p>
             </div>
             <div>
-              <p className="text-sm text-medium-gray mb-1">Inkludert vekt</p>
-              <p className="font-medium text-dark-gray">
+              <p className="text-sm text-medium-gray mb-2 font-medium">Inkludert vekt</p>
+              <p className="text-base font-semibold text-dark-gray">
                 {plan?.included_kg || 0} kg
               </p>
             </div>
             {recurring_weekday && (
               <div>
-                <p className="text-sm text-medium-gray mb-1">Hentedag</p>
-                <p className="font-medium text-dark-gray capitalize">
+                <p className="text-sm text-medium-gray mb-2 font-medium">Hentedag</p>
+                <p className="text-base font-semibold text-dark-gray capitalize">
                   {recurring_weekday}
                 </p>
               </div>
             )}
-            {next_billing_date && (
-              <div className="col-span-2">
-                <p className="text-sm text-medium-gray mb-1">Neste faktura</p>
-                <p className="font-medium text-dark-gray">
+          </div>
+
+          {next_billing_date && (
+            <div className="mt-6 pt-6 border-t border-gray-100">
+              <div className="bg-blue-50/30 rounded-lg p-4">
+                <p className="text-sm text-medium-gray mb-1 font-medium">Neste faktura</p>
+                <p className="text-base font-semibold text-dark-gray">
                   {new Date(next_billing_date).toLocaleDateString('no-NO', {
                     day: 'numeric',
                     month: 'long',
@@ -75,15 +78,19 @@ export function SubscriptionCard({ subscription }: SubscriptionCardProps) {
                   })}
                 </p>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Manage Subscription Button */}
       <div>
         <Link href="/dashboard/subscription/manage">
-          <Button variant="outline" size="lg" className="w-full">
+          <Button
+            variant="outline"
+            size="lg"
+            className="w-full border-nordic-blue text-nordic-blue hover:bg-nordic-blue/5 font-semibold"
+          >
             Administrer abonnement
           </Button>
         </Link>

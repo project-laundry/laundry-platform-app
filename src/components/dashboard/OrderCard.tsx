@@ -49,7 +49,7 @@ export function OrderCard({ order, variant = 'default' }: OrderCardProps) {
             </div>
           </div>
 
-          {order.cleaner?.user && (
+          {order.cleaner && (
             <div className="mt-3 pt-3 border-t border-gray-200">
               <p className="text-xs text-medium-gray">
                 Renser: <span className="font-medium">{order.cleaner.display_name}</span>

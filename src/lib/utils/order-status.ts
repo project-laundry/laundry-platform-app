@@ -18,15 +18,15 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
 /**
  * Badge variants for order statuses
  */
-export const ORDER_STATUS_VARIANT: Record<OrderStatus, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  pending_payment: 'outline',
-  pending_assignment: 'secondary',
-  pickup_scheduled: 'default',
-  picked_up: 'default',
-  in_cleaning: 'default',
-  ready_for_delivery: 'default',
-  out_for_delivery: 'default',
-  completed: 'secondary',
+export const ORDER_STATUS_VARIANT: Record<OrderStatus, 'default' | 'secondary' | 'outline' | 'destructive' | 'success' | 'info' | 'warning' | 'neutral'> = {
+  pending_payment: 'warning',
+  pending_assignment: 'warning',
+  pickup_scheduled: 'info',
+  picked_up: 'info',
+  in_cleaning: 'info',
+  ready_for_delivery: 'info',
+  out_for_delivery: 'info',
+  completed: 'success',
   cancelled: 'destructive',
 };
 
@@ -40,7 +40,7 @@ export function getOrderStatusLabel(status: OrderStatus): string {
 /**
  * Get badge variant for order status
  */
-export function getOrderStatusVariant(status: OrderStatus): 'default' | 'secondary' | 'outline' | 'destructive' {
+export function getOrderStatusVariant(status: OrderStatus): 'default' | 'secondary' | 'outline' | 'destructive' | 'success' | 'info' | 'warning' | 'neutral' {
   return ORDER_STATUS_VARIANT[status];
 }
 

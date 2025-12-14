@@ -4,12 +4,12 @@ import { Button } from '@/components/ui/button';
 
 export function EmptySubscriptionState() {
   return (
-    <Card>
-      <CardContent className="p-8 text-center">
-        <div className="mb-6 flex flex-col items-center">
+    <Card className="rounded-2xl">
+      <CardContent className="p-12 text-center">
+        <div className="mb-8 flex flex-col items-center">
           {/* Laundry basket icon */}
           <svg
-            className="w-20 h-20 mb-6 text-nordic-blue"
+            className="w-24 h-24 mb-6 text-nordic-blue"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -19,15 +19,21 @@ export function EmptySubscriptionState() {
             <circle cx="12" cy="15" r="1.5" fill="currentColor" />
           </svg>
 
-          <p className="text-medium-gray text-lg mb-4">
-            Bestill din første klesvask i dag
+          <h3 className="text-2xl font-bold text-dark-gray mb-3">
+            Bestill din første klesvask
+          </h3>
+          <p className="text-medium-gray text-base">
+            Velg en plan som passer best for deg
           </p>
         </div>
         <Link href="/orders/plans">
-          <Button size="lg" className="w-full uppercase tracking-wide">
+          <Button
+            size="lg"
+            className="w-full bg-nordic-blue text-white hover:bg-blue-600 font-semibold py-6 text-base"
+          >
             Bestill klesvask
           </Button>
-        </Link>
+        </Link>        
       </CardContent>
     </Card>
   );
