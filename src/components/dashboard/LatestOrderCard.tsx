@@ -30,7 +30,6 @@ export function LatestOrderCard({ order }: LatestOrderCardProps) {
                     month: 'long',
                     year: 'numeric',
                   })}
-                  {order.bag_count && ` • ${order.bag_count} plagg`}
                 </p>
               </div>
             </div>

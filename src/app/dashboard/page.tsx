@@ -79,7 +79,7 @@ export default async function DashboardPage() {
               {/* Left: Subscription Overview */}
               <SubscriptionOverviewCard
                 subscription={subscription}
-                nextPickupDate={nextOrder?.scheduled_date}
+                nextOrder={nextOrder}
               />
 
               {/* Right: Quick Actions */}
