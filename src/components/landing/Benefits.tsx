@@ -4,33 +4,29 @@ export function Benefits() {
   const benefits = [
     {
       icon: Clock,
-      title: "Spar tid",
-      description:
-        "Få tilbake verdifull tid til familie, hobbyer og det du elsker mest.",
+      title: "Spar verdifull tid",
+    description: "Bruk timene på familie, hobbyer eller bare avslapning.",
     },
     {
       icon: Leaf,
       title: "Miljøvennlig",
       description:
-        "Vi bruker kun miljøvennlige og allergivennlige vaskemidler som er trygge for hele familien.",
+        "Vi bruker kun miljøvennlige og allergivennlige vaskemidler.",
     },
     {
       icon: ShieldCheck,
-      title: "Trygg håndtering",
-      description:
-        "Klærne dine håndteres med største omhu og profesjonalitet fra start til slutt.",
+      title: "Trygg behandling",
+    description: "Dine plagg håndteres med største forsiktighet og respekt.",
     },
     {
       icon: Heart,
       title: "Personlig service",
-      description:
-        "Vi bryr oss om hver kunde og gir deg den servicen du fortjener.",
+    description: "Tilpasset dine preferanser og behov, hver eneste gang.",
     },
     {
       icon: Award,
       title: "Profesjonell finish",
-      description:
-        "Perfekt vasket, strøket og brettet med høyeste standard hver gang.",
+    description: "Strøket, brettet og pakket – klar til bruk.",
     },
     {
       icon: BadgeCheck,
@@ -41,20 +37,18 @@ export function Benefits() {
   ];
 
   return (
-    <section className="py-24 md:py-32 bg-white">
+    <section className="py-24 md:py-32 bg-aurora">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="text-center mb-16 space-y-4">
-          <span className="text-sm font-medium text-[hsl(var(--sea-green))] uppercase tracking-widest">
-            FORDELENE
+        <div className="max-w-2xl mx-auto text-center mb-16 md:mb-20">
+          <span className="text-sm font-medium text-sea-green uppercase tracking-widest mb-4 block">
+            Hvorfor velge Noora
           </span>
-          <h2 className="font-serif text-4xl md:text-5xl lg:text-6xl font-light">
-            Hvorfor velge{" "}
-            <span className="text-gradient font-medium">oss?</span>
+          <h2 className="font-serif text-4xl md:text-5xl lg:text-6xl font-light text-foreground mb-6">
+            For travle hverdager,
+            <br />
+            <span className="text-gradient font-medium">med et snev av luksus</span>
           </h2>
-          <p className="text-lg md:text-xl text-foreground/70 max-w-2xl mx-auto">
-            Nordisk luksus med høyeste standard
-          </p>
         </div>
 
         {/* Benefits Grid */}
@@ -68,8 +62,8 @@ export function Benefits() {
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
                 {/* Icon */}
-                <div className="w-12 h-12 rounded-xl bg-[hsl(var(--cream))] group-hover:bg-[hsl(var(--nordic-blue))]/10 flex items-center justify-center mb-6 transition-colors">
-                  <Icon className="w-6 h-6 text-[hsl(var(--nordic-blue))]" />
+                <div className="w-12 h-12 rounded-xl bg-cream group-hover:bg-[hsl(var(--nordic-blue))]/10 flex items-center justify-center mb-6 transition-colors">
+                  <Icon className="w-6 h-6 text-nordic-blue" />
                 </div>
 
                 {/* Content */}
