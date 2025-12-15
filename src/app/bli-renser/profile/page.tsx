@@ -70,7 +70,7 @@ export default function ProfilePage() {
                     />
                     <label
                       htmlFor="profileImage"
-                      className="block w-full text-center bg-nordic-blue text-white px-4 py-3 rounded-lg cursor-pointer hover:bg-blue-600"
+                      className="block w-full text-center bg-nordic-blue text-white px-4 py-3 rounded-lg cursor-pointer"
                     >
                       Last opp bilde
                     </label>

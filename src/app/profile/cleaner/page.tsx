@@ -128,7 +128,7 @@ export default function CleanerProfilePage() {
               className={`px-6 py-2 rounded-lg font-semibold transition-colors ${
                 isEditing
                   ? 'bg-green-500 text-white hover:bg-green-600'
-                  : 'bg-nordic-blue text-white hover:bg-blue-600'
+                  : 'bg-nordic-blue text-white'
               }`}
             >
               {isEditing ? 'Lagre endringer' : 'Rediger profil'}
@@ -383,7 +383,7 @@ export default function CleanerProfilePage() {
             </button>
             <button
               onClick={handleSave}
-              className="flex-1 bg-nordic-blue text-white font-semibold py-3 rounded-lg hover:bg-blue-600 transition-colors"
+              className="flex-1 bg-nordic-blue text-white font-semibold py-3 rounded-lg transition-colors"
             >
               Lagre endringer
             </button>

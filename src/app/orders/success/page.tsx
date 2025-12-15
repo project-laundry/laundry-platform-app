@@ -159,7 +159,7 @@ Content-Type: application/json
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
             <Link
               href="/admin/orders"
-              className="bg-nordic-blue text-white font-semibold px-8 py-3 rounded-lg hover:bg-blue-600 transition-colors"
+              className="bg-nordic-blue text-white font-semibold px-8 py-3 rounded-lg transition-colors"
             >
               Admin: Se ordre
             </Link>

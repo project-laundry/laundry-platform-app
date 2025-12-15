@@ -199,7 +199,7 @@ export default function CleanerDashboardPage() {
                   <div className="flex gap-3">
                     <Link
                       href={`/dashboard/cleaner/missions/${mission.id}`}
-                      className="flex-1 bg-blue-500 text-white font-semibold py-2 rounded-lg hover:bg-blue-600 transition-colors text-center"
+                      className="flex-1 bg-blue-500 text-white font-semibold py-2 rounded-lg transition-colors text-center"
                     >
                       Start oppdrag
                     </Link>
@@ -259,7 +259,7 @@ export default function CleanerDashboardPage() {
                   <div className="flex gap-3">
                     <button
                       onClick={() => handleMissionSelect(mission)}
-                      className="flex-1 bg-nordic-blue text-white font-semibold py-2 rounded-lg hover:bg-blue-600 transition-colors"
+                      className="flex-1 bg-nordic-blue text-white font-semibold py-2 rounded-lg transition-colors"
                     >
                       Godta oppdrag
                     </button>
@@ -381,7 +381,7 @@ export default function CleanerDashboardPage() {
               </button>
               <button
                 onClick={handleAcceptMission}
-                className="flex-1 bg-nordic-blue text-white font-semibold py-3 rounded-lg hover:bg-blue-600 transition-colors"
+                className="flex-1 bg-nordic-blue text-white font-semibold py-3 rounded-lg transition-colors"
               >
                 ✅ Bekreft og godta
               </button>

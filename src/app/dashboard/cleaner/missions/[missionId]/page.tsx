@@ -256,7 +256,7 @@ export default function MissionDetailsPage() {
         <div className="grid md:grid-cols-2 gap-4">
           <button
             onClick={handlePhotoCapture}
-            className="bg-nordic-blue text-white font-semibold py-3 rounded-lg hover:bg-blue-600 transition-colors"
+            className="bg-nordic-blue text-white font-semibold py-3 rounded-lg transition-colors"
           >
             📷 Ta bilde
           </button>
@@ -283,7 +283,7 @@ export default function MissionDetailsPage() {
                 </button>
                 <button
                   onClick={() => setShowPhotoCapture(false)}
-                  className="flex-1 bg-nordic-blue text-white py-2 rounded-lg hover:bg-blue-600"
+                  className="flex-1 bg-nordic-blue text-white py-2 rounded-lg"
                 >
                   Ta bilde
                 </button>

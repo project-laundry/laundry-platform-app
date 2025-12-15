@@ -18,7 +18,7 @@ export default function BecomeCleanerPage() {
               <a href="/auth/login" className="text-nordic-blue font-semibold px-4 py-2 hover:bg-soft-gray rounded-lg">
                 Logg inn
               </a>
-              <a href="/bli-renser/business" className="bg-nordic-blue text-white font-semibold px-6 py-2 rounded-lg hover:bg-blue-600">
+              <a href="/bli-renser/business" className="bg-nordic-blue text-white font-semibold px-6 py-2 rounded-lg">
                 Registrer deg som renser
               </a>
             </div>
@@ -90,7 +90,7 @@ export default function BecomeCleanerPage() {
                   </div>
                   <button
                     type="submit"
-                    className="w-full bg-nordic-blue text-white font-semibold py-3 rounded-lg hover:bg-blue-600"
+                    className="w-full bg-nordic-blue text-white font-semibold py-3 rounded-lg"
                   >
                     Start registrering
                   </button>

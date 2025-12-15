@@ -737,7 +737,7 @@ export default function SchedulePage() {
               address.street &&
               address.postalCode &&
               (pickupMethod !== 'other' || otherLocation.trim())
-                ? 'bg-nordic-blue text-white hover:bg-blue-600'
+                ? 'bg-nordic-blue text-white'
                 : 'bg-gray-200 text-gray-400 cursor-not-allowed'
             }`}
           >

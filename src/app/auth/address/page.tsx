@@ -184,7 +184,7 @@ function AddressPageContent() {
               disabled={!isValidArea}
               className={`w-full font-semibold py-3 rounded-lg transition-colors ${
                 isValidArea
-                  ? 'bg-nordic-blue text-white hover:bg-blue-600'
+                  ? 'bg-nordic-blue text-white'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
             >

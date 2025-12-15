@@ -29,7 +29,7 @@ export function EmptySubscriptionState() {
         <Link href="/orders/plans">
           <Button
             size="lg"
-            className="w-full bg-nordic-blue text-white hover:bg-blue-600 font-semibold py-6 text-base"
+            className="w-full bg-nordic-blue text-white font-semibold py-6 text-base"
           >
             Bestill klesvask
           </Button>

@@ -119,7 +119,7 @@ export default function RegistrationSuccessPage() {
           <div className="space-y-4">
             <Link
               href="/"
-              className="w-full bg-nordic-blue text-white font-medium py-3 px-6 rounded-lg hover:bg-blue-600 inline-block"
+              className="w-full bg-nordic-blue text-white font-medium py-3 px-6 rounded-lg inline-block"
             >
               Tilbake til forsiden
             </Link>
