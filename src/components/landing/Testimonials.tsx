@@ -30,12 +30,11 @@ export function Testimonials() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center mb-16 space-y-4">
-          <span className="text-sm font-medium text-[hsl(var(--sea-green))] uppercase tracking-widest">
-            TILBAKEMELDINGER
+          <span className="text-sm font-medium text-sea-green uppercase tracking-widest mb-4 block">
+            Det kundene våre sier
           </span>
-          <h2 className="font-serif text-4xl md:text-5xl lg:text-6xl font-light">
-            Hva våre{" "}
-            <span className="text-gradient font-medium">kunder sier</span>
+          <h2 className="font-serif text-4xl md:text-5xl lg:text-6xl font-light text-foreground">
+            Ren <span className="text-gradient font-medium">tilfredshet</span>
           </h2>
         </div>
 
