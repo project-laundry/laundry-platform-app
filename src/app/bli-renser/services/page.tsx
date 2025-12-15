@@ -189,7 +189,7 @@ export default function ServicesPage() {
               </a>
               <button
                 type="submit"
-                className="px-6 py-3 bg-nordic-blue text-white font-medium rounded-lg hover:bg-blue-600"
+                className="px-6 py-3 bg-nordic-blue text-white font-medium rounded-lg"
               >
                 Fortsett til utstyr
               </button>

@@ -548,7 +548,7 @@ function ConfirmPageContent() {
                 className={`w-full py-4 rounded-lg font-semibold text-lg transition-colors ${
                   isSubmitting
                     ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    : 'bg-nordic-blue text-white hover:bg-blue-600'
+                    : 'bg-nordic-blue text-white'
                 }`}
               >
                 {isSubmitting ? (

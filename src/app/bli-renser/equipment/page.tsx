@@ -62,7 +62,7 @@ export default function EquipmentPage() {
                 />
                 <label
                   htmlFor="machineImage"
-                  className="mt-4 inline-block bg-nordic-blue text-white px-4 py-2 rounded-lg cursor-pointer hover:bg-blue-600"
+                  className="mt-4 inline-block bg-nordic-blue text-white px-4 py-2 rounded-lg cursor-pointer"
                 >
                   Velg bilde
                 </label>
@@ -280,7 +280,7 @@ export default function EquipmentPage() {
               </a>
               <button
                 type="submit"
-                className="px-6 py-3 bg-nordic-blue text-white font-medium rounded-lg hover:bg-blue-600"
+                className="px-6 py-3 bg-nordic-blue text-white font-medium rounded-lg"
               >
                 Fortsett til profil
               </button>

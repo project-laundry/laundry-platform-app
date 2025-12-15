@@ -111,7 +111,7 @@ export default function InstructionsPage() {
 
             <button
               onClick={handleContinue}
-              className="px-8 py-3 bg-nordic-blue text-white font-semibold rounded-lg hover:bg-blue-600 transition-colors text-lg"
+              className="px-8 py-3 bg-nordic-blue text-white font-semibold rounded-lg transition-colors text-lg"
             >
               Fortsett til bekreftelse
             </button>

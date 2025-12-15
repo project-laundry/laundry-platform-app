@@ -42,7 +42,7 @@ export default function SuccessPage() {
           {/* Login Button */}
           <Link
             href="/auth/login"
-            className="block w-full bg-nordic-blue text-white font-semibold py-3 rounded-lg hover:bg-blue-600 transition-colors mb-4 text-center"
+            className="block w-full bg-nordic-blue text-white font-semibold py-3 rounded-lg transition-colors mb-4 text-center"
           >
             Gå til innlogging
           </Link>

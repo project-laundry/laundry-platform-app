@@ -5,24 +5,24 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:brightness-95 cursor-pointer",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        default: "bg-primary text-primary-foreground",
         destructive:
-          "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
+          "bg-destructive text-white focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
         outline:
-          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
+          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 hover:brightness-100",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          "bg-secondary text-secondary-foreground",
         ghost:
-          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
-        link: "text-primary underline-offset-4 hover:underline",
+          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50 hover:brightness-100",
+        link: "text-primary underline-offset-4 hover:underline hover:brightness-100",
         hero:
-          "bg-gradient-to-br from-[hsl(var(--nordic-blue))] to-[hsl(var(--sea-green))] text-white font-semibold shadow-soft hover:shadow-glow hover:scale-[1.02] active:scale-[0.98] transition-all duration-300",
+          "bg-gradient-to-br from-[hsl(var(--nordic-blue))] to-[hsl(var(--sea-green))] text-white font-semibold shadow-soft hover:shadow-glow hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 hover:brightness-95",
         "hero-outline":
-          "border-2 border-[hsl(var(--nordic-blue))] bg-transparent text-[hsl(var(--nordic-blue))] font-semibold hover:bg-[hsl(var(--nordic-blue))] hover:text-white transition-all duration-300",
+          "border-2 border-[hsl(var(--nordic-blue))] bg-transparent text-[hsl(var(--nordic-blue))] font-semibold hover:bg-[hsl(var(--nordic-blue))] hover:text-white transition-all duration-300 hover:brightness-100",
       },
       size: {
         default: "h-10 px-4 py-2",
