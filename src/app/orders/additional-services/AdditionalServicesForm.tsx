@@ -11,6 +11,7 @@ import {
   oreToNok,
 } from '@/lib/config/pricing';
 import { SubscriptionFrequency } from '@/types/database';
+import { Sparkles, Scale, Shirt, RefreshCw, Plus, Minus } from 'lucide-react';
 
 interface AdditionalServicesFormProps {
   planSlug: string;
@@ -106,7 +107,11 @@ export function AdditionalServicesForm({
         {/* Additional Services */}
         <div className="bg-white rounded-2xl p-8 mb-8">
           <div className="text-center mb-8">
-            <div className="text-6xl mb-4">✨</div>
+            <div className="mb-4 flex justify-center">
+              <div className="bg-blue-50 rounded-full p-4">
+                <Sparkles className="w-12 h-12 text-nordic-blue" />
+              </div>
+            </div>
             <h2 className="text-3xl font-bold text-dark-gray mb-4">Tilleggstjenester</h2>
             <p className="text-lg text-medium-gray">
               Tilpass din vaskeplan etter dine behov
@@ -128,7 +133,9 @@ export function AdditionalServicesForm({
               <div className="bg-soft-gray rounded-xl p-6">
                 <div className="flex items-start justify-between gap-3 mb-4">
                   <div className="flex items-start gap-3">
-                    <span className="text-3xl">⚖️</span>
+                    <div className="bg-blue-50 rounded-lg p-2 flex-shrink-0">
+                      <Scale className="w-6 h-6 text-nordic-blue" />
+                    </div>
                     <div className="flex-grow">
                       <h4 className="font-semibold text-dark-gray mb-1">Ekstra kg vask per måned</h4>
                       <p className="text-sm text-medium-gray">Legg til mer kapasitet ved behov</p>
@@ -147,9 +154,9 @@ export function AdditionalServicesForm({
                   <button
                     onClick={() => setAdditionalKg(Math.max(0, additionalKg - KG_STEP))}
                     disabled={additionalKg === 0}
-                    className="w-10 h-10 rounded-lg border-2 border-gray-300 text-dark-gray font-bold hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="w-10 h-10 rounded-lg border-2 border-gray-300 text-dark-gray font-bold hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
                   >
-                    −
+                    <Minus className="w-4 h-4" />
                   </button>
                   <div className="text-center min-w-[80px]">
                     <p className="text-3xl font-bold text-dark-gray">{additionalKg}</p>
@@ -157,9 +164,9 @@ export function AdditionalServicesForm({
                   </div>
                   <button
                     onClick={() => setAdditionalKg(additionalKg + KG_STEP)}
-                    className="w-10 h-10 rounded-lg border-2 border-nordic-blue text-nordic-blue font-bold hover:bg-nordic-blue hover:text-white"
+                    className="w-10 h-10 rounded-lg border-2 border-nordic-blue text-nordic-blue font-bold hover:bg-nordic-blue hover:text-white flex items-center justify-center"
                   >
-                    +
+                    <Plus className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -174,7 +181,9 @@ export function AdditionalServicesForm({
               <div className="bg-soft-gray rounded-xl p-6">
                 <div className="flex items-start justify-between gap-3 mb-4">
                   <div className="flex items-start gap-3">
-                    <span className="text-3xl">👔</span>
+                    <div className="bg-purple-50 rounded-lg p-2 flex-shrink-0">
+                      <Shirt className="w-6 h-6 text-purple-600" />
+                    </div>
                     <div className="flex-grow">
                       <h4 className="font-semibold text-dark-gray mb-1">Skjorter og kjoler</h4>
                       <p className="text-sm text-medium-gray">Spesiell håndtering for delikate plagg</p>
@@ -198,18 +207,18 @@ export function AdditionalServicesForm({
                       }
                     }}
                     disabled={delicateItems === 0}
-                    className="w-10 h-10 rounded-lg border-2 border-gray-300 text-dark-gray font-bold hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="w-10 h-10 rounded-lg border-2 border-gray-300 text-dark-gray font-bold hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
                   >
-                    −
+                    <Minus className="w-4 h-4" />
                   </button>
                   <div className="text-center min-w-[80px]">
                     <p className="text-3xl font-bold text-dark-gray">{delicateItems}</p>
                   </div>
                   <button
                     onClick={() => setDelicateItems(delicateItems + 1)}
-                    className="w-10 h-10 rounded-lg border-2 border-nordic-blue text-nordic-blue font-bold hover:bg-nordic-blue hover:text-white"
+                    className="w-10 h-10 rounded-lg border-2 border-nordic-blue text-nordic-blue font-bold hover:bg-nordic-blue hover:text-white flex items-center justify-center"
                   >
-                    +
+                    <Plus className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -261,7 +270,7 @@ export function AdditionalServicesForm({
           {/* Monthly Recurring Costs Section */}
           <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 mb-4">
             <h3 className="font-bold text-dark-gray mb-3 flex items-center gap-2">
-              <span className="text-lg">🔄</span>
+              <RefreshCw className="w-5 h-5 text-blue-600" />
               MÅNEDLIG ABONNEMENT
             </h3>
             <div className="space-y-2">
@@ -305,7 +314,7 @@ export function AdditionalServicesForm({
             </div>
             <button
               onClick={handleContinue}
-              className="py-3 px-8 rounded-lg font-semibold transition-colors bg-nordic-blue text-white hover:bg-opacity-90"
+              className="py-3 px-8 rounded-lg font-semibold transition-colors bg-[hsl(var(--nordic-blue))] text-white hover:bg-[hsl(var(--nordic-blue))]/90"
             >
               Fortsett
             </button>
