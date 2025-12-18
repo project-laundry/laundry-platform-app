@@ -4,8 +4,7 @@
 import { createVippsRecurringClient } from "./recurring-client";
 import { createVippsEPaymentClient } from "./epayment-client";
 import {
-  getSubscriptionById,
-  getSubscriptionPlanById,
+  getSubscriptionById  
 } from "@/lib/database/subscriptions";
 import {
   createPayment,
@@ -15,10 +14,10 @@ import {
 // TYPES
 // =============================================================================
 
-export interface CreateAgreementData {  
+export interface CreateAgreementData {
   productName: string;
   productDescription: string;
-  price: number;
+  // Note: No price - using FLEXIBLE pricing model
 }
 
 export interface CreateAgreementResult {
@@ -32,8 +31,9 @@ export interface CreateAgreementResult {
 // =============================================================================
 
 /**
- * Create Vipps recurring agreement for a subscription
- * @param subscriptionId - Subscription ID to create agreement for
+ * Create Vipps recurring agreement for a subscription (FLEXIBLE pricing)
+ * No upfront payment - charges created per order after cleaner calculates price
+ * @param createAgreementData - Agreement product info
  * @returns Agreement details and checkout URL
  */
 export async function createVippsAgreement(
@@ -41,11 +41,10 @@ export async function createVippsAgreement(
 ): Promise<CreateAgreementResult> {
   const vipps = createVippsRecurringClient();
 
-  // Create agreement with initial charge (DIRECT_CAPTURE)
+  // Create agreement with FLEXIBLE pricing (no upfront payment)
   const result = await vipps.createAgreement({
     productName: createAgreementData.productName,
     productDescription: createAgreementData.productDescription,
-    price: createAgreementData.price,
     merchantRedirectUrl:
       `${process.env.NEXT_PUBLIC_APP_URL}/api/vipps/agreements/callback`,
     merchantAgreementUrl: `https://laundry-landing-page-rho.vercel.app`,
@@ -58,85 +57,6 @@ export async function createVippsAgreement(
   };
 }
 
-// =============================================================================
-// RECURRING CHARGES
-// =============================================================================
-
-/**
- * Create recurring charge for a subscription's next billing cycle
- *
- * Flow:
- * 1. Validate subscription has active Vipps agreement
- * 2. Create charge via Vipps API (DIRECT_CAPTURE)
- * 3. Create payment record in database
- * 4. Webhook will handle payment confirmation
- *
- * @param subscriptionId - Subscription ID to create charge for
- * @returns Payment ID for the new charge
- */
-export async function createRecurringChargeForSubscription(
-  subscriptionId: string,
-  dueDate?: string,
-): Promise<string> {
-  // Get subscription
-  const subscription = await getSubscriptionById(subscriptionId);
-  if (!subscription || !subscription.provider_agreement_id) {
-    throw new Error("Subscription or Vipps agreement not found");
-  }
-
-  if (subscription.status !== "active") {
-    throw new Error(
-      `Cannot create charge for subscription with status: ${subscription.status}`,
-    );
-  }
-
-  // Get plan details
-  const plan = await getSubscriptionPlanById(subscription.plan_id);
-  if (!plan) {
-    throw new Error("Subscription plan not found");
-  }
-
-  // Initialize Vipps Recurring client
-  const vipps = createVippsRecurringClient();
-
-  // Calculate due date (minimum 2 days in future per Vipps requirement)
-  let dueDateString: string;
-  if (dueDate) {
-    dueDateString = dueDate;
-  } else {
-    const defaultDueDate = new Date();
-    defaultDueDate.setDate(defaultDueDate.getDate() + 2);
-    dueDateString = defaultDueDate.toISOString().split("T")[0]; // YYYY-MM-DD
-  }
-
-  // Create charge
-  const result = await vipps.createCharge(subscription.provider_agreement_id, {
-    amount: subscription.billing_cost_ore,
-    description: `${plan.name} - Monthly payment`,
-    due: dueDateString,
-    retryDays: 3, // Vipps will retry for 3 days if payment fails
-    transactionType: "DIRECT_CAPTURE", // Direct capture for recurring payments
-  });
-
-  // Create payment record
-  const payment = await createPayment({
-    customer_id: subscription.customer_id,
-    subscription_id: subscription.id,
-    payment_type: "recurring",
-    amount_ore: subscription.billing_cost_ore,
-    payment_provider: "vipps",
-    provider_reference: result.chargeId,
-  });
-
-  if (!payment) {
-    throw new Error("Failed to create payment record");
-  }
-
-  // Update payment with charge metadata
-  // Note: This will be done via database functions we'll create next
-
-  return payment.id;
-}
 
 // =============================================================================
 // CHARGE CAPTURE
@@ -251,4 +171,93 @@ export async function captureVippsEPayment(
     amount,
     description: "Payment capture",
   });
+}
+
+// =============================================================================
+// FLEXIBLE PRICING - CHARGE CREATION AFTER SERVICE
+// =============================================================================
+
+/**
+ * Create charge for completed order with calculated price
+ * Called by cleaner after weighing and pricing the order
+ *
+ * Flow:
+ * 1. Get order with subscription
+ * 2. Verify Vipps agreement exists
+ * 3. Create payment record in database
+ * 4. Create Vipps charge with calculated amount
+ * 5. Webhook will handle payment confirmation
+ *
+ * @param orderId - Order ID to create charge for
+ * @param amountOre - Calculated amount in øre
+ * @param description - Charge description
+ * @returns Payment ID for the new charge
+ */
+export async function createChargeForCompletedOrder(
+  orderId: string,
+  amountOre: number,
+  description: string
+): Promise<string> {
+  // Import admin client dynamically to avoid circular dependency
+  const { createAdminClient } = await import('@/lib/supabase/admin');
+  const adminClient = createAdminClient();
+
+  // 1. Get order with subscription
+  const { data: order, error: orderError } = await adminClient
+    .from('orders')
+    .select('*, subscriptions!inner(provider_agreement_id, customer_id, id)')
+    .eq('id', orderId)
+    .single();
+
+  if (orderError || !order) {
+    throw new Error(`Order not found: ${orderId}`);
+  }
+
+  const subscription = order.subscriptions as any;
+
+  // 2. Verify agreement exists and is active
+  if (!subscription.provider_agreement_id) {
+    throw new Error('No Vipps agreement found for subscription');
+  }
+
+  // 3. Create payment record
+  const payment = await createPayment({
+    customer_id: subscription.customer_id,
+    order_id: orderId,
+    subscription_id: subscription.id,
+    payment_type: 'one_time',
+    amount_ore: amountOre,
+    payment_provider: 'vipps',
+    status: 'pending',
+  });
+
+  if (!payment) {
+    throw new Error('Failed to create payment record');
+  }
+
+  // 4. Create Vipps charge (due in 2 days minimum per Vipps requirement)
+  const dueDate = new Date();
+  dueDate.setDate(dueDate.getDate() + 2);
+  const dueDateString = dueDate.toISOString().split('T')[0]; // YYYY-MM-DD
+
+  const vipps = createVippsRecurringClient();
+  const result = await vipps.createCharge(subscription.provider_agreement_id, {
+    amount: amountOre,
+    description,
+    due: dueDateString,
+    retryDays: 3,
+    transactionType: 'DIRECT_CAPTURE',
+  });
+
+  // 5. Update payment with charge ID
+  const { updatePayment } = await import('@/lib/database/payments');
+  await updatePayment(payment.id, {
+    provider_reference: result.chargeId,
+    provider_metadata: {
+      vipps_agreement_id: subscription.provider_agreement_id,
+      vipps_charge_id: result.chargeId,
+    },
+  });
+
+  return payment.id;
 }

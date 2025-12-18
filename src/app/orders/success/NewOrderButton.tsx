@@ -8,7 +8,7 @@ export function NewOrderButton() {
   return (
     <button
       onClick={() => {
-        router.push('/orders/plans');
+        router.push('/orders/location-service');
       }}
       className="border-2 border-nordic-blue text-nordic-blue font-semibold px-8 py-3 rounded-lg hover:bg-blue-50 transition-colors"
     >

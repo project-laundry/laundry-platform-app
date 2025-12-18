@@ -26,7 +26,7 @@ export function EmptySubscriptionState() {
             Velg en plan som passer best for deg
           </p>
         </div>
-        <Link href="/orders/plans">
+        <Link href="/orders/location-service">
           <Button
             size="lg"
             className="w-full bg-nordic-blue text-white font-semibold py-6 text-base"

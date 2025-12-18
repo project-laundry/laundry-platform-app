@@ -13,7 +13,7 @@ export function OrderCard({ order, variant = 'default' }: OrderCardProps) {
   const isMuted = variant === 'muted';
 
   return (
-    <Link href={`/orders/${order.id}`} className="block">
+    <Link href={`/orders/details/${order.id}`} className="block">
       <Card className={`transition-all hover:shadow-md ${isMuted ? 'opacity-70 hover:opacity-100' : ''}`}>
         <CardContent className="p-4">
           <div className="flex items-start justify-between mb-3">

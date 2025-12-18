@@ -12,9 +12,9 @@ import type { VippsAgreementStatus, VippsChargeStatus } from '@/types/database';
 interface VippsCreateAgreementParams {
   productName: string;
   productDescription: string;
-  price: number; // in øre (1 NOK = 100 øre)    
   merchantRedirectUrl: string;
   merchantAgreementUrl: string;
+  // Note: No price parameter - using FLEXIBLE pricing model
 }
 
 interface VippsListAgreementsParams {
@@ -116,8 +116,8 @@ export class VippsRecurringClient {
       productName: params.productName,
       productDescription: params.productDescription,
       pricing: {
-        type: 'LEGACY',
-        amount: params.price,
+        type: 'FLEXIBLE',  // FLEXIBLE pricing - no fixed amount
+        amount: 0,         // Can charge variable amounts per order
         currency: 'NOK',
       },
       interval: {
@@ -125,13 +125,8 @@ export class VippsRecurringClient {
         count: 1,
       },
       merchantRedirectUrl: params.merchantRedirectUrl,
-      merchantAgreementUrl: params.merchantAgreementUrl,      
-      initialCharge: {
-          amount: params.price,
-          currency: 'NOK',
-          description: params.productDescription,
-          transactionType: 'DIRECT_CAPTURE',
-        }
+      merchantAgreementUrl: params.merchantAgreementUrl,
+      // No initialCharge - customer pays after service delivery
     };
 
     const response = await fetch(
