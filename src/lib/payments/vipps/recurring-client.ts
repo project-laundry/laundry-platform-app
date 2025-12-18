@@ -12,6 +12,10 @@ import type { VippsAgreementStatus, VippsChargeStatus } from '@/types/database';
 interface VippsCreateAgreementParams {
   productName: string;
   productDescription: string;
+  interval: {
+    unit: 'WEEK' | 'MONTH';
+    count: number;
+  };
   merchantRedirectUrl: string;
   merchantAgreementUrl: string;
   // Note: No price parameter - using FLEXIBLE pricing model
@@ -105,7 +109,7 @@ export class VippsRecurringClient {
   async createAgreement(params: VippsCreateAgreementParams): Promise<{
     agreementId: string;
     vippsConfirmationUrl: string;
-    chargeId?: string;
+    chargeId?: string;    
   }> {
     const headers = await this.baseClient.getCommonHeaders();
 
@@ -117,13 +121,9 @@ export class VippsRecurringClient {
       productDescription: params.productDescription,
       pricing: {
         type: 'FLEXIBLE',  // FLEXIBLE pricing - no fixed amount
-        amount: 0,         // Can charge variable amounts per order
         currency: 'NOK',
       },
-      interval: {
-        unit: 'MONTH',
-        count: 1,
-      },
+      interval: params.interval,
       merchantRedirectUrl: params.merchantRedirectUrl,
       merchantAgreementUrl: params.merchantAgreementUrl,
       // No initialCharge - customer pays after service delivery

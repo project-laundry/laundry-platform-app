@@ -17,6 +17,7 @@ import {
 export interface CreateAgreementData {
   productName: string;
   productDescription: string;
+  frequency: 'weekly' | 'biweekly' | 'monthly';
   // Note: No price - using FLEXIBLE pricing model
 }
 
@@ -24,6 +25,27 @@ export interface CreateAgreementResult {
   agreementId: string;
   vippsConfirmationUrl: string;
   chargeId?: string;
+}
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+/**
+ * Map subscription frequency to Vipps interval format
+ */
+function mapFrequencyToVippsInterval(frequency: 'weekly' | 'biweekly' | 'monthly'): {
+  unit: 'WEEK' | 'MONTH';
+  count: number;
+} {
+  switch (frequency) {
+    case 'weekly':
+      return { unit: 'WEEK', count: 1 };
+    case 'biweekly':
+      return { unit: 'WEEK', count: 2 };
+    case 'monthly':
+      return { unit: 'MONTH', count: 1 };
+  }
 }
 
 // =============================================================================
@@ -41,10 +63,14 @@ export async function createVippsAgreement(
 ): Promise<CreateAgreementResult> {
   const vipps = createVippsRecurringClient();
 
+  // Map subscription frequency to Vipps interval
+  const interval = mapFrequencyToVippsInterval(createAgreementData.frequency);
+
   // Create agreement with FLEXIBLE pricing (no upfront payment)
   const result = await vipps.createAgreement({
     productName: createAgreementData.productName,
     productDescription: createAgreementData.productDescription,
+    interval,
     merchantRedirectUrl:
       `${process.env.NEXT_PUBLIC_APP_URL}/api/vipps/agreements/callback`,
     merchantAgreementUrl: `https://laundry-landing-page-rho.vercel.app`,
