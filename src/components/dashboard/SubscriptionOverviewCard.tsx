@@ -118,7 +118,7 @@ export function SubscriptionOverviewCard({ subscription, nextOrder }: Subscripti
             </div>
 
             {/* CTA Button - View Order Details */}
-            <Link href={`/orders/${nextOrder.id}`}>
+            <Link href={`/orders/details/${nextOrder.id}`}>
               <Button
                 variant="outline"
                 className="w-full"
@@ -136,7 +136,7 @@ export function SubscriptionOverviewCard({ subscription, nextOrder }: Subscripti
             </div>
 
             {/* CTA Button - Create New Order */}
-            <Link href="/orders/plans">
+            <Link href="/orders/location-service">
               <Button
                 className="w-full bg-[hsl(var(--nordic-blue))] hover:bg-[hsl(var(--nordic-blue))]/90 text-white font-semibold"
                 size="lg"

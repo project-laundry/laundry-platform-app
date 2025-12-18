@@ -12,9 +12,6 @@ function OrderSuccessPageContent() {
   const orderId = searchParams.get('orderId');
   const resetOrderData = useOrderFlowStore((state) => state.resetOrderData);
 
-  // Determine if this is a subscription or standalone order
-  const isStandaloneOrder = !!orderId;
-
   // Reset order flow state when success page loads
   useEffect(() => {
     resetOrderData();
@@ -42,114 +39,62 @@ function OrderSuccessPageContent() {
 
           {/* Success Message */}
           <h1 className="text-3xl font-bold text-dark-gray mb-4">
-            {isStandaloneOrder ? 'Bestilling opprettet!' : 'Abonnement opprettet!'}
+            Din avtale er opprettet!
           </h1>
           <p className="text-xl text-medium-gray mb-8">
-            {isStandaloneOrder
-              ? 'Din bestilling venter på betaling. Bruk instruksjonene under for å teste betalingsflyten.'
-              : 'Ditt abonnement venter på betaling. Bruk instruksjonene under for å teste betalingsflyten.'
-            }
+            Vi vil sende deg en Vipps-betaling etter at renseriet har veid tøyet ditt.
           </p>
 
-          {/* ID Card */}
-          <div className="bg-white rounded-2xl p-8 mb-8">
-            <div className="flex items-center justify-center mb-6">
-              <div className="bg-nordic-blue/10 rounded-lg p-4">
-                <h2 className="text-lg font-semibold text-nordic-blue">
-                  {isStandaloneOrder ? 'Ordre-ID' : 'Abonnement-ID'}
-                </h2>
-                <p className="text-sm font-mono text-dark-gray break-all">
-                  {isStandaloneOrder ? orderId : subscriptionId}
-                </p>
+          {subscriptionId && (
+            <div className="bg-white rounded-2xl p-8 mb-8">
+              <div className="flex items-center justify-center mb-6">
+                <div className="bg-nordic-blue/10 rounded-lg p-4">
+                  <h2 className="text-lg font-semibold text-nordic-blue">
+                    Abonnement-ID
+                  </h2>
+                  <p className="text-sm font-mono text-dark-gray break-all">
+                    {subscriptionId}
+                  </p>
+                </div>
               </div>
             </div>
-
-            {/* Testing Instructions */}
-            <div className="text-left bg-gray-50 rounded-lg p-6">
-              <h3 className="font-semibold text-dark-gray mb-4">Testing: Simuler betaling</h3>
-              <p className="text-sm text-medium-gray mb-4">
-                For å simulere en vellykket betaling, send en POST-forespørsel til webhook-endepunktet:
-              </p>
-
-              <div className="bg-gray-900 text-green-400 rounded-lg p-4 mb-4 overflow-x-auto">
-                <pre className="text-xs">
-{`POST /api/webhooks/payment
-Content-Type: application/json
-
-{
-  ${isStandaloneOrder ? `"orderId": "${orderId}"` : `"subscriptionId": "${subscriptionId}"`}
-}`}
-                </pre>
-              </div>
-
-              <p className="text-sm text-medium-gray mb-2">
-                <strong>Eksempel med cURL:</strong>
-              </p>
-              <div className="bg-gray-900 text-green-400 rounded-lg p-4 overflow-x-auto">
-                <pre className="text-xs">
-{`curl -X POST http://localhost:3000/api/webhooks/payment \\
-  -H "Content-Type: application/json" \\
-  -d '${isStandaloneOrder ? `{"orderId": "${orderId}"}` : `{"subscriptionId": "${subscriptionId}"}`}'`}
-                </pre>
-              </div>
-            </div>
-          </div>
+          )}
 
           {/* What happens next */}
           <div className="bg-white rounded-2xl p-8 mb-8 text-left">
-            <h3 className="font-semibold text-dark-gray mb-4">Hva skjer når betalingen lykkes?</h3>
-            {isStandaloneOrder ? (
-              <ul className="space-y-2 text-sm text-medium-gray">
-                <li className="flex items-start">
-                  <span className="text-nordic-blue mr-2 mt-0.5">1.</span>
-                  Betalingen bekreftes
-                </li>
-                <li className="flex items-start">
-                  <span className="text-nordic-blue mr-2 mt-0.5">2.</span>
-                  Ordren aktiveres og sendes til renser
-                </li>
-                <li className="flex items-start">
-                  <span className="text-nordic-blue mr-2 mt-0.5">3.</span>
-                  Poselevering opprettes hvis du ikke har pose
-                </li>
-                <li className="flex items-start">
-                  <span className="text-nordic-blue mr-2 mt-0.5">4.</span>
-                  Du får SMS når renseren er på vei
-                </li>
-              </ul>
-            ) : (
-              <ul className="space-y-2 text-sm text-medium-gray">
-                <li className="flex items-start">
-                  <span className="text-nordic-blue mr-2 mt-0.5">1.</span>
-                  Abonnementet aktiveres
-                </li>
-                <li className="flex items-start">
-                  <span className="text-nordic-blue mr-2 mt-0.5">2.</span>
-                  System finner en tilgjengelig renser
-                </li>
-                <li className="flex items-start">
-                  <span className="text-nordic-blue mr-2 mt-0.5">3.</span>
-                  Ordre genereres for faktureringsperioden
-                </li>
-                <li className="flex items-start">
-                  <span className="text-nordic-blue mr-2 mt-0.5">4.</span>
-                  Poselevering opprettes hvis du ikke har pose
-                </li>
-              </ul>
-            )}
+            <h3 className="font-semibold text-dark-gray mb-4">Hva skjer nå?</h3>
+            <ul className="space-y-2 text-sm text-medium-gray">
+              <li className="flex items-start">
+                <span className="text-nordic-blue mr-2 mt-0.5">1.</span>
+                Når du godkjenner avtalen i Vipps, aktiveres abonnementet automatisk
+              </li>
+              <li className="flex items-start">
+                <span className="text-nordic-blue mr-2 mt-0.5">2.</span>
+                Systemet finner en tilgjengelig renser i ditt område
+              </li>
+              <li className="flex items-start">
+                <span className="text-nordic-blue mr-2 mt-0.5">3.</span>
+                Ordre genereres basert på valgt hyppighet
+              </li>
+              <li className="flex items-start">
+                <span className="text-nordic-blue mr-2 mt-0.5">4.</span>
+                Renseren henter tøyet ditt på avtalt dato
+              </li>
+              <li className="flex items-start">
+                <span className="text-nordic-blue mr-2 mt-0.5">5.</span>
+                Etter veiing får du Vipps-betaling for faktisk vekt
+              </li>
+            </ul>
           </div>
 
-          {/* Important Notice */}
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-8">
+          {/* Pricing Notice */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
             <div className="flex items-start">
-              <div className="text-yellow-600 mr-3 mt-0.5">💡</div>
+              <div className="text-blue-600 mr-3 mt-0.5">💰</div>
               <div className="text-left">
-                <h3 className="font-semibold text-yellow-800 mb-2">Status: Venter på betaling</h3>
-                <p className="text-sm text-yellow-700">
-                  {isStandaloneOrder
-                    ? 'Ordren er opprettet med status "pending_assignment". Renseren blir tildelt når betalingen er bekreftet via webhook.'
-                    : 'Abonnementet er opprettet med status "pending_payment". Ingen ordre blir generert før betalingen er bekreftet via webhook.'
-                  }
+                <h3 className="font-semibold text-blue-900 mb-2">Viktig om pris</h3>
+                <p className="text-sm text-blue-800">
+                  Du betaler ETTER at renseriet har veid tøyet ditt. Pris beregnes basert på faktisk vekt og valgt tjeneste. Du vil motta Vipps-betaling når ordren er klar for levering.
                 </p>
               </div>
             </div>

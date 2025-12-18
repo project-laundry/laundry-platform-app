@@ -35,50 +35,27 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
-## Webhook Configuration in Vipps Dashboard
 
-Register these two webhooks in your Vipps dashboard:
+We're going to chage the whole order flow.
 
-  Webhook 1: Recurring Payments
+When the user want to book a new laundry they will go throught this flow:
 
-- URL: <https://yourdomain.com/api/webhooks/vipps/recurring>
-- Events to subscribe:
-  - recurring.charge-reserved.v1
-  - recurring.charge-captured.v1
-  - recurring.charge-canceled.v1
-  - recurring.charge-refunded.v1
-  - recurring.charge-failed.v1
-  - recurring.charge-creation-failed.v1
-  - recurring.agreement-activated.v1
-  - recurring.agreement-rejected.v1
-  - recurring.agreement-stopped.v1
-  - recurring.agreement-expired.v1
+1. Select location, Bergen or Oslo (Not available yet but coming soon)
+2. Select the service (Washing + ironing or just washing)
+3. Select desired pickup date (need to check cleaner availability)
+4. Select frequency (first ask if they want a recurring booking. If so then they can choose between weekly/bi-weekly/monthly)
+5. Select pick up adress with pick up instructions
+6. Optional booking instructions
+7. Show booking confirmation
+8. Redirect to payment provider
 
-  Webhook 2: One-Time Payments
+Decide if some of the questions can be shown in the same page.
 
-- URL: <https://yourdomain.com/api/webhooks/vipps/epayment>
-- Events to subscribe:
-  - epayments.payment.created.v1
-  - epayments.payment.authorized.v1
-  - epayments.payment.captured.v1
-  - epayments.payment.refunded.v1
-  - epayments.payment.cancelled.v1
-  - epayments.payment.aborted.v1
-  - epayments.payment.expired.v1
-  - epayments.payment.terminated.v1
+Additionally:
 
-  Environment Variables
+- subscription plans will be removed
+- remove additional services (subscription.default_extra_kg, subscription.default_delicate_items_count, order.extra_kg, )
+- Pricing will be based on the number of washing load. Price will be calculated after the laundry has been picked up and cleaner has counted and sorted the items. Cleaner will have to register what have been done to be able to calculate the price. (Don't mind this now. We'll work on this later)
+-  The billing/price can vary per order and is not fixed on a subscription. (remove subscription.billing_cost_ore)
 
-  You can use either a shared secret or separate secrets:
-
-  Option 1: Shared Secret (simpler)
-  VIPPS_WEBHOOK_SECRET=your-webhook-secret
-
-  Option 2: Separate Secrets (more secure)
-  VIPPS_WEBHOOK_SECRET_RECURRING=your-recurring-webhook-secret
-  VIPPS_WEBHOOK_SECRET_EPAYMENT=your-epayment-webhook-secret
-
-  The webhook utility will try the endpoint-specific secret first, then fall back to the shared secret if not found.
-
-
-I need a new column in subscription called reference. There should be generated a string that should be set in the database and also set at the externalId field in CreateAgreement endpoint to Vipps.  
+Analyse all the changes that needs to be made.

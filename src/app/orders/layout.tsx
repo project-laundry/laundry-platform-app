@@ -11,7 +11,7 @@ const PROTECTED_ROUTES = [
   '/orders/confirm'
 ];
 
-const START_ROUTE = '/orders/plans';
+const START_ROUTE = '/orders/location-service';
 
 export default function OrdersLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

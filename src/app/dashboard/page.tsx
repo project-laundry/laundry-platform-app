@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { getCustomerByUserId } from '@/lib/database/customers';
-import { getSubscriptionWithPlanByCustomerId } from '@/lib/database/subscriptions';
+import { getActiveSubscriptionByCustomerId } from '@/lib/database/subscriptions';
 import { getUpcomingOrdersByCustomerId, getCompletedOrdersByCustomerId } from '@/lib/database/orders';
 import { LogoutButton } from '@/components/ui/LogoutButton';
 import { SubscriptionOverviewCard } from '@/components/dashboard/SubscriptionOverviewCard';
@@ -27,7 +27,7 @@ export default async function DashboardPage() {
   }
 
   // Get subscription and orders
-  const subscription = await getSubscriptionWithPlanByCustomerId(customer.id);
+  const subscription = await getActiveSubscriptionByCustomerId(customer.id);
   const upcomingOrders = await getUpcomingOrdersByCustomerId(customer.id);
   const nextOrder = upcomingOrders.length > 0 ? upcomingOrders[0] : null;
   const completedOrders = await getCompletedOrdersByCustomerId(customer.id);

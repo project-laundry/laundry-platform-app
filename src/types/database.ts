@@ -23,8 +23,6 @@ export type CleanerSpecialization =
   | 'formal'
   | 'outerwear';
 
-export type SubscriptionBillingPeriod = 'monthly' | 'one_time';
-
 export type SubscriptionStatus = 'pending_payment' | 'active' | 'paused' | 'cancelled' | 'expired';
 
 export type SubscriptionFrequency = 'weekly' | 'biweekly' | 'monthly' | 'on_demand';
@@ -36,7 +34,6 @@ export type PickupMethod = 'home' | 'entrance' | 'other';
 export type BagDeliveryStatus = 'pending' | 'scheduled' | 'en_route' | 'delivered' | 'completed' | 'cancelled';
 
 export type OrderStatus =
-  | 'pending_payment'
   | 'pending_assignment'
   | 'pickup_scheduled'
   | 'picked_up'
@@ -145,40 +142,17 @@ export interface BagDelivery {
   updated_at: string;
 }
 
-export interface SubscriptionPlan {
-  id: string;
-  slug: string;
-  name: string;
-  description: string;
-  price_ore: number;
-  billing_period: SubscriptionBillingPeriod;
-  included_kg: number;
-  features: string[];
-  frequency: SubscriptionFrequency;
-  is_popular: boolean;
-  is_active: boolean;
-  sort_order: number;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface Subscription {
   id: string;
   customer_id: string;
-  plan_id: string;
   assigned_cleaner_id: string | null;
-  default_extra_kg: number;
+  // Subscription settings
   default_needs_ironing: boolean;
-  default_delicate_items_count: number;
+  frequency: SubscriptionFrequency;
+  location_city: string;
   recurring_weekday: Weekday | null;
-  delivery_street: string;
-  delivery_postal_code: string;
-  delivery_city: string;
-  delivery_country: string;
-  delivery_special_instructions: string | null;
+  // Status and metadata
   status: SubscriptionStatus;
-  billing_cost_ore: number;
-  next_billing_date: string | null;
   provider_agreement_id: string | null;
   provider_agreement_metadata: Record<string, unknown> | null;
   started_at: string | null;
@@ -194,23 +168,29 @@ export interface Order {
   order_number: string;
   customer_id: string;
   subscription_id: string | null;
-  plan_id: string;
   cleaner_id: string | null;
   status: OrderStatus;
-  pickup_street: string;
-  pickup_postal_code: string;
-  pickup_city: string;
-  pickup_country: string;
-  pickup_special_instructions: string | null;
+  // Address (single address - pickup = delivery)
+  street: string;
+  postal_code: string;
+  city: string;
+  country: string;
+  special_instructions_address: string | null;
+  // Scheduling
   scheduled_date: string;
   delivery_date: string;
+  // Pickup details
   pickup_method: PickupMethod;
   pickup_location_description: string | null;
   special_instructions: string | null;
-  extra_kg: number;
-  delicate_items_count: number;
+  // Service preferences
   needs_ironing: boolean;
-  total_cost_ore: number;
+  // Pricing (calculated by cleaner)
+  actual_weight_kg: number | null;
+  pricing_notes: string | null;
+  price_calculated_at: string | null;
+  total_cost_ore: number | null;
+  // Other
   prerequisite_bag_delivery_id: string | null;
   declined_by_cleaner_ids: string[] | null;
   assigned_at: string | null;

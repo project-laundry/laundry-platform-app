@@ -49,7 +49,7 @@ export function UpcomingOrdersList({ orders }: UpcomingOrdersListProps) {
                 className="hover:bg-blue-50/30 transition-all cursor-pointer border-l-4 border-l-transparent hover:border-l-nordic-blue"
               >
                 <td className="px-6 py-5 whitespace-nowrap">
-                  <Link href={`/orders/${order.id}`} className="text-nordic-blue hover:underline font-semibold text-sm">
+                  <Link href={`/orders/details/${order.id}`} className="text-nordic-blue hover:underline font-semibold text-sm">
                     #{order.order_number}
                   </Link>
                 </td>

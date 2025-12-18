@@ -1,34 +1,29 @@
 // Subscription database operations
 
-import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type {
   Subscription,
-  SubscriptionPlan,
   SubscriptionStatus,
+  SubscriptionFrequency,
   Weekday,
 } from '@/types/database';
 
 export interface CreateSubscriptionData {
   customer_id: string;
-  plan_id: string;
   assigned_cleaner_id?: string | null;
-  default_extra_kg?: number;
-  default_needs_ironing?: boolean;
-  default_delicate_items_count?: number;
-  recurring_weekday?: Weekday | null;
-  delivery_street: string;
-  delivery_postal_code: string;
-  delivery_city: string;
-  delivery_country: string;
-  delivery_special_instructions?: string | null;
-  billing_cost_ore: number;
+  default_needs_ironing: boolean;
+  frequency: SubscriptionFrequency;
+  location_city: string;
+  recurring_weekday: Weekday | null;
   provider_agreement_id: string;
+  provider_agreement_metadata?: Record<string, unknown> | null;
 }
 
 /**
  * Create a new subscription with pending_payment status
  * Uses admin client to bypass RLS (no INSERT policy on subscriptions table)
+ *
+ * Note: Addresses are stored in provider_agreement_metadata for order generation
  */
 export async function createSubscription(
   data: CreateSubscriptionData
@@ -39,22 +34,15 @@ export async function createSubscription(
     .from('subscriptions')
     .insert({
       customer_id: data.customer_id,
-      plan_id: data.plan_id,
       assigned_cleaner_id: data.assigned_cleaner_id || null,
-      default_extra_kg: data.default_extra_kg || 0,
-      default_needs_ironing: data.default_needs_ironing || false,
-      default_delicate_items_count: data.default_delicate_items_count || 0,
-      recurring_weekday: data.recurring_weekday || null,
-      delivery_street: data.delivery_street,
-      delivery_postal_code: data.delivery_postal_code,
-      delivery_city: data.delivery_city,
-      delivery_country: data.delivery_country,
-      delivery_special_instructions: data.delivery_special_instructions || null,
-      billing_cost_ore: data.billing_cost_ore,
+      default_needs_ironing: data.default_needs_ironing,
+      frequency: data.frequency,
+      location_city: data.location_city,
+      recurring_weekday: data.recurring_weekday,
       status: 'pending_payment' as SubscriptionStatus,
       started_at: null,
-      next_billing_date: null,
       provider_agreement_id: data.provider_agreement_id,
+      provider_agreement_metadata: data.provider_agreement_metadata || null,
     })
     .select()
     .single();
@@ -89,66 +77,6 @@ export async function getSubscriptionById(
 }
 
 
-/**
- * Get subscription plan by ID
- */
-export async function getSubscriptionPlanById(
-  planId: string
-): Promise<SubscriptionPlan | null> {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from('subscription_plans')
-    .select('*')
-    .eq('id', planId)
-    .single();
-
-  if (error) {
-    return null;
-  }
-
-  return data;
-}
-
-/**
- * Get all active subscription plans
- */
-export async function getActiveSubscriptionPlans(): Promise<SubscriptionPlan[]> {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from('subscription_plans')
-    .select('*')
-    .eq('is_active', true)
-    .order('sort_order', { ascending: true });
-
-  if (error) {
-    return [];
-  }
-
-  return data;
-}
-
-/**
- * Get subscription plan by slug
- */
-export async function getSubscriptionPlanBySlug(
-  slug: string
-): Promise<SubscriptionPlan | null> {
-  const supabase = await createClient();
-
-  const { data, error} = await supabase
-    .from('subscription_plans')
-    .select('*')
-    .eq('slug', slug)
-    .single();
-
-  if (error) {
-    return null;
-  }
-
-  return data;
-}
 
 /**
  * Get active subscription for a customer
@@ -261,36 +189,6 @@ export async function updateSubscription(
   return data;
 }
 
-/**
- * Get active subscription with plan details for customer
- * Returns subscription joined with plan for display purposes
- * @param customerId - Customer UUID
- * @returns Subscription with plan details or null
- */
-export async function getSubscriptionWithPlanByCustomerId(
-  customerId: string
-): Promise<Subscription | null> {
-  const supabase = createAdminClient();
-
-  const { data, error } = await supabase
-    .from('subscriptions')
-    .select(`
-      *,
-      plan:subscription_plans!plan_id (*)
-    `)
-    .eq('customer_id', customerId)
-    .in('status', ['pending_payment', 'active'])
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    console.error('Error fetching subscription with plan:', error);
-    return null;
-  }
-
-  return data;
-}
 
 /**
  * Cancel a subscription
