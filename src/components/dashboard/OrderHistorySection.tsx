@@ -58,7 +58,7 @@ export function OrderHistorySection({ orders }: OrderHistorySectionProps) {
                   className="hover:bg-gray-50 transition-all cursor-pointer opacity-75 border-l-4 border-l-transparent hover:border-l-success-green"
                 >
                   <td className="px-6 py-5 whitespace-nowrap">
-                    <Link href={`/orders/${order.id}`} className="text-nordic-blue hover:underline font-semibold text-sm">
+                    <Link href={`/orders/details/${order.id}`} className="text-nordic-blue hover:underline font-semibold text-sm">
                       #{order.order_number}
                     </Link>
                   </td>

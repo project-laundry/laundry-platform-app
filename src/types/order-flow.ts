@@ -1,17 +1,20 @@
 import type { PickupMethod } from './database';
 
-export type Plan = 'single' | 'weekly' | 'biweekly';
-
 export interface OrderData {
-  // Plan selection
-  plan: Plan;
-  hasBag: boolean;
+  // Location
+  location: 'Bergen' | 'Oslo';
 
-  // Schedule
-  pickupDate?: string;
-  pickupTime: string;
+  // Frequency
+  isRecurring: boolean;
+  frequency: 'weekly' | 'biweekly' | 'monthly' | null;
 
-  // Address
+  // Date
+  firstPickupDate: string; // ISO date
+
+  // Ironing preference (default for all orders)
+  needsIroning: boolean;
+
+  // Address (kept separate for clarity)
   address: {
     street: string;
     city: string;
@@ -19,15 +22,10 @@ export interface OrderData {
     specialInstructions: string;
   };
 
-  // Pickup details
+  // Pickup
   pickupMethod: PickupMethod;
-  otherLocation: string;
+  pickupLocationDescription?: string;
 
   // Instructions
-  specialInstructions: string;
-
-  // Additional services
-  additionalKg: number;
-  delicateItems: number;
-  needsIroning: boolean;
+  specialInstructions?: string;
 }

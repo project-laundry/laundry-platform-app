@@ -81,7 +81,7 @@ export function SubscriptionCard({ subscription, nextOrder }: SubscriptionCardPr
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-xs text-medium-gray mb-1">Bestilling</p>
-                    <Link href={`/orders/${nextOrder.id}`} className="text-nordic-blue hover:underline font-semibold text-sm">
+                    <Link href={`/orders/details/${nextOrder.id}`} className="text-nordic-blue hover:underline font-semibold text-sm">
                       #{nextOrder.order_number}
                     </Link>
                   </div>

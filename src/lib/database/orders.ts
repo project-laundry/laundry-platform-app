@@ -7,22 +7,25 @@ import { generateOrderNumber } from '@/lib/utils/order-number';
 export interface CreateOrderData {
   customer_id: string;
   subscription_id?: string | null;
-  plan_id: string;
   cleaner_id?: string | null;
-  pickup_street: string;
-  pickup_postal_code: string;
-  pickup_city: string;
-  pickup_country: string;
-  pickup_special_instructions?: string | null;
+  // Address (single address - pickup = delivery)
+  street: string;
+  postal_code: string;
+  city: string;
+  country: string;
+  special_instructions_address?: string | null;
+  // Scheduling
   scheduled_date: string; // ISO date string
   delivery_date: string; // ISO date string
+  // Pickup details
   pickup_method: PickupMethod;
   pickup_location_description?: string | null;
   special_instructions?: string | null;
-  extra_kg?: number;
-  delicate_items_count?: number;
+  // Service preferences
   needs_ironing?: boolean;
-  total_cost_ore: number;
+  // Pricing (nullable - set by cleaner after pickup)
+  total_cost_ore?: number | null;
+  // Other
   prerequisite_bag_delivery_id?: string | null;
   status?: OrderStatus; // Optional: override auto-determined status
 }
@@ -64,23 +67,26 @@ export async function createOrder(data: CreateOrderData): Promise<Order | null> 
       order_number: orderNumber,
       customer_id: data.customer_id,
       subscription_id: data.subscription_id || null,
-      plan_id: data.plan_id,
       cleaner_id: data.cleaner_id || null,
       status: data.status,
-      pickup_street: data.pickup_street,
-      pickup_postal_code: data.pickup_postal_code,
-      pickup_city: data.pickup_city,
-      pickup_country: data.pickup_country,
-      pickup_special_instructions: data.pickup_special_instructions || null,
+      // Address (single address - pickup = delivery)
+      street: data.street,
+      postal_code: data.postal_code,
+      city: data.city,
+      country: data.country,
+      special_instructions_address: data.special_instructions_address || null,
+      // Scheduling
       scheduled_date: data.scheduled_date,
       delivery_date: data.delivery_date,
+      // Pickup details
       pickup_method: data.pickup_method,
       pickup_location_description: data.pickup_location_description || null,
       special_instructions: data.special_instructions || null,
-      extra_kg: data.extra_kg || 0,
-      delicate_items_count: data.delicate_items_count || 0,
+      // Service preferences
       needs_ironing: data.needs_ironing || false,
-      total_cost_ore: data.total_cost_ore,
+      // Pricing (nullable - set by cleaner after pickup)
+      total_cost_ore: data.total_cost_ore || null,
+      // Other
       prerequisite_bag_delivery_id: data.prerequisite_bag_delivery_id || null,
       assigned_at: data.cleaner_id ? new Date().toISOString() : null,
     })
@@ -154,7 +160,6 @@ export async function updateOrderStatus(
 
   // Map status to timestamp field
   const timestampField: Record<OrderStatus, string | null> = {
-    pending_payment: null,
     pending_assignment: null,
     pickup_scheduled: null,
     picked_up: 'picked_up_at',
@@ -199,8 +204,7 @@ export async function getUpcomingOrdersByCustomerId(
     .from('orders')
     .select(`
       *,
-      plan:subscription_plans(*),
-      cleaner:cleaners(
+      cleaner:cleaners!orders_cleaner_id_fkey(
         *,
         user:users(*)
       ),
@@ -238,8 +242,7 @@ export async function getCompletedOrdersByCustomerId(
     .from('orders')
     .select(`
       *,
-      plan:subscription_plans(*),
-      cleaner:cleaners(
+      cleaner:cleaners!orders_cleaner_id_fkey(
         *,
         user:users(*)
       ),
@@ -271,8 +274,7 @@ export async function getOrderWithDetailsByIdAndCustomerId(
     .from('orders')
     .select(`
       *,
-      plan:subscription_plans(*),
-      cleaner:cleaners(
+      cleaner:cleaners!orders_cleaner_id_fkey(
         *,
         user:users(*)
       ),
@@ -288,4 +290,37 @@ export async function getOrderWithDetailsByIdAndCustomerId(
   }
 
   return data as OrderWithRelations;
+}
+
+/**
+ * Update order pricing after cleaner calculates price
+ * Called by cleaner after weighing laundry
+ */
+export async function updateOrderPricing(
+  orderId: string,
+  cleanerId: string,
+  actualWeightKg: number,
+  totalCostOre: number,
+  pricingNotes?: string
+): Promise<Order | null> {
+  const supabase = await createAdminClient();
+
+  const { data, error } = await supabase
+    .from('orders')
+    .update({
+      actual_weight_kg: actualWeightKg,
+      total_cost_ore: totalCostOre,
+      pricing_notes: pricingNotes || null,
+      price_calculated_at: new Date().toISOString(),
+    })
+    .eq('id', orderId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating order pricing:', error);
+    return null;
+  }
+
+  return data;
 }

@@ -43,7 +43,7 @@ export function QuickActionsCard({ subscriptionId, subscriptionStatus }: QuickAc
 
         <div className="space-y-4">
           {/* Order Pickup */}
-          <Link href="/orders/plans">
+          <Link href="/orders/location-service">
             <div className="flex items-start gap-3 p-4 rounded-lg border border-gray-200 hover:border-nordic-blue hover:bg-blue-50/30 transition-all cursor-pointer">
               <div className="flex-shrink-0">
                 <Package className="w-5 h-5 text-dark-gray" />
