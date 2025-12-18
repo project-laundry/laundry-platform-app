@@ -69,8 +69,11 @@ export async function createSubscriptionAction(
     return { displayError: "Du har allerede et aktivt abonnement", error: "Customer already has an active subscription" };
   }
 
-  // Determine frequency (default to monthly if one-time)
-  const frequency = input.isRecurring && input.frequency ? input.frequency : 'monthly';
+  // Determine frequency (default to monthly if one-time or on_demand)
+  const frequency: 'weekly' | 'biweekly' | 'monthly' =
+    input.isRecurring && input.frequency && input.frequency !== 'on_demand'
+      ? input.frequency
+      : 'monthly';
 
   // Calculate recurring weekday
   const recurringWeekday = getWeekdayFromDate(input.firstPickupDate);
@@ -86,6 +89,7 @@ export async function createSubscriptionAction(
   const agreementResponse = await createVippsAgreement({
     productName: `NooraCare - Vask${ironingSuffix}`,
     productDescription: `${frequency} henting i ${input.location}`,
+    frequency,
   });
 
   // Create subscription record (NO address - will be on orders)
