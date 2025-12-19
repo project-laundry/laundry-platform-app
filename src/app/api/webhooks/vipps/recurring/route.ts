@@ -487,7 +487,7 @@ async function handleAgreementActivated(
       throw new Error('Customer not found');
     }
 
-    // Generate pickup dates based on frequency
+    // Generate pickup dates based on frequency (using first date only for rolling window approach)
     const pickupDates = generatePickupDates(
       activatedSubscription.frequency,
       activatedSubscription.recurring_weekday!,
@@ -499,7 +499,7 @@ async function handleAgreementActivated(
       return;
     }
 
-    console.log(`[Vipps Recurring Webhook] Generating ${pickupDates.length} orders for subscription ${activatedSubscription.id}`);
+    console.log(`[Vipps Recurring Webhook] Generating first order for subscription ${activatedSubscription.id}`);
 
     // Create bag delivery (if customer has no bags)
     let bagDeliveryId: string | null = null;
@@ -526,69 +526,52 @@ async function handleAgreementActivated(
       }
     }
 
-    // Create orders WITHOUT pricing (cleaner sets price later)
-    const results = {
-      totalAttempted: pickupDates.length,
-      successful: 0,
-      failed: 0,
-      errors: [] as string[],
-    };
+    // Create first order WITHOUT pricing (cleaner sets price later)
+    // Next orders will be generated automatically when current order completes
+    const pickupDate = pickupDates[0];
+    const deliveryDate = addDays(pickupDate, 3); // Delivery 3 days after pickup
 
-    for (let i = 0; i < pickupDates.length; i++) {
-      const pickupDate = pickupDates[i];
-      const deliveryDate = addDays(pickupDate, 3); // Delivery 3 days after pickup
+    try {
+      // Determine order status based on default cleaner
+      const orderStatus: OrderStatus = defaultCleanerId
+        ? 'pickup_scheduled'
+        : 'pending_assignment';
 
-      try {
-        // Determine order status based on default cleaner
-        const orderStatus: OrderStatus = defaultCleanerId
-          ? 'pickup_scheduled'
-          : 'pending_assignment';
+      // Create order with null pricing
+      const order = await createOrder({
+        customer_id: activatedSubscription.customer_id,
+        subscription_id: activatedSubscription.id,
+        cleaner_id: defaultCleanerId,
+        status: orderStatus,
+        // Address fields (from order defaults)
+        street: address.street,
+        postal_code: address.postal_code,
+        city: address.city,
+        country: address.country,
+        special_instructions_address: address.special_instructions,
+        // Scheduling
+        scheduled_date: toISODateString(pickupDate),
+        delivery_date: toISODateString(deliveryDate),
+        // Pickup details (from order defaults)
+        pickup_method: orderDefaults.pickup_method || 'home',
+        pickup_location_description: orderDefaults.pickup_location_description,
+        special_instructions: orderDefaults.special_instructions,
+        // Ironing preference (from order defaults)
+        needs_ironing: needsIroning,
+        // Pricing (NULL - cleaner sets later)
+        total_cost_ore: null,
+        // Bag delivery prerequisite
+        prerequisite_bag_delivery_id: bagDeliveryId,
+      });
 
-        // Create order with null pricing
-        const order = await createOrder({
-          customer_id: activatedSubscription.customer_id,
-          subscription_id: activatedSubscription.id,
-          cleaner_id: defaultCleanerId,
-          status: orderStatus,
-          // Address fields (from order defaults)
-          street: address.street,
-          postal_code: address.postal_code,
-          city: address.city,
-          country: address.country,
-          special_instructions_address: address.special_instructions,
-          // Scheduling
-          scheduled_date: toISODateString(pickupDate),
-          delivery_date: toISODateString(deliveryDate),
-          // Pickup details (from order defaults)
-          pickup_method: orderDefaults.pickup_method || 'home',
-          pickup_location_description: orderDefaults.pickup_location_description,
-          special_instructions: orderDefaults.special_instructions,
-          // Ironing preference (from order defaults)
-          needs_ironing: needsIroning,
-          // Pricing (NULL - cleaner sets later)
-          total_cost_ore: null,          
-          // Bag delivery prerequisite (only first order)
-          prerequisite_bag_delivery_id: i === 0 ? bagDeliveryId : null,
-        });
-
-        if (order) {
-          results.successful++;
-          console.log(`[Vipps Recurring Webhook] Order ${order.order_number} created (pickup: ${order.scheduled_date}, pricing: TBD by cleaner)`);
-        } else {
-          results.failed++;
-          results.errors.push(`Failed to create order for ${toISODateString(pickupDate)}`);
-        }
-      } catch (error) {
-        results.failed++;
-        results.errors.push(`Error creating order: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        console.error(`[Vipps Recurring Webhook] Error creating order for ${toISODateString(pickupDate)}:`, error);
+      if (order) {
+        console.log(`[Vipps Recurring Webhook] First order ${order.order_number} created (pickup: ${order.scheduled_date}, pricing: TBD by cleaner)`);
+      } else {
+        console.error(`[Vipps Recurring Webhook] Failed to create first order`);
       }
-    }
-
-    console.log(`[Vipps Recurring Webhook] Order generation complete:`, results);
-
-    if (results.failed > 0) {
-      console.error(`[Vipps Recurring Webhook] ${results.failed} orders failed to create`);
+    } catch (error) {
+      console.error(`[Vipps Recurring Webhook] Error creating first order:`, error);
+      // Don't throw - subscription is already activated
     }
   } catch (error) {
     console.error(`[Vipps Recurring Webhook] Failed to generate orders:`, error);
