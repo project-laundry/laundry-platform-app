@@ -23,12 +23,12 @@ export default function AddressPage() {
   useEffect(() => {
     if (orderData) {
       // Pre-fill city from location selection
-      setCity(orderData.location || '');
-
+      
       if (orderData.address) {
         setStreet(orderData.address.street || '');
         setPostalCode(orderData.address.postalCode || '');
         setSpecialInstructions(orderData.address.specialInstructions || '');
+        setCity(orderData.address.city || '');
       }
 
       if (orderData.specialInstructions) {
@@ -141,10 +141,10 @@ export default function AddressPage() {
                   Poststed <span className="text-teal-600">*</span>
                 </label>
                 <input
+                  onChange={(e) => setCity(e.target.value)}
                   type="text"
-                  value={city}
-                  disabled
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-600"
+                  value={city}                  
+                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg text-slate-600"
                 />
               </div>
             </div>
