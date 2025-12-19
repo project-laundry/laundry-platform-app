@@ -268,40 +268,30 @@
 
 - `id` (uuid, PK) - Unique identifier
 - `customer_id` (uuid, FK → Customer.id, required) - Customer reference
-- `plan_id` (uuid, FK → SubscriptionPlan.id, required) - Plan reference
-- `assigned_cleaner_id` (uuid, FK → [Cleaner](#3-cleaner).id, nullable) - Cleaner assigned to all orders in this subscription
-  - **Note:** All orders generated from this subscription are assigned to the same cleaner for consistency
-- `default_extra_kg` (integer, default: 0) - Permanent extra kg added to subscription
-- `default_needs_ironing` (boolean, default: false) - Permanent ironing preference
-- `default_delicate_items_count` (integer, default: 0) - Permanent delicate items count
+- `frequency` (enum → [SubscriptionFrequency](#subscriptionfrequency), required) - Pickup frequency (weekly, biweekly, monthly)
+  - **Default:** `'weekly'`
 - `recurring_weekday` (enum → [Weekday](#weekday), nullable) - Preferred weekday for recurring pickups based on subscription frequency
-  - **Note:** For biweekly frequency, this weekday repeats every 2 weeks from `started_at`. For monthly, system generates first 4 occurrences of this weekday after billing_date.
-- `delivery_street` (string, required) - Customer's delivery street address
-  - **Validation:** Min 3 chars, max 200 chars
-- `delivery_postal_code` (string, required) - Customer's delivery postal code
-  - **Validation:** Exactly 4 digits
-- `delivery_city` (string, required) - Customer's delivery city
-  - **Validation:** Min 2 chars, max 100 chars
-- `delivery_country` (string, required) - Customer's delivery country
-  - **Default:** `'Norway'`
-  - **Validation:** Max 100 chars
-- `delivery_special_instructions` (text, nullable) - Permanent access instructions for delivery location
-  - **Validation:** Max 500 chars
+  - **Note:** For biweekly frequency, this weekday repeats every 2 weeks from `started_at`. For monthly, system generates pickup dates on this weekday.
 - `status` (enum → [SubscriptionStatus](#subscriptionstatus), required) - Subscription status
   - **Default:** `pending_payment`
-  - **Note:** Transitions to `active` when initial payment succeeds
-- `billing_cost_ore` (integer, required) - Total billing cost in øre, calculated from plan price + permanent add-ons
-  - **Constraints:** >= 0
-  - **Note:** Named "billing" (not "monthly") because it applies to both monthly and one_time billing periods
-- `next_billing_date` (date, nullable) - Next scheduled payment date
-  - **Note:** Updated after each successful payment. For monthly billing, set to started_at + N months. Null for one_time plans (billed per order, not on schedule).
+  - **Note:** Transitions to `active` when Vipps agreement is approved
 - `provider_agreement_id` (string, nullable, unique) - Vipps recurring agreement ID
   - **Format:** `agr_*` (Vipps format)
   - **Note:** Set when customer approves Vipps agreement. Used for recurring billing and subscription management.
-- `provider_agreement_metadata` (jsonb, nullable) - Vipps agreement metadata
-  - **Default:** `{}`
-  - **Example:** `{"vipps_agreement_id": "agr_Abc123", "agreement_status": "ACTIVE", "vipps_initial_charge_id": "chr_Xyz789", "created_at": "2025-01-15T10:00:00Z"}`
-  - **Note:** Stores Vipps-specific agreement details for debugging and audit trail.
+- `order_defaults` (jsonb, nullable) - Order generation defaults
+  - **Default:** `null`
+  - **Structure:**
+    - `initial_address` (object) - Pickup/delivery address:
+      - `street`, `postal_code`, `city`, `country`, `special_instructions`
+    - `pickup_method` (string) - Pickup method ('home', 'entrance', 'other')
+    - `pickup_location_description` (string, nullable) - Specific pickup location details
+    - `special_instructions` (string, nullable) - Special instructions for pickup
+    - `location_city` (string) - Service area city ('Bergen' or 'Oslo') - used for cleaner matching
+    - `default_needs_ironing` (boolean) - Default ironing preference for orders
+    - `default_cleaner_id` (uuid, nullable) - Default cleaner assignment (orders can be reassigned to different cleaners)
+  - **Note:** Contains all defaults used when generating orders from this subscription. Cleaner, preferences, and address can differ on individual orders.
+- `next_billing_date` (date, nullable) - Next scheduled payment date
+  - **Note:** Updated after each successful charge capture. Drives self-perpetuating billing.
 - `started_at` (timestamp, nullable) - Subscription start date
   - **Note:** Set when initial payment succeeds. Null while `status = 'pending_payment'`.
 - `paused_at` (timestamp, nullable) - Pause timestamp
@@ -313,21 +303,20 @@
 **Relationships:**
 
 - Belongs to Customer
-- Belongs to SubscriptionPlan
-- Assigned to Cleaner (nullable)
 - Has many Orders (generated from subscription)
-- Has many Payments (monthly recurring billing)
+- Has many Payments (recurring billing)
+- Default cleaner stored in order_defaults.default_cleaner_id (not a foreign key - orders can be reassigned)
 
 **Notes:**
 
-- See [BUSINESS_LOGIC.md](./BUSINESS_LOGIC.md#subscription-billing-cost-calculation) for `billing_cost_ore` calculation formula, recalculation rules, and billing period computation
-- See [BUSINESS_LOGIC.md](./BUSINESS_LOGIC.md#subscription-creation--order-generation-payment-triggered) for order generation workflow and preference inheritance rules
+- Order generation defaults (address, cleaner, preferences) are stored in `order_defaults` JSONB
+- Individual orders can override these defaults (e.g., different cleaner, different address)
+- See [BUSINESS_LOGIC.md](./BUSINESS_LOGIC.md#subscription-creation--order-generation-payment-triggered) for order generation workflow
 
 **Indexes:**
 
-- Foreign: customer_id, plan_id, assigned_cleaner_id
+- Foreign: customer_id
 - Index: status, provider_agreement_id
-- Composite: (status, next_billing_date) - for recurring billing scheduler queries
 - Unique: (customer_id) WHERE status IN ('pending_payment', 'active', 'paused') - enforces one active/pending subscription per customer
 - Unique: provider_agreement_id (for Vipps agreement lookups)
 

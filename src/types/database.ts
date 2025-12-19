@@ -145,22 +145,40 @@ export interface BagDelivery {
 export interface Subscription {
   id: string;
   customer_id: string;
-  assigned_cleaner_id: string | null;
   // Subscription settings
-  default_needs_ironing: boolean;
   frequency: SubscriptionFrequency;
-  location_city: string;
   recurring_weekday: Weekday | null;
   // Status and metadata
   status: SubscriptionStatus;
   provider_agreement_id: string | null;
-  provider_agreement_metadata: Record<string, unknown> | null;
+  order_defaults: SubscriptionOrderDefaults | null;
   started_at: string | null;
   paused_at: string | null;
   cancelled_at: string | null;
   expires_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/**
+ * Order generation defaults stored in subscriptions.order_defaults
+ * Contains all default values for creating orders from a subscription
+ */
+export interface SubscriptionOrderDefaults {
+  initial_address: {
+    street: string;
+    city: string;
+    postal_code: string;
+    country: string;
+    special_instructions?: string;
+  };
+  pickup_method: PickupMethod;
+  pickup_location_description?: string;
+  special_instructions?: string;
+  location_city: 'Bergen' | 'Oslo';
+  default_needs_ironing: boolean;
+  default_cleaner_id: string | null;
+  [key: string]: unknown; // Allow additional fields from Vipps metadata
 }
 
 export interface Order {
@@ -282,7 +300,7 @@ export type VippsChargeStatus = 'PENDING' | 'DUE' | 'RESERVED' | 'CHARGED' | 'FA
 
 /**
  * Vipps agreement metadata structure
- * Stored in subscriptions.provider_agreement_metadata
+ * Stored in subscriptions.order_defaults (merged with order generation defaults)
  */
 export interface VippsAgreementMetadata {
   vipps_agreement_id: string;
