@@ -85,7 +85,7 @@ export default async function OrderDetailPage({ params }: OrderPageProps) {
             </Badge>
           </div>
           <p className="text-medium-gray">
-            {order.plan?.name || 'Klesvask'}
+            Klesvask
           </p>
         </div>
 
@@ -229,38 +229,22 @@ export default async function OrderDetailPage({ params }: OrderPageProps) {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-medium-gray">Grunnpris</span>
-                    <span className="font-medium text-dark-gray">
-                      {oreToNok(order.plan?.price_ore || 0)} kr
-                    </span>
-                  </div>
-                  {order.extra_kg > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-medium-gray">Ekstra kg ({order.extra_kg})</span>
-                      <span className="font-medium text-dark-gray">
-                        {oreToNok(order.extra_kg * 1000)} kr
-                      </span>
-                    </div>
+                  {order.total_cost_ore !== null ? (
+                    <>
+                      {order.needs_ironing && (
+                        <div className="flex justify-between">
+                          <span className="text-medium-gray">Stryking</span>
+                          <span className="font-medium text-dark-gray">Inkludert</span>
+                        </div>
+                      )}
+                      <div className={order.needs_ironing ? "border-t border-gray-200 pt-2 mt-2 flex justify-between font-semibold" : "flex justify-between font-semibold"}>
+                        <span className="text-dark-gray">Totalt</span>
+                        <span className="text-dark-gray">{oreToNok(order.total_cost_ore)} kr</span>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-medium-gray">Pris beregnes av renser</p>
                   )}
-                  {order.needs_ironing && (
-                    <div className="flex justify-between">
-                      <span className="text-medium-gray">Stryking</span>
-                      <span className="font-medium text-dark-gray">40 kr</span>
-                    </div>
-                  )}
-                  {order.delicate_items_count > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-medium-gray">Delikate plagg ({order.delicate_items_count})</span>
-                      <span className="font-medium text-dark-gray">
-                        {oreToNok(order.delicate_items_count * 7500)} kr
-                      </span>
-                    </div>
-                  )}
-                  <div className="border-t border-gray-200 pt-2 mt-2 flex justify-between font-semibold">
-                    <span className="text-dark-gray">Totalt</span>
-                    <span className="text-dark-gray">{oreToNok(order.total_cost_ore)} kr</span>
-                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -286,8 +270,8 @@ export default async function OrderDetailPage({ params }: OrderPageProps) {
                 <div>
                   <p className="text-medium-gray mb-1">Adresse</p>
                   <p className="text-dark-gray">
-                    {order.pickup_street}<br />
-                    {order.pickup_postal_code} {order.pickup_city}
+                    {order.street}<br />
+                    {order.postal_code} {order.city}
                   </p>
                 </div>
                 <div>

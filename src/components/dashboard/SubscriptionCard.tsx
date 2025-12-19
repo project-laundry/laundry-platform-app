@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { oreToNok } from '@/lib/config/pricing';
 import {
   getSubscriptionStatusLabel,
   getSubscriptionStatusVariant,
@@ -12,18 +11,12 @@ import { getOrderStatusLabel, getOrderStatusVariant } from '@/lib/utils/order-st
 import type { Subscription, OrderWithRelations } from '@/types/database';
 
 interface SubscriptionCardProps {
-  subscription: Subscription & {
-    plan?: {
-      name: string;
-      frequency: string;
-      included_kg: number;
-    } | null;
-  };
+  subscription: Subscription;
   nextOrder?: OrderWithRelations | null;
 }
 
 export function SubscriptionCard({ subscription, nextOrder }: SubscriptionCardProps) {
-  const { plan, status, billing_cost_ore, next_billing_date, recurring_weekday } = subscription;
+  const { status, frequency, recurring_weekday } = subscription;
 
   return (
     <div className="space-y-6">
@@ -32,7 +25,7 @@ export function SubscriptionCard({ subscription, nextOrder }: SubscriptionCardPr
         <CardContent className="p-8">
           <div className="flex items-center justify-between mb-8">
             <h3 className="text-2xl font-bold text-dark-gray">
-              {plan?.name}
+              Ditt abonnement
             </h3>
             <Badge variant={getSubscriptionStatusVariant(status)}>
               {getSubscriptionStatusLabel(status)}
@@ -43,19 +36,7 @@ export function SubscriptionCard({ subscription, nextOrder }: SubscriptionCardPr
             <div>
               <p className="text-sm text-medium-gray mb-2 font-medium">Frekvens</p>
               <p className="text-base font-semibold text-dark-gray">
-                {plan?.frequency ? getSubscriptionFrequencyLabel(plan.frequency as any) : 'Månedlig'}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-medium-gray mb-2 font-medium">Pris/måned</p>
-              <p className="text-base font-semibold text-dark-gray">
-                {oreToNok(billing_cost_ore)} kr
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-medium-gray mb-2 font-medium">Inkludert vekt</p>
-              <p className="text-base font-semibold text-dark-gray">
-                {plan?.included_kg || 0} kg
+                {getSubscriptionFrequencyLabel(frequency)}
               </p>
             </div>
             {recurring_weekday && (
@@ -112,22 +93,6 @@ export function SubscriptionCard({ subscription, nextOrder }: SubscriptionCardPr
                     </p>
                   </div>
                 </div>
-              </div>
-            </div>
-          )}
-
-          {/* Next Billing Date Section */}
-          {next_billing_date && (
-            <div className={nextOrder ? 'mt-4' : 'mt-6 pt-6 border-t border-gray-100'}>
-              <div className="bg-blue-50/30 rounded-lg p-4">
-                <p className="text-sm text-medium-gray mb-1 font-medium">Neste faktura</p>
-                <p className="text-base font-semibold text-dark-gray">
-                  {new Date(next_billing_date).toLocaleDateString('no-NO', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric'
-                  })}
-                </p>
               </div>
             </div>
           )}

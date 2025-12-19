@@ -31,9 +31,9 @@ export {
 export {
   // Recurring API (Subscriptions)
   createVippsAgreement,
-  createRecurringChargeForSubscription,
   captureVippsCharge,
   cancelVippsAgreement,
+  createChargeForCompletedOrder,
   type CreateAgreementResult,
   // ePayment API (One-time Orders)
   createVippsEPayment,

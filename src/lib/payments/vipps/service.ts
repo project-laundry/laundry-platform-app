@@ -254,7 +254,6 @@ export async function createChargeForCompletedOrder(
     payment_type: 'one_time',
     amount_ore: amountOre,
     payment_provider: 'vipps',
-    status: 'pending',
   });
 
   if (!payment) {

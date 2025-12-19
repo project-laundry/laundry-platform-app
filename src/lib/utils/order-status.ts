@@ -4,7 +4,6 @@ import type { OrderStatus } from '@/types/database';
  * Norwegian labels for order statuses
  */
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  pending_payment: 'Venter på betaling',
   pending_assignment: 'Venter på tildeling',
   pickup_scheduled: 'Planlagt henting',
   picked_up: 'Hentet',
@@ -19,7 +18,6 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
  * Badge variants for order statuses
  */
 export const ORDER_STATUS_VARIANT: Record<OrderStatus, 'default' | 'secondary' | 'outline' | 'destructive' | 'success' | 'info' | 'warning' | 'neutral'> = {
-  pending_payment: 'warning',
   pending_assignment: 'warning',
   pickup_scheduled: 'info',
   picked_up: 'info',
