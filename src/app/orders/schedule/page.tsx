@@ -3,746 +3,374 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Calendar as CalendarIcon, RefreshCw, Info, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
+import { OrderFlowProgress } from '@/components/ui/OrderFlowProgress';
 import { getAvailableWeekdaysAction } from '../actions';
 import type { Weekday } from '@/types/database';
 import { getWeekdayFromDate } from '@/lib/utils/date';
 
-const FIXED_PICKUP_TIME = '15:00-20:00';
-
-const weekdays = [
-  { value: 'monday' as const, label: 'Mandag', dayIndex: 1 },
-  { value: 'tuesday' as const, label: 'Tirsdag', dayIndex: 2 },
-  { value: 'wednesday' as const, label: 'Onsdag', dayIndex: 3 },
-  { value: 'thursday' as const, label: 'Torsdag', dayIndex: 4 },
-  { value: 'friday' as const, label: 'Fredag', dayIndex: 5 },
-  { value: 'saturday' as const, label: 'Lørdag', dayIndex: 6 },
-  { value: 'sunday' as const, label: 'Søndag', dayIndex: 0 }
-];
-
-const getNextDeliveryDays = (hasBag: boolean, count: number = 30) => {
-  const days = [];
-  const today = new Date();
-  // If no bag, skip tomorrow (bag delivery day) and start from day after tomorrow
-  const startOffset = hasBag ? 1 : 2;
-
-  for (let i = 0; i < count; i++) {
-    const date = new Date(today);
-    date.setDate(today.getDate() + startOffset + i);
-
-    const dayNames = ['Søndag', 'Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag'];
-    const monthNames = ['jan', 'feb', 'mar', 'apr', 'mai', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'des'];
-
-    days.push({
-      date: date,
-      dayName: dayNames[date.getDay()],
-      dayNum: date.getDate(),
-      monthName: monthNames[date.getMonth()],
-      weekdayValue: getWeekdayFromDate(date),
-      isFirstOption: i === 0
-    });
-  }
-
-  return days;
-};
+type Frequency = 'weekly' | 'biweekly' | 'monthly';
 
 export default function SchedulePage() {
   const router = useRouter();
   const orderData = useOrderFlowStore((state) => state.orderData);
   const updateOrderData = useOrderFlowStore((state) => state.updateOrderData);
 
-  // Get plan and services data from store
-  const plan = orderData?.plan || 'single';
-  const hasBag = orderData?.hasBag || false;
-
   const [selectedDate, setSelectedDate] = useState<string>('');
-  const [address, setAddress] = useState({
-    street: '',
-    city: '',
-    postalCode: '',
-    specialInstructions: ''
-  });
-
-  const [pickupMethod, setPickupMethod] = useState<'home' | 'entrance' | 'other'>('home');
-  const [otherLocation, setOtherLocation] = useState('');
-
-  // Helper function to get weekday from date string
-  const getWeekdayFromDate = (dateString: string): Weekday => {
-    const date = new Date(dateString);
-    const dayIndex = date.getDay();
-    const weekdayMap: Weekday[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    return weekdayMap[dayIndex];
-  };
-
-  // Initialize form state from store
-  useEffect(() => {
-    if (orderData) {
-      setSelectedDate(orderData.pickupDate || '');
-      if (orderData.address) {
-        setAddress(orderData.address);
-      }
-      if (orderData.pickupMethod) {
-        setPickupMethod(orderData.pickupMethod);
-      }
-      if (orderData.otherLocation) {
-        setOtherLocation(orderData.otherLocation);
-      }
-    }
-  }, [orderData]);
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [frequency, setFrequency] = useState<Frequency>('weekly');
+  const [currentMonth, setCurrentMonth] = useState(new Date());
 
   // Availability state
   const [availableWeekdays, setAvailableWeekdays] = useState<Weekday[]>([]);
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
-  const [availabilityError, setAvailabilityError] = useState<string>('');
 
-  // Fetch available weekdays when city changes
+  // Initialize form state from store
   useEffect(() => {
-    if (!address.city) {
-      setAvailableWeekdays([]);
-      return;
+    if (orderData) {
+      setSelectedDate(orderData.firstPickupDate || '');
+      setIsRecurring(orderData.isRecurring || false);
+      setFrequency((orderData.frequency as Frequency) || 'weekly');
     }
+  }, [orderData]);
 
+  // Redirect if location not selected
+  useEffect(() => {
+    if (!orderData?.location) {
+      router.push('/orders/location-service');
+    }
+  }, [orderData, router]);
+
+  // Fetch available weekdays when location is available
+  useEffect(() => {
     const fetchAvailability = async () => {
+      if (!orderData?.location) return;
+
       setIsLoadingAvailability(true);
-      setAvailabilityError('');
       try {
-        const weekdays = await getAvailableWeekdaysAction(address.city);
+        const weekdays = await getAvailableWeekdaysAction(orderData.location);
         setAvailableWeekdays(weekdays);
-        if (weekdays.length === 0) {
-          setAvailabilityError('Ingen rensere tilgjengelige i dette området ennå.');
-        }
       } catch {
-        setAvailabilityError('Kunne ikke hente tilgjengelighet. Prøv igjen.');
+        setAvailableWeekdays([]);
       } finally {
         setIsLoadingAvailability(false);
       }
     };
 
     fetchAvailability();
-  }, [address.city]);
-
-  // Helper function to get delivery date info (the selected date is the delivery date)
-  const getDeliveryDateInfo = (dateString: string) => {
-    const date = new Date(dateString);
-    const dayNames = ['Søndag', 'Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag'];
-    const monthNames = ['januar', 'februar', 'mars', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'desember'];
-
-    // Calculate bag delivery (day before the selected delivery date)
-    const bagDelivery = new Date(date);
-    bagDelivery.setDate(date.getDate() - 1);
-
-    return {
-      deliveryDay: dayNames[date.getDay()],
-      deliveryDate: `${date.getDate()}. ${monthNames[date.getMonth()]}`,
-      bagDeliveryDay: dayNames[bagDelivery.getDay()],
-      bagDeliveryDate: `${bagDelivery.getDate()}. ${monthNames[bagDelivery.getMonth()]}`
-    };
-  };
-
-  // Helper function to get delivery info for recurring weekday
-  const getWeekdayDeliveryInfo = (weekday: Weekday) => {
-    const selectedDay = weekdays.find(d => d.value === weekday);
-    if (!selectedDay) return { deliveryDay: '', deliveryDate: '', bagDeliveryDay: '', bagDeliveryDate: '' };
-
-    const today = new Date();
-    const currentDayIndex = today.getDay();
-
-    // Calculate days until next occurrence
-    let daysUntil = selectedDay.dayIndex - currentDayIndex;
-    if (daysUntil <= 0) daysUntil += 7;
-
-    const nextDelivery = new Date(today);
-    nextDelivery.setDate(today.getDate() + daysUntil);
-
-    const bagDelivery = new Date(nextDelivery);
-    bagDelivery.setDate(nextDelivery.getDate() - 1);
-
-    const dayNames = ['Søndag', 'Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag'];
-    return {
-      deliveryDay: selectedDay.label,
-      deliveryDate: `${nextDelivery.getDate()}. ${['januar', 'februar', 'mars', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'desember'][nextDelivery.getMonth()]}`,
-      bagDeliveryDay: dayNames[bagDelivery.getDay()],
-      bagDeliveryDate: `${bagDelivery.getDate()}. ${['januar', 'februar', 'mars', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'desember'][bagDelivery.getMonth()]}`
-    };
-  };
-
-  const deliveryDays = getNextDeliveryDays(hasBag);
-
-
-  const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setAddress(prev => ({ ...prev, [name]: value }));
-  };
+  }, [orderData?.location]);
 
   const handleContinue = () => {
-    // Validate city selection
-    if (!address.city) {
-      alert('Vennligst velg by');
-      return;
-    }
-
-    // Validate date selection (required for both single and recurring plans)
     if (!selectedDate) {
-      alert('Vennligst velg dato');
+      alert('Vennligst velg hentedato');
       return;
     }
 
-    if (!address.street || !address.postalCode) {
-      alert('Vennligst fyll ut adresse');
-      return;
-    }
-    if (pickupMethod === 'other' && !otherLocation.trim()) {
-      alert('Vennligst beskriv hvor posen skal plasseres');
-      return;
-    }
-
-    // Update store with schedule data
     updateOrderData({
-      pickupDate: selectedDate, // Always store the selected date (first pickup date)
-      pickupTime: FIXED_PICKUP_TIME,
-      address,
-      pickupMethod,
-      otherLocation: pickupMethod === 'other' ? otherLocation : ''
+      firstPickupDate: selectedDate,
+      isRecurring,
+      frequency: isRecurring ? frequency : null,
     });
 
-    router.push('/orders/instructions');
+    router.push('/orders/address');
   };
 
-  // No items to count since bag-based subscription
+  // Calendar logic
+  const getDaysInMonth = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+
+    const days = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const minDate = new Date(today);
+    minDate.setDate(today.getDate() + 2); // Minimum 2 days notice
+
+    // Add empty cells for days before month starts
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      days.push(null);
+    }
+
+    // Add all days in month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day);
+      const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const weekday = getWeekdayFromDate(dateString);
+      const isAvailable = availableWeekdays.includes(weekday) && date >= minDate;
+
+      days.push({
+        day,
+        date: dateString,
+        isAvailable,
+        isToday: date.toDateString() === today.toDateString(),
+        isPast: date < minDate,
+      });
+    }
+
+    return days;
+  };
+
+  const days = getDaysInMonth(currentMonth);
+  const monthNames = ['Januar', 'Februar', 'Mars', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Desember'];
+  const weekdayLabels = ['Sø', 'Ma', 'Ti', 'On', 'To', 'Fr', 'Lø'];
+
+  const previousMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
+  };
+
+  const nextMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
+  };
 
   return (
-    <div className="min-h-screen bg-soft-gray">
+    <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <header className="bg-white border-b border-slate-100">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <Link href="/dashboard" className="inline-block">
-              <h1 className="text-2xl font-bold text-nordic-blue">NooraCare</h1>
+              <h1 className="text-2xl font-light text-slate-900">NooraCare</h1>
             </Link>
-            <span className="text-medium-gray">Velg hentingstid</span>
           </div>
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Progress Steps */}
-        <div className="flex items-center justify-center mb-12">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center">
-              <div className="w-8 h-8 bg-nordic-blue text-white rounded-full flex items-center justify-center text-sm font-semibold">
-                1
-              </div>
-              <span className="ml-2 text-nordic-blue font-medium">Velg tid</span>
-            </div>
-            <div className="w-8 h-0.5 bg-gray-300"></div>
-            <div className="flex items-center">
-              <div className="w-8 h-8 bg-gray-300 text-gray-600 rounded-full flex items-center justify-center text-sm font-semibold">
-                2
-              </div>
-              <span className="ml-2 text-gray-600">Instruksjoner</span>
-            </div>
-            <div className="w-8 h-0.5 bg-gray-300"></div>
-            <div className="flex items-center">
-              <div className="w-8 h-8 bg-gray-300 text-gray-600 rounded-full flex items-center justify-center text-sm font-semibold">
-                3
-              </div>
-              <span className="ml-2 text-gray-600">Bekreft</span>
-            </div>
-          </div>
-        </div>
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Progress Indicator */}
+        <OrderFlowProgress currentStep={2} />
 
         {/* Page Header */}
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-dark-gray mb-4">Når skal vi hente?</h2>
+          <h2 className="text-3xl font-light text-slate-900 mb-2">Dato & Frekvens</h2>
+          <p className="text-slate-500">Velg hentedato</p>
         </div>
 
-        {/* City Selection */}
-        <div className="bg-white rounded-2xl p-6 sm:p-8 mb-8">
-          <h3 className="text-lg font-semibold text-dark-gray mb-4">Velg by</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <button
-              onClick={() => setAddress(prev => ({ ...prev, city: 'Bergen' }))}
-              className={`p-4 rounded-lg border-2 text-center transition-colors ${
-                address.city === 'Bergen'
-                  ? 'border-nordic-blue bg-blue-50'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              <div className="font-semibold text-dark-gray">Bergen</div>
-            </button>
-            <button
-              onClick={() => setAddress(prev => ({ ...prev, city: 'Oslo' }))}
-              className={`p-4 rounded-lg border-2 text-center transition-colors ${
-                address.city === 'Oslo'
-                  ? 'border-nordic-blue bg-blue-50'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              <div className="font-semibold text-dark-gray">Oslo</div>
-            </button>
+        {/* Calendar Section */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 mb-6">
+          <div className="flex items-center mb-6">
+            <CalendarIcon className="w-5 h-5 text-teal-600 mr-2" />
+            <h3 className="text-lg font-medium text-slate-900">Velg hentedato</h3>
           </div>
-        </div>
 
-        {/* Date or Weekday Selection based on plan type */}
-        {plan === 'single' ? (
-          /* Date Selection for single plan */
-          <div className="bg-white rounded-2xl p-6 sm:p-8 mb-8">
-            <h3 className="text-lg font-semibold text-dark-gray mb-6">Velg første henting</h3>
+          {/* Calendar */}
+          <div className="border border-slate-200 rounded-lg p-4">
+            {/* Month Header */}
+            <div className="flex items-center justify-between mb-4">
+              <button
+                onClick={previousMonth}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                aria-label="Forrige måned"
+              >
+                <ChevronLeft className="w-5 h-5 text-slate-600" />
+              </button>
+              <h4 className="text-base font-medium text-slate-900">
+                {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+              </h4>
+              <button
+                onClick={nextMonth}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                aria-label="Neste måned"
+              >
+                <ChevronRight className="w-5 h-5 text-slate-600" />
+              </button>
+            </div>
 
-            {/* Show message if no city selected */}
-            {!address.city && (
-              <p className="text-medium-gray text-center py-4">Velg by først for å se tilgjengelige datoer</p>
-            )}
-
-            {/* Show loading state */}
-            {address.city && isLoadingAvailability && (
-              <p className="text-medium-gray text-center py-4">Laster tilgjengelighet...</p>
-            )}
-
-            {/* Show error if no cleaners available */}
-            {address.city && !isLoadingAvailability && availabilityError && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
-                <p className="text-yellow-800">{availabilityError}</p>
-              </div>
-            )}
-
-            {/* Desktop: Horizontal scroll */}
-            {address.city && !isLoadingAvailability && !availabilityError && (
-              <div className="hidden sm:block relative">
-                {/* Scroll indicator - left fade */}
-                <div className="absolute left-0 top-0 bottom-2 w-12 bg-gradient-to-r from-white to-transparent pointer-events-none z-10"></div>
-                {/* Scroll indicator - right fade */}
-                <div className="absolute right-0 top-0 bottom-2 w-12 bg-gradient-to-l from-white to-transparent pointer-events-none z-10"></div>
-                {/* Scroll hint arrow - right */}
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 text-nordic-blue text-2xl pointer-events-none z-10 animate-pulse">
-                  →
+            {/* Weekday Labels */}
+            <div className="grid grid-cols-7 gap-1 mb-2">
+              {weekdayLabels.map((label) => (
+                <div key={label} className="text-center text-xs text-slate-500 py-2">
+                  {label}
                 </div>
-                <div className="flex gap-4 overflow-x-auto pb-2" style={{scrollbarWidth: 'thin'}}>
-                  {deliveryDays.map((day) => {
-                    const dateString = `${day.date.getFullYear()}-${String(day.date.getMonth() + 1).padStart(2, '0')}-${String(day.date.getDate()).padStart(2, '0')}`;
-                    const isSelected = selectedDate === dateString;
-                    const isAvailable = availableWeekdays.includes(day.weekdayValue);
+              ))}
+            </div>
 
-                    return (
-                      <button
-                        key={dateString}
-                        onClick={() => isAvailable && setSelectedDate(dateString)}
-                        disabled={!isAvailable}
-                        className={`flex-shrink-0 p-4 rounded-lg border-2 text-center transition-colors min-w-[120px] ${
-                          !isAvailable
-                            ? 'border-gray-100 bg-gray-50 cursor-not-allowed opacity-50'
-                            : isSelected
-                            ? 'border-nordic-blue bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                        title={!isAvailable ? 'Ingen rensere tilgjengelige denne dagen' : ''}
-                      >
-                        <div className="text-sm text-medium-gray mb-1">
-                          {day.dayName}
-                        </div>
-                        <div className={`font-bold ${isAvailable ? 'text-dark-gray' : 'text-gray-400'}`}>{day.dayNum}</div>
-                        <div className="text-xs text-medium-gray">{day.monthName}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            {/* Calendar Grid */}
+            <div className="grid grid-cols-7 gap-1">
+              {days.map((day, index) => {
+                if (!day) {
+                  return <div key={`empty-${index}`} className="aspect-square" />;
+                }
 
-            {/* Mobile: Horizontal scroll */}
-            {address.city && !isLoadingAvailability && !availabilityError && (
-              <div className="sm:hidden relative">
-                {/* Scroll indicator - left fade */}
-                <div className="absolute left-0 top-0 bottom-2 w-8 bg-gradient-to-r from-white to-transparent pointer-events-none z-10"></div>
-                {/* Scroll indicator - right fade */}
-                <div className="absolute right-0 top-0 bottom-2 w-8 bg-gradient-to-l from-white to-transparent pointer-events-none z-10"></div>
-                {/* Scroll hint arrow - right */}
-                <div className="absolute right-1 top-1/2 -translate-y-1/2 text-nordic-blue text-xl pointer-events-none z-10 animate-pulse">
-                  →
-                </div>
-                <div className="flex gap-3 overflow-x-auto pb-2" style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
-                  {deliveryDays.map((day) => {
-                    const dateString = `${day.date.getFullYear()}-${String(day.date.getMonth() + 1).padStart(2, '0')}-${String(day.date.getDate()).padStart(2, '0')}`;
-                    const isSelected = selectedDate === dateString;
-                    const isAvailable = availableWeekdays.includes(day.weekdayValue);
+                const isSelected = selectedDate === day.date;
 
-                    return (
-                      <button
-                        key={dateString}
-                        onClick={() => isAvailable && setSelectedDate(dateString)}
-                        disabled={!isAvailable}
-                        className={`flex-shrink-0 p-3 rounded-lg border-2 text-center transition-colors min-w-[80px] ${
-                          !isAvailable
-                            ? 'border-gray-100 bg-gray-50 cursor-not-allowed opacity-50'
-                            : isSelected
-                            ? 'border-nordic-blue bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <div className="text-xs text-medium-gray mb-1">
-                          {day.dayName.substring(0, 3)}
-                        </div>
-                        <div className={`font-bold text-lg ${isAvailable ? 'text-dark-gray' : 'text-gray-400'}`}>{day.dayNum}</div>
-                        <div className="text-xs text-medium-gray">{day.monthName}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-                <style jsx>{`
-                  div::-webkit-scrollbar {
-                    display: none;
-                  }
-                `}</style>
-              </div>
-            )}
+                return (
+                  <button
+                    key={day.date}
+                    onClick={() => day.isAvailable && setSelectedDate(day.date)}
+                    disabled={!day.isAvailable}
+                    className={`aspect-square rounded-lg text-sm font-medium transition-all duration-200 ${
+                      isSelected
+                        ? 'bg-teal-600 text-white'
+                        : day.isAvailable
+                        ? 'text-slate-700 hover:bg-slate-100'
+                        : 'text-slate-300 cursor-not-allowed'
+                    }`}
+                  >
+                    {day.day}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        ) : (
-          /* Weekday Selection for recurring plans */
-          <div className="bg-white rounded-2xl p-6 sm:p-8 mb-8">
-            <h3 className="text-lg font-semibold text-dark-gray mb-6">Velg første henting</h3>
-            <p className="text-medium-gray mb-6">
-              Velg dag for din første henting. Dette blir din faste ukedag for alle fremtidige hentinger.
+
+          {/* Info Message */}
+          <div className="mt-4 bg-blue-50 rounded-lg p-4 flex items-start">
+            <Info className="w-5 h-5 text-blue-600 mr-3 mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-blue-900">
+              Grå datoer er utilgjengelige. Minimum 2 dagers varsel kreves.
             </p>
-
-            {/* Show message if no city selected */}
-            {!address.city && (
-              <p className="text-medium-gray text-center py-4">Velg by først for å se tilgjengelige datoer</p>
-            )}
-
-            {/* Show loading state */}
-            {address.city && isLoadingAvailability && (
-              <p className="text-medium-gray text-center py-4">Laster tilgjengelighet...</p>
-            )}
-
-            {/* Show error if no cleaners available */}
-            {address.city && !isLoadingAvailability && availabilityError && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
-                <p className="text-yellow-800">{availabilityError}</p>
-              </div>
-            )}
-
-            {/* Desktop: Horizontal scroll */}
-            {address.city && !isLoadingAvailability && !availabilityError && (
-              <div className="hidden sm:block relative">
-                {/* Scroll indicator - left fade */}
-                <div className="absolute left-0 top-0 bottom-2 w-12 bg-gradient-to-r from-white to-transparent pointer-events-none z-10"></div>
-                {/* Scroll indicator - right fade */}
-                <div className="absolute right-0 top-0 bottom-2 w-12 bg-gradient-to-l from-white to-transparent pointer-events-none z-10"></div>
-                {/* Scroll hint arrow - right */}
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 text-nordic-blue text-2xl pointer-events-none z-10 animate-pulse">
-                  →
-                </div>
-                <div className="flex gap-4 overflow-x-auto pb-2" style={{scrollbarWidth: 'thin'}}>
-                  {deliveryDays.map((day) => {
-                    const dateString = `${day.date.getFullYear()}-${String(day.date.getMonth() + 1).padStart(2, '0')}-${String(day.date.getDate()).padStart(2, '0')}`;
-                    const isSelected = selectedDate === dateString;
-                    const isAvailable = availableWeekdays.includes(day.weekdayValue);
-
-                    return (
-                      <button
-                        key={`${day.date.getTime()}`}
-                        onClick={() => isAvailable && setSelectedDate(dateString)}
-                        disabled={!isAvailable}
-                        className={`flex-shrink-0 p-4 rounded-lg border-2 text-center transition-colors min-w-[120px] ${
-                          !isAvailable
-                            ? 'border-gray-100 bg-gray-50 cursor-not-allowed opacity-50'
-                            : isSelected
-                            ? 'border-nordic-blue bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                        title={!isAvailable ? 'Ingen rensere tilgjengelige denne dagen' : ''}
-                      >
-                        <div className="text-sm text-medium-gray mb-1">
-                          {day.dayName}
-                        </div>
-                        <div className={`font-bold ${isAvailable ? 'text-dark-gray' : 'text-gray-400'}`}>{day.dayNum}</div>
-                        <div className="text-xs text-medium-gray">{day.monthName}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Mobile: Horizontal scroll */}
-            {address.city && !isLoadingAvailability && !availabilityError && (
-              <div className="sm:hidden relative">
-                {/* Scroll indicator - left fade */}
-                <div className="absolute left-0 top-0 bottom-2 w-8 bg-gradient-to-r from-white to-transparent pointer-events-none z-10"></div>
-                {/* Scroll indicator - right fade */}
-                <div className="absolute right-0 top-0 bottom-2 w-8 bg-gradient-to-l from-white to-transparent pointer-events-none z-10"></div>
-                {/* Scroll hint arrow - right */}
-                <div className="absolute right-1 top-1/2 -translate-y-1/2 text-nordic-blue text-xl pointer-events-none z-10 animate-pulse">
-                  →
-                </div>
-                <div className="flex gap-3 overflow-x-auto pb-2" style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
-                  {deliveryDays.map((day) => {
-                    const dateString = `${day.date.getFullYear()}-${String(day.date.getMonth() + 1).padStart(2, '0')}-${String(day.date.getDate()).padStart(2, '0')}`;
-                    const isSelected = selectedDate === dateString;
-                    const isAvailable = availableWeekdays.includes(day.weekdayValue);
-
-                    return (
-                      <button
-                        key={`${day.date.getTime()}`}
-                        onClick={() => isAvailable && setSelectedDate(dateString)}
-                        disabled={!isAvailable}
-                        className={`flex-shrink-0 p-3 rounded-lg border-2 text-center transition-colors min-w-[80px] ${
-                          !isAvailable
-                            ? 'border-gray-100 bg-gray-50 cursor-not-allowed opacity-50'
-                            : isSelected
-                            ? 'border-nordic-blue bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <div className="text-xs text-medium-gray mb-1">
-                          {day.dayName.substring(0, 3)}
-                        </div>
-                        <div className={`font-bold text-lg ${isAvailable ? 'text-dark-gray' : 'text-gray-400'}`}>{day.dayNum}</div>
-                        <div className="text-xs text-medium-gray">{day.monthName}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-                <style jsx>{`
-                  div::-webkit-scrollbar {
-                    display: none;
-                  }
-                `}</style>
-              </div>
-            )}
           </div>
-        )}
+        </div>
 
-        {/* Bag Delivery Notice */}
-        {!hasBag && selectedDate && (
-          <div className="bg-blue-50 border-2 border-blue-300 rounded-2xl p-6 mb-8">
+        {/* Recurring Toggle */}
+        <div className="bg-slate-50 rounded-xl border border-slate-200 p-5 mb-6">
+          <div className="flex items-center justify-between">
             <div className="flex items-start">
-              <div className="text-4xl mr-4">📦</div>
+              <div className="w-12 h-12 rounded-lg bg-teal-100 flex items-center justify-center mr-4">
+                <RefreshCw className="w-6 h-6 text-teal-600" />
+              </div>
               <div>
-                <h3 className="text-xl font-bold text-dark-gray mb-3">NooraCare-pose leveres først</h3>
-                <p className="text-medium-gray leading-relaxed">
-                  Vi leverer en gratis NooraCare-pose <span className="font-semibold text-dark-gray">{getDeliveryDateInfo(selectedDate).bagDeliveryDay} {getDeliveryDateInfo(selectedDate).bagDeliveryDate}</span> (dagen før din første henting). Du får SMS når posen er levert, så du kan fylle den med tøy til neste dag.
-                </p>
+                <h4 className="font-medium text-slate-900">Fast avtale</h4>
+                <p className="text-sm text-slate-500 mt-1">Spar opptil 15% med gjentakende henting</p>
               </div>
             </div>
+
+            {/* Toggle Switch */}
+            <button
+              onClick={() => setIsRecurring(!isRecurring)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                isRecurring ? 'bg-teal-600' : 'bg-slate-300'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  isRecurring ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
           </div>
-        )}
+        </div>
 
-        {/* Delivery Time Information */}
-        {selectedDate ? (
-          <div className="bg-white border border-gray-200 rounded-xl p-5 mb-8">
-            <div className="flex items-start">
-              <div className="text-2xl mr-3">📅</div>
-              <div>
-                <h4 className="text-base font-semibold text-dark-gray mb-1">Hentetidspunkt</h4>
-                <p className="text-sm text-medium-gray">
-                  Neste henting: <span className="font-semibold text-dark-gray">{getDeliveryDateInfo(selectedDate).deliveryDay} {getDeliveryDateInfo(selectedDate).deliveryDate}</span> mellom kl. <span className="font-semibold text-dark-gray">15:00-20:00</span>
-                  {plan !== 'single' && (
-                    <>
-                      <br />
-                      <span className="text-xs">Deretter hver {weekdays.find(d => d.value === getWeekdayFromDate(selectedDate))?.label.toLowerCase()} til samme tid.</span>
-                    </>
-                  )}
-                </p>
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        {/* Pickup Method Selection */}
-        <div className="bg-white rounded-2xl p-8 mb-8">
-          <h3 className="text-lg font-semibold text-dark-gray mb-6">Hvordan skal henting skje?</h3>
-          <div className="space-y-4">
-            {/* Option 1: I'm home */}
-            <div
-              className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                pickupMethod === 'home'
-                  ? 'border-nordic-blue bg-blue-50'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-              onClick={() => setPickupMethod('home')}
-            >
-              <div className="flex items-start">
-                <div className={`w-5 h-5 rounded-full border-2 mr-3 mt-0.5 ${
-                  pickupMethod === 'home' ? 'border-nordic-blue bg-nordic-blue' : 'border-gray-300'
-                }`}>
-                  {pickupMethod === 'home' && (
-                    <div className="w-full h-full rounded-full bg-white scale-50"></div>
-                  )}
-                </div>
-                <div>
-                  <h4 className="font-semibold text-dark-gray">🏠 Jeg er hjemme - du kan banke på</h4>
-                  <p className="text-sm text-medium-gray mt-1">
-                    Renseren banker på døren og du leverer posen direkte
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Option 2: Place outside entrance */}
-            <div
-              className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                pickupMethod === 'entrance'
-                  ? 'border-nordic-blue bg-blue-50'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-              onClick={() => setPickupMethod('entrance')}
-            >
-              <div className="flex items-start">
-                <div className={`w-5 h-5 rounded-full border-2 mr-3 mt-0.5 ${
-                  pickupMethod === 'entrance' ? 'border-nordic-blue bg-nordic-blue' : 'border-gray-300'
-                }`}>
-                  {pickupMethod === 'entrance' && (
-                    <div className="w-full h-full rounded-full bg-white scale-50"></div>
-                  )}
-                </div>
-                <div>
-                  <h4 className="font-semibold text-dark-gray">🚪 Plasser utenfor inngangen</h4>
-                  <p className="text-sm text-medium-gray mt-1">
-                    Du setter posen utenfor døren din
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Option 3: Place somewhere else */}
-            <div
-              className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                pickupMethod === 'other'
-                  ? 'border-nordic-blue bg-blue-50'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-              onClick={() => setPickupMethod('other')}
-            >
-              <div className="flex items-start">
-                <div className={`w-5 h-5 rounded-full border-2 mr-3 mt-0.5 ${
-                  pickupMethod === 'other' ? 'border-nordic-blue bg-nordic-blue' : 'border-gray-300'
-                }`}>
-                  {pickupMethod === 'other' && (
-                    <div className="w-full h-full rounded-full bg-white scale-50"></div>
-                  )}
-                </div>
-                <div>
-                  <h4 className="font-semibold text-dark-gray">📍 Plasser et annet sted</h4>
-                  <p className="text-sm text-medium-gray mt-1">
-                    Du velger en annen plassering (f.eks. bak huset, ved garasjen)
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Photo requirement warning for non-home options */}
-            {pickupMethod !== 'home' && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <div className="flex items-start">
-                  <div className="text-yellow-600 mr-3 mt-0.5">📸</div>
-                  <div>
-                    <h4 className="font-semibold text-yellow-800 mb-1">Viktig: Foto kreves</h4>
-                    <p className="text-sm text-yellow-700">
-                      Du må ta bilde av posen når du plasserer den. Uten foto kan vi ikke hente posen din av sikkerhetshensyn.
-                    </p>
+        {/* Frequency Options (shown when recurring is ON) */}
+        {isRecurring && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 mb-6">
+            <h3 className="text-lg font-medium text-slate-900 mb-4">Velg frekvens</h3>
+            <div className="space-y-3">
+              {/* Weekly */}
+              <button
+                onClick={() => setFrequency('weekly')}
+                className={`w-full p-4 rounded-xl border-2 transition-all duration-200 ${
+                  frequency === 'weekly'
+                    ? 'border-teal-600 bg-teal-50/50'
+                    : 'border-slate-200 bg-white hover:border-slate-300'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="text-left">
+                    <h4 className="font-medium text-slate-900">Ukentlig</h4>
+                    <p className="text-sm text-slate-500">Hver uke</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="px-2 py-1 bg-teal-100 text-teal-700 text-xs rounded-full font-medium">
+                      15% rabatt
+                    </span>
+                    {frequency === 'weekly' && (
+                      <div className="w-5 h-5 rounded-full bg-teal-600 flex items-center justify-center">
+                        <Check className="w-3 h-3 text-white" />
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-            )}
+              </button>
 
-            {/* Additional text input for "other" location */}
-            {pickupMethod === 'other' && (
-              <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                <label className="block text-sm font-semibold text-dark-gray mb-2">
-                  Beskriv nøyaktig hvor posen skal plasseres *
-                </label>
-                <textarea
-                  value={otherLocation}
-                  onChange={(e) => setOtherLocation(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue resize-none"
-                  placeholder="F.eks. 'Bak huset ved kjøkkenvinduet', 'I garasjen på høyre side', 'Ved søppelbøttene'"
-                  rows={3}
-                  required
-                />
-              </div>
-            )}
-          </div>
-        </div>
+              {/* Biweekly */}
+              <button
+                onClick={() => setFrequency('biweekly')}
+                className={`w-full p-4 rounded-xl border-2 transition-all duration-200 ${
+                  frequency === 'biweekly'
+                    ? 'border-teal-600 bg-teal-50/50'
+                    : 'border-slate-200 bg-white hover:border-slate-300'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="text-left">
+                    <h4 className="font-medium text-slate-900">Annenhver uke</h4>
+                    <p className="text-sm text-slate-500">Hver 14. dag</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="px-2 py-1 bg-teal-100 text-teal-700 text-xs rounded-full font-medium">
+                      10% rabatt
+                    </span>
+                    {frequency === 'biweekly' && (
+                      <div className="w-5 h-5 rounded-full bg-teal-600 flex items-center justify-center">
+                        <Check className="w-3 h-3 text-white" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </button>
 
-        {/* Address Form */}
-        <div className="bg-white rounded-2xl p-8 mb-8">
-          <h3 className="text-lg font-semibold text-dark-gray mb-6">Hentingsadresse</h3>
-          <div className="grid md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-semibold text-dark-gray mb-2">
-                Gateadresse *
-              </label>
-              <input
-                type="text"
-                name="street"
-                value={address.street}
-                onChange={handleAddressChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue"
-                placeholder="Storgata 1"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-dark-gray mb-2">
-                Postnummer *
-              </label>
-              <input
-                type="text"
-                name="postalCode"
-                value={address.postalCode}
-                onChange={handleAddressChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue"
-                placeholder="5001"
-                required
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-semibold text-dark-gray mb-2">
-                Tilleggsinformasjon (valgfritt)
-              </label>
-              <textarea
-                name="specialInstructions"
-                value={address.specialInstructions}
-                onChange={handleAddressChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue resize-none"
-                placeholder="F.eks. 'Ring på dørklokka', '2. etasje til høyre', etc."
-                rows={2}
-              />
+              {/* Monthly */}
+              <button
+                onClick={() => setFrequency('monthly')}
+                className={`w-full p-4 rounded-xl border-2 transition-all duration-200 ${
+                  frequency === 'monthly'
+                    ? 'border-teal-600 bg-teal-50/50'
+                    : 'border-slate-200 bg-white hover:border-slate-300'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="text-left">
+                    <h4 className="font-medium text-slate-900">Månedlig</h4>
+                    <p className="text-sm text-slate-500">En gang i måneden</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="px-2 py-1 bg-teal-100 text-teal-700 text-xs rounded-full font-medium">
+                      5% rabatt
+                    </span>
+                    {frequency === 'monthly' && (
+                      <div className="w-5 h-5 rounded-full bg-teal-600 flex items-center justify-center">
+                        <Check className="w-3 h-3 text-white" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </button>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Continue Button */}
-        <div className="flex justify-between items-center">
+        {/* Navigation */}
+        <div className="flex justify-between items-center pt-6 border-t border-slate-100">
           <Link
-            href="/orders/additional-services"
-            className="text-medium-gray hover:text-dark-gray"
+            href="/orders/location-service"
+            className="flex items-center text-slate-600 hover:text-slate-900 transition-colors"
           >
-            ← Tilbake
+            <ChevronLeft className="w-4 h-4 mr-1" />
+            Tilbake
           </Link>
 
           <button
             onClick={handleContinue}
-            disabled={
-              !address.city ||
-              !selectedDate ||
-              !address.street ||
-              !address.postalCode ||
-              (pickupMethod === 'other' && !otherLocation.trim())
-            }
-            className={`px-8 py-3 rounded-lg font-semibold text-lg transition-colors ${
-              address.city &&
-              selectedDate &&
-              address.street &&
-              address.postalCode &&
-              (pickupMethod !== 'other' || otherLocation.trim())
-                ? 'bg-nordic-blue text-white'
-                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+            disabled={!selectedDate}
+            className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm ${
+              selectedDate
+                ? 'bg-teal-600 text-white hover:bg-teal-700'
+                : 'bg-slate-300 text-slate-500 cursor-not-allowed'
             }`}
           >
-            Fortsett til instruksjoner
+            Neste
           </button>
+        </div>
+
+        {/* Footer Tagline */}
+        <div className="text-center mt-12">
+          <p className="text-sm text-slate-400">Renhet. Omtanke. NooraCare.</p>
         </div>
       </div>
     </div>
