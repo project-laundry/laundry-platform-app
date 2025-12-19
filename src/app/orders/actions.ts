@@ -9,6 +9,7 @@ import {
 } from "@/lib/database/cleaners";
 import { createVippsAgreement } from "@/lib/payments/vipps/service";
 import { getWeekdayFromDate } from "@/lib/utils/date";
+import { translateFrequency } from "@/lib/utils/i18n";
 import type {
   PickupMethod,
   Weekday,
@@ -86,9 +87,11 @@ export async function createSubscriptionAction(
 
   // Create Vipps FLEXIBLE agreement (NO price parameter)
   const ironingSuffix = input.needsIroning ? ' + Stryking' : '';
+  const frequencyNorwegian = translateFrequency(frequency);
+
   const agreementResponse = await createVippsAgreement({
     productName: `NooraCare - Vask${ironingSuffix}`,
-    productDescription: `${frequency} henting i ${input.location}`,
+    productDescription: `${frequencyNorwegian} henting i ${input.location}`,
     frequency,
   });
 
