@@ -3,6 +3,7 @@
 import type {
   SubscriptionFrequency,
   Weekday,
+  SubscriptionOrderDefaults,
 } from '@/types/database';
 import { getNextOccurrenceOfWeekday, addDays, toISODateString } from '@/lib/utils/date';
 
@@ -117,39 +118,40 @@ export async function checkAndGenerateNextOrders(subscriptionId: string): Promis
 
   const nextDate = addDays(new Date(lastOrder.scheduled_date), interval);
 
-  // Get address from subscription metadata
-  const metadata = subscription.provider_agreement_metadata as any;
-  const address = metadata?.initial_address;
-
-  if (!address) {
-    console.error(`[Order Generation] No address found in subscription ${subscriptionId} metadata`);
+  // Get order defaults from subscription
+  const orderDefaults = subscription.order_defaults as SubscriptionOrderDefaults;
+  if (!orderDefaults?.initial_address) {
+    console.error(`[Order Generation] No order_defaults found in subscription ${subscriptionId}`);
     return;
   }
+
+  const address = orderDefaults.initial_address;
+  const defaultCleanerId = orderDefaults.default_cleaner_id;
+  const needsIroning = orderDefaults.default_needs_ironing;
 
   // Import createOrder function
   const { createOrder } = await import('@/lib/database/orders');
 
-  // Create next order
+  // Create next order with defaults from metadata
   await createOrder({
     customer_id: subscription.customer_id,
     subscription_id: subscription.id,
-    cleaner_id: subscription.assigned_cleaner_id,
-    status: subscription.assigned_cleaner_id ? 'pickup_scheduled' : 'pending_assignment',
+    cleaner_id: defaultCleanerId,
+    status: defaultCleanerId ? 'pickup_scheduled' : 'pending_assignment',
     scheduled_date: toISODateString(nextDate),
     delivery_date: toISODateString(addDays(nextDate, 3)),
-    needs_ironing: subscription.default_needs_ironing,
-    total_cost_ore: null, // Cleaner sets price
-    actual_weight_kg: null,
-    // Address from metadata
+    needs_ironing: needsIroning,
+    total_cost_ore: null, // Cleaner sets price    
+    // Address from order defaults
     street: address.street,
     postal_code: address.postal_code,
     city: address.city,
     country: address.country,
     special_instructions_address: address.special_instructions,
-    // Pickup details from metadata
-    pickup_method: metadata.pickup_method || 'home',
-    pickup_location_description: metadata.pickup_location_description,
-    special_instructions: metadata.special_instructions,
+    // Pickup details from order defaults
+    pickup_method: orderDefaults.pickup_method,
+    pickup_location_description: orderDefaults.pickup_location_description,
+    special_instructions: orderDefaults.special_instructions,
   });
 
   console.log(`[Order Generation] Generated next order for subscription ${subscriptionId} (pickup: ${toISODateString(nextDate)})`);

@@ -6,24 +6,22 @@ import type {
   SubscriptionStatus,
   SubscriptionFrequency,
   Weekday,
+  SubscriptionOrderDefaults,
 } from '@/types/database';
 
 export interface CreateSubscriptionData {
   customer_id: string;
-  assigned_cleaner_id?: string | null;
-  default_needs_ironing: boolean;
   frequency: SubscriptionFrequency;
-  location_city: string;
   recurring_weekday: Weekday | null;
   provider_agreement_id: string;
-  provider_agreement_metadata?: Record<string, unknown> | null;
+  order_defaults?: SubscriptionOrderDefaults | null;
 }
 
 /**
  * Create a new subscription with pending_payment status
  * Uses admin client to bypass RLS (no INSERT policy on subscriptions table)
  *
- * Note: Addresses are stored in provider_agreement_metadata for order generation
+ * Note: Order defaults (address, cleaner, preferences) are stored in order_defaults JSONB
  */
 export async function createSubscription(
   data: CreateSubscriptionData
@@ -34,15 +32,12 @@ export async function createSubscription(
     .from('subscriptions')
     .insert({
       customer_id: data.customer_id,
-      assigned_cleaner_id: data.assigned_cleaner_id || null,
-      default_needs_ironing: data.default_needs_ironing,
       frequency: data.frequency,
-      location_city: data.location_city,
       recurring_weekday: data.recurring_weekday,
       status: 'pending_payment' as SubscriptionStatus,
       started_at: null,
       provider_agreement_id: data.provider_agreement_id,
-      provider_agreement_metadata: data.provider_agreement_metadata || null,
+      order_defaults: data.order_defaults || null,
     })
     .select()
     .single();
@@ -61,7 +56,7 @@ export async function createSubscription(
 export async function getSubscriptionById(
   subscriptionId: string
 ): Promise<Subscription | null> {
-  const supabase = await createAdminClient();
+  const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from('subscriptions')

@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { createSubscription, getActiveSubscriptionByCustomerId, updateSubscription } from "@/lib/database/subscriptions";
+import { createSubscription, getActiveSubscriptionByCustomerId } from "@/lib/database/subscriptions";
 import { getCustomerByUserId } from "@/lib/database/customers";
 import {
   findAvailableCleaner,
@@ -14,6 +14,7 @@ import type {
   PickupMethod,
   Weekday,
   SubscriptionFrequency,
+  SubscriptionOrderDefaults,
 } from "@/types/database";
 
 export interface CreateSubscriptionInput {
@@ -95,24 +96,8 @@ export async function createSubscriptionAction(
     frequency,
   });
 
-  // Create subscription record (NO address - will be on orders)
-  const subscription = await createSubscription({
-    customer_id: customer.id,
-    assigned_cleaner_id: cleaner?.id,
-    default_needs_ironing: input.needsIroning,
-    frequency,
-    location_city: input.location,
-    recurring_weekday: recurringWeekday,
-    provider_agreement_id: agreementResponse.agreementId,
-  });
-
-  if (!subscription) {
-    return { error: "Failed to create subscription" };
-  }
-
-  // Store address in metadata for order generation
-  // (webhook will use this when creating initial orders)
-  const subscriptionMetadata = {
+  // Build complete order defaults object
+  const orderDefaults: SubscriptionOrderDefaults = {
     initial_address: {
       street: input.pickupAddress.street,
       postal_code: input.pickupAddress.postalCode,
@@ -123,12 +108,23 @@ export async function createSubscriptionAction(
     pickup_method: input.pickupMethod,
     pickup_location_description: input.pickupLocationDescription,
     special_instructions: input.specialInstructions,
+    location_city: input.location,
+    default_needs_ironing: input.needsIroning,
+    default_cleaner_id: cleaner?.id || null,
   };
 
-  // Update subscription with metadata
-  await updateSubscription(subscription.id, {
-    provider_agreement_metadata: subscriptionMetadata,
+  // Create subscription with all order defaults
+  const subscription = await createSubscription({
+    customer_id: customer.id,
+    frequency,
+    recurring_weekday: recurringWeekday,
+    provider_agreement_id: agreementResponse.agreementId,
+    order_defaults: orderDefaults,
   });
+
+  if (!subscription) {
+    return { error: "Failed to create subscription" };
+  }
 
   return {
     redirectUrl: agreementResponse.vippsConfirmationUrl,
