@@ -88,14 +88,11 @@ export async function checkAndGenerateNextOrders(subscriptionId: string): Promis
     .not('status', 'in', '(completed,cancelled)')
     .gte('scheduled_date', toISODateString(new Date()));
 
-  // Determine target count based on frequency
-  const targetCount = subscription.frequency === 'weekly' ? 4
-    : subscription.frequency === 'biweekly' ? 2
-    : subscription.frequency === 'monthly' ? 1
-    : 0;
+  // Rolling window approach: always maintain 1 upcoming order
+  const targetCount = 1;
 
   if ((count ?? 0) >= targetCount) {
-    return; // Already have enough upcoming orders
+    return; // Already have an upcoming order
   }
 
   // Get last scheduled order to calculate next date
@@ -111,12 +108,34 @@ export async function checkAndGenerateNextOrders(subscriptionId: string): Promis
     return; // No orders yet, shouldn't happen but exit gracefully
   }
 
-  // Calculate interval based on frequency
-  const interval = subscription.frequency === 'weekly' ? 7
-    : subscription.frequency === 'biweekly' ? 14
-    : 30; // monthly
+  // Calculate next pickup date based on frequency
+  let nextDate: Date;
 
-  const nextDate = addDays(new Date(lastOrder.scheduled_date), interval);
+  if (subscription.frequency === 'weekly') {
+    nextDate = addDays(new Date(lastOrder.scheduled_date), 7);
+  } else if (subscription.frequency === 'biweekly') {
+    nextDate = addDays(new Date(lastOrder.scheduled_date), 14);
+  } else if (subscription.frequency === 'monthly') {
+    // For monthly: add ~30 days then find next occurrence of recurring weekday
+    const approximateDate = addDays(new Date(lastOrder.scheduled_date), 30);
+    nextDate = getNextOccurrenceOfWeekday(approximateDate, subscription.recurring_weekday!);
+  } else {
+    console.error(`[Order Generation] Unsupported frequency: ${subscription.frequency}`);
+    return;
+  }
+
+  // Check if order already exists for this date (duplicate prevention)
+  const { data: existingOrder } = await adminClient
+    .from('orders')
+    .select('id')
+    .eq('subscription_id', subscriptionId)
+    .eq('scheduled_date', toISODateString(nextDate))
+    .single();
+
+  if (existingOrder) {
+    console.log(`[Order Generation] Order already exists for ${toISODateString(nextDate)}, skipping generation`);
+    return;
+  }
 
   // Get order defaults from subscription
   const orderDefaults = subscription.order_defaults as SubscriptionOrderDefaults;
