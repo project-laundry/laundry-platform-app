@@ -222,12 +222,19 @@ Both webhooks use HMAC-SHA256 signature verification. You can use a shared secre
 
 **Database Changes:**
 - `subscriptions.provider_agreement_id` - Stores Vipps agreement ID
-- `subscriptions.provider_agreement_metadata` - Stores Vipps agreement details (JSONB)
+- `subscriptions.order_defaults` - Stores order generation defaults (JSONB):
+  - `initial_address` - Pickup/delivery address
+  - `pickup_method`, `pickup_location_description`, `special_instructions` - Pickup details
+  - `location_city` - Service area (Bergen/Oslo) - used for cleaner matching
+  - `default_needs_ironing` - Default ironing preference for orders
+  - `default_cleaner_id` - Default cleaner assignment (orders can be reassigned)
 - `subscriptions.next_billing_date` - Set when charge captured, drives self-perpetuating billing
 - `payments.status` - Added 'authorized' status for RESERVE_CAPTURE flow
 - `payments.provider_metadata` - Stores Vipps charge/transaction details (JSONB)
 
-See migration: `supabase/migrations/20250210000000_add_vipps_support.sql`
+See migrations:
+- `supabase/migrations/20250210000000_add_vipps_support.sql`
+- `supabase/migrations/20251219133224_refactor_subscription_metadata.sql` - Renamed provider_agreement_metadata to order_defaults, moved location_city, default_needs_ironing, and assigned_cleaner_id into JSONB
 
 **Recurring Billing Architecture:**
 The platform uses a **self-perpetuating** pattern where each charge capture automatically schedules the next charge:

@@ -471,13 +471,15 @@ async function handleAgreementActivated(
 
   // Generate initial batch of orders (FLEXIBLE pricing - no cost yet)
   try {
-    // Extract address from subscription metadata
-    const metadata = activatedSubscription.provider_agreement_metadata as any;
-    if (!metadata || !metadata.initial_address) {
-      throw new Error('No address found in subscription metadata');
+    // Extract order defaults from subscription
+    const orderDefaults = activatedSubscription.order_defaults as any;
+    if (!orderDefaults || !orderDefaults.initial_address) {
+      throw new Error('No order_defaults found in subscription');
     }
 
-    const address = metadata.initial_address;
+    const address = orderDefaults.initial_address;
+    const defaultCleanerId = orderDefaults.default_cleaner_id;
+    const needsIroning = orderDefaults.default_needs_ironing;
 
     // Get customer data
     const customer = await getCustomerById(activatedSubscription.customer_id);
@@ -537,8 +539,8 @@ async function handleAgreementActivated(
       const deliveryDate = addDays(pickupDate, 3); // Delivery 3 days after pickup
 
       try {
-        // Determine order status
-        const orderStatus: OrderStatus = activatedSubscription.assigned_cleaner_id
+        // Determine order status based on default cleaner
+        const orderStatus: OrderStatus = defaultCleanerId
           ? 'pickup_scheduled'
           : 'pending_assignment';
 
@@ -546,9 +548,9 @@ async function handleAgreementActivated(
         const order = await createOrder({
           customer_id: activatedSubscription.customer_id,
           subscription_id: activatedSubscription.id,
-          cleaner_id: activatedSubscription.assigned_cleaner_id,
+          cleaner_id: defaultCleanerId,
           status: orderStatus,
-          // Address fields (from metadata)
+          // Address fields (from order defaults)
           street: address.street,
           postal_code: address.postal_code,
           city: address.city,
@@ -557,15 +559,14 @@ async function handleAgreementActivated(
           // Scheduling
           scheduled_date: toISODateString(pickupDate),
           delivery_date: toISODateString(deliveryDate),
-          // Pickup details (from metadata)
-          pickup_method: metadata.pickup_method || 'home',
-          pickup_location_description: metadata.pickup_location_description,
-          special_instructions: metadata.special_instructions,
-          // Ironing preference (from subscription default)
-          needs_ironing: activatedSubscription.default_needs_ironing,
+          // Pickup details (from order defaults)
+          pickup_method: orderDefaults.pickup_method || 'home',
+          pickup_location_description: orderDefaults.pickup_location_description,
+          special_instructions: orderDefaults.special_instructions,
+          // Ironing preference (from order defaults)
+          needs_ironing: needsIroning,
           // Pricing (NULL - cleaner sets later)
-          total_cost_ore: null,
-          actual_weight_kg: null,
+          total_cost_ore: null,          
           // Bag delivery prerequisite (only first order)
           prerequisite_bag_delivery_id: i === 0 ? bagDeliveryId : null,
         });
