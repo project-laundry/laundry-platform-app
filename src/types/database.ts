@@ -271,14 +271,12 @@ export interface OrderWithRelations extends Order {
   customer?: Customer;
   cleaner?: Cleaner;
   subscription?: Subscription;
-  plan?: SubscriptionPlan;
   prerequisite_bag_delivery?: BagDelivery;
   payments?: Payment[];
 }
 
 export interface SubscriptionWithRelations extends Subscription {
   customer?: Customer;
-  plan?: SubscriptionPlan;
   assigned_cleaner?: Cleaner;
   orders?: Order[];
   payments?: Payment[];
@@ -337,7 +335,6 @@ export type Tables = {
   cleaners: Cleaner;
   admins: Admin;
   bag_deliveries: BagDelivery;
-  subscription_plans: SubscriptionPlan;
   subscriptions: Subscription;
   orders: Order;
   payments: Payment;

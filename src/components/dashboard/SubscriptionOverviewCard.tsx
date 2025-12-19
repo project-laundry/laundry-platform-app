@@ -13,21 +13,32 @@ import type { Subscription, OrderWithRelations } from '@/types/database';
 import Link from 'next/link';
 
 interface SubscriptionOverviewCardProps {
-  subscription: Subscription & {
-    plan?: {
-      name: string;
-      frequency: string;
-      included_kg: number;
-    } | null;
-  };
+  subscription: Subscription;
   nextOrder?: OrderWithRelations | null;
 }
 
 export function SubscriptionOverviewCard({ subscription, nextOrder }: SubscriptionOverviewCardProps) {
-  const { plan, status, delivery_street, delivery_postal_code, delivery_city, delivery_special_instructions } = subscription;
+  const { status, frequency, order_defaults } = subscription;
 
   const requiresPhoto = nextOrder?.pickup_method !== 'home';
   const pickupTimeRange = getPickupTimeRangeLabel();
+
+  // Get address from nextOrder if available, otherwise from order_defaults
+  const address = nextOrder
+    ? {
+        street: nextOrder.street,
+        postal_code: nextOrder.postal_code,
+        city: nextOrder.city,
+        special_instructions: nextOrder.special_instructions_address,
+      }
+    : order_defaults?.initial_address
+    ? {
+        street: order_defaults.initial_address.street,
+        postal_code: order_defaults.initial_address.postal_code,
+        city: order_defaults.initial_address.city,
+        special_instructions: order_defaults.initial_address.special_instructions,
+      }
+    : null;
 
   return (
     <Card>
@@ -36,13 +47,11 @@ export function SubscriptionOverviewCard({ subscription, nextOrder }: Subscripti
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-2xl font-semibold text-dark-gray mb-1">
-              {plan?.name || 'Abonnement'}
+              Ditt abonnement
             </h3>
-            {plan?.frequency && (
-              <p className="text-sm text-medium-gray font-medium">
-                {getSubscriptionFrequencyLabel(plan.frequency as any)}
-              </p>
-            )}
+            <p className="text-sm text-medium-gray font-medium">
+              {getSubscriptionFrequencyLabel(frequency)}
+            </p>
             <p className="text-sm text-medium-gray">Her er din kommende henting</p>
           </div>
           <Badge variant={getSubscriptionStatusVariant(status)}>
@@ -78,27 +87,29 @@ export function SubscriptionOverviewCard({ subscription, nextOrder }: Subscripti
                 </div>
 
                 {/* Pickup Address */}
-                <div className="bg-soft-gray rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <MapPin className="w-5 h-5 text-medium-gray" />
-                    <p className="text-xs text-medium-gray">Henteadresse</p>
+                {address && (
+                  <div className="bg-soft-gray rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <MapPin className="w-5 h-5 text-medium-gray" />
+                      <p className="text-xs text-medium-gray">Henteadresse</p>
+                    </div>
+                    <p className="text-sm font-semibold text-dark-gray">
+                      {address.street}
+                    </p>
+                    <p className="text-xs text-medium-gray">
+                      {address.postal_code} {address.city}
+                    </p>
                   </div>
-                  <p className="text-sm font-semibold text-dark-gray">
-                    {delivery_street}
-                  </p>
-                  <p className="text-xs text-medium-gray">
-                    {delivery_postal_code} {delivery_city}
-                  </p>
-                </div>
+                )}
 
                 {/* Pickup Instructions */}
-                {delivery_special_instructions && (
+                {address?.special_instructions && (
                   <div className="bg-soft-gray rounded-lg p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <FileText className="w-5 h-5 text-medium-gray" />
                       <p className="text-xs text-medium-gray">Henteinstruksjoner</p>
                     </div>
-                    <p className="text-sm text-dark-gray">{delivery_special_instructions}</p>
+                    <p className="text-sm text-dark-gray">{address.special_instructions}</p>
                   </div>
                 )}
               </div>

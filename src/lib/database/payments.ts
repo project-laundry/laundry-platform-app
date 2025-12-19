@@ -98,6 +98,33 @@ export async function updatePaymentWithMetadata(
 }
 
 /**
+ * Update payment with provider reference and metadata
+ */
+export async function updatePayment(
+  paymentId: string,
+  updates: {
+    provider_reference?: string;
+    provider_metadata?: Record<string, unknown>;
+  }
+): Promise<Payment | null> {
+  const supabase = await createAdminClient();
+
+  const { data, error } = await supabase
+    .from('payments')
+    .update(updates)
+    .eq('id', paymentId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating payment:', error);
+    return null;
+  }
+
+  return data;
+}
+
+/**
  * Authorize payment (RESERVE_CAPTURE: first step)
  * Sets status to 'authorized' and records timestamp
  */
