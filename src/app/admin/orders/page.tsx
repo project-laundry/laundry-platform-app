@@ -26,7 +26,7 @@ export default function AdminOrdersPage() {
     setOrders(pendingOrders);
 
     // Load cleaners for each unique city
-    const cities = [...new Set(pendingOrders.map((o) => o.pickup_city))];
+    const cities = [...new Set(pendingOrders.map((o) => o.city))];
     const cleanersMap: Record<string, CleanerOption[]> = {};
 
     for (const city of cities) {
@@ -74,7 +74,7 @@ export default function AdminOrdersPage() {
         ) : (
           <div className="space-y-4">
             {orders.map((order) => {
-              const city = order.pickup_city;
+              const city = order.city;
               const availableCleaners = cleanersByCity[city] || [];
 
               return (
@@ -120,35 +120,25 @@ export default function AdminOrdersPage() {
                     <div>
                       <p className="text-gray-500">Adresse</p>
                       <p className="font-medium">
-                        {order.pickup_street}, {order.pickup_postal_code} {city}
+                        {order.street}, {order.postal_code} {city}
                       </p>
                     </div>
                     <div>
                       <p className="text-gray-500">Beløp</p>
-                      <p className="font-medium">{oreToNok(order.total_cost_ore)} NOK</p>
+                      <p className="font-medium">
+                        {order.total_cost_ore ? `${oreToNok(order.total_cost_ore)} NOK` : 'Ikke beregnet'}
+                      </p>
                     </div>
                   </div>
 
                   {/* Add-ons */}
-                  {(order.needs_ironing || order.delicate_items_count > 0 || order.extra_kg > 0) && (
+                  {order.needs_ironing && (
                     <div className="mb-4 text-sm">
                       <p className="text-gray-500 mb-1">Tillegg:</p>
                       <div className="flex gap-2">
-                        {order.needs_ironing && (
-                          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
-                            Stryking
-                          </span>
-                        )}
-                        {order.delicate_items_count > 0 && (
-                          <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">
-                            {order.delicate_items_count} ømtålige
-                          </span>
-                        )}
-                        {order.extra_kg > 0 && (
-                          <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">
-                            +{order.extra_kg} kg
-                          </span>
-                        )}
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                          Stryking
+                        </span>
                       </div>
                     </div>
                   )}
