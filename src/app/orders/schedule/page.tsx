@@ -83,7 +83,8 @@ export default function SchedulePage() {
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay();
+    // Convert Sunday (0) to 6, and shift all days back by 1 to start week on Monday
+    const startingDayOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
 
     const days = [];
     const today = new Date();
@@ -117,7 +118,7 @@ export default function SchedulePage() {
 
   const days = getDaysInMonth(currentMonth);
   const monthNames = ['Januar', 'Februar', 'Mars', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Desember'];
-  const weekdayLabels = ['Sø', 'Ma', 'Ti', 'On', 'To', 'Fr', 'Lø'];
+  const weekdayLabels = ['Ma', 'Ti', 'On', 'To', 'Fr', 'Lø', 'Sø'];
 
   const previousMonth = () => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
@@ -151,46 +152,46 @@ export default function SchedulePage() {
         </div>
 
         {/* Calendar Section */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 mb-6">
-          <div className="flex items-center mb-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-6">
+          <div className="flex items-center mb-4">
             <CalendarIcon className="w-5 h-5 text-teal-600 mr-2" />
             <h3 className="text-lg font-medium text-slate-900">Velg hentedato</h3>
           </div>
 
           {/* Calendar */}
-          <div className="border border-slate-200 rounded-lg p-4">
+          <div className="border border-slate-200 rounded-lg p-3">
             {/* Month Header */}
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-3">
               <button
                 onClick={previousMonth}
-                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
                 aria-label="Forrige måned"
               >
-                <ChevronLeft className="w-5 h-5 text-slate-600" />
+                <ChevronLeft className="w-4 h-4 text-slate-600" />
               </button>
-              <h4 className="text-base font-medium text-slate-900">
+              <h4 className="text-sm font-medium text-slate-900">
                 {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
               </h4>
               <button
                 onClick={nextMonth}
-                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
                 aria-label="Neste måned"
               >
-                <ChevronRight className="w-5 h-5 text-slate-600" />
+                <ChevronRight className="w-4 h-4 text-slate-600" />
               </button>
             </div>
 
             {/* Weekday Labels */}
-            <div className="grid grid-cols-7 gap-1 mb-2">
+            <div className="grid grid-cols-7 gap-0.5 mb-1">
               {weekdayLabels.map((label) => (
-                <div key={label} className="text-center text-xs text-slate-500 py-2">
+                <div key={label} className="text-center text-xs text-slate-500 py-1.5">
                   {label}
                 </div>
               ))}
             </div>
 
             {/* Calendar Grid */}
-            <div className="grid grid-cols-7 gap-1">
+            <div className="grid grid-cols-7 gap-0.5">
               {days.map((day, index) => {
                 if (!day) {
                   return <div key={`empty-${index}`} className="aspect-square" />;
@@ -203,7 +204,7 @@ export default function SchedulePage() {
                     key={day.date}
                     onClick={() => day.isAvailable && setSelectedDate(day.date)}
                     disabled={!day.isAvailable}
-                    className={`aspect-square rounded-lg text-sm font-medium transition-all duration-200 ${
+                    className={`aspect-square rounded-md text-xs font-medium transition-all duration-200 ${
                       isSelected
                         ? 'bg-teal-600 text-white'
                         : day.isAvailable
@@ -220,7 +221,7 @@ export default function SchedulePage() {
         </div>
 
         {/* Recurring Toggle */}
-        <div className="bg-slate-50 rounded-xl border border-slate-200 p-5 mb-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-6">
           <div className="flex items-center justify-between">
             <div className="flex items-start">
               <div className="w-12 h-12 rounded-lg bg-teal-100 flex items-center justify-center mr-4">
@@ -250,7 +251,7 @@ export default function SchedulePage() {
 
         {/* Frequency Options (shown when recurring is ON) */}
         {isRecurring && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 mb-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-6">
             <h3 className="text-lg font-medium text-slate-900 mb-4">Velg frekvens</h3>
             <div className="space-y-3">
               {/* Weekly */}
