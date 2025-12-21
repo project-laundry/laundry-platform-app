@@ -76,7 +76,7 @@ export default function CleanerSignupPage() {
     updateCleanerData({});
 
     // Redirect to business page (will be protected by layout)
-    router.push('/bli-renser/business');
+    router.push('/bli-renser/signup/success');
   };
 
   return (

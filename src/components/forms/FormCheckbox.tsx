@@ -1,7 +1,9 @@
+import React from "react";
+
 interface FormCheckboxProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
-  label: string;
+  label: React.ReactNode;
   description?: string;
   required?: boolean;
   error?: string;

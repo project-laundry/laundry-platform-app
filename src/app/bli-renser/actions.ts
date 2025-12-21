@@ -22,7 +22,7 @@ export interface CreateCleanerProfileResult {
  * 5. Return success/error
  */
 export async function createCleanerProfileAction(
-  data: CleanerOnboardingData
+  data: CleanerOnboardingData,
 ): Promise<CreateCleanerProfileResult> {
   try {
     const supabase = await createClient();
@@ -33,21 +33,21 @@ export async function createCleanerProfileAction(
     if (authError || !user) {
       return {
         success: false,
-        error: "Du må være innlogget for å opprette en renserprofil"
+        error: "Du må være innlogget for å opprette en renserprofil",
       };
     }
 
     // 2. Check if user already has a cleaner profile
     const { data: existingCleaner } = await supabase
-      .from('cleaners')
-      .select('id')
-      .eq('user_id', user.id)
+      .from("cleaners")
+      .select("id")
+      .eq("user_id", user.id)
       .single();
 
     if (existingCleaner) {
       return {
         success: false,
-        error: "Du har allerede en renserprofil"
+        error: "Du har allerede en renserprofil",
       };
     }
 
@@ -56,7 +56,7 @@ export async function createCleanerProfileAction(
       display_name: data.displayName,
       profile_image_url: null, // File uploads skipped per requirements
       bio: null, // Not collected in onboarding
-      verification_status: 'pending',
+      verification_status: "pending",
       business_type: data.businessType,
       tax_id: data.taxId,
       business_name: data.businessName || null,
@@ -71,47 +71,44 @@ export async function createCleanerProfileAction(
       languages: data.languages,
       specializations: data.specializations || null,
       weekly_schedule: {
-        // Default schedule: Monday-Friday, 08:00-17:00
-        monday: { start: '08:00', end: '17:00', available: true },
-        tuesday: { start: '08:00', end: '17:00', available: true },
-        wednesday: { start: '08:00', end: '17:00', available: true },
-        thursday: { start: '08:00', end: '17:00', available: true },
-        friday: { start: '08:00', end: '17:00', available: true },
-        saturday: { start: '08:00', end: '17:00', available: false },
-        sunday: { start: '08:00', end: '17:00', available: false }
+        mon: true,
+        tue: true,
+        wed: true,
+        thu: true,
+        fri: true,
+        sat: true,
+        sun: true,
       },
-      is_accepting_orders: true
     });
 
     if (createError || !cleaner) {
-      console.error('Error creating cleaner:', createError);
+      console.error("Error creating cleaner:", createError);
       return {
         success: false,
-        error: "Kunne ikke opprette renserprofil. Vennligst prøv igjen."
+        error: "Kunne ikke opprette renserprofil. Vennligst prøv igjen.",
       };
     }
 
     // 4. Update user role to 'cleaner'
     const { error: updateError } = await supabase
-      .from('users')
-      .update({ role: 'cleaner' })
-      .eq('id', user.id);
+      .from("users")
+      .update({ role: "cleaner" })
+      .eq("id", user.id);
 
     if (updateError) {
-      console.error('Error updating user role:', updateError);
+      console.error("Error updating user role:", updateError);
       // Continue anyway - cleaner profile is created
     }
 
     return {
       success: true,
-      cleanerId: cleaner.id
+      cleanerId: cleaner.id,
     };
-
   } catch (error) {
-    console.error('Unexpected error in createCleanerProfileAction:', error);
+    console.error("Unexpected error in createCleanerProfileAction:", error);
     return {
       success: false,
-      error: "En uventet feil oppstod. Vennligst prøv igjen."
+      error: "En uventet feil oppstod. Vennligst prøv igjen.",
     };
   }
 }
