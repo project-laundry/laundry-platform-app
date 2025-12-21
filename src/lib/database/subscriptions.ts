@@ -125,7 +125,7 @@ export async function getSubscriptionByAgreementId(
 
 /**
  * Activate subscription when Vipps agreement is activated
- * Sets status to active, started_at to now, and expires_at to one month from now
+ * Sets status to active and started_at to now
  * Uses admin client to bypass RLS (no UPDATE policy on subscriptions table)
  */
 export async function activateSubscriptionOnAgreementActivation(
@@ -134,15 +134,12 @@ export async function activateSubscriptionOnAgreementActivation(
   const supabase = createAdminClient();
 
   const now = new Date();
-  const expiresAt = new Date(now);
-  expiresAt.setMonth(expiresAt.getMonth() + 1);
 
   const { data, error } = await supabase
     .from('subscriptions')
     .update({
       status: 'active' as SubscriptionStatus,
       started_at: now.toISOString(),
-      expires_at: expiresAt.toISOString(),
     })
     .eq('id', subscriptionId)
     .select()

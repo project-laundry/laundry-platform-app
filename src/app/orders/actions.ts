@@ -71,7 +71,6 @@ export async function createSubscriptionAction(
     return { displayError: "Du har allerede et aktivt abonnement", error: "Customer already has an active subscription" };
   }
 
-  // Determine frequency (default to monthly if one-time or on_demand)
   const frequency: 'weekly' | 'biweekly' | 'monthly' =
     input.isRecurring && input.frequency && input.frequency !== 'on_demand'
       ? input.frequency
