@@ -57,7 +57,7 @@ export default function CleanerSignupPage() {
       email: formData.email,
       password: formData.password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${window.location.origin}/bli-renser/signup/callback`,
         data: {
           full_name: formData.name,
           phone: formData.phone,
