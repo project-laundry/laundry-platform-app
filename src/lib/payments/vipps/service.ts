@@ -55,6 +55,12 @@ function mapFrequencyToVippsInterval(frequency: 'weekly' | 'biweekly' | 'monthly
 /**
  * Create Vipps recurring agreement for a subscription (FLEXIBLE pricing)
  * No upfront payment - charges created per order after cleaner calculates price
+ *
+ * Flow:
+ * 1. User redirected to Vipps to approve agreement
+ * 2. After approval, Vipps redirects to /orders/success (generic success page)
+ * 3. Webhook handles subscription activation (agreement-activated event)
+ *
  * @param createAgreementData - Agreement product info
  * @returns Agreement details and checkout URL
  */
@@ -72,7 +78,7 @@ export async function createVippsAgreement(
     productDescription: createAgreementData.productDescription,
     interval,
     merchantRedirectUrl:
-      `${process.env.NEXT_PUBLIC_APP_URL}/api/vipps/agreements/callback`,
+      `${process.env.NEXT_PUBLIC_APP_URL}/orders/success`,
     merchantAgreementUrl: `https://laundry-landing-page-rho.vercel.app`,
   });
 
