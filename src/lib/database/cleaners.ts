@@ -5,6 +5,54 @@ import type { Cleaner, Weekday, Subscription } from '@/types/database';
 import { getWeekdayFromDate, isWeekdayInSchedule } from '@/lib/utils/date';
 
 /**
+ * Select cleaner with least workload from a list of candidates
+ * @param cleaners - Candidate cleaners to choose from
+ * @returns Cleaner with fewest active orders, or random if query fails
+ */
+export async function selectCleanerWithLeastWorkload(cleaners: Cleaner[]): Promise<Cleaner> {
+  if (cleaners.length === 1) {
+    return cleaners[0];
+  }
+
+  const supabase = createAdminClient();
+  const cleanerIds = cleaners.map(c => c.id);
+
+  // Get active order counts for each cleaner
+  const { data: orders, error: ordersError } = await supabase
+    .from('orders')
+    .select('assigned_cleaner_id')
+    .in('assigned_cleaner_id', cleanerIds)
+    .in('status', ['pending', 'assigned', 'picked_up', 'in_progress', 'ready_for_delivery', 'out_for_delivery']);
+
+  if (ordersError) {
+    // If we can't get order counts, fall back to random selection
+    const randomIndex = Math.floor(Math.random() * cleaners.length);
+    return cleaners[randomIndex];
+  }
+
+  // Count orders per cleaner
+  const orderCounts = new Map<string, number>();
+  cleanerIds.forEach(id => orderCounts.set(id, 0));
+
+  orders?.forEach(order => {
+    if (order.assigned_cleaner_id) {
+      const current = orderCounts.get(order.assigned_cleaner_id) || 0;
+      orderCounts.set(order.assigned_cleaner_id, current + 1);
+    }
+  });
+
+  // Find cleaner(s) with minimum workload
+  const minWorkload = Math.min(...Array.from(orderCounts.values()));
+  const cleanersWithMinWorkload = cleaners.filter(
+    cleaner => orderCounts.get(cleaner.id) === minWorkload
+  );
+
+  // If multiple cleaners have same workload, pick randomly
+  const randomIndex = Math.floor(Math.random() * cleanersWithMinWorkload.length);
+  return cleanersWithMinWorkload[randomIndex];
+}
+
+/**
  * Find an available cleaner for a customer based on matching criteria
  * @param customerCity - The city from customer's address
  * @param pickupWeekday - The date of the scheduled pickup
@@ -51,8 +99,8 @@ export async function findAvailableCleaner(
     return null;
   }
 
-  // Return first matching cleaner (could implement load balancing here)
-  return matchingCleaners[0];
+  // Load balance: select cleaner with fewest active orders
+  return await selectCleanerWithLeastWorkload(matchingCleaners);
 }
 
 /**
