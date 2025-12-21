@@ -39,8 +39,15 @@ export interface CreateSubscriptionResult {
 }
 
 /**
- * Create a new subscription with pending payment
+ * Create a new subscription with Vipps agreement
  * Called from the order confirmation page
+ *
+ * Flow:
+ * 1. Create subscription record in database
+ * 2. Create Vipps recurring agreement
+ * 3. Return Vipps checkout URL for user to approve
+ * 4. User redirects to Vipps, approves, then redirects to /orders/success
+ * 5. Webhook activates subscription when agreement approved
  */
 export async function createSubscriptionAction(
   input: CreateSubscriptionInput,
