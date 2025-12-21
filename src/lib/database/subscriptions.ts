@@ -204,7 +204,7 @@ export async function cancelSubscription(
 
   console.log(`[cancelSubscription] Cancelling subscription ${subscriptionId}${reason ? ` - Reason: ${reason}` : ''}`);
 
-  // 1. Cancel all related orders that haven't been completed yet
+  // 1. Cancel all related orders that haven't been picked up yet
   const { data: cancelledOrders, error: ordersError } = await supabase
     .from('orders')
     .update({
@@ -213,11 +213,7 @@ export async function cancelSubscription(
     .eq('subscription_id', subscriptionId)
     .in('status', [
       'pending_assignment',
-      'pickup_scheduled',
-      'picked_up',
-      'in_cleaning',
-      'ready_for_delivery',
-      'out_for_delivery'
+      'pickup_scheduled'      
     ])
     .select('id, order_number');
 
