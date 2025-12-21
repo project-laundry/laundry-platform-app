@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { MapPin, MessageSquare, ChevronLeft } from 'lucide-react';
+import { MapPin, ChevronLeft } from 'lucide-react';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { OrderFlowProgress } from '@/components/ui/OrderFlowProgress';
 
@@ -17,22 +17,17 @@ export default function AddressPage() {
   const [postalCode, setPostalCode] = useState('');
   const [city, setCity] = useState('');
   const [specialInstructions, setSpecialInstructions] = useState('');
-  const [additionalInfo, setAdditionalInfo] = useState('');
 
   // Initialize form state from store
   useEffect(() => {
     if (orderData) {
       // Pre-fill city from location selection
-      
+
       if (orderData.address) {
         setStreet(orderData.address.street || '');
         setPostalCode(orderData.address.postalCode || '');
         setSpecialInstructions(orderData.address.specialInstructions || '');
         setCity(orderData.address.city || '');
-      }
-
-      if (orderData.specialInstructions) {
-        setAdditionalInfo(orderData.specialInstructions);
       }
     }
   }, [orderData]);
@@ -67,7 +62,6 @@ export default function AddressPage() {
         postalCode,
         specialInstructions,
       },
-      specialInstructions: additionalInfo,
     });
 
     router.push('/orders/confirm');
@@ -164,22 +158,6 @@ export default function AddressPage() {
               <p className="text-xs text-slate-500 mt-2">Hjelp oss å finne frem til deg</p>
             </div>
           </div>
-        </div>
-
-        {/* Additional Information (Optional) */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 mb-6">
-          <div className="flex items-center mb-4">
-            <MessageSquare className="w-5 h-5 text-teal-600 mr-2" />
-            <h3 className="text-lg font-medium text-slate-900">Ekstra informasjon (valgfritt)</h3>
-          </div>
-
-          <textarea
-            value={additionalInfo}
-            onChange={(e) => setAdditionalInfo(e.target.value)}
-            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all resize-none"
-            placeholder="Spesielle ønsker? Allergier? Ting vi bør vite om klærne dine?"
-            rows={4}
-          />
         </div>
 
         {/* Navigation */}
