@@ -19,7 +19,6 @@
 
 - Transition orders through workflow statuses
 - View order details and customer addresses
-- Manage bag deliveries
 
 **Note:** In MVP, admins handle all driver operations manually via this dashboard.
 

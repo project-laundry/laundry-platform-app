@@ -29,8 +29,6 @@ export type SubscriptionFrequency = 'weekly' | 'biweekly' | 'monthly' | 'on_dema
 
 export type Weekday = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 
-export type BagDeliveryStatus = 'pending' | 'scheduled' | 'en_route' | 'delivered' | 'completed' | 'cancelled';
-
 export type OrderStatus =
   | 'pending_assignment'
   | 'pickup_scheduled'
@@ -66,7 +64,6 @@ export interface User {
 export interface Customer {
   id: string;
   user_id: string;
-  laundry_bags_count: number;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -115,27 +112,6 @@ export interface Admin {
   id: string;
   user_id: string;
   permissions: string[];
-  created_at: string;
-  updated_at: string;
-}
-
-export interface BagDelivery {
-  id: string;
-  delivery_number: string;
-  customer_id: string;
-  delivery_street: string;
-  delivery_postal_code: string;
-  delivery_city: string;
-  delivery_country: string;
-  delivery_special_instructions: string | null;
-  status: BagDeliveryStatus;
-  bag_quantity: number;
-  scheduled_date: string;
-  special_instructions: string | null;
-  delivered_at: string | null;
-  placement_photo_url: string | null;
-  cancelled_at: string | null;
-  cancellation_reason: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -202,7 +178,6 @@ export interface Order {
   price_calculated_at: string | null;
   total_cost_ore: number | null;
   // Other
-  prerequisite_bag_delivery_id: string | null;
   declined_by_cleaner_ids: string[] | null;
   assigned_at: string | null;
   picked_up_at: string | null;
@@ -264,7 +239,6 @@ export interface OrderWithRelations extends Order {
   customer?: Customer;
   cleaner?: Cleaner;
   subscription?: Subscription;
-  prerequisite_bag_delivery?: BagDelivery;
   payments?: Payment[];
 }
 
@@ -327,7 +301,6 @@ export type Tables = {
   customers: Customer;
   cleaners: Cleaner;
   admins: Admin;
-  bag_deliveries: BagDelivery;
   subscriptions: Subscription;
   orders: Order;
   payments: Payment;

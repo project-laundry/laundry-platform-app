@@ -53,9 +53,6 @@
 - `id` (uuid, PK) - Unique identifier
 - `user_id` (uuid, FK → [User](#1-user).id, unique, required) - Reference to User
   - **On Delete:** CASCADE
-- `laundry_bags_count` (integer) - Number of laundry bags the customer has
-  - **Default:** `0`
-  - **Validation:** >= 0
 - `created_at` (timestamp) - Profile creation timestamp
 - `updated_at` (timestamp) - Last update timestamp
 - `deleted_at` (timestamp, nullable) - Soft delete timestamp
@@ -162,62 +159,6 @@
 **Indexes:**
 
 - Unique: user_id
-
----
-
-### BagDelivery
-
-**Description:** Delivery of NooraCare laundry bags to customers. Managed by admins via driver dashboard.
-
-**Fields:**
-
-- `id` (uuid, PK) - Unique identifier
-- `delivery_number` (string, unique, required) - Human-readable delivery number
-  - **Format:** `XXXXXX` (6-character random alphanumeric)
-  - **Examples:** `'P3M8NV'`, `'K2X9HJ'`
-- `customer_id` (uuid, FK → [Customer](#customer).id, required) - Customer reference
-  - **On Delete:** CASCADE
-- `delivery_street` (string, required) - Delivery street address
-  - **Validation:** Min 3 chars, max 200 chars
-- `delivery_postal_code` (string, required) - Delivery postal code
-  - **Validation:** Exactly 4 digits
-- `delivery_city` (string, required) - Delivery city
-  - **Validation:** Min 2 chars, max 100 chars
-- `delivery_country` (string, required) - Delivery country
-  - **Default:** `'Norway'`
-  - **Validation:** Max 100 chars
-- `delivery_special_instructions` (text, nullable) - Permanent access instructions for delivery location
-  - **Validation:** Max 500 chars
-- `status` (enum → [BagDeliveryStatus](#bagdeliverystatus), required) - Delivery status
-  - **Default:** `pending`
-- `bag_quantity` (integer, required) - Number of bags to deliver
-  - **Default:** `1`
-  - **Constraints:** >= 1, <= 10
-- `scheduled_date` (date, required) - Scheduled delivery date
-  - **Validation:** Must be >= today
-- `special_instructions` (text, nullable) - One-time delivery notes
-  - **Validation:** Max 500 chars
-  - **Examples:** "Leave at door", "Call when arriving"
-- `delivered_at` (timestamp, nullable) - Actual delivery timestamp
-- `placement_photo_url` (string, nullable) - Photo of placed bags
-  - **Validation:** Max 500 chars
-- `cancelled_at` (timestamp, nullable) - Cancellation timestamp
-- `cancellation_reason` (text, nullable) - Reason for cancellation
-  - **Validation:** Required if status = `cancelled`, max 500 chars
-- `created_at` (timestamp) - Creation timestamp
-- `updated_at` (timestamp) - Last update timestamp
-
-**Relationships:**
-
-- Belongs to Customer
-- Referenced by many Orders (via Order.prerequisite_bag_delivery_id)
-
-**Indexes:**
-
-- Unique: delivery_number
-- Foreign: customer_id
-- Index: status, scheduled_date
-- Composite: (customer_id, created_at DESC)
 
 ---
 
@@ -370,8 +311,6 @@
   - **Constraints:** >= 0
   - **Calculation:** Plan price + extras (ironing, delicate items)
   - **Note:** Weight overage charges not included in MVP
-- `prerequisite_bag_delivery_id` (uuid, FK → [BagDelivery](#bagdelivery).id, nullable) - Associated bag delivery
-  - **Note:** Links to bag delivery scheduled before this order for UI display and tracking. Does not block order progression.
 - `declined_by_cleaner_ids` (uuid[], nullable) - Array of cleaner IDs who declined this order
   - **Note:** Used during reassignment to prevent offering order to same cleaner again
 - `assigned_at` (timestamp, nullable) - Cleaner assignment timestamp
@@ -395,12 +334,11 @@
 - Belongs to Subscription (nullable)
 - Assigned to Cleaner
 - Has many Payments
-- Has one prerequisite BagDelivery (nullable)
 
 **Indexes:**
 
 - Unique: order_number
-- Foreign: customer_id, subscription_id, plan_id, cleaner_id, prerequisite_bag_delivery_id
+- Foreign: customer_id, subscription_id, plan_id, cleaner_id
 - Index: status, scheduled_date
 - Composite: (customer_id, created_at DESC), (cleaner_id, status)
 
@@ -540,15 +478,6 @@
 - `entrance` - Leave outside entrance
 - `other` - Custom location (requires description)
 
-### BagDeliveryStatus
-
-- `pending` - Awaiting scheduling
-- `scheduled` - Delivery date set
-- `en_route` - Driver heading to deliver
-- `delivered` - Bags delivered to customer
-- `completed` - Delivery confirmed, customer bag count updated
-- `cancelled` - Delivery cancelled
-
 ### OrderStatus
 
 - `pending_assignment` - Waiting for cleaner assignment (edge case: no available cleaners)
@@ -580,19 +509,16 @@
 - `Customer.user_id` → `User.id` (ON DELETE CASCADE)
 - `Cleaner.user_id` → `User.id` (ON DELETE CASCADE)
 - `Address.user_id` → `User.id` (ON DELETE CASCADE)
-- `BagDelivery.customer_id` → `Customer.id` (ON DELETE CASCADE)
 - `Order.customer_id` → `Customer.id` (ON DELETE CASCADE)
 
 ### Application-Level Validation (Enforced by Code)
 
 **Business Rules:**
-- Cannot create order if `Customer.laundry_bags_count = 0` and no `prerequisite_bag_delivery_id` is set (must have bags or order them)
 - Orders cannot be assigned to cleaner with `weekly_schedule` that doesn't include the pickup weekday
 - Orders cannot be assigned to cleaner with `verification_status != 'approved'`
 - Cleaner cannot receive assignments if `is_accepting_orders = false`
 - `business_name` and `business_address` required if `Cleaner.business_type = 'business'`
 - Order number must be unique and follow format `XXXXXX` (6-character random alphanumeric)
-- BagDelivery delivery_number must be unique and follow format `XXXXXX` (6-character random alphanumeric)
 
 ---
 

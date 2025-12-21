@@ -33,7 +33,6 @@
      - Each order inherits subscription defaults (extra_kg, needs_ironing, etc.)
      - Pickup dates calculated using `recurring_weekday` and plan frequency
      - **Create next charge** with Vipps with `due_date = next_billing_date` (self-perpetuating)
-     - If initial charge and customer has no bags: Create bag delivery 1 day before first pickup
 
 3. **Next Billing Cycle (Automatic - Self-Perpetuating):**
    - Vipps automatically processes charge on `next_billing_date` (no cron needed)
@@ -131,45 +130,6 @@ Current billing period can be computed from `started_at` and `billing_period`:
 | Payment covers all orders in period | Payment covers single order |
 | `next_billing_date` set | `next_billing_date` null |
 
-### Bag Delivery Auto-Creation
-
-**Trigger:** New subscription creation (payment success)
-
-**Workflow:**
-
-1. Customer completes subscription signup and payment succeeds
-2. System checks `Customer.laundry_bags_count`:
-   - If `= 0`: Auto-create BagDelivery before first order
-   - If `> 0`: Skip bag delivery, customer already has bags
-
-3. BagDelivery Details:
-   - `bag_quantity = 1` (default)
-   - `scheduled_date` = 1 day before first order pickup
-   - `status = 'pending'`
-   - First Order has `prerequisite_bag_delivery_id` pointing to this BagDelivery (for UI display)
-
-4. All orders are created and assigned cleaners immediately (not blocked by bag delivery)
-
-5. When bag delivery completed:
-   - Admin marks BagDelivery as `completed`
-   - System increments `Customer.laundry_bags_count` by the `BagDelivery.bag_quantity` value
-
-**Note:** Bag delivery is scheduled 1 day before first pickup for coordination, but does not block order assignment or progression.
-
-### Bag Inventory Management
-
-**Customer.laundry_bags_count** tracks how many NooraCare bags the customer has.
-
-**Increment Triggers:**
-
-- BagDelivery marked as `completed`: `laundry_bags_count += BagDelivery.bag_quantity`
-
-**Validation:**
-
-- Cannot create order if `laundry_bags_count = 0` and no `prerequisite_bag_delivery_id` is set (must have bags or order them)
-
-**Note:** While `BagDelivery.bag_quantity` supports 1-10 bags, MVP laundry operations assume 1 bag per pickup.
-
 ### Cleaner Assignment & Matching
 
 **City-Based Matching (MVP):**
@@ -207,7 +167,6 @@ Assignment happens at order creation for all plan types (recurring and one-time)
 **Generation Rules:**
 - Randomly generated on order creation
 - Collision checking required before saving
-- Same format used for both Orders and BagDeliveries
 - Total combinations: 32^6 = 1+ billion (sufficient for platform scale)
 
 **Benefits:**

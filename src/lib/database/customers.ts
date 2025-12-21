@@ -33,8 +33,7 @@ export async function createCustomer(userId: string) {
   return await supabase
     .from('customers')
     .insert({
-      user_id: userId,
-      laundry_bags_count: 0
+      user_id: userId
     })
     .select()
     .single();
