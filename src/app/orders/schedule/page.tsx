@@ -216,15 +216,7 @@ export default function SchedulePage() {
                 );
               })}
             </div>
-          </div>
-
-          {/* Info Message */}
-          <div className="mt-4 bg-blue-50 rounded-lg p-4 flex items-start">
-            <Info className="w-5 h-5 text-blue-600 mr-3 mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-blue-900">
-              Grå datoer er utilgjengelige. Minimum 2 dagers varsel kreves.
-            </p>
-          </div>
+          </div>          
         </div>
 
         {/* Recurring Toggle */}
@@ -236,7 +228,7 @@ export default function SchedulePage() {
               </div>
               <div>
                 <h4 className="font-medium text-slate-900">Fast avtale</h4>
-                <p className="text-sm text-slate-500 mt-1">Spar opptil 15% med gjentakende henting</p>
+                <p className="text-sm text-slate-500 mt-1">Gjentakende henting</p>
               </div>
             </div>
 
@@ -275,16 +267,11 @@ export default function SchedulePage() {
                     <h4 className="font-medium text-slate-900">Ukentlig</h4>
                     <p className="text-sm text-slate-500">Hver uke</p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="px-2 py-1 bg-teal-100 text-teal-700 text-xs rounded-full font-medium">
-                      15% rabatt
-                    </span>
-                    {frequency === 'weekly' && (
-                      <div className="w-5 h-5 rounded-full bg-teal-600 flex items-center justify-center">
-                        <Check className="w-3 h-3 text-white" />
-                      </div>
-                    )}
-                  </div>
+                  {frequency === 'weekly' && (
+                    <div className="w-5 h-5 rounded-full bg-teal-600 flex items-center justify-center">
+                      <Check className="w-3 h-3 text-white" />
+                    </div>
+                  )}
                 </div>
               </button>
 
@@ -302,16 +289,11 @@ export default function SchedulePage() {
                     <h4 className="font-medium text-slate-900">Annenhver uke</h4>
                     <p className="text-sm text-slate-500">Hver 14. dag</p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="px-2 py-1 bg-teal-100 text-teal-700 text-xs rounded-full font-medium">
-                      10% rabatt
-                    </span>
-                    {frequency === 'biweekly' && (
-                      <div className="w-5 h-5 rounded-full bg-teal-600 flex items-center justify-center">
-                        <Check className="w-3 h-3 text-white" />
-                      </div>
-                    )}
-                  </div>
+                  {frequency === 'biweekly' && (
+                    <div className="w-5 h-5 rounded-full bg-teal-600 flex items-center justify-center">
+                      <Check className="w-3 h-3 text-white" />
+                    </div>
+                  )}
                 </div>
               </button>
 
@@ -329,16 +311,11 @@ export default function SchedulePage() {
                     <h4 className="font-medium text-slate-900">Månedlig</h4>
                     <p className="text-sm text-slate-500">En gang i måneden</p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="px-2 py-1 bg-teal-100 text-teal-700 text-xs rounded-full font-medium">
-                      5% rabatt
-                    </span>
-                    {frequency === 'monthly' && (
-                      <div className="w-5 h-5 rounded-full bg-teal-600 flex items-center justify-center">
-                        <Check className="w-3 h-3 text-white" />
-                      </div>
-                    )}
-                  </div>
+                  {frequency === 'monthly' && (
+                    <div className="w-5 h-5 rounded-full bg-teal-600 flex items-center justify-center">
+                      <Check className="w-3 h-3 text-white" />
+                    </div>
+                  )}
                 </div>
               </button>
             </div>
