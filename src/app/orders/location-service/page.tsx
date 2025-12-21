@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { MapPin, Sparkles, Check, Clock, ChevronLeft } from 'lucide-react';
+import { MapPin, Sparkles, Check, Clock, ChevronLeft, MessageSquare } from 'lucide-react';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { OrderFlowProgress } from '@/components/ui/OrderFlowProgress';
 
@@ -17,12 +17,14 @@ export default function LocationServicePage() {
 
   const [location, setLocation] = useState<Location>('Bergen');
   const [service, setService] = useState<Service>('wash_and_iron');
+  const [additionalInfo, setAdditionalInfo] = useState('');
 
   // Initialize form state from store
   useEffect(() => {
     if (orderData) {
       setLocation(orderData.location || 'Bergen');
       setService(orderData.needsIroning ? 'wash_and_iron' : 'wash_only');
+      setAdditionalInfo(orderData.specialInstructions || '');
     }
   }, [orderData]);
 
@@ -37,6 +39,7 @@ export default function LocationServicePage() {
     updateOrderData({
       location,
       needsIroning: service === 'wash_and_iron',
+      specialInstructions: additionalInfo,
     });
 
     router.push('/orders/schedule');
@@ -203,6 +206,25 @@ export default function LocationServicePage() {
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Additional Information (Optional) */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 mb-6">
+          <div className="flex items-center mb-4">
+            <MessageSquare className="w-5 h-5 text-teal-600 mr-2" />
+            <h3 className="text-lg font-medium text-slate-900">Ekstra informasjon (valgfritt)</h3>
+          </div>
+
+          <textarea
+            value={additionalInfo}
+            onChange={(e) => setAdditionalInfo(e.target.value)}
+            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all resize-none"
+            placeholder="Spesielle ønsker? Allergier? Ting vi bør vite om klærne dine?"
+            rows={4}
+          />
+          <p className="text-xs text-slate-500 mt-2">
+            F.eks. behandling av spesielle materialer, fargepreferanser, allergier, etc.
+          </p>
         </div>
 
         {/* Navigation */}
