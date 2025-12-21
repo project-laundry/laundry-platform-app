@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { useCleanerOnboardingStore } from '@/stores/cleaner-onboarding-store';
 import { CleanerFlowProgress } from '@/components/ui/CleanerFlowProgress';
 import { FormInput } from '@/components/forms/FormInput';
-import { FormTextarea } from '@/components/forms/FormTextarea';
 import { validatePostalCode } from '@/lib/validation/cleaner';
 
 export default function ServicesPage() {
@@ -16,7 +15,6 @@ export default function ServicesPage() {
   const [baseStreet, setBaseStreet] = useState('');
   const [basePostalCode, setBasePostalCode] = useState('');
   const [baseCity, setBaseCity] = useState('');
-  const [baseSpecialInstructions, setBaseSpecialInstructions] = useState('');
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -26,7 +24,6 @@ export default function ServicesPage() {
       setBaseStreet(cleanerData.baseStreet || '');
       setBasePostalCode(cleanerData.basePostalCode || '');
       setBaseCity(cleanerData.baseCity || '');
-      setBaseSpecialInstructions(cleanerData.baseSpecialInstructions || '');
     }
   }, [cleanerData]);
 
@@ -63,8 +60,7 @@ export default function ServicesPage() {
       baseStreet,
       basePostalCode,
       baseCity,
-      baseCountry: 'Norway',
-      baseSpecialInstructions: baseSpecialInstructions || undefined
+      baseCountry: 'Norway'
     });
 
     // Navigate to next step
@@ -136,14 +132,6 @@ export default function ServicesPage() {
                     error={errors.baseCity}
                   />
                 </div>
-
-                <FormTextarea
-                  label="Spesielle instruksjoner (valgfritt)"
-                  value={baseSpecialInstructions}
-                  onChange={setBaseSpecialInstructions}
-                  placeholder="F.eks. portbeskrivelse, parkeringsinformasjon, etc."
-                  rows={3}
-                />
               </div>
             </div>
 
