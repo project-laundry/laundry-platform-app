@@ -28,6 +28,9 @@ export function QuickActionsCard({ subscriptionId, subscriptionStatus }: QuickAc
       if (!result.success) {
         alert(result.error || 'En feil oppstod ved kansellering');
         setIsLoading(false);
+      } else {
+        // Success - refresh the page to show updated data
+        window.location.reload();
       }
     } catch (error) {
       console.error('Error:', error);

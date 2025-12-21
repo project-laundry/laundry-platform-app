@@ -180,28 +180,155 @@ export async function updateSubscription(
 
 
 /**
- * Cancel a subscription
- * Sets status to 'cancelled' and records the timestamp
+ * Cancel a subscription with all related data
+ *
+ * This is the unified cancellation function used by:
+ * - User-initiated cancellation (via dashboard)
+ * - Vipps webhook events (agreement stopped/rejected/expired)
+ *
+ * Actions performed:
+ * 1. Cancels all pending/upcoming orders
+ * 2. Cancels all pending/authorized payments (imported from payments.ts to avoid circular dependency)
+ * 3. Updates subscription status to 'cancelled'
+ *
+ * @param subscriptionId - The subscription ID to cancel
+ * @param cancelledAt - Optional timestamp (defaults to now, used by webhooks for accurate timing)
+ * @param reason - Optional cancellation reason (for logging/auditing)
  */
 export async function cancelSubscription(
-  subscriptionId: string
+  subscriptionId: string,
+  cancelledAt?: string,
+  reason?: string
 ): Promise<Subscription | null> {
   const supabase = createAdminClient();
 
+  console.log(`[cancelSubscription] Cancelling subscription ${subscriptionId}${reason ? ` - Reason: ${reason}` : ''}`);
+
+  // 1. Cancel all related orders that haven't been completed yet
+  const { data: cancelledOrders, error: ordersError } = await supabase
+    .from('orders')
+    .update({
+      status: 'cancelled',
+    })
+    .eq('subscription_id', subscriptionId)
+    .in('status', [
+      'pending_assignment',
+      'pickup_scheduled',
+      'picked_up',
+      'in_cleaning',
+      'ready_for_delivery',
+      'out_for_delivery'
+    ])
+    .select('id, order_number');
+
+  if (ordersError) {
+    console.error('[cancelSubscription] Error cancelling orders:', ordersError);
+  } else if (cancelledOrders && cancelledOrders.length > 0) {
+    console.log(`[cancelSubscription] Cancelled ${cancelledOrders.length} order(s): ${cancelledOrders.map(o => o.order_number).join(', ')}`);
+  }
+
+  // 2. Cancel all pending/authorized payments
+  // Note: Using dynamic import to avoid circular dependency
+  // This is safe because it's only called at runtime, not during module initialization
+  const { cancelPendingPaymentsForSubscription } = await import('@/lib/database/payments');
+  const cancelledPaymentsCount = await cancelPendingPaymentsForSubscription(
+    subscriptionId,
+    reason || 'Subscription cancelled'
+  );
+
+  if (cancelledPaymentsCount > 0) {
+    console.log(`[cancelSubscription] Cancelled ${cancelledPaymentsCount} pending payment(s)`);
+  }
+
+  // 3. Update subscription status to cancelled
   const { data, error } = await supabase
     .from('subscriptions')
     .update({
       status: 'cancelled' as SubscriptionStatus,
-      cancelled_at: new Date().toISOString(),
+      cancelled_at: cancelledAt || new Date().toISOString(),
     })
     .eq('id', subscriptionId)
     .select()
     .single();
 
   if (error) {
-    console.error('Error cancelling subscription:', error);
+    console.error('[cancelSubscription] Error updating subscription:', error);
     return null;
   }
 
+  console.log(`[cancelSubscription] Subscription ${subscriptionId} cancelled successfully`);
+  return data;
+}
+
+/**
+ * Expire a subscription with all related data cleanup
+ *
+ * Similar to cancelSubscription but sets status to 'expired' instead of 'cancelled'.
+ * Used when Vipps agreement expires naturally (reached end date).
+ *
+ * Actions performed:
+ * 1. Cancels all pending/upcoming orders
+ * 2. Cancels all pending/authorized payments
+ * 3. Updates subscription status to 'expired'
+ *
+ * @param subscriptionId - The subscription ID to expire
+ */
+export async function expireSubscription(
+  subscriptionId: string
+): Promise<Subscription | null> {
+  const supabase = createAdminClient();
+
+  console.log(`[expireSubscription] Expiring subscription ${subscriptionId}`);
+
+  // 1. Cancel all related orders that haven't been completed yet
+  const { data: cancelledOrders, error: ordersError } = await supabase
+    .from('orders')
+    .update({
+      status: 'cancelled',
+    })
+    .eq('subscription_id', subscriptionId)
+    .in('status', [
+      'pending_assignment',
+      'pickup_scheduled',
+      'picked_up',
+      'in_cleaning',
+      'ready_for_delivery',
+      'out_for_delivery'
+    ])
+    .select('id, order_number');
+
+  if (ordersError) {
+    console.error('[expireSubscription] Error cancelling orders:', ordersError);
+  } else if (cancelledOrders && cancelledOrders.length > 0) {
+    console.log(`[expireSubscription] Cancelled ${cancelledOrders.length} order(s): ${cancelledOrders.map(o => o.order_number).join(', ')}`);
+  }
+
+  // 2. Cancel all pending/authorized payments
+  const { cancelPendingPaymentsForSubscription } = await import('@/lib/database/payments');
+  const cancelledPaymentsCount = await cancelPendingPaymentsForSubscription(
+    subscriptionId,
+    'Agreement expired'
+  );
+
+  if (cancelledPaymentsCount > 0) {
+    console.log(`[expireSubscription] Cancelled ${cancelledPaymentsCount} pending payment(s)`);
+  }
+
+  // 3. Update subscription status to expired
+  const { data, error } = await supabase
+    .from('subscriptions')
+    .update({
+      status: 'expired' as SubscriptionStatus,
+    })
+    .eq('id', subscriptionId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('[expireSubscription] Error updating subscription:', error);
+    return null;
+  }
+
+  console.log(`[expireSubscription] Subscription ${subscriptionId} expired successfully`);
   return data;
 }
