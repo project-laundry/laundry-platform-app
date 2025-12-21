@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { MapPin, Sparkles, Calendar, RefreshCw, CreditCard, Check, ChevronLeft } from 'lucide-react';
+import { Check, ChevronLeft } from 'lucide-react';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { OrderFlowProgress } from '@/components/ui/OrderFlowProgress';
 import { createSubscriptionAction } from '../actions';
@@ -31,12 +31,37 @@ function ConfirmPageContent() {
     return `${dayNames[date.getDay()]} ${date.getDate()}. ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
   };
 
-  const getFrequencyLabel = (isRecurring: boolean, frequency: string | null) => {
-    if (!isRecurring) return 'Engangs';
-    if (frequency === 'weekly') return 'Ukentlig';
-    if (frequency === 'biweekly') return 'Annenhver uke';
-    if (frequency === 'monthly') return 'Månedlig';
-    return 'Engangs';
+  const formatShortDate = (dateString: string | undefined) => {
+    if (!dateString) return 'Ikke valgt';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Ikke valgt';
+    const dayNames = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag'];
+    const monthNames = ['januar', 'februar', 'mars', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'desember'];
+
+    return `${dayNames[date.getDay()]} ${date.getDate()}. ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+  };
+
+  const getScheduleLabel = (isRecurring: boolean, frequency: string | null, firstPickupDate: string | undefined) => {
+    const pickupDateFormatted = formatShortDate(firstPickupDate);
+
+    if (!isRecurring) {
+      return `Engangshenting - ${pickupDateFormatted.charAt(0).toUpperCase() + pickupDateFormatted.slice(1)}`;
+    }
+
+    const dayOfWeek = firstPickupDate ? new Date(firstPickupDate).toLocaleDateString('no-NO', { weekday: 'long' }) : '';
+    const dayOfWeekCapitalized = dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1);
+
+    if (frequency === 'weekly') {
+      return `Ukentlig henting hver ${dayOfWeek} - Første henting ${pickupDateFormatted}`;
+    }
+    if (frequency === 'biweekly') {
+      return `Henting annenhver uke (${dayOfWeek}er) - Første henting ${pickupDateFormatted}`;
+    }
+    if (frequency === 'monthly') {
+      return `Månedlig henting - Første henting ${pickupDateFormatted}`;
+    }
+
+    return `${dayOfWeekCapitalized} - ${pickupDateFormatted}`;
   };
 
   const handleConfirmOrder = async (e: React.FormEvent) => {
@@ -115,143 +140,118 @@ function ConfirmPageContent() {
 
         {/* Page Header */}
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-light text-slate-900 mb-2">Bekreftelse</h2>
-          <p className="text-slate-500">Gjennomgå bestillingen</p>
+          <h2 className="text-3xl font-light text-slate-900">Bekreftelse</h2>
         </div>
 
-        {/* Order Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          {/* Location */}
-          <div className="bg-slate-50 rounded-lg border border-slate-100 p-4">
-            <div className="w-10 h-10 bg-white border border-slate-200 rounded-lg flex items-center justify-center mb-3">
-              <MapPin className="w-5 h-5 text-teal-600" />
-            </div>
-            <p className="text-xs text-slate-500 mb-1">Lokasjon</p>
-            <p className="font-medium text-slate-900">{orderData.location}</p>
-          </div>
+        {/* Consolidated Order Summary */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 mb-8">
+          <h3 className="text-lg font-semibold text-slate-900 mb-6 pb-4 border-b border-slate-100">
+            Bestillingssammendrag
+          </h3>
 
-          {/* Service */}
-          <div className="bg-slate-50 rounded-lg border border-slate-100 p-4">
-            <div className="w-10 h-10 bg-white border border-slate-200 rounded-lg flex items-center justify-center mb-3">
-              <Sparkles className="w-5 h-5 text-teal-600" />
-            </div>
-            <p className="text-xs text-slate-500 mb-1">Tjeneste</p>
-            <p className="font-medium text-slate-900">
-              {orderData.needsIroning ? 'Vask & Stryking' : 'Kun Vask'}
-            </p>
-          </div>
+          <div className="space-y-6">
+            {/* Schedule - Redesigned */}
+            <div className="border-l-4 border-teal-500 pl-4">
+              <div className="flex items-start gap-3">
+                <div className="mt-1">
+                  <svg className="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-slate-500 mb-2">Henteplan</p>
 
-          {/* Pickup Date */}
-          <div className="bg-slate-50 rounded-lg border border-slate-100 p-4">
-            <div className="w-10 h-10 bg-white border border-slate-200 rounded-lg flex items-center justify-center mb-3">
-              <Calendar className="w-5 h-5 text-teal-600" />
-            </div>
-            <p className="text-xs text-slate-500 mb-1">Hentedato</p>
-            <p className="font-medium text-slate-900 text-sm">
-              {formatDate(orderData.firstPickupDate).split(' ').slice(0, 2).join(' ')}
-            </p>
-          </div>
+                  {/* Frequency Badge */}
+                  <div className="inline-flex items-center gap-2 bg-teal-50 text-teal-700 px-3 py-1 rounded-full text-sm font-medium mb-3">
+                    {orderData.isRecurring ? (
+                      <>
+                        <span className="w-2 h-2 bg-teal-500 rounded-full animate-pulse"></span>
+                        {orderData.frequency === 'weekly' && 'Ukentlig'}
+                        {orderData.frequency === 'biweekly' && 'Annenhver uke'}
+                        {orderData.frequency === 'monthly' && 'Månedlig'}
+                      </>
+                    ) : (
+                      <>
+                        <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
+                        Engangshenting
+                      </>
+                    )}
+                  </div>
 
-          {/* Frequency */}
-          <div className="bg-slate-50 rounded-lg border border-slate-100 p-4">
-            <div className="w-10 h-10 bg-white border border-slate-200 rounded-lg flex items-center justify-center mb-3">
-              <RefreshCw className="w-5 h-5 text-teal-600" />
-            </div>
-            <p className="text-xs text-slate-500 mb-1">Frekvens</p>
-            <p className="font-medium text-slate-900">
-              {getFrequencyLabel(orderData.isRecurring || false, orderData.frequency || null)}
-            </p>
-          </div>
-        </div>
+                  {/* Schedule Details */}
+                  <div className="space-y-2">
+                    {orderData.isRecurring && (
+                      <p className="text-slate-700">
+                        Hver <span className="font-semibold">
+                          {new Date(orderData.firstPickupDate || '').toLocaleDateString('no-NO', { weekday: 'long' })}
+                        </span>
+                      </p>
+                    )}
 
-        {/* Address Display */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 mb-6">
-          <h3 className="text-lg font-medium text-slate-900 mb-4">Henteadresse</h3>
-          {orderData.address && (
-            <div>
-              <p className="font-medium text-slate-900">{orderData.address.street}</p>
-              <p className="text-sm text-slate-600">
-                {orderData.address.postalCode} {orderData.address.city}
-              </p>
-              {orderData.address.specialInstructions && (
-                <p className="text-sm text-slate-600 italic mt-2">
-                  &ldquo;{orderData.address.specialInstructions}&rdquo;
+                    {/* First Pickup - Most Prominent */}
+                    <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                      <p className="text-xs text-slate-500 mb-1">
+                        {orderData.isRecurring ? 'Første henting' : 'Hentedato'}
+                      </p>
+                      <p className="text-lg font-semibold text-slate-900">
+                        {formatDate(orderData.firstPickupDate)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Location & Service */}
+            <div className="grid grid-cols-2 gap-4 py-4 border-y border-slate-100">
+              <div>
+                <p className="text-sm text-slate-500 mb-1">Område</p>
+                <p className="text-slate-900 font-medium">{orderData.location}</p>
+              </div>
+              <div>
+                <p className="text-sm text-slate-500 mb-1">Tjeneste</p>
+                <p className="text-slate-900 font-medium">
+                  {orderData.needsIroning ? 'Vask & Stryking' : 'Kun Vask'}
                 </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Special Instructions if provided */}
-        {orderData.specialInstructions && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 mb-6">
-            <h3 className="text-lg font-medium text-slate-900 mb-4">Spesielle instruksjoner</h3>
-            <p className="text-slate-600 italic">&ldquo;{orderData.specialInstructions}&rdquo;</p>
-          </div>
-        )}
-
-        {/* Price Summary */}
-        <div className="bg-slate-50 rounded-xl border border-slate-200 p-6 mb-6">
-          <div className="flex items-center mb-4">
-            <CreditCard className="w-5 h-5 text-teal-600 mr-2" />
-            <h3 className="text-lg font-medium text-slate-900">Prissammendrag</h3>
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-slate-600">
-                {orderData.needsIroning ? 'Vask & Stryking' : 'Kun Vask'}
-              </span>
-              <span className="font-medium text-slate-900">
-                {orderData.needsIroning ? 'Fra 299 kr' : 'Fra 199 kr'}
-              </span>
+              </div>
             </div>
 
-            {orderData.isRecurring && (
-              <div className="flex justify-between items-center text-teal-600">
-                <span>Abonnementsrabatt</span>
-                <span className="font-medium">
-                  -{' '}
-                  {orderData.frequency === 'weekly'
-                    ? '15%'
-                    : orderData.frequency === 'biweekly'
-                    ? '10%'
-                    : '5%'}
-                </span>
+            {/* Address */}
+            {orderData.address && (
+              <div>
+                <p className="text-sm text-slate-500 mb-2">Henteadresse</p>
+                <div className="bg-slate-50 rounded-lg p-4">
+                  <p className="font-medium text-slate-900">{orderData.address.street}</p>
+                  <p className="text-sm text-slate-600 mt-1">
+                    {orderData.address.postalCode} {orderData.address.city}
+                  </p>
+                  {orderData.address.specialInstructions && (
+                    <p className="text-sm text-slate-600 italic mt-3 pt-3 border-t border-slate-200">
+                      &ldquo;{orderData.address.specialInstructions}&rdquo;
+                    </p>
+                  )}
+                </div>
               </div>
             )}
 
-            <div className="border-t border-slate-200 pt-3">
-              <div className="flex justify-between items-center">
-                <span className="text-slate-900 font-medium">Estimert pris</span>
-                <span className="text-xl font-semibold text-teal-600">
-                  {orderData.needsIroning ? 'Fra 299 kr' : 'Fra 199 kr'}
-                </span>
+            {/* Special Instructions if provided */}
+            {orderData.specialInstructions && (
+              <div>
+                <p className="text-sm text-slate-500 mb-2">Spesielle instruksjoner</p>
+                <div className="bg-slate-50 rounded-lg p-4">
+                  <p className="text-slate-700 italic">&ldquo;{orderData.specialInstructions}&rdquo;</p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
-
-          <p className="text-xs text-slate-500 mt-4">
-            Endelig pris beregnes basert på vekt og antall plagg.
-          </p>
-        </div>
-
-        {/* Payment Method */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 mb-6">
-          <h3 className="text-lg font-medium text-slate-900 mb-4">Betalingsmåte</h3>
-          <div className="border-2 border-teal-600 bg-teal-50/30 rounded-lg p-4">
-            <div className="flex items-center justify-center">
-              <span className="text-2xl mr-2">📱</span>
-              <span className="font-semibold text-slate-900">Vipps</span>
-            </div>
-          </div>
-          <p className="text-sm text-slate-500 mt-4 text-center">
-            Du vil bli videresendt til Vipps for å godkjenne avtalen
-          </p>
         </div>
 
         {/* Submit Form */}
         <form onSubmit={handleConfirmOrder}>
+          <p className="text-sm text-slate-600 mb-4 text-center">
+            Du vil bli videresendt til Vipps for å godkjenne avtalen
+          </p>
+
           <button
             type="submit"
             disabled={isSubmitting}
@@ -287,8 +287,8 @@ function ConfirmPageContent() {
               </>
             ) : (
               <>
-                <Check className="w-5 h-5 mr-2" />
-                Bekreft og betal
+                <span className="text-2xl mr-2">📱</span>
+                Bekreft og betal med Vipps
               </>
             )}
           </button>
