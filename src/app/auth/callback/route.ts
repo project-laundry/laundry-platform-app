@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createCustomer } from '@/lib/database/customers';
 import { NextResponse } from 'next/server';
+import { getUsersById } from '@/lib/database/users';
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -10,6 +11,17 @@ export async function GET(request: Request) {
   if (code) {
     const supabase = await createClient();
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+    if(error || !data?.user) {
+      console.error('Error exchanging code for session:', error);
+      return NextResponse.redirect(`${origin}/auth/error`);
+    }
+
+    const user = await getUsersById(data.user.id);
+
+    if(user?.role === 'cleaner') {
+      return NextResponse.redirect(`${origin}/bli-renser/business`);
+    }
 
     if (!error && data?.user) {
       // Create customer record for new users
