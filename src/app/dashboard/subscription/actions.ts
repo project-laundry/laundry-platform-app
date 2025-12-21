@@ -64,9 +64,7 @@ export async function cancelSubscriptionAction(
     if (!result) {
       return { success: false, error: 'Failed to cancel subscription' };
     }
-
-    // Redirect to dashboard
-    redirect('/dashboard');
+    return { success: true };    
   } catch (error) {
     console.error('Error cancelling subscription:', error);
     return { success: false, error: 'An error occurred while cancelling subscription' };

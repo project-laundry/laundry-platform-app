@@ -239,7 +239,7 @@ Both webhooks use HMAC-SHA256 signature verification. You can use a shared secre
 - `subscriptions.provider_agreement_id` - Stores Vipps agreement ID
 - `subscriptions.order_defaults` - Stores order generation defaults (JSONB):
   - `initial_address` - Pickup/delivery address
-  - `pickup_method`, `pickup_location_description`, `special_instructions` - Pickup details
+  - `special_instructions` - Pickup details
   - `location_city` - Service area (Bergen/Oslo) - used for cleaner matching
   - `default_needs_ironing` - Default ironing preference for orders
   - `default_cleaner_id` - Default cleaner assignment (orders can be reassigned)

@@ -1,7 +1,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, MapPin, FileText, Clock, Camera } from 'lucide-react';
+import { Calendar, MapPin, FileText, Clock } from 'lucide-react';
 import {
   getSubscriptionStatusLabel,
   getSubscriptionStatusVariant,
@@ -20,7 +20,6 @@ interface SubscriptionOverviewCardProps {
 export function SubscriptionOverviewCard({ subscription, nextOrder }: SubscriptionOverviewCardProps) {
   const { status, frequency, order_defaults } = subscription;
 
-  const requiresPhoto = nextOrder?.pickup_method !== 'home';
   const pickupTimeRange = getPickupTimeRangeLabel();
 
   // Get address from nextOrder if available, otherwise from order_defaults
@@ -113,19 +112,6 @@ export function SubscriptionOverviewCard({ subscription, nextOrder }: Subscripti
                   </div>
                 )}
               </div>
-
-              {/* Photo Requirement - Full Width */}
-              {requiresPhoto && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Camera className="w-5 h-5 text-amber-600" />
-                    <p className="text-sm text-amber-900 font-medium">Bilde kreves</p>
-                  </div>
-                  <p className="text-xs text-amber-800">
-                    Du må ta et bilde av plassering ved henting
-                  </p>
-                </div>
-              )}
             </div>
 
             {/* CTA Button - View Order Details */}

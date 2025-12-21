@@ -1,5 +1,3 @@
-import type { PickupMethod } from './database';
-
 export interface OrderData {
   // Location
   location: 'Bergen' | 'Oslo';
@@ -21,10 +19,6 @@ export interface OrderData {
     postalCode: string;
     specialInstructions: string;
   };
-
-  // Pickup
-  pickupMethod: PickupMethod;
-  pickupLocationDescription?: string;
 
   // Instructions
   specialInstructions?: string;

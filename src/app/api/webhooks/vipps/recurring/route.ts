@@ -559,8 +559,6 @@ async function handleAgreementActivated(
         scheduled_date: toISODateString(pickupDate),
         delivery_date: toISODateString(deliveryDate),
         // Pickup details (from order defaults)
-        pickup_method: orderDefaults.pickup_method || 'home',
-        pickup_location_description: orderDefaults.pickup_location_description,
         special_instructions: orderDefaults.special_instructions,
         // Ironing preference (from order defaults)
         needs_ironing: needsIroning,

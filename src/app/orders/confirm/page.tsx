@@ -60,8 +60,6 @@ function ConfirmPageContent() {
           specialInstructions: orderData.address!.specialInstructions || undefined,
         },
         specialInstructions: orderData.specialInstructions || undefined,
-        pickupMethod: orderData.pickupMethod || 'home',
-        pickupLocationDescription: orderData.pickupLocationDescription || undefined,
       });
 
       if (result.displayError) {
