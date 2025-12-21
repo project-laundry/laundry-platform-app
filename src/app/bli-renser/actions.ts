@@ -18,8 +18,10 @@ export interface CreateCleanerProfileResult {
  * 1. Verify user is authenticated
  * 2. Check if user already has a cleaner profile
  * 3. Create cleaner record in database
- * 4. Update user role to 'cleaner'
- * 5. Return success/error
+ * 4. Return success/error
+ *
+ * Note: User role is set to 'cleaner' during signup via the handle_new_user() trigger,
+ * which reads the role from auth metadata. No role update is needed here.
  */
 export async function createCleanerProfileAction(
   data: CleanerOnboardingData,
@@ -87,17 +89,6 @@ export async function createCleanerProfileAction(
         success: false,
         error: "Kunne ikke opprette renserprofil. Vennligst prøv igjen.",
       };
-    }
-
-    // 4. Update user role to 'cleaner'
-    const { error: updateError } = await supabase
-      .from("users")
-      .update({ role: "cleaner" })
-      .eq("id", user.id);
-
-    if (updateError) {
-      console.error("Error updating user role:", updateError);
-      // Continue anyway - cleaner profile is created
     }
 
     return {
