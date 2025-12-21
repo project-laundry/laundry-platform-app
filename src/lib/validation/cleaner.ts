@@ -52,7 +52,7 @@ export function validatePostalCode(code: string): boolean {
 
 /**
  * Validates machine year
- * Must be 4 digits and in reasonable range (2015-2024)
+ * Must be 4 digits and in reasonable range (1900-2024)
  */
 export function validateYear(year: string): boolean {
   if (!/^\d{4}$/.test(year)) {
@@ -62,5 +62,5 @@ export function validateYear(year: string): boolean {
   const yearNum = parseInt(year, 10);
   const currentYear = new Date().getFullYear();
 
-  return yearNum >= 2015 && yearNum <= currentYear;
+  return yearNum >= 1900 && yearNum <= currentYear;
 }

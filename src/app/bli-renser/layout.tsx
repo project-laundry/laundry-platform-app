@@ -4,8 +4,7 @@ import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useCleanerOnboardingStore } from '@/stores/cleaner-onboarding-store';
 
-const PROTECTED_ROUTES = [
-  '/bli-renser/business',
+const PROTECTED_ROUTES = [  
   '/bli-renser/services',
   '/bli-renser/equipment',
   '/bli-renser/profile',
