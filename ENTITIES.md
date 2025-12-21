@@ -283,8 +283,6 @@
   - **Structure:**
     - `initial_address` (object) - Pickup/delivery address:
       - `street`, `postal_code`, `city`, `country`, `special_instructions`
-    - `pickup_method` (string) - Pickup method ('home', 'entrance', 'other')
-    - `pickup_location_description` (string, nullable) - Specific pickup location details
     - `special_instructions` (string, nullable) - Special instructions for pickup
     - `location_city` (string) - Service area city ('Bergen' or 'Oslo') - used for cleaner matching
     - `default_needs_ironing` (boolean) - Default ironing preference for orders
@@ -356,9 +354,6 @@
   - **Note:** For MVP, Admin users handle pickup/delivery operations manually via driver dashboard
 - `delivery_date` (date, required) - Scheduled/actual delivery date
   - **Validation:** Must be >= scheduled_date
-- `pickup_method` (enum → [PickupMethod](#pickupmethod), required) - Pickup method
-- `pickup_location_description` (text, nullable) - Detailed pickup location
-  - **Validation:** Required if `pickup_method = 'other'`, max 500 chars
 - `special_instructions` (text, nullable) - One-time order notes
   - **Validation:** Max 1000 chars
   - **Examples:** "Leave on porch today", "Call when arriving", "Extra dirty items"
@@ -596,7 +591,6 @@
 - Orders cannot be assigned to cleaner with `verification_status != 'approved'`
 - Cleaner cannot receive assignments if `is_accepting_orders = false`
 - `business_name` and `business_address` required if `Cleaner.business_type = 'business'`
-- `pickup_location_description` required if `Order.pickup_method = 'other'`
 - Order number must be unique and follow format `XXXXXX` (6-character random alphanumeric)
 - BagDelivery delivery_number must be unique and follow format `XXXXXX` (6-character random alphanumeric)
 

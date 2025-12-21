@@ -1,7 +1,7 @@
 // Order database operations
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import type { Order, OrderStatus, PickupMethod, OrderWithRelations } from '@/types/database';
+import type { Order, OrderStatus, OrderWithRelations } from '@/types/database';
 import { generateOrderNumber } from '@/lib/utils/order-number';
 
 export interface CreateOrderData {
@@ -18,8 +18,6 @@ export interface CreateOrderData {
   scheduled_date: string; // ISO date string
   delivery_date: string; // ISO date string
   // Pickup details
-  pickup_method: PickupMethod;
-  pickup_location_description?: string | null;
   special_instructions?: string | null;
   // Service preferences
   needs_ironing?: boolean;
@@ -79,8 +77,6 @@ export async function createOrder(data: CreateOrderData): Promise<Order | null> 
       scheduled_date: data.scheduled_date,
       delivery_date: data.delivery_date,
       // Pickup details
-      pickup_method: data.pickup_method,
-      pickup_location_description: data.pickup_location_description || null,
       special_instructions: data.special_instructions || null,
       // Service preferences
       needs_ironing: data.needs_ironing || false,

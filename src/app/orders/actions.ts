@@ -11,7 +11,6 @@ import { createVippsAgreement } from "@/lib/payments/vipps/service";
 import { getWeekdayFromDate } from "@/lib/utils/date";
 import { translateFrequency } from "@/lib/utils/i18n";
 import type {
-  PickupMethod,
   Weekday,
   SubscriptionFrequency,
   SubscriptionOrderDefaults,
@@ -31,8 +30,6 @@ export interface CreateSubscriptionInput {
     specialInstructions?: string;
   };
   specialInstructions?: string;
-  pickupMethod: PickupMethod;
-  pickupLocationDescription?: string;
 }
 
 export interface CreateSubscriptionResult {
@@ -101,8 +98,6 @@ export async function createSubscriptionAction(
       country: input.pickupAddress.country,
       special_instructions: input.pickupAddress.specialInstructions,
     },
-    pickup_method: input.pickupMethod,
-    pickup_location_description: input.pickupLocationDescription,
     special_instructions: input.specialInstructions,
     location_city: input.location,
     default_needs_ironing: input.needsIroning,

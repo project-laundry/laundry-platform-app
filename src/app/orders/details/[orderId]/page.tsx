@@ -274,16 +274,6 @@ export default async function OrderDetailPage({ params }: OrderPageProps) {
                     {order.postal_code} {order.city}
                   </p>
                 </div>
-                <div>
-                  <p className="text-medium-gray mb-1">Hentemetode</p>
-                  <p className="text-dark-gray capitalize">{order.pickup_method}</p>
-                </div>
-                {order.pickup_location_description && (
-                  <div>
-                    <p className="text-medium-gray mb-1">Beskrivelse</p>
-                    <p className="text-dark-gray">{order.pickup_location_description}</p>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </div>

@@ -29,8 +29,6 @@ export type SubscriptionFrequency = 'weekly' | 'biweekly' | 'monthly' | 'on_dema
 
 export type Weekday = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 
-export type PickupMethod = 'home' | 'entrance' | 'other';
-
 export type BagDeliveryStatus = 'pending' | 'scheduled' | 'en_route' | 'delivered' | 'completed' | 'cancelled';
 
 export type OrderStatus =
@@ -170,8 +168,6 @@ export interface SubscriptionOrderDefaults {
     country: string;
     special_instructions?: string;
   };
-  pickup_method: PickupMethod;
-  pickup_location_description?: string;
   special_instructions?: string;
   location_city: 'Bergen' | 'Oslo';
   default_needs_ironing: boolean;
@@ -197,8 +193,6 @@ export interface Order {
   scheduled_date: string;
   delivery_date: string;
   // Pickup details
-  pickup_method: PickupMethod;
-  pickup_location_description: string | null;
   special_instructions: string | null;
   // Service preferences
   needs_ironing: boolean;

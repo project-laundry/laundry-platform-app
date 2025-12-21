@@ -123,8 +123,6 @@ export async function checkAndGenerateNextOrders(subscriptionId: string): Promis
     country: address.country,
     special_instructions_address: address.special_instructions,
     // Pickup details from order defaults
-    pickup_method: orderDefaults.pickup_method,
-    pickup_location_description: orderDefaults.pickup_location_description,
     special_instructions: orderDefaults.special_instructions,
   });
 
