@@ -2,58 +2,9 @@
 
 import type {
   SubscriptionFrequency,
-  Weekday,
   SubscriptionOrderDefaults,
 } from '@/types/database';
-import { getNextOccurrenceOfWeekday, addDays, toISODateString } from '@/lib/utils/date';
-
-/**
- * Generate pickup dates based on subscription frequency
- * Always generates a rolling window of upcoming orders (4 weeks ahead)
- *
- * @param frequency - The subscription frequency
- * @param recurringWeekday - The weekday for pickups
- * @param startDate - The reference date (start of window)
- * @returns Array of pickup dates
- */
-export function generatePickupDates(
-  frequency: SubscriptionFrequency,
-  recurringWeekday: Weekday,
-  startDate: Date
-): Date[] {
-  const pickupDates: Date[] = [];
-
-  switch (frequency) {
-    case 'weekly':
-      // Generate 4 weekly pickups
-      let weeklyDate = getNextOccurrenceOfWeekday(startDate, recurringWeekday);
-      for (let i = 0; i < 4; i++) {
-        pickupDates.push(new Date(weeklyDate));
-        weeklyDate = addDays(weeklyDate, 7);
-      }
-      break;
-
-    case 'biweekly':
-      // Generate 2 biweekly pickups (every 2 weeks)
-      let biweeklyDate = getNextOccurrenceOfWeekday(startDate, recurringWeekday);
-      for (let i = 0; i < 2; i++) {
-        pickupDates.push(new Date(biweeklyDate));
-        biweeklyDate = addDays(biweeklyDate, 14);
-      }
-      break;
-
-    case 'monthly':
-      // Generate 1 monthly pickup
-      pickupDates.push(getNextOccurrenceOfWeekday(startDate, recurringWeekday));
-      break;
-
-    default:
-      // on_demand or unknown frequency - no auto-generated orders
-      break;
-  }
-
-  return pickupDates;
-}
+import { getNextOccurrenceOfWeekday, addDays, toISODateString, getWeekdayFromDate } from '@/lib/utils/date';
 
 /**
  * Check if subscription needs new orders generated and create them
@@ -108,6 +59,9 @@ export async function checkAndGenerateNextOrders(subscriptionId: string): Promis
     return; // No orders yet, shouldn't happen but exit gracefully
   }
 
+  // Get order defaults from subscription (needed for monthly frequency)
+  const orderDefaults = subscription.order_defaults as SubscriptionOrderDefaults;
+
   // Calculate next pickup date based on frequency
   let nextDate: Date;
 
@@ -116,9 +70,11 @@ export async function checkAndGenerateNextOrders(subscriptionId: string): Promis
   } else if (subscription.frequency === 'biweekly') {
     nextDate = addDays(new Date(lastOrder.scheduled_date), 14);
   } else if (subscription.frequency === 'monthly') {
-    // For monthly: add ~30 days then find next occurrence of recurring weekday
+    // For monthly: add ~30 days then find next occurrence of the original weekday
+    // Derive weekday from first pickup date
+    const weekday = getWeekdayFromDate(orderDefaults.first_pickup_date);
     const approximateDate = addDays(new Date(lastOrder.scheduled_date), 30);
-    nextDate = getNextOccurrenceOfWeekday(approximateDate, subscription.recurring_weekday!);
+    nextDate = getNextOccurrenceOfWeekday(approximateDate, weekday);
   } else {
     console.error(`[Order Generation] Unsupported frequency: ${subscription.frequency}`);
     return;
@@ -137,8 +93,7 @@ export async function checkAndGenerateNextOrders(subscriptionId: string): Promis
     return;
   }
 
-  // Get order defaults from subscription
-  const orderDefaults = subscription.order_defaults as SubscriptionOrderDefaults;
+  // Validate order defaults
   if (!orderDefaults?.initial_address) {
     console.error(`[Order Generation] No order_defaults found in subscription ${subscriptionId}`);
     return;

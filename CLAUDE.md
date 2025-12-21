@@ -31,6 +31,21 @@ The application supports three user roles:
 - **Path Aliases**: `@/*` maps to `./src/*`
 - **Language**: Norwegian (locale `no`)
 
+## Development Status
+
+**This project is currently in the development phase.**
+
+Key implications:
+- Database changes can be made without complex migrations
+- No need to backfill or preserve legacy data structures
+- Breaking changes are acceptable if they improve the architecture
+- Focus on clean, maintainable code over backward compatibility
+
+When the system moves to production, this section should be updated to reflect:
+- Data migration strategies
+- Backward compatibility requirements
+- Deprecation policies
+
 ## Backend & Database
 
 - **Database**: Supabase (PostgreSQL)

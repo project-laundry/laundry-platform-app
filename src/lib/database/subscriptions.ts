@@ -5,14 +5,12 @@ import type {
   Subscription,
   SubscriptionStatus,
   SubscriptionFrequency,
-  Weekday,
   SubscriptionOrderDefaults,
 } from '@/types/database';
 
 export interface CreateSubscriptionData {
   customer_id: string;
   frequency: SubscriptionFrequency;
-  recurring_weekday: Weekday | null;
   provider_agreement_id: string;
   order_defaults?: SubscriptionOrderDefaults | null;
 }
@@ -33,7 +31,6 @@ export async function createSubscription(
     .insert({
       customer_id: data.customer_id,
       frequency: data.frequency,
-      recurring_weekday: data.recurring_weekday,
       status: 'pending_payment' as SubscriptionStatus,
       started_at: null,
       provider_agreement_id: data.provider_agreement_id,

@@ -8,6 +8,7 @@ import {
   getSubscriptionFrequencyLabel,
 } from '@/lib/utils/subscription-status';
 import { getOrderStatusLabel, getOrderStatusVariant } from '@/lib/utils/order-status';
+import { getWeekdayFromDate } from '@/lib/utils/date';
 import type { Subscription, OrderWithRelations } from '@/types/database';
 
 interface SubscriptionCardProps {
@@ -16,7 +17,7 @@ interface SubscriptionCardProps {
 }
 
 export function SubscriptionCard({ subscription, nextOrder }: SubscriptionCardProps) {
-  const { status, frequency, recurring_weekday } = subscription;
+  const { status, frequency, order_defaults } = subscription;
 
   return (
     <div className="space-y-6">
@@ -39,11 +40,11 @@ export function SubscriptionCard({ subscription, nextOrder }: SubscriptionCardPr
                 {getSubscriptionFrequencyLabel(frequency)}
               </p>
             </div>
-            {recurring_weekday && (
+            {order_defaults?.first_pickup_date && (
               <div>
                 <p className="text-sm text-medium-gray mb-2 font-medium">Hentedag</p>
                 <p className="text-base font-semibold text-dark-gray capitalize">
-                  {recurring_weekday}
+                  {getWeekdayFromDate(order_defaults.first_pickup_date)}
                 </p>
               </div>
             )}

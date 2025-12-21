@@ -77,9 +77,6 @@ export async function createSubscriptionAction(
       ? input.frequency
       : 'monthly';
 
-  // Calculate recurring weekday
-  const recurringWeekday = getWeekdayFromDate(input.firstPickupDate);
-
   // Find available cleaner
   const cleaner = await findAvailableCleaner(
     input.location,
@@ -111,13 +108,13 @@ export async function createSubscriptionAction(
     location_city: input.location,
     default_needs_ironing: input.needsIroning,
     default_cleaner_id: cleaner?.id || null,
+    first_pickup_date: input.firstPickupDate,
   };
 
   // Create subscription with all order defaults
   const subscription = await createSubscription({
     customer_id: customer.id,
     frequency,
-    recurring_weekday: recurringWeekday,
     provider_agreement_id: agreementResponse.agreementId,
     order_defaults: orderDefaults,
   });

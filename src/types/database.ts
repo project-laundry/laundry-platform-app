@@ -147,7 +147,6 @@ export interface Subscription {
   customer_id: string;
   // Subscription settings
   frequency: SubscriptionFrequency;
-  recurring_weekday: Weekday | null;
   // Status and metadata
   status: SubscriptionStatus;
   provider_agreement_id: string | null;
@@ -178,6 +177,7 @@ export interface SubscriptionOrderDefaults {
   location_city: 'Bergen' | 'Oslo';
   default_needs_ironing: boolean;
   default_cleaner_id: string | null;
+  first_pickup_date: string; // ISO date string (YYYY-MM-DD) - replaces recurring_weekday
   [key: string]: unknown; // Allow additional fields from Vipps metadata
 }
 

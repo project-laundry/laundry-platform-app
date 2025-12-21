@@ -38,8 +38,7 @@ import {
 import { getCustomerById } from '@/lib/database/customers';
 import { createOrder } from '@/lib/database/orders';
 import { createBagDelivery } from '@/lib/database/bag-deliveries';
-import { generatePickupDates } from '@/lib/services/order-generation';
-import { addDays, toISODateString, addMonths } from '@/lib/utils/date';
+import { addDays, toISODateString, addMonths, getWeekdayFromDate, getNextOccurrenceOfWeekday } from '@/lib/utils/date';
 import type { OrderStatus, SubscriptionStatus } from '@/types/database';
 
 
@@ -487,17 +486,26 @@ async function handleAgreementActivated(
       throw new Error('Customer not found');
     }
 
-    // Generate pickup dates based on frequency (using first date only for rolling window approach)
-    const pickupDates = generatePickupDates(
-      activatedSubscription.frequency,
-      activatedSubscription.recurring_weekday!,
-      new Date()
-    );
+    // Calculate first pickup date from stored first_pickup_date
+    const storedDate = new Date(orderDefaults.first_pickup_date);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
 
-    if (pickupDates.length === 0) {
-      console.log(`[Vipps Recurring Webhook] No orders to generate for frequency: ${activatedSubscription.frequency}`);
-      return;
+    let pickupDate: Date;
+
+    if (storedDate >= now) {
+      // Use the user's chosen first pickup date
+      pickupDate = storedDate;
+      console.log(`[Vipps Recurring Webhook] Using user's chosen first pickup date: ${toISODateString(pickupDate)}`);
+    } else {
+      // Safety fallback: if stored date has passed (extremely rare due to 10min Vipps expiry)
+      // Find next occurrence of the same weekday
+      const weekday = getWeekdayFromDate(orderDefaults.first_pickup_date);
+      pickupDate = getNextOccurrenceOfWeekday(new Date(), weekday);
+      console.log(`[Vipps Recurring Webhook] Stored date passed, using next ${weekday}: ${toISODateString(pickupDate)}`);
     }
+
+    const deliveryDate = addDays(pickupDate, 3); // Delivery 3 days after pickup
 
     console.log(`[Vipps Recurring Webhook] Generating first order for subscription ${activatedSubscription.id}`);
 
@@ -512,7 +520,7 @@ async function handleAgreementActivated(
           delivery_city: address.city,
           delivery_country: address.country,
           delivery_special_instructions: address.special_instructions,
-          scheduled_date: toISODateString(addDays(pickupDates[0], -1)), // 1 day before first pickup
+          scheduled_date: toISODateString(addDays(pickupDate, -1)), // 1 day before first pickup
           bag_quantity: 1,
         });
 
@@ -528,8 +536,6 @@ async function handleAgreementActivated(
 
     // Create first order WITHOUT pricing (cleaner sets price later)
     // Next orders will be generated automatically when current order completes
-    const pickupDate = pickupDates[0];
-    const deliveryDate = addDays(pickupDate, 3); // Delivery 3 days after pickup
 
     try {
       // Determine order status based on default cleaner
