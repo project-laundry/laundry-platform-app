@@ -15,12 +15,12 @@ export default function BecomeCleanerPage() {
               <a href="#sporsmal" className="text-medium-gray hover:text-dark-gray font-medium">Spørsmål</a>
             </nav>
             <div className="flex gap-3">
-              <a href="/auth/login" className="text-nordic-blue font-semibold px-4 py-2 hover:bg-soft-gray rounded-lg">
+              <Link href="/auth/login" className="text-nordic-blue font-semibold px-4 py-2 hover:bg-soft-gray rounded-lg">
                 Logg inn
-              </a>
-              <a href="/bli-renser/business" className="bg-nordic-blue text-white font-semibold px-6 py-2 rounded-lg">
+              </Link>
+              <Link href="/bli-renser/signup" className="bg-nordic-blue text-white font-semibold px-6 py-2 rounded-lg">
                 Registrer deg som renser
-              </a>
+              </Link>
             </div>
           </div>
         </div>
@@ -41,62 +41,20 @@ export default function BecomeCleanerPage() {
                 </p>                
               </div>
 
-              {/* Right side - Registration Form */}
+              {/* Right side - CTA Card */}
               <div className="bg-white rounded-2xl shadow-lg border border-soft-gray p-8">
                 <h3 className="text-2xl font-bold text-dark-gray mb-6">Bli en renser</h3>
-                <form action="/bli-renser/business" method="GET" className="space-y-4">
-                  <div>
-                    <input
-                      type="text"
-                      name="firstName"
-                      placeholder="Fornavn"
-                      required
-                      className="w-full px-4 py-3 border border-soft-gray rounded-lg focus:outline-none focus:border-nordic-blue"
-                    />
-                  </div>
-                  <div>
-                    <input
-                      type="text"
-                      name="lastName"
-                      placeholder="Etternavn"
-                      required
-                      className="w-full px-4 py-3 border border-soft-gray rounded-lg focus:outline-none focus:border-nordic-blue"
-                    />
-                  </div>
-                  <div>
-                    <input
-                      type="email"
-                      name="email"
-                      placeholder="E-postadresse"
-                      required
-                      className="w-full px-4 py-3 border border-soft-gray rounded-lg focus:outline-none focus:border-nordic-blue"
-                    />
-                  </div>
-                  <div>
-                    <input
-                      type="tel"
-                      name="phone"
-                      placeholder="Telefonnummer"
-                      required
-                      className="w-full px-4 py-3 border border-soft-gray rounded-lg focus:outline-none focus:border-nordic-blue"
-                    />
-                  </div>
-                  <div>
-                    <select name="city" required className="w-full px-4 py-3 border border-soft-gray rounded-lg focus:outline-none focus:border-nordic-blue text-medium-gray">
-                      <option value="">Velg din by</option>
-                      <option value="bergen">Bergen</option>
-                      <option value="oslo">Oslo</option>
-                    </select>
-                  </div>
-                  <button
-                    type="submit"
-                    className="w-full bg-nordic-blue text-white font-semibold py-3 rounded-lg"
-                  >
-                    Start registrering
-                  </button>
-                </form>
+                <p className="text-medium-gray mb-6 leading-relaxed">
+                  Registrer deg i dag og begynn å tjene penger med dine egne rensetjenester. Prosessen tar bare noen minutter.
+                </p>
+                <Link
+                  href="/bli-renser/signup"
+                  className="block w-full bg-nordic-blue text-white font-semibold py-3 rounded-lg text-center hover:bg-nordic-blue/90 transition-colors"
+                >
+                  Start registrering
+                </Link>
                 <p className="text-sm text-medium-gray mt-4 text-center">
-                  Har du allerede en konto? <a href="/auth/login" className="text-nordic-blue hover:underline">Logg inn</a>
+                  Har du allerede en konto? <Link href="/auth/login" className="text-nordic-blue hover:underline">Logg inn</Link>
                 </p>
               </div>
             </div>
@@ -363,9 +321,9 @@ export default function BecomeCleanerPage() {
                 <p className="text-xl opacity-90 mb-8">
                   Registrer deg i dag og begynn å tjene penger med dine egne rensetjenester.
                 </p>
-                <a href="/bli-renser/business" className="bg-white text-nordic-blue font-semibold px-8 py-4 rounded-lg hover:bg-gray-100 text-lg">
+                <Link href="/bli-renser/signup" className="bg-white text-nordic-blue font-semibold px-8 py-4 rounded-lg hover:bg-gray-100 text-lg inline-block">
                   Registrer deg
-                </a>
+                </Link>
               </div>
 
               {/* Mini phone mockup */}
