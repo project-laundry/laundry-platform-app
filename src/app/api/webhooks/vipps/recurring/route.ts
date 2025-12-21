@@ -37,7 +37,6 @@ import {
 } from '@/lib/database/payments';
 import { getCustomerById } from '@/lib/database/customers';
 import { createOrder } from '@/lib/database/orders';
-import { createBagDelivery } from '@/lib/database/bag-deliveries';
 import { addDays, toISODateString, addMonths, getWeekdayFromDate, getNextOccurrenceOfWeekday } from '@/lib/utils/date';
 import type { OrderStatus, SubscriptionStatus } from '@/types/database';
 
@@ -509,31 +508,6 @@ async function handleAgreementActivated(
 
     console.log(`[Vipps Recurring Webhook] Generating first order for subscription ${activatedSubscription.id}`);
 
-    // Create bag delivery (if customer has no bags)
-    let bagDeliveryId: string | null = null;
-    if (customer.laundry_bags_count === 0) {
-      try {
-        const bagDelivery = await createBagDelivery({
-          customer_id: activatedSubscription.customer_id,
-          delivery_street: address.street,
-          delivery_postal_code: address.postal_code,
-          delivery_city: address.city,
-          delivery_country: address.country,
-          delivery_special_instructions: address.special_instructions,
-          scheduled_date: toISODateString(addDays(pickupDate, -1)), // 1 day before first pickup
-          bag_quantity: 1,
-        });
-
-        if (bagDelivery) {
-          bagDeliveryId = bagDelivery.id;
-          console.log(`[Vipps Recurring Webhook] Bag delivery ${bagDelivery.delivery_number} created`);
-        }
-      } catch (error) {
-        console.error(`[Vipps Recurring Webhook] Failed to create bag delivery:`, error);
-        // Continue with order creation
-      }
-    }
-
     // Create first order WITHOUT pricing (cleaner sets price later)
     // Next orders will be generated automatically when current order completes
 
@@ -564,8 +538,6 @@ async function handleAgreementActivated(
         needs_ironing: needsIroning,
         // Pricing (NULL - cleaner sets later)
         total_cost_ore: null,
-        // Bag delivery prerequisite
-        prerequisite_bag_delivery_id: bagDeliveryId,
       });
 
       if (order) {

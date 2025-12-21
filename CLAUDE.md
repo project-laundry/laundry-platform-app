@@ -125,7 +125,6 @@ src/
 │   ├── config/
 │   │   └── pricing.ts      # Pricing constants and helpers (oreToNok, nokToOre)
 │   ├── database/           # Database CRUD operations
-│   │   ├── bag-deliveries.ts  # Bag delivery operations
 │   │   ├── cleaners.ts     # Cleaner queries & matching
 │   │   ├── customers.ts    # Customer queries
 │   │   ├── orders.ts       # Order CRUD

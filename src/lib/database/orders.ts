@@ -24,7 +24,6 @@ export interface CreateOrderData {
   // Pricing (nullable - set by cleaner after pickup)
   total_cost_ore?: number | null;
   // Other
-  prerequisite_bag_delivery_id?: string | null;
   status?: OrderStatus; // Optional: override auto-determined status
 }
 
@@ -83,7 +82,6 @@ export async function createOrder(data: CreateOrderData): Promise<Order | null> 
       // Pricing (nullable - set by cleaner after pickup)
       total_cost_ore: data.total_cost_ore || null,
       // Other
-      prerequisite_bag_delivery_id: data.prerequisite_bag_delivery_id || null,
       assigned_at: data.cleaner_id ? new Date().toISOString() : null,
     })
     .select()
