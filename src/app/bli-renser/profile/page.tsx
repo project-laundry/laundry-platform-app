@@ -1,178 +1,219 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useCleanerOnboardingStore } from '@/stores/cleaner-onboarding-store';
+import { CleanerFlowProgress } from '@/components/ui/CleanerFlowProgress';
+import { FormInput } from '@/components/forms/FormInput';
+import { FormSelect } from '@/components/forms/FormSelect';
+import type { CleanerExperienceLevel, CleanerSpecialization } from '@/types/database';
 
 export default function ProfilePage() {
+  const router = useRouter();
+  const { cleanerData, updateCleanerData } = useCleanerOnboardingStore();
+
+  const [displayName, setDisplayName] = useState('');
+  const [experienceLevel, setExperienceLevel] = useState<CleanerExperienceLevel>('beginner');
+  const [specializations, setSpecializations] = useState<CleanerSpecialization[]>([]);
+  const [languages, setLanguages] = useState<string[]>(['no']); // Norwegian by default
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Load data from store on mount
+  useEffect(() => {
+    if (cleanerData) {
+      setDisplayName(cleanerData.displayName || '');
+      setExperienceLevel(cleanerData.experienceLevel || 'beginner');
+      setSpecializations(cleanerData.specializations || []);
+      setLanguages(cleanerData.languages || ['no']);
+    }
+  }, [cleanerData]);
+
+  const toggleSpecialization = (spec: CleanerSpecialization) => {
+    setSpecializations(prev =>
+      prev.includes(spec)
+        ? prev.filter(s => s !== spec)
+        : [...prev, spec]
+    );
+  };
+
+  const toggleLanguage = (lang: string) => {
+    setLanguages(prev =>
+      prev.includes(lang)
+        ? prev.filter(l => l !== lang)
+        : [...prev, lang]
+    );
+  };
+
+  const validate = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    if (!displayName) {
+      newErrors.displayName = 'Visningsnavn er påkrevd';
+    } else if (displayName.length < 2) {
+      newErrors.displayName = 'Visningsnavn må være minst 2 tegn';
+    }
+
+    if (!experienceLevel) {
+      newErrors.experienceLevel = 'Vennligst velg erfaringsnivå';
+    }
+
+    if (languages.length === 0) {
+      newErrors.languages = 'Vennligst velg minst ett språk';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validate()) {
+      return;
+    }
+
+    // Update store
+    updateCleanerData({
+      displayName,
+      experienceLevel,
+      specializations,
+      languages
+    });
+
+    // Navigate to confirmation page
+    router.push('/bli-renser/confirm');
+  };
+
+  const isFormValid = displayName && experienceLevel && languages.length > 0;
+
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <header className="bg-white border-b border-soft-gray">
+      <header className="bg-white border-b border-slate-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex justify-between items-center">
             <Link href="/" className="text-2xl font-bold text-nordic-blue">NooraCare</Link>
-            <div className="text-sm text-medium-gray">
-              Steg 5 av 5
+            <div className="text-sm text-slate-600">
+              Steg 4 av 5
             </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Progress Bar */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-medium-gray">Fremdrift</span>
-            <span className="text-sm text-medium-gray">100%</span>
-          </div>
-          <div className="w-full bg-soft-gray rounded-full h-2">
-            <div className="bg-success-green h-2 rounded-full" style={{ width: '100%' }}></div>
-          </div>
-        </div>
+        {/* Progress Indicator */}
+        <CleanerFlowProgress currentStep={4} />
 
         {/* Form Section */}
-        <div className="bg-white">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-dark-gray mb-4">
+            <h1 className="text-3xl font-light text-slate-900 mb-4">
               Fullfør profilen din
             </h1>
-            <p className="text-lg text-medium-gray">
-              Last opp et profilbilde og fortell litt om deg selv for å bygge tillit med kundene.
+            <p className="text-slate-600">
+              Fortell litt om deg selv for å bygge tillit med kundene.
             </p>
           </div>
 
-          <form action="/bli-renser/success" method="GET" className="space-y-8">
-            {/* Profile Picture / Logo */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Display Name */}
             <div>
-              <h3 className="text-lg font-medium text-dark-gray mb-4">Profilbilde eller logo</h3>
-              <p className="text-sm text-medium-gray mb-4">
-                Et profesjonelt bilde eller logo hjelper kunder å kjenne deg igjen og skaper tillit.
+              <h3 className="text-lg font-medium text-slate-900 mb-4">Om deg</h3>
+
+              <FormInput
+                label="Visningsnavn"
+                value={displayName}
+                onChange={setDisplayName}
+                placeholder="Hvordan vil du at kunder skal se deg? (f.eks. 'Anna' eller 'Bergen Rensetjeneste')"
+                required
+                error={errors.displayName}
+              />
+              <p className="text-sm text-slate-600 mt-1">
+                Dette navnet vises til kunder når de ser profilen din
               </p>
-
-              <div className="flex items-start gap-6">
-                {/* Image Upload Area */}
-                <div className="flex-shrink-0">
-                  <div className="w-32 h-32 border-2 border-dashed border-soft-gray rounded-lg flex items-center justify-center bg-soft-gray/30">
-                    <div className="text-center">
-                      <svg className="w-8 h-8 text-medium-gray mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                      <p className="text-xs text-medium-gray">Ditt bilde</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Upload Options */}
-                <div className="flex-1">
-                  <div className="space-y-3">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      id="profileImage"
-                    />
-                    <label
-                      htmlFor="profileImage"
-                      className="block w-full text-center bg-nordic-blue text-white px-4 py-3 rounded-lg cursor-pointer"
-                    >
-                      Last opp bilde
-                    </label>
-                    <p className="text-sm text-medium-gray text-center">
-                      JPG, PNG eller GIF (maks 5MB)<br />
-                      Anbefalt størrelse: 400x400 piksler
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* About Section */}
-            <div>
-              <h3 className="text-lg font-medium text-dark-gray mb-4">Fortell om deg selv</h3>
-
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="displayName" className="block text-sm font-medium text-dark-gray mb-2">
-                    Visningsnavn *
-                  </label>
-                  <input
-                    type="text"
-                    id="displayName"
-                    placeholder="Hvordan vil du at kunder skal se deg? (f.eks. 'Anna' eller 'Bergen Rensetjeneste')"
-                    className="w-full px-4 py-3 border border-soft-gray rounded-lg focus:outline-none focus:border-nordic-blue"
-                  />
-                  <p className="text-sm text-medium-gray mt-1">
-                    Dette navnet vises til kunder når de ser profilen din
-                  </p>
-                </div>                
-              </div>
             </div>
 
             {/* Experience */}
             <div>
-              <h3 className="text-lg font-medium text-dark-gray mb-4">Erfaring</h3>
+              <h3 className="text-lg font-medium text-slate-900 mb-4">Erfaring</h3>
 
               <div className="space-y-4">
-                <div>
-                  <label htmlFor="experience" className="block text-sm font-medium text-dark-gray mb-2">
-                    Hvor lang erfaring har du med rengjøring? *
-                  </label>
-                  <select
-                    id="experience"
-                    className="w-full px-4 py-3 border border-soft-gray rounded-lg focus:outline-none focus:border-nordic-blue"
-                  >
-                    <option value="">Velg erfaringsnivå</option>
-                    <option value="beginner">Nybegynner - Jeg lærer fortsatt</option>
-                    <option value="some">Noe erfaring - 1-2 år</option>
-                    <option value="experienced">Erfaren - 3-5 år</option>
-                    <option value="expert">Ekspert - 5+ år</option>
-                    <option value="professional">Profesjonell - Jeg driver eget rengjøringsfirma</option>
-                  </select>
-                </div>
+                <FormSelect
+                  label="Hvor lang erfaring har du med rengjøring?"
+                  value={experienceLevel}
+                  onChange={(value) => setExperienceLevel(value as CleanerExperienceLevel)}
+                  placeholder="Velg erfaringsnivå"
+                  options={[
+                    { value: 'beginner', label: 'Nybegynner - Jeg lærer fortsatt' },
+                    { value: 'some', label: 'Noe erfaring - 1-2 år' },
+                    { value: 'experienced', label: 'Erfaren - 3-5 år' },
+                    { value: 'expert', label: 'Ekspert - 5+ år' },
+                    { value: 'professional', label: 'Profesjonell - Jeg driver eget rengjøringsfirma' }
+                  ]}
+                  required
+                  error={errors.experienceLevel}
+                />
 
                 <div>
-                  <label className="block text-sm font-medium text-dark-gray mb-3">
+                  <label className="block text-sm font-medium text-slate-900 mb-3">
                     Hvilke typer klær har du mest erfaring med? (valgfritt)
                   </label>
                   <div className="space-y-2">
-                    <label className="flex items-center">
+                    <label className="flex items-center cursor-pointer">
                       <input
                         type="checkbox"
-                        className="w-4 h-4 text-nordic-blue border-soft-gray focus:ring-nordic-blue"
+                        className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-600"
+                        checked={specializations.includes('delicate')}
+                        onChange={() => toggleSpecialization('delicate')}
                       />
-                      <span className="ml-3 text-dark-gray">Hverdagsklær (t-skjorter, jeans, etc.)</span>
+                      <span className="ml-3 text-slate-700">Delikate stoffer (silke, ull, etc.)</span>
                     </label>
-                    <label className="flex items-center">
+                    <label className="flex items-center cursor-pointer">
                       <input
                         type="checkbox"
-                        className="w-4 h-4 text-nordic-blue border-soft-gray focus:ring-nordic-blue"
+                        className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-600"
+                        checked={specializations.includes('formal')}
+                        onChange={() => toggleSpecialization('formal')}
                       />
-                      <span className="ml-3 text-dark-gray">Forretningsklær (skjorter, dresser, etc.)</span>
+                      <span className="ml-3 text-slate-700">Forretningsklær (skjorter, dresser, etc.)</span>
                     </label>
-                    <label className="flex items-center">
+                    <label className="flex items-center cursor-pointer">
                       <input
                         type="checkbox"
-                        className="w-4 h-4 text-nordic-blue border-soft-gray focus:ring-nordic-blue"
+                        className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-600"
+                        checked={specializations.includes('sportswear')}
+                        onChange={() => toggleSpecialization('sportswear')}
                       />
-                      <span className="ml-3 text-dark-gray">Delikate stoffer (silke, ull, etc.)</span>
+                      <span className="ml-3 text-slate-700">Sportsklær og aktivitetstøy</span>
                     </label>
-                    <label className="flex items-center">
+                    <label className="flex items-center cursor-pointer">
                       <input
                         type="checkbox"
-                        className="w-4 h-4 text-nordic-blue border-soft-gray focus:ring-nordic-blue"
+                        className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-600"
+                        checked={specializations.includes('outerwear')}
+                        onChange={() => toggleSpecialization('outerwear')}
                       />
-                      <span className="ml-3 text-dark-gray">Sportsklær og aktivitetstøy</span>
+                      <span className="ml-3 text-slate-700">Ytterklær (jakker, frakker, etc.)</span>
                     </label>
-                    <label className="flex items-center">
+                    <label className="flex items-center cursor-pointer">
                       <input
                         type="checkbox"
-                        className="w-4 h-4 text-nordic-blue border-soft-gray focus:ring-nordic-blue"
+                        className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-600"
+                        checked={specializations.includes('down')}
+                        onChange={() => toggleSpecialization('down')}
                       />
-                      <span className="ml-3 text-dark-gray">Barnetøy</span>
+                      <span className="ml-3 text-slate-700">Dunjakker og duntøy</span>
                     </label>
-                    <label className="flex items-center">
+                    <label className="flex items-center cursor-pointer">
                       <input
                         type="checkbox"
-                        className="w-4 h-4 text-nordic-blue border-soft-gray focus:ring-nordic-blue"
+                        className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-600"
+                        checked={specializations.includes('leather')}
+                        onChange={() => toggleSpecialization('leather')}
                       />
-                      <span className="ml-3 text-dark-gray">Sengetøy og håndklær</span>
+                      <span className="ml-3 text-slate-700">Lær og skinn</span>
                     </label>
                   </div>
                 </div>
@@ -181,102 +222,58 @@ export default function ProfilePage() {
 
             {/* Languages */}
             <div>
-              <label className="block text-sm font-medium text-dark-gray mb-3">
-                Hvilke språk snakker du? *
+              <label className="block text-sm font-medium text-slate-900 mb-3">
+                Hvilke språk snakker du?
+                <span className="text-red-600 ml-1">*</span>
               </label>
               <div className="space-y-2">
-                <label className="flex items-center">
+                <label className="flex items-center cursor-pointer">
                   <input
                     type="checkbox"
-                    className="w-4 h-4 text-nordic-blue border-soft-gray focus:ring-nordic-blue"
-                    defaultChecked
+                    className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-600"
+                    checked={languages.includes('no')}
+                    onChange={() => toggleLanguage('no')}
                   />
-                  <span className="ml-3 text-dark-gray">Norsk</span>
+                  <span className="ml-3 text-slate-700">Norsk</span>
                 </label>
-                <label className="flex items-center">
+                <label className="flex items-center cursor-pointer">
                   <input
                     type="checkbox"
-                    className="w-4 h-4 text-nordic-blue border-soft-gray focus:ring-nordic-blue"
+                    className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-600"
+                    checked={languages.includes('en')}
+                    onChange={() => toggleLanguage('en')}
                   />
-                  <span className="ml-3 text-dark-gray">Engelsk</span>
-                </label>                
-                <label className="flex items-center">
+                  <span className="ml-3 text-slate-700">Engelsk</span>
+                </label>
+                <label className="flex items-center cursor-pointer">
                   <input
                     type="checkbox"
-                    className="w-4 h-4 text-nordic-blue border-soft-gray focus:ring-nordic-blue"
+                    className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-600"
+                    checked={languages.includes('other')}
+                    onChange={() => toggleLanguage('other')}
                   />
-                  <span className="ml-3 text-dark-gray">Annet språk</span>
+                  <span className="ml-3 text-slate-700">Annet språk</span>
                 </label>
               </div>
-            </div>
-
-            {/* Final Review */}
-            <div className="bg-soft-gray rounded-lg p-6">
-              <h3 className="text-lg font-medium text-dark-gray mb-4">Før du sender inn</h3>
-              <div className="space-y-3">
-                <div className="flex items-center">
-                  <div className="w-6 h-6 bg-success-green rounded-full flex items-center justify-center mr-3">
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                  <span className="text-dark-gray">Kontaktinformasjon er fylt ut</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-6 h-6 bg-success-green rounded-full flex items-center justify-center mr-3">
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                  <span className="text-dark-gray">Virksomhet og juridisk informasjon</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-6 h-6 bg-success-green rounded-full flex items-center justify-center mr-3">
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                  <span className="text-dark-gray">Tjenester og serviceområde</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-6 h-6 bg-success-green rounded-full flex items-center justify-center mr-3">
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                  <span className="text-dark-gray">Informasjon om vaskemaskinen</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-6 h-6 bg-warning-orange rounded-full flex items-center justify-center mr-3">
-                    <span className="text-white text-sm font-bold">!</span>
-                  </div>
-                  <span className="text-dark-gray">Profil og presentasjon (nåværende steg)</span>
-                </div>
-              </div>
-
-              <div className="mt-6 p-4 bg-white rounded-lg border border-warning-orange/20">
-                <h4 className="font-medium text-dark-gray mb-2">Hva skjer videre?</h4>
-                <ul className="text-sm text-medium-gray space-y-1">
-                  <li>• Vi gjennomgår søknaden din innen 1-2 virkedager</li>
-                  <li>• Du får beskjed på e-post når profilen din er godkjent</li>
-                  <li>• Du kan da begynne å motta oppdrag gjennom NooraCare-appen</li>
-                </ul>
-              </div>
+              {errors.languages && (
+                <p className="mt-1 text-sm text-red-600">{errors.languages}</p>
+              )}
             </div>
 
             {/* Navigation Buttons */}
             <div className="flex justify-between pt-6">
-              <a
+              <Link
                 href="/bli-renser/equipment"
-                className="px-6 py-3 border border-soft-gray text-medium-gray font-medium rounded-lg hover:bg-soft-gray"
+                className="px-6 py-3 border border-slate-300 text-slate-600 font-medium rounded-lg hover:bg-slate-50"
               >
                 Tilbake
-              </a>
+              </Link>
               <button
                 type="submit"
-                className="px-8 py-3 bg-success-green text-white font-medium rounded-lg hover:bg-green-600 text-lg"
+                disabled={!isFormValid}
+                className="px-6 py-3 bg-teal-600 text-white font-medium rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Send inn søknad
+                Fortsett til bekreftelse
               </button>
             </div>
           </form>

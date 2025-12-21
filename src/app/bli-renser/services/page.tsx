@@ -1,195 +1,164 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useCleanerOnboardingStore } from '@/stores/cleaner-onboarding-store';
+import { CleanerFlowProgress } from '@/components/ui/CleanerFlowProgress';
+import { FormInput } from '@/components/forms/FormInput';
+import { FormTextarea } from '@/components/forms/FormTextarea';
+import { validatePostalCode } from '@/lib/validation/cleaner';
 
 export default function ServicesPage() {
+  const router = useRouter();
+  const { cleanerData, updateCleanerData } = useCleanerOnboardingStore();
+
+  const [baseStreet, setBaseStreet] = useState('');
+  const [basePostalCode, setBasePostalCode] = useState('');
+  const [baseCity, setBaseCity] = useState('');
+  const [baseSpecialInstructions, setBaseSpecialInstructions] = useState('');
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Load data from store on mount
+  useEffect(() => {
+    if (cleanerData) {
+      setBaseStreet(cleanerData.baseStreet || '');
+      setBasePostalCode(cleanerData.basePostalCode || '');
+      setBaseCity(cleanerData.baseCity || '');
+      setBaseSpecialInstructions(cleanerData.baseSpecialInstructions || '');
+    }
+  }, [cleanerData]);
+
+  const validate = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    if (!baseStreet) {
+      newErrors.baseStreet = 'Gateadresse er påkrevd';
+    }
+
+    if (!basePostalCode) {
+      newErrors.basePostalCode = 'Postnummer er påkrevd';
+    } else if (!validatePostalCode(basePostalCode)) {
+      newErrors.basePostalCode = 'Postnummer må være 4 siffer';
+    }
+
+    if (!baseCity) {
+      newErrors.baseCity = 'By er påkrevd';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validate()) {
+      return;
+    }
+
+    // Update store
+    updateCleanerData({
+      baseStreet,
+      basePostalCode,
+      baseCity,
+      baseCountry: 'Norway',
+      baseSpecialInstructions: baseSpecialInstructions || undefined
+    });
+
+    // Navigate to next step
+    router.push('/bli-renser/equipment');
+  };
+
+  const isFormValid = baseStreet && basePostalCode && baseCity;
+
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <header className="bg-white border-b border-soft-gray">
+      <header className="bg-white border-b border-slate-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex justify-between items-center">
             <Link href="/" className="text-2xl font-bold text-nordic-blue">NooraCare</Link>
-            <div className="text-sm text-medium-gray">
-              Steg 3 av 5
+            <div className="text-sm text-slate-600">
+              Steg 2 av 5
             </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Progress Bar */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-medium-gray">Fremdrift</span>
-            <span className="text-sm text-medium-gray">60%</span>
-          </div>
-          <div className="w-full bg-soft-gray rounded-full h-2">
-            <div className="bg-nordic-blue h-2 rounded-full" style={{ width: '60%' }}></div>
-          </div>
-        </div>
+        {/* Progress Indicator */}
+        <CleanerFlowProgress currentStep={2} />
 
         {/* Form Section */}
-        <div className="bg-white">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-dark-gray mb-4">
-              Tjenester du tilbyr
+            <h1 className="text-3xl font-light text-slate-900 mb-4">
+              Serviceområde
             </h1>
-            <p className="text-lg text-medium-gray">
-              Fortell oss om rensetjenestene du tilbyr og ditt serviceområde.
+            <p className="text-slate-600">
+              Hvor er vaskemaskinen din plassert? Dette blir utgangspunktet for ditt serviceområde.
             </p>
           </div>
 
-          <form action="/bli-renser/equipment" method="GET" className="space-y-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
             {/* Base Address */}
             <div>
-              <h3 className="text-lg font-medium text-dark-gray mb-4">Basisadresse</h3>
-              <p className="text-sm text-medium-gray mb-4">
-                Hvor er vaskemaskinen din plassert? Dette blir utgangspunktet for ditt serviceområde.
-              </p>
+              <h3 className="text-lg font-medium text-slate-900 mb-4">Basisadresse</h3>
 
               <div className="space-y-4">
-                <div>
-                  <label htmlFor="baseStreet" className="block text-sm font-medium text-dark-gray mb-2">
-                    Gateadresse *
-                  </label>
-                  <input
-                    type="text"
-                    id="baseStreet"
-                    placeholder="Gatenavn og nummer"
-                    className="w-full px-4 py-3 border border-soft-gray rounded-lg focus:outline-none focus:border-nordic-blue"
+                <FormInput
+                  label="Gateadresse"
+                  value={baseStreet}
+                  onChange={setBaseStreet}
+                  placeholder="Gatenavn og nummer"
+                  required
+                  error={errors.baseStreet}
+                />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormInput
+                    label="Postnummer"
+                    value={basePostalCode}
+                    onChange={setBasePostalCode}
+                    placeholder="4 siffer"
+                    required
+                    error={errors.basePostalCode}
+                  />
+
+                  <FormInput
+                    label="By"
+                    value={baseCity}
+                    onChange={setBaseCity}
+                    placeholder="Bergen, Oslo, etc."
+                    required
+                    error={errors.baseCity}
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="basePostalCode" className="block text-sm font-medium text-dark-gray mb-2">
-                      Postnummer *
-                    </label>
-                    <input
-                      type="text"
-                      id="basePostalCode"
-                      placeholder="4 siffer"
-                      className="w-full px-4 py-3 border border-soft-gray rounded-lg focus:outline-none focus:border-nordic-blue"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="baseCity" className="block text-sm font-medium text-dark-gray mb-2">
-                      By *
-                    </label>
-                    <input
-                      type="text"
-                      id="baseCity"
-                      placeholder="Bergen, Oslo, etc."
-                      className="w-full px-4 py-3 border border-soft-gray rounded-lg focus:outline-none focus:border-nordic-blue"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Additional Services */}
-            <div>
-              <h3 className="text-lg font-medium text-dark-gray mb-4">Tilleggstjenester</h3>
-              <p className="text-sm text-medium-gray mb-4">
-                Hvilke ekstratjenester kan du tilby utover vanlig vask?
-              </p>
-
-              <div className="space-y-3">
-                <label className="flex items-center justify-between p-4 border border-soft-gray rounded-lg">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 text-nordic-blue border-soft-gray focus:ring-nordic-blue"
-                    />
-                    <div className="ml-3">
-                      <span className="text-dark-gray font-medium">Tørketrommel</span>
-                      <p className="text-sm text-medium-gray">Jeg har en tørketrommel tilgjengelig</p>
-                    </div>
-                  </div>
-                  <span className="text-sm text-success-green font-medium">+50 NOK</span>
-                </label>
-
-                <label className="flex items-center justify-between p-4 border border-soft-gray rounded-lg">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 text-nordic-blue border-soft-gray focus:ring-nordic-blue"
-                    />
-                    <div className="ml-3">
-                      <span className="text-dark-gray font-medium">Tørkerom/tørkeheng</span>
-                      <p className="text-sm text-medium-gray">Plass til å henge opp klær for tørking</p>
-                    </div>
-                  </div>
-                  <span className="text-sm text-success-green font-medium">+30 NOK</span>
-                </label>
-
-                <label className="flex items-center justify-between p-4 border border-soft-gray rounded-lg">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 text-nordic-blue border-soft-gray focus:ring-nordic-blue"
-                    />
-                    <div className="ml-3">
-                      <span className="text-dark-gray font-medium">Stryketjeneste</span>
-                      <p className="text-sm text-medium-gray">Kan stryke klær etter vask og tørking</p>
-                    </div>
-                  </div>
-                  <span className="text-sm text-success-green font-medium">+100 NOK</span>
-                </label>
-              </div>
-            </div>
-
-            {/* Capacity */}
-            <div>
-              <h3 className="text-lg font-medium text-dark-gray mb-4">Kapasitet</h3>
-
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="dailyCapacity" className="block text-sm font-medium text-dark-gray mb-2">
-                    Hvor mange vaskemaskinkjøringer kan du gjøre per dag? *
-                  </label>
-                  <select
-                    id="dailyCapacity"
-                    className="w-full px-4 py-3 border border-soft-gray rounded-lg focus:outline-none focus:border-nordic-blue"
-                  >
-                    <option value="">Velg antall kjøringer</option>
-                    <option value="1-2">1-2 kjøringer</option>
-                    <option value="3-4">3-4 kjøringer</option>
-                    <option value="5-6">5-6 kjøringer</option>
-                    <option value="7-8">7-8 kjøringer</option>
-                    <option value="9+">9+ kjøringer</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label htmlFor="weeklyOrders" className="block text-sm font-medium text-dark-gray mb-2">
-                    Hvor mange oppdrag kan du håndtere per uke? *
-                  </label>
-                  <select
-                    id="weeklyOrders"
-                    className="w-full px-4 py-3 border border-soft-gray rounded-lg focus:outline-none focus:border-nordic-blue"
-                  >
-                    <option value="">Velg antall oppdrag</option>
-                    <option value="1-5">1-5 oppdrag</option>
-                    <option value="6-10">6-10 oppdrag</option>
-                    <option value="11-20">11-20 oppdrag</option>
-                    <option value="21-30">21-30 oppdrag</option>
-                    <option value="30+">30+ oppdrag</option>
-                  </select>
-                </div>
+                <FormTextarea
+                  label="Spesielle instruksjoner (valgfritt)"
+                  value={baseSpecialInstructions}
+                  onChange={setBaseSpecialInstructions}
+                  placeholder="F.eks. portbeskrivelse, parkeringsinformasjon, etc."
+                  rows={3}
+                />
               </div>
             </div>
 
             {/* Navigation Buttons */}
             <div className="flex justify-between pt-6">
-              <a
+              <Link
                 href="/bli-renser/business"
-                className="px-6 py-3 border border-soft-gray text-medium-gray font-medium rounded-lg hover:bg-soft-gray"
+                className="px-6 py-3 border border-slate-300 text-slate-600 font-medium rounded-lg hover:bg-slate-50"
               >
                 Tilbake
-              </a>
+              </Link>
               <button
                 type="submit"
-                className="px-6 py-3 bg-nordic-blue text-white font-medium rounded-lg"
+                disabled={!isFormValid}
+                className="px-6 py-3 bg-teal-600 text-white font-medium rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Fortsett til utstyr
               </button>

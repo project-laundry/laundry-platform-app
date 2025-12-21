@@ -1,6 +1,17 @@
+'use client';
+
+import { useEffect } from 'react';
 import Link from 'next/link';
+import { useCleanerOnboardingStore } from '@/stores/cleaner-onboarding-store';
 
 export default function RegistrationSuccessPage() {
+  const resetCleanerData = useCleanerOnboardingStore((state) => state.resetCleanerData);
+
+  useEffect(() => {
+    // Clear the onboarding data from session storage
+    resetCleanerData();
+  }, [resetCleanerData]);
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}

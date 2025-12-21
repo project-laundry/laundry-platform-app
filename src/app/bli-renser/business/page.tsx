@@ -1,208 +1,211 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useCleanerOnboardingStore } from '@/stores/cleaner-onboarding-store';
+import { CleanerFlowProgress } from '@/components/ui/CleanerFlowProgress';
+import { FormInput } from '@/components/forms/FormInput';
+import { FormTextarea } from '@/components/forms/FormTextarea';
+import { FormRadioGroup } from '@/components/forms/FormRadioGroup';
+import { validateTaxId, validateBankAccount } from '@/lib/validation/cleaner';
+import type { CleanerBusinessType } from '@/types/database';
 
 export default function BusinessInfoPage() {
-  const [businessType, setBusinessType] = useState('');
+  const router = useRouter();
+  const { cleanerData, updateCleanerData } = useCleanerOnboardingStore();
+
+  const [businessType, setBusinessType] = useState<CleanerBusinessType>('individual');
+  const [taxId, setTaxId] = useState('');
+  const [businessName, setBusinessName] = useState('');
+  const [businessAddress, setBusinessAddress] = useState('');
+  const [bankAccount, setBankAccount] = useState('');
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Load data from store on mount
+  useEffect(() => {
+    if (cleanerData) {
+      setBusinessType(cleanerData.businessType || 'individual');
+      setTaxId(cleanerData.taxId || '');
+      setBusinessName(cleanerData.businessName || '');
+      setBusinessAddress(cleanerData.businessAddress || '');
+      setBankAccount(cleanerData.bankAccount || '');
+    }
+  }, [cleanerData]);
+
+  const validate = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    if (!businessType) {
+      newErrors.businessType = 'Vennligst velg virksomhetstype';
+    }
+
+    if (!taxId) {
+      newErrors.taxId = 'Dette feltet er påkrevd';
+    } else if (!validateTaxId(taxId, businessType)) {
+      newErrors.taxId = businessType === 'individual'
+        ? 'Fødselsnummer må være 11 siffer'
+        : 'Organisasjonsnummer må være 9 siffer';
+    }
+
+    if (businessType === 'business') {
+      if (!businessName) {
+        newErrors.businessName = 'Firmanavn er påkrevd for virksomheter';
+      }
+      if (!businessAddress) {
+        newErrors.businessAddress = 'Forretningsadresse er påkrevd for virksomheter';
+      }
+    }
+
+    if (!bankAccount) {
+      newErrors.bankAccount = 'Kontonummer er påkrevd';
+    } else if (!validateBankAccount(bankAccount)) {
+      newErrors.bankAccount = 'Kontonummer må være 11 siffer';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validate()) {
+      return;
+    }
+
+    // Update store
+    updateCleanerData({
+      businessType,
+      taxId,
+      businessName: businessType === 'business' ? businessName : undefined,
+      businessAddress: businessType === 'business' ? businessAddress : undefined,
+      bankAccount
+    });
+
+    // Navigate to next step
+    router.push('/bli-renser/services');
+  };
+
+  const isFormValid = businessType && taxId && bankAccount &&
+    (businessType === 'individual' || (businessName && businessAddress));
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <header className="bg-white border-b border-soft-gray">
+      <header className="bg-white border-b border-slate-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex justify-between items-center">
             <Link href="/" className="text-2xl font-bold text-nordic-blue">NooraCare</Link>
-            <div className="text-sm text-medium-gray">
-              Steg 2 av 5
+            <div className="text-sm text-slate-600">
+              Steg 1 av 5
             </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Progress Bar */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-medium-gray">Fremdrift</span>
-            <span className="text-sm text-medium-gray">40%</span>
-          </div>
-          <div className="w-full bg-soft-gray rounded-full h-2">
-            <div className="bg-nordic-blue h-2 rounded-full" style={{ width: '40%' }}></div>
-          </div>
-        </div>
+        {/* Progress Indicator */}
+        <CleanerFlowProgress currentStep={1} />
 
         {/* Form Section */}
-        <div className="bg-white">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-dark-gray mb-4">
+            <h1 className="text-3xl font-light text-slate-900 mb-4">
               Virksomhet og juridisk informasjon
             </h1>
-            <p className="text-lg text-medium-gray">
+            <p className="text-slate-600">
               Vi trenger noen juridiske opplysninger for å kunne behandle betalinger og overholde norsk lovgivning.
             </p>
           </div>
 
-          <form action="/bli-renser/services" method="GET" className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             {/* Business Type */}
-            <div>
-              <label className="block text-sm font-medium text-dark-gray mb-2">
-                Hvordan driver du virksomheten din? *
-              </label>
-              <div className="space-y-3">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="businessType"
-                    value="individual"
-                    checked={businessType === 'individual'}
-                    onChange={(e) => setBusinessType(e.target.value)}
-                    className="w-4 h-4 text-nordic-blue border-soft-gray focus:ring-nordic-blue"
-                  />
-                  <span className="ml-3 text-dark-gray">Som privatperson</span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="businessType"
-                    value="business"
-                    checked={businessType === 'business'}
-                    onChange={(e) => setBusinessType(e.target.value)}
-                    className="w-4 h-4 text-nordic-blue border-soft-gray focus:ring-nordic-blue"
-                  />
-                  <span className="ml-3 text-dark-gray">Som registrert virksomhet</span>
-                </label>
-              </div>
-            </div>
+            <FormRadioGroup
+              label="Hvordan driver du virksomheten din?"
+              name="businessType"
+              value={businessType}
+              onChange={(value) => setBusinessType(value as CleanerBusinessType)}
+              options={[
+                { value: 'individual', label: 'Som privatperson' },
+                { value: 'business', label: 'Som registrert virksomhet' }
+              ]}
+              required
+              error={errors.businessType}
+            />
 
-            {/* Social Security Number / Organization Number */}
-            {businessType && (
-              <div>
-                <label htmlFor="identification" className="block text-sm font-medium text-dark-gray mb-2">
-                  {businessType === 'individual' ? 'Fødselsnummer *' : 'Organisasjonsnummer *'}
-                </label>
-                <input
-                  type="text"
-                  id="identification"
-                  name="identification"
-                  placeholder={businessType === 'individual' ? '11 siffer (DDMMÅÅXXXXX)' : '9 siffer (XXXXXXXXX)'}
-                  maxLength={businessType === 'individual' ? 11 : 9}
-                  className="w-full px-4 py-3 border border-soft-gray rounded-lg focus:outline-none focus:border-nordic-blue"
-                />
-                <p className="text-sm text-medium-gray mt-1">
-                  {businessType === 'individual'
-                    ? 'Ditt personnummer brukes for skatteformål og betalingsbehandling'
-                    : 'Virksomhetens organisasjonsnummer fra Brønnøysundregistrene'
-                  }
-                </p>
-              </div>
-            )}
+            {/* Tax ID */}
+            <FormInput
+              label={businessType === 'individual' ? 'Fødselsnummer' : 'Organisasjonsnummer'}
+              value={taxId}
+              onChange={setTaxId}
+              placeholder={businessType === 'individual' ? '11 siffer (DDMMÅÅXXXXX)' : '9 siffer (XXXXXXXXX)'}
+              required
+              error={errors.taxId}
+            />
+            <p className="text-sm text-slate-600 -mt-4">
+              {businessType === 'individual'
+                ? 'Ditt personnummer brukes for skatteformål og betalingsbehandling'
+                : 'Virksomhetens organisasjonsnummer fra Brønnøysundregistrene'
+              }
+            </p>
 
-            {/* Business Registration (conditional) */}
+            {/* Business Information (conditional) */}
             {businessType === 'business' && (
-              <div className="bg-soft-gray rounded-lg p-4">
-                <h3 className="font-medium text-dark-gray mb-3">Virksomhetsinformasjon</h3>
+              <div className="bg-slate-50 rounded-lg p-6 space-y-4">
+                <h3 className="font-medium text-slate-900 mb-3">Virksomhetsinformasjon</h3>
 
-                <div className="space-y-4">
-                  <div>
-                    <label htmlFor="businessName" className="block text-sm font-medium text-dark-gray mb-2">
-                      Firmanavn *
-                    </label>
-                    <input
-                      type="text"
-                      id="businessName"
-                      name="businessName"
-                      placeholder="Navn på din registrerte virksomhet"
-                      required
-                      className="w-full px-4 py-3 border border-soft-gray rounded-lg focus:outline-none focus:border-nordic-blue bg-white"
-                    />
-                  </div>
+                <FormInput
+                  label="Firmanavn"
+                  value={businessName}
+                  onChange={setBusinessName}
+                  placeholder="Navn på din registrerte virksomhet"
+                  required
+                  error={errors.businessName}
+                />
 
-                  <div>
-                    <label htmlFor="businessAddress" className="block text-sm font-medium text-dark-gray mb-2">
-                      Forretningsadresse *
-                    </label>
-                    <textarea
-                      id="businessAddress"
-                      name="businessAddress"
-                      rows={3}
-                      placeholder="Gateadresse, postnummer og by"
-                      required
-                      className="w-full px-4 py-3 border border-soft-gray rounded-lg focus:outline-none focus:border-nordic-blue bg-white"
-                    />
-                  </div>
-                </div>
+                <FormTextarea
+                  label="Forretningsadresse"
+                  value={businessAddress}
+                  onChange={setBusinessAddress}
+                  placeholder="Gateadresse, postnummer og by"
+                  rows={3}
+                  required
+                  error={errors.businessAddress}
+                />
               </div>
             )}
 
             {/* Bank Account Information */}
             <div>
-              <h3 className="text-lg font-medium text-dark-gray mb-4">Bankkontoinformasjon</h3>
-              <p className="text-sm text-medium-gray mb-4">
+              <h3 className="text-lg font-medium text-slate-900 mb-4">Bankkontoinformasjon</h3>
+              <p className="text-sm text-slate-600 mb-4">
                 Dette er hvor vi sender utbetalingene dine hver uke.
               </p>
 
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="accountNumber" className="block text-sm font-medium text-dark-gray mb-2">
-                    Kontonummer *
-                  </label>
-                  <input
-                    type="text"
-                    id="accountNumber"
-                    placeholder="XXXX.XX.XXXXX (11 siffer)"
-                    className="w-full px-4 py-3 border border-soft-gray rounded-lg focus:outline-none focus:border-nordic-blue"
-                  />
-                </div>                
-              </div>
-            </div>
-
-            {/* Terms and Conditions */}
-            <div className="bg-soft-gray rounded-lg p-4">
-              <div className="space-y-3">
-                <label className="flex items-start">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 text-nordic-blue border-soft-gray focus:ring-nordic-blue mt-1"
-                  />
-                  <span className="ml-3 text-sm text-dark-gray">
-                    Jeg bekrefter at alle opplysninger jeg har oppgitt er korrekte og fullstendige *
-                  </span>
-                </label>
-
-                <label className="flex items-start">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 text-nordic-blue border-soft-gray focus:ring-nordic-blue mt-1"
-                  />
-                  <span className="ml-3 text-sm text-dark-gray">
-                    Jeg godtar <a href="#" className="text-nordic-blue hover:underline">vilkårene</a> for å være renser hos NooraCare *
-                  </span>
-                </label>
-
-                <label className="flex items-start">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 text-nordic-blue border-soft-gray focus:ring-nordic-blue mt-1"
-                  />
-                  <span className="ml-3 text-sm text-dark-gray">
-                    Jeg samtykker til behandling av personopplysninger i henhold til <a href="#" className="text-nordic-blue hover:underline">personvernpolitikken</a> *
-                  </span>
-                </label>
-              </div>
+              <FormInput
+                label="Kontonummer"
+                value={bankAccount}
+                onChange={setBankAccount}
+                placeholder="XXXX.XX.XXXXX (11 siffer)"
+                required
+                error={errors.bankAccount}
+              />
             </div>
 
             {/* Navigation Buttons */}
             <div className="flex justify-between pt-6">
-              <a
+              <Link
                 href="/bli-renser"
-                className="px-6 py-3 border border-soft-gray text-medium-gray font-medium rounded-lg hover:bg-soft-gray"
+                className="px-6 py-3 border border-slate-300 text-slate-600 font-medium rounded-lg hover:bg-slate-50"
               >
                 Tilbake
-              </a>
+              </Link>
               <button
                 type="submit"
-                className="px-6 py-3 bg-nordic-blue text-white font-medium rounded-lg"
+                disabled={!isFormValid}
+                className="px-6 py-3 bg-teal-600 text-white font-medium rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Fortsett til tjenesteinformasjon
               </button>

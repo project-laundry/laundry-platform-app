@@ -140,3 +140,31 @@ export async function getAvailableWeekdaysForCity(city: string): Promise<Weekday
     cleaners.some(cleaner => isWeekdayInSchedule(cleaner.weekly_schedule, weekday))
   );
 }
+
+/**
+ * Create a new cleaner profile
+ * @param userId - The authenticated user's ID
+ * @param cleanerData - Partial cleaner data from onboarding
+ * @returns Created cleaner record or null on error
+ */
+export async function createCleaner(
+  userId: string,
+  cleanerData: Partial<Cleaner>
+): Promise<{ data: Cleaner | null; error: Error | null }> {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from('cleaners')
+    .insert({
+      user_id: userId,
+      ...cleanerData
+    })
+    .select()
+    .single();
+
+  if (error) {
+    return { data: null, error };
+  }
+
+  return { data, error: null };
+}
