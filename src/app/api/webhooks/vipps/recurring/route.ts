@@ -24,8 +24,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { validateVippsWebhook, getVippsWebhookSecret } from '@/lib/payments/vipps/webhook-auth';
 import {
   getSubscriptionByAgreementId,
-  activateSubscriptionOnAgreementActivation,  
+  activateSubscriptionOnAgreementActivation,
   updateSubscription,
+  cancelSubscription,
+  expireSubscription,
 } from '@/lib/database/subscriptions';
 import {
   getPaymentByReference,
@@ -33,7 +35,6 @@ import {
   failPaymentWithMetadata,
   updatePaymentWithMetadata,
   getPaymentForSubscription,
-  cancelPendingPaymentsForSubscription,
 } from '@/lib/database/payments';
 import { getCustomerById } from '@/lib/database/customers';
 import { createOrder } from '@/lib/database/orders';
@@ -568,22 +569,13 @@ async function handleAgreementRejected(
 
   console.log(`[Vipps Recurring Webhook] Agreement rejected: ${agreementId}`);
 
-  // User rejected the agreement - cancel the subscription
-  await updateSubscription(subscription.id, {
-    status: 'cancelled' as SubscriptionStatus,
-    cancelled_at: occurred,
-  });
-
-  // Cancel any pending or authorized payments
-  const cancelledCount = await cancelPendingPaymentsForSubscription(
+  // Use unified cancellation function (cancels orders + payments + subscription)
+  await cancelSubscription(
     subscription.id,
+    occurred,
     'Agreement rejected by user'
   );
 
-  console.log(`[Vipps Recurring Webhook] Subscription ${subscription.id} cancelled due to agreement rejection`);
-  if (cancelledCount > 0) {
-    console.log(`[Vipps Recurring Webhook] Cancelled ${cancelledCount} pending payment(s)`);
-  }
   // TODO: Consider sending notification to user or admin
 }
 
@@ -601,24 +593,12 @@ async function handleAgreementStopped(
   console.log(`[Vipps Recurring Webhook] Agreement stopped: ${agreementId} by ${actor || 'unknown'}`);
 
   if (subscription.status === 'active') {
-    // Cancel the subscription
-    console.log(`[Vipps Recurring Webhook] Cancelling subscription ${subscription.id} due to stopped agreement`);
-
-    await updateSubscription(subscription.id, {
-      status: 'cancelled' as SubscriptionStatus,
-      cancelled_at: occurred,
-    });
-
-    // Cancel any pending or authorized payments
-    const cancelledCount = await cancelPendingPaymentsForSubscription(
+    // Use unified cancellation function (cancels orders + payments + subscription)
+    await cancelSubscription(
       subscription.id,
+      occurred,
       `Agreement stopped by ${actor || 'user'}`
     );
-
-    console.log(`[Vipps Recurring Webhook] Subscription ${subscription.id} cancelled by ${actor || 'user'}`);
-    if (cancelledCount > 0) {
-      console.log(`[Vipps Recurring Webhook] Cancelled ${cancelledCount} pending payment(s)`);
-    }
 
     // NOTE: According to Vipps docs:
     // - RESERVED charges are NOT automatically cancelled (merchant can still capture)
@@ -642,20 +622,8 @@ async function handleAgreementExpired(
 
   console.log(`[Vipps Recurring Webhook] Agreement expired: ${agreementId}`);
 
-  // Agreement has expired - update subscription status to expired
-  await updateSubscription(subscription.id, {
-    status: 'expired' as SubscriptionStatus,
-  });
+  // Use unified expiration function (cancels orders + payments, sets status to 'expired')
+  await expireSubscription(subscription.id);
 
-  // Cancel any pending or authorized payments
-  const cancelledCount = await cancelPendingPaymentsForSubscription(
-    subscription.id,
-    'Agreement expired'
-  );
-
-  console.log(`[Vipps Recurring Webhook] Subscription ${subscription.id} marked as expired`);
-  if (cancelledCount > 0) {
-    console.log(`[Vipps Recurring Webhook] Cancelled ${cancelledCount} pending payment(s)`);
-  }
   // TODO: Consider if any cleanup is needed for expired agreements
 }
