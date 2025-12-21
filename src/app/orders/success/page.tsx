@@ -4,7 +4,6 @@ import { useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
-import { NewOrderButton } from './NewOrderButton';
 
 function OrderSuccessPageContent() {
   const searchParams = useSearchParams();
@@ -42,7 +41,7 @@ function OrderSuccessPageContent() {
             Din avtale er opprettet!
           </h1>
           <p className="text-xl text-medium-gray mb-8">
-            Vi vil sende deg en Vipps-betaling etter at renseriet har veid tøyet ditt.
+            Abonnementet ditt er nå aktivt og renseren vil hente tøyet ditt på avtalt dato.
           </p>
 
           {subscriptionId && (
@@ -66,23 +65,15 @@ function OrderSuccessPageContent() {
             <ul className="space-y-2 text-sm text-medium-gray">
               <li className="flex items-start">
                 <span className="text-nordic-blue mr-2 mt-0.5">1.</span>
-                Når du godkjenner avtalen i Vipps, aktiveres abonnementet automatisk
+                Gjør klar vasken din. Bruk NooraCare-poser hvis du har fått de, eller bruk egne poser.
               </li>
               <li className="flex items-start">
                 <span className="text-nordic-blue mr-2 mt-0.5">2.</span>
-                Systemet finner en tilgjengelig renser i ditt område
+                Renseren henter tøyet ditt på den datoen du har valgt.
               </li>
               <li className="flex items-start">
                 <span className="text-nordic-blue mr-2 mt-0.5">3.</span>
-                Ordre genereres basert på valgt hyppighet
-              </li>
-              <li className="flex items-start">
-                <span className="text-nordic-blue mr-2 mt-0.5">4.</span>
-                Renseren henter tøyet ditt på avtalt dato
-              </li>
-              <li className="flex items-start">
-                <span className="text-nordic-blue mr-2 mt-0.5">5.</span>
-                Etter veiing får du Vipps-betaling for faktisk vekt
+                Du blir automatisk belastet basert på mengde og valgt tjeneste.
               </li>
             </ul>
           </div>
@@ -94,22 +85,11 @@ function OrderSuccessPageContent() {
               <div className="text-left">
                 <h3 className="font-semibold text-blue-900 mb-2">Viktig om pris</h3>
                 <p className="text-sm text-blue-800">
-                  Du betaler ETTER at renseriet har veid tøyet ditt. Pris beregnes basert på faktisk vekt og valgt tjeneste. Du vil motta Vipps-betaling når ordren er klar for levering.
+                  Prisen beregnes basert på faktisk vekt og valgt tjeneste. Du belastes automatisk via Vipps etter hver henting.
                 </p>
               </div>
             </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
-            <Link
-              href="/admin/orders"
-              className="bg-nordic-blue text-white font-semibold px-8 py-3 rounded-lg transition-colors"
-            >
-              Admin: Se ordre
-            </Link>
-            <NewOrderButton />
-          </div>
+          </div>          
 
           {/* Back to Dashboard */}
           <Link
