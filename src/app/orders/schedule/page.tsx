@@ -220,9 +220,9 @@ export default function SchedulePage() {
           </div>          
         </div>
 
-        {/* Recurring Toggle */}
+        {/* Recurring Toggle and Frequency */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-6">
-          <div className="flex items-center justify-between">
+          <div className={`flex items-center justify-between ${isRecurring ? 'mb-6' : ''}`}>
             <div className="flex items-start">
               <div className="w-12 h-12 rounded-lg bg-teal-100 flex items-center justify-center mr-4">
                 <RefreshCw className="w-6 h-6 text-teal-600" />
@@ -247,81 +247,81 @@ export default function SchedulePage() {
               />
             </button>
           </div>
-        </div>
 
-        {/* Frequency Options (shown when recurring is ON) */}
-        {isRecurring && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-6">
-            <h3 className="text-lg font-medium text-slate-900 mb-4">Velg frekvens</h3>
-            <div className="space-y-3">
-              {/* Weekly */}
-              <button
-                onClick={() => setFrequency('weekly')}
-                className={`w-full p-4 rounded-xl border-2 transition-all duration-200 ${
-                  frequency === 'weekly'
-                    ? 'border-teal-600 bg-teal-50/50'
-                    : 'border-slate-200 bg-white hover:border-slate-300'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="text-left">
-                    <h4 className="font-medium text-slate-900">Ukentlig</h4>
-                    <p className="text-sm text-slate-500">Hver uke</p>
-                  </div>
-                  {frequency === 'weekly' && (
-                    <div className="w-5 h-5 rounded-full bg-teal-600 flex items-center justify-center">
-                      <Check className="w-3 h-3 text-white" />
+          {/* Frequency Options (shown when recurring is ON) */}
+          {isRecurring && (
+            <div>
+              <h3 className="text-lg font-medium text-slate-900 mb-4">Velg frekvens</h3>
+              <div className="space-y-3">
+                {/* Weekly */}
+                <button
+                  onClick={() => setFrequency('weekly')}
+                  className={`w-full p-4 rounded-xl border-2 transition-all duration-200 ${
+                    frequency === 'weekly'
+                      ? 'border-teal-600 bg-teal-50/50'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="text-left">
+                      <h4 className="font-medium text-slate-900">Ukentlig</h4>
+                      <p className="text-sm text-slate-500">Hver uke</p>
                     </div>
-                  )}
-                </div>
-              </button>
+                    {frequency === 'weekly' && (
+                      <div className="w-5 h-5 rounded-full bg-teal-600 flex items-center justify-center">
+                        <Check className="w-3 h-3 text-white" />
+                      </div>
+                    )}
+                  </div>
+                </button>
 
-              {/* Biweekly */}
-              <button
-                onClick={() => setFrequency('biweekly')}
-                className={`w-full p-4 rounded-xl border-2 transition-all duration-200 ${
-                  frequency === 'biweekly'
-                    ? 'border-teal-600 bg-teal-50/50'
-                    : 'border-slate-200 bg-white hover:border-slate-300'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="text-left">
-                    <h4 className="font-medium text-slate-900">Annenhver uke</h4>
-                    <p className="text-sm text-slate-500">Hver 14. dag</p>
-                  </div>
-                  {frequency === 'biweekly' && (
-                    <div className="w-5 h-5 rounded-full bg-teal-600 flex items-center justify-center">
-                      <Check className="w-3 h-3 text-white" />
+                {/* Biweekly */}
+                <button
+                  onClick={() => setFrequency('biweekly')}
+                  className={`w-full p-4 rounded-xl border-2 transition-all duration-200 ${
+                    frequency === 'biweekly'
+                      ? 'border-teal-600 bg-teal-50/50'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="text-left">
+                      <h4 className="font-medium text-slate-900">Annenhver uke</h4>
+                      <p className="text-sm text-slate-500">Hver 14. dag</p>
                     </div>
-                  )}
-                </div>
-              </button>
+                    {frequency === 'biweekly' && (
+                      <div className="w-5 h-5 rounded-full bg-teal-600 flex items-center justify-center">
+                        <Check className="w-3 h-3 text-white" />
+                      </div>
+                    )}
+                  </div>
+                </button>
 
-              {/* Monthly */}
-              <button
-                onClick={() => setFrequency('monthly')}
-                className={`w-full p-4 rounded-xl border-2 transition-all duration-200 ${
-                  frequency === 'monthly'
-                    ? 'border-teal-600 bg-teal-50/50'
-                    : 'border-slate-200 bg-white hover:border-slate-300'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="text-left">
-                    <h4 className="font-medium text-slate-900">Månedlig</h4>
-                    <p className="text-sm text-slate-500">En gang i måneden</p>
-                  </div>
-                  {frequency === 'monthly' && (
-                    <div className="w-5 h-5 rounded-full bg-teal-600 flex items-center justify-center">
-                      <Check className="w-3 h-3 text-white" />
+                {/* Monthly */}
+                <button
+                  onClick={() => setFrequency('monthly')}
+                  className={`w-full p-4 rounded-xl border-2 transition-all duration-200 ${
+                    frequency === 'monthly'
+                      ? 'border-teal-600 bg-teal-50/50'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="text-left">
+                      <h4 className="font-medium text-slate-900">Månedlig</h4>
+                      <p className="text-sm text-slate-500">En gang i måneden</p>
                     </div>
-                  )}
-                </div>
-              </button>
+                    {frequency === 'monthly' && (
+                      <div className="w-5 h-5 rounded-full bg-teal-600 flex items-center justify-center">
+                        <Check className="w-3 h-3 text-white" />
+                      </div>
+                    )}
+                  </div>
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Navigation */}
         <div className="flex justify-between items-center pt-6 border-t border-slate-100">
