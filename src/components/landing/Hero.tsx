@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ChevronDown, Truck, Clock, Leaf, Sparkles, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -13,50 +14,71 @@ export function Hero() {
       </div>
 
       {/* Content */}
-      <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16 text-center">
-        <div className="max-w-5xl mx-auto space-y-8">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card shadow-soft mb-8 animate-fade-in opacity-0" style={{ animationDelay: "0.1s" }}>
-            <Sparkles className="w-4 h-4 text-sea-green" />
-            <span className="text-sm font-medium text-muted-foreground">Nordisk kvalitet, levert hjem til deg</span>
-          </div>
-          {/* Headline */}
-          <h1 className="font-serif text-5xl md:text-7xl lg:text-8xl font-light tracking-tight mb-6 animate-fade-in opacity-0" style={{ animationDelay: "0.2s" }}>
-            <span className="text-foreground">Din hverdag,</span>
-            <br />
-            <span className="text-gradient font-medium">lysere og lettere</span>
-          </h1>
+      <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Left Column - Text Content */}
+            <div className="space-y-8 text-center lg:text-left">
+              {/* Badge */}
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card shadow-soft mb-8 animate-fade-in opacity-0" style={{ animationDelay: "0.1s" }}>
+                <Sparkles className="w-4 h-4 text-sea-green" />
+                <span className="text-sm font-medium text-muted-foreground">Nordisk kvalitet, levert hjem til deg</span>
+              </div>
+              {/* Headline */}
+              <h1 className="font-serif text-5xl md:text-6xl lg:text-7xl font-light tracking-tight mb-6 animate-fade-in opacity-0" style={{ animationDelay: "0.2s" }}>
+                <span className="text-foreground">Din hverdag,</span>
+                <br />
+                <span className="text-gradient font-medium">lysere og lettere</span>
+              </h1>
 
-          {/* Subheadline */}
-          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed animate-fade-in opacity-0" style={{ animationDelay: "0.4s" }}>
-            Noora henter, vasker og leverer klærne dine – så du kan bruke tiden din på det som virkelig betyr noe.
-            <span className="block mt-2 text-foreground font-medium">Renhet. Omtanke. Noora.</span>
-          </p>
+              {/* Subheadline */}
+              <p className="text-lg md:text-xl text-muted-foreground max-w-2xl lg:max-w-none mb-10 leading-relaxed animate-fade-in opacity-0" style={{ animationDelay: "0.4s" }}>
+                Noora henter, vasker og leverer klærne dine – så du kan bruke tiden din på det som virkelig betyr noe.
+                <span className="block mt-2 text-foreground font-medium">Renhet. Omtanke. Noora.</span>
+              </p>
 
-          {/* CTAs */}          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-fade-in opacity-0" style={{ animationDelay: "0.6s" }}>
-            <Button variant="hero" size="xl">
-              Bestill henting
-              <ArrowRight className="w-5 h-5" />
-            </Button>
-            <Button variant="hero-outline" size="lg">
-              <Link href="#slik-virker-det">Se hvordan det fungerer</Link>
-            </Button>
-          </div>
+              {/* CTAs */}
+              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start items-center animate-fade-in opacity-0" style={{ animationDelay: "0.6s" }}>
+                <Button variant="hero" size="xl">
+                  Bestill henting
+                  <ArrowRight className="w-5 h-5" />
+                </Button>
+                <Button variant="hero-outline" size="lg">
+                  <Link href="#slik-virker-det">Se hvordan det fungerer</Link>
+                </Button>
+              </div>
 
-          {/* Trust indicators */}
-          <div className="mt-16 flex flex-wrap justify-center gap-8 text-sm text-muted-foreground animate-fade-in opacity-0" style={{ animationDelay: "0.8s" }}>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-sea-green" />
-              <span>Gratis levering</span>
+              {/* Trust indicators */}
+              <div className="mt-16 flex flex-wrap justify-center lg:justify-start gap-8 text-sm text-muted-foreground animate-fade-in opacity-0" style={{ animationDelay: "0.8s" }}>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-sea-green" />
+                  <span>Gratis levering</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-sea-green" />
+                  <span>48t leveringstid</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-sea-green" />
+                  <span>Miljøvennlig vask</span>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-sea-green" />
-              <span>48t leveringstid</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-sea-green" />
-              <span>Miljøvennlig vask</span>
+
+            {/* Right Column - Hero Image */}
+            <div className="relative animate-fade-in opacity-0" style={{ animationDelay: "0.5s" }}>
+              <div className="relative aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl">
+                <Image
+                  src="/images/clean-folded-clothing-and-garments-on-a-minimalist.png"
+                  alt="Rent, sammenbrettet tøy på minimalistisk bord - profesjonell vaskeritjeneste"
+                  fill
+                  className="object-cover"
+                  priority
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                />
+              </div>
+              {/* Decorative accent */}
+              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-sea-green/10 rounded-full blur-2xl -z-10" />
             </div>
           </div>
         </div>
