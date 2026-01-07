@@ -1,61 +1,121 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NooraCare Laundry Platform
+
+A peer-to-peer laundry platform connecting customers with local cleaners in Bergen and Oslo, Norway. Built with Next.js, TypeScript, Supabase, and Vipps payments.
+
+## Features
+
+- **Customer Dashboard**: Subscribe to laundry services, track orders, view history
+- **Cleaner Dashboard**: (In development) Manage orders, set pricing, handle pickups
+- **Admin Dashboard**: Assign orders, manage driver operations, oversee platform
+- **Vipps Integration**: FLEXIBLE pricing model with per-order billing
+- **Multi-Role System**: Customers, cleaners, and admins with role-based access
+- **Subscription Management**: Weekly, biweekly, and monthly pickup frequencies
+
+## Tech Stack
+
+- **Framework**: Next.js 15.5.4 with App Router
+- **Language**: TypeScript
+- **Database**: Supabase (PostgreSQL)
+- **Payments**: Vipps Recurring & ePayment APIs
+- **UI**: Tailwind CSS v4
+- **Runtime**: React 19.1.0
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18+ installed
+- Supabase account and project
+- Vipps merchant account (test or production)
+
+### Environment Variables
+
+Create a `.env.local` file with:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
+# Vipps
+VIPPS_CLIENT_ID=your_client_id
+VIPPS_CLIENT_SECRET=your_client_secret
+VIPPS_SUBSCRIPTION_KEY=your_subscription_key
+VIPPS_MERCHANT_SERIAL_NUMBER=your_msn
+VIPPS_API_URL=https://apitest.vipps.no  # or https://api.vipps.no for production
+VIPPS_WEBHOOK_SECRET=your_webhook_secret
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Installation
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# Install dependencies
+npm install
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# Run database migrations
+# Apply migrations manually via Supabase dashboard or CLI
 
-## Learn More
+# Start development server
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+Open [http://localhost:3000](http://localhost:3000) to view the application.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+src/
+├── app/              # Next.js App Router pages
+├── components/       # React components
+├── lib/              # Business logic and utilities
+│   ├── database/     # Database operations
+│   ├── payments/     # Vipps integration
+│   └── services/     # Business services
+├── types/            # TypeScript type definitions
+└── middleware.ts     # Auth middleware
+```
 
-## Deploy on Vercel
+## Documentation
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **[CLAUDE.md](./CLAUDE.md)** - Project overview and development guide
+- **[ENTITIES.md](./ENTITIES.md)** - Database schema and entity definitions
+- **[BUSINESS_LOGIC.md](./BUSINESS_LOGIC.md)** - Application workflows and business rules
+- **[DASHBOARDS.md](./DASHBOARDS.md)** - UI specifications for different roles
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Payment Model
 
+The platform uses **FLEXIBLE pricing**:
 
-We're going to chage the whole order flow.
+1. Customer subscribes → Vipps agreement created (no upfront charge)
+2. Order generated with `total_cost_ore = NULL`
+3. Cleaner picks up laundry, weighs it, calculates price
+4. Cleaner creates Vipps charge for calculated amount
+5. Customer pays for actual service provided
 
-When the user want to book a new laundry they will go throught this flow:
+No fixed subscription fees - pay per order based on actual laundry weight and services.
 
-1. Select location, Bergen or Oslo (Not available yet but coming soon)
-2. Select the service (Washing + ironing or just washing)
-3. Select desired pickup date (need to check cleaner availability)
-4. Select frequency (first ask if they want a recurring booking. If so then they can choose between weekly/bi-weekly/monthly)
-5. Select pick up adress with pick up instructions
-6. Optional booking instructions
-7. Show booking confirmation
-8. Redirect to payment provider
+## Available Scripts
 
-Decide if some of the questions can be shown in the same page.
+```bash
+npm run dev          # Start development server
+npm run build        # Build for production
+npm run start        # Start production server
+npm run lint         # Run ESLint
+```
 
-Additionally:
+## Development Status
 
-- subscription plans will be removed
-- remove additional services (subscription.default_extra_kg, subscription.default_delicate_items_count, order.extra_kg, )
-- Pricing will be based on the number of washing load. Price will be calculated after the laundry has been picked up and cleaner has counted and sorted the items. Cleaner will have to register what have been done to be able to calculate the price. (Don't mind this now. We'll work on this later)
--  The billing/price can vary per order and is not fixed on a subscription. (remove subscription.billing_cost_ore)
+This project is in active development (MVP phase). Key implications:
 
-Analyse all the changes that needs to be made.
+- Database schema may change significantly
+- Breaking changes are acceptable for architectural improvements
+- Focus on clean, maintainable code over backward compatibility
+
+## Contributing
+
+This is a private project. For development questions, refer to the documentation files.
+
+## License
+
+Proprietary - All rights reserved

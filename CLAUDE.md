@@ -20,8 +20,6 @@ The application supports three user roles:
 - Avoid over-engineering - build what's needed now, not what might be needed later
 - Prefer existing patterns and libraries over custom solutions
 - Keep code readable and maintainable rather than clever
-- Prefer Server Components over Client Components - only use "use client" when necessary for hooks, event handlers, or browser APIs
-- When modifying pages, always check for unnecessary "use client" directives and refactor to Server Components where possible (e.g., replace onClick navigation with Link components)
 
 ## Technology Stack
 
@@ -40,11 +38,6 @@ Key implications:
 - No need to backfill or preserve legacy data structures
 - Breaking changes are acceptable if they improve the architecture
 - Focus on clean, maintainable code over backward compatibility
-
-When the system moves to production, this section should be updated to reflect:
-- Data migration strategies
-- Backward compatibility requirements
-- Deprecation policies
 
 ## Backend & Database
 
@@ -76,15 +69,10 @@ src/
 │   ├── admin/              # Admin dashboard
 │   │   └── orders/         # Order management & cleaner assignment
 │   ├── api/                # API routes
-│   │   ├── auth/vipps/     # Vipps OAuth callback (legacy)
-│   │   ├── vipps/
-│   │   │   └── agreements/
-│   │   │       └── callback/ # Vipps agreement callback (external redirect)
 │   │   └── webhooks/
-│   │       ├── payment/    # Manual payment webhook (testing)
 │   │       └── vipps/
-│   │           ├── recurring/ # Vipps Recurring API webhooks (subscriptions, order generation)
-│   │           └── epayment/  # Vipps ePayment API webhooks (one-time payments)
+│   │           ├── recurring/ # Vipps Recurring API webhooks (agreement activation, charge events)
+│   │           └── epayment/  # Vipps ePayment API webhooks (per-order payments)
 │   ├── auth/               # Authentication flow
 │   │   ├── address/        # Address input step
 │   │   ├── callback/       # Supabase auth callback
@@ -200,12 +188,6 @@ The platform uses Vipps Recurring API for production payments with RESERVE_CAPTU
 - `app/api/webhooks/vipps/epayment/route.ts` - **Critical** webhook handler for ePayment API events (one-time payments)
 - `lib/services/order-generation.ts` - Order generation service (calculates pickup dates based on subscription frequency)
 
-**Payment Flow:**
-1. RESERVE_CAPTURE (two-step): pending → authorized (funds reserved) → captured (funds taken)
-2. Webhook-driven activation: Subscriptions activate when agreement approved (status → 'active')
-3. Automatic capture: System immediately captures reserved funds (no manual intervention)
-4. **Self-perpetuating billing**: When charge captured → Generate orders for current period → Create next charge with due_date = next_billing_date → Vipps processes automatically on that date
-5. Order generation: Based on plan frequency (weekly → 4 orders/month, biweekly → 2 orders/month, monthly → 1 order/month)
 
 **Environment Variables:**
 - `VIPPS_CLIENT_ID` - Vipps API client ID
@@ -232,29 +214,36 @@ Both webhooks use HMAC-SHA256 signature verification. You can use a shared secre
 **Testing:**
 - Manual payment option (`payment_provider = 'manual'`) preserved for development
 - Vipps test environment available at https://apitest.vipps.no
-- Mock webhook at `/api/webhooks/payment` for manual testing
 
-**Database Changes:**
-- `subscriptions.provider_agreement_id` - Stores Vipps agreement ID
+**Key Database Schema:**
+- **Removed Tables:** `subscription_plans`, `bag_deliveries` (FLEXIBLE pricing eliminated need for plans)
+- **Removed Fields:** `subscriptions.next_billing_date`, `subscriptions.billing_cost_ore`, `subscriptions.recurring_weekday`, `subscriptions.expires_at`, `orders.plan_id`, `orders.extra_kg`, `orders.delicate_items_count`
+- `subscriptions.provider_agreement_id` - Stores Vipps agreement ID (for managing subscription, not billing)
 - `subscriptions.order_defaults` - Stores order generation defaults (JSONB):
   - `initial_address` - Pickup/delivery address
   - `special_instructions` - Pickup details
   - `location_city` - Service area (Bergen/Oslo) - used for cleaner matching
   - `default_needs_ironing` - Default ironing preference for orders
   - `default_cleaner_id` - Default cleaner assignment (orders can be reassigned)
-- `subscriptions.next_billing_date` - Set when charge captured, drives self-perpetuating billing
-- `payments.status` - Added 'authorized' status for RESERVE_CAPTURE flow
+  - `first_pickup_date` - ISO date for first order pickup (replaces recurring_weekday)
+- `orders.total_cost_ore` - **NULLABLE** (NULL until cleaner sets price)
+- `orders.actual_weight_kg` - Actual weight after pickup
+- `orders.pricing_notes` - Cleaner's pricing explanation
+- `orders.price_calculated_at` - When cleaner calculated price
+- `payments.provider_reference` - Merchant reference for webhook lookups (Recurring: chr_*, ePayment: custom ref)
 - `payments.provider_metadata` - Stores Vipps charge/transaction details (JSONB)
 
 See migrations:
-- `supabase/migrations/20250210000000_add_vipps_support.sql`
-- `supabase/migrations/20251219133224_refactor_subscription_metadata.sql` - Renamed provider_agreement_metadata to order_defaults, moved location_city, default_needs_ironing, and assigned_cleaner_id into JSONB
+- `supabase/migrations/20251218000000_redesign_order_flow_flexible_pricing.sql` - Major redesign to FLEXIBLE pricing
+- `supabase/migrations/20251219133224_refactor_subscription_metadata.sql` - Moved fields into order_defaults JSONB
+- `supabase/migrations/20251220120000_remove_recurring_weekday.sql` - Replaced with first_pickup_date
+- `supabase/migrations/20251221135400_remove_bag_deliveries.sql` - Removed unused table
 
-**Recurring Billing Architecture:**
-The platform uses a **self-perpetuating** pattern where each charge capture automatically schedules the next charge:
-1. Charge captured → Orders generated for current period
-2. `next_billing_date` set to current date + 1 month
-3. Next charge created with Vipps with `due_date = next_billing_date`
-4. Vipps automatically processes charge on that date → Cycle repeats
+**Order Generation Architecture (Rolling Window):**
+The platform uses a **rolling window** pattern that maintains 1 upcoming order at all times:
+1. Agreement activated → First order generated with `total_cost_ore = NULL`
+2. Cleaner sets price after pickup → Creates ePayment charge
+3. Order completes → Next order auto-generated (pickup date based on frequency)
+4. Pattern repeats indefinitely until subscription paused/cancelled
 
-This eliminates the need for polling or cron jobs - Vipps handles the scheduling.
+This eliminates batch order generation - orders are created just-in-time as needed.
