@@ -162,80 +162,43 @@
 
 ---
 
-### SubscriptionPlan
-
-**Description:** Subscription plan templates (catalog).
-
-**Fields:**
-
-- `id` (uuid, PK) - Unique identifier
-- `slug` (string, unique, required) - URL-friendly identifier
-  - **Validation:** Lowercase with hyphens only, max 50 chars
-  - **Examples:** `'weekly-standard'`, `'monthly-premium'`, `'on-demand-basic'`
-- `name` (string, required) - Norwegian name
-- `description` (text, required) - Norwegian description
-- `price_ore` (integer, required) - Price in øre
-  - **Constraints:** >= 0
-- `billing_period` (enum → [SubscriptionBillingPeriod](#subscriptionbillingperiod), required) - Billing period
-- `included_kg` (integer, default: 5) - Included kg per cycle
-  - **Note:** Display/marketing only - weight limits not enforced in MVP
-- `features` (string[], required) - Plan features list
-- `frequency` (enum → [SubscriptionFrequency](#subscriptionfrequency), required) - Pickup frequency
-- `is_popular` (boolean, default: false) - Popular plan flag
-- `is_active` (boolean, default: true) - Active/available flag
-- `sort_order` (integer, default: 0) - Display order
-- `created_at` (timestamp) - Creation timestamp
-- `updated_at` (timestamp) - Last update timestamp
-
-**Relationships:**
-
-- Has many Subscriptions
-- Has many Orders
-
-**Indexes:**
-
-- Unique: slug
-- Index: is_active, sort_order
-
----
 
 ### Subscription
 
-**Description:** Active customer subscriptions.
+**Description:** Active customer subscriptions with FLEXIBLE pricing model.
 
-**Note:** A customer can only have ONE active or paused subscription at a time.
+**Note:**
+- A customer can only have ONE active or paused subscription at a time
+- Uses Vipps FLEXIBLE pricing: orders generated with NULL price, cleaner calculates after weighing laundry
+- No upfront billing - each order is charged individually by cleaner
 
 **Fields:**
 
 - `id` (uuid, PK) - Unique identifier
 - `customer_id` (uuid, FK → Customer.id, required) - Customer reference
-- `frequency` (enum → [SubscriptionFrequency](#subscriptionfrequency), required) - Pickup frequency (weekly, biweekly, monthly)
+- `frequency` (enum → [SubscriptionFrequency](#subscriptionfrequency), required) - Pickup frequency (weekly, biweekly, monthly, on_demand)
   - **Default:** `'weekly'`
-- `recurring_weekday` (enum → [Weekday](#weekday), nullable) - Preferred weekday for recurring pickups based on subscription frequency
-  - **Note:** For biweekly frequency, this weekday repeats every 2 weeks from `started_at`. For monthly, system generates pickup dates on this weekday.
 - `status` (enum → [SubscriptionStatus](#subscriptionstatus), required) - Subscription status
   - **Default:** `pending_payment`
   - **Note:** Transitions to `active` when Vipps agreement is approved
 - `provider_agreement_id` (string, nullable, unique) - Vipps recurring agreement ID
   - **Format:** `agr_*` (Vipps format)
-  - **Note:** Set when customer approves Vipps agreement. Used for recurring billing and subscription management.
-- `order_defaults` (jsonb, nullable) - Order generation defaults
+  - **Note:** Set when customer approves Vipps agreement. Used for subscription management and per-order billing.
+- `order_defaults` (jsonb, nullable) - Order generation defaults (single source of truth)
   - **Default:** `null`
   - **Structure:**
-    - `initial_address` (object) - Pickup/delivery address:
+    - `initial_address` (object) - Service address for orders:
       - `street`, `postal_code`, `city`, `country`, `special_instructions`
-    - `special_instructions` (string, nullable) - Special instructions for pickup
+    - `special_instructions` (string, nullable) - Recurring pickup instructions
     - `location_city` (string) - Service area city ('Bergen' or 'Oslo') - used for cleaner matching
     - `default_needs_ironing` (boolean) - Default ironing preference for orders
-    - `default_cleaner_id` (uuid, nullable) - Default cleaner assignment (orders can be reassigned to different cleaners)
-  - **Note:** Contains all defaults used when generating orders from this subscription. Cleaner, preferences, and address can differ on individual orders.
-- `next_billing_date` (date, nullable) - Next scheduled payment date
-  - **Note:** Updated after each successful charge capture. Drives self-perpetuating billing.
-- `started_at` (timestamp, nullable) - Subscription start date
-  - **Note:** Set when initial payment succeeds. Null while `status = 'pending_payment'`.
+    - `default_cleaner_id` (uuid, nullable) - Default cleaner assignment (orders can be reassigned)
+    - `first_pickup_date` (string) - ISO date (YYYY-MM-DD) for first order pickup
+  - **Note:** All order generation settings stored here. Individual orders can have different cleaner, address, or preferences.
+- `started_at` (timestamp, nullable) - Subscription activation timestamp
+  - **Note:** Set when Vipps agreement is activated. Null while `status = 'pending_payment'`.
 - `paused_at` (timestamp, nullable) - Pause timestamp
 - `cancelled_at` (timestamp, nullable) - Cancellation timestamp
-- `expires_at` (timestamp, nullable) - Expiration timestamp
 - `created_at` (timestamp) - Creation timestamp
 - `updated_at` (timestamp) - Last update timestamp
 
@@ -243,14 +206,15 @@
 
 - Belongs to Customer
 - Has many Orders (generated from subscription)
-- Has many Payments (recurring billing)
+- Has many Payments (per-order billing, no recurring charges)
 - Default cleaner stored in order_defaults.default_cleaner_id (not a foreign key - orders can be reassigned)
 
 **Notes:**
 
-- Order generation defaults (address, cleaner, preferences) are stored in `order_defaults` JSONB
-- Individual orders can override these defaults (e.g., different cleaner, different address)
-- See [BUSINESS_LOGIC.md](./BUSINESS_LOGIC.md#subscription-creation--order-generation-payment-triggered) for order generation workflow
+- **FLEXIBLE Pricing Model:** No upfront subscription charges. Orders created with `total_cost_ore = NULL`, cleaner sets price after pickup.
+- **Rolling Window:** System maintains 1 upcoming order at all times. When order completes, next order is auto-generated.
+- Order generation defaults stored in `order_defaults` JSONB (address, cleaner, preferences).
+- See [BUSINESS_LOGIC.md](./BUSINESS_LOGIC.md#subscription-creation--order-generation-flexible-pricing) for order generation workflow.
 
 **Indexes:**
 
@@ -263,7 +227,7 @@
 
 ### Order
 
-**Description:** Laundry pickup and delivery orders. Customers submit laundry, cleaners process it, and it's delivered back.
+**Description:** Laundry pickup and delivery orders with FLEXIBLE pricing. Customers submit laundry, cleaners weigh and calculate price, process laundry, and it's delivered back.
 
 **Fields:**
 
@@ -275,70 +239,73 @@
   - **On Delete:** CASCADE
 - `subscription_id` (uuid, FK → [Subscription](#subscription).id, nullable) - Subscription reference
   - **Note:** Set if order is part of subscription, null for one-time orders
-- `plan_id` (uuid, FK → [SubscriptionPlan](#subscriptionplan).id, required) - Plan reference
 - `cleaner_id` (uuid, FK → [Cleaner](#cleaner).id, nullable) - Assigned cleaner
 - `status` (enum → [OrderStatus](#orderstatus), required) - Order status
   - **Default:** `pending_assignment`
-- `pickup_street` (string, required) - Pickup street address
-  - **Validation:** Min 3 chars, max 200 chars
-- `pickup_postal_code` (string, required) - Pickup postal code
-  - **Validation:** Exactly 4 digits
-- `pickup_city` (string, required) - Pickup city
-  - **Validation:** Min 2 chars, max 100 chars
-- `pickup_country` (string, required) - Pickup country
-  - **Default:** `'Norway'`
-  - **Validation:** Max 100 chars
-- `pickup_special_instructions` (text, nullable) - Permanent access instructions for pickup location
-  - **Validation:** Max 500 chars
-- `scheduled_date` (date, required) - Scheduled pickup date
-  - **Validation:** Must be >= today
-  - **Note:** For MVP, Admin users handle pickup/delivery operations manually via driver dashboard
-- `delivery_date` (date, required) - Scheduled/actual delivery date
-  - **Validation:** Must be >= scheduled_date
-- `special_instructions` (text, nullable) - One-time order notes
-  - **Validation:** Max 1000 chars
-  - **Examples:** "Leave on porch today", "Call when arriving", "Extra dirty items"
-  - **Note:** For one-time order-specific notes. Permanent access instructions are in Address.special_instructions
-- `extra_kg` (integer) - Extra kg for this order
-  - **Default:** `0`
-  - **Constraints:** >= 0, <= 20
-- `delicate_items_count` (integer) - Delicate items count
-  - **Default:** `0`
-  - **Constraints:** >= 0, <= 50
-- `needs_ironing` (boolean) - Ironing needed
-  - **Default:** `false`
-- `total_cost_ore` (integer, required) - Total order cost in øre
-  - **Constraints:** >= 0
-  - **Calculation:** Plan price + extras (ironing, delicate items)
-  - **Note:** Weight overage charges not included in MVP
-- `declined_by_cleaner_ids` (uuid[], nullable) - Array of cleaner IDs who declined this order
-  - **Note:** Used during reassignment to prevent offering order to same cleaner again
-- `assigned_at` (timestamp, nullable) - Cleaner assignment timestamp
-- `picked_up_at` (timestamp, nullable) - Actual pickup timestamp
-- `in_cleaning_at` (timestamp, nullable) - When driver delivered to cleaner
-- `ready_for_delivery_at` (timestamp, nullable) - When cleaner marked laundry as ready
-- `out_for_delivery_at` (timestamp, nullable) - When driver collected from cleaner
-- `completed_at` (timestamp, nullable) - Order completion timestamp
-- `cancelled_at` (timestamp, nullable) - Cancellation timestamp
-- `cancellation_reason` (text, nullable) - Reason for cancellation
-  - **Validation:** Required if status = `cancelled`, max 500 chars
-- `mission_accepted_at` (timestamp, nullable) - When cleaner accepted the order
-  - **Validation:** Required if cleaner declines, max 500 chars
-- `created_at` (timestamp) - Order creation timestamp
-- `updated_at` (timestamp) - Last update timestamp
+- **Address (Single address - pickup = delivery):**
+  - `street` (string, required) - Service address street
+    - **Validation:** Min 3 chars, max 200 chars
+  - `postal_code` (string, required) - Service address postal code
+    - **Validation:** Exactly 4 digits
+  - `city` (string, required) - Service address city
+    - **Validation:** Min 2 chars, max 100 chars
+  - `country` (string, required) - Service address country
+    - **Default:** `'Norway'`
+    - **Validation:** Max 100 chars
+  - `special_instructions_address` (text, nullable) - Address-specific instructions (e.g., gate code, entrance)
+    - **Validation:** Max 500 chars
+- **Scheduling:**
+  - `scheduled_date` (date, required) - Scheduled pickup date
+    - **Validation:** Must be >= today
+  - `delivery_date` (date, required) - Scheduled/actual delivery date
+    - **Validation:** Must be >= scheduled_date
+- **Pickup Details:**
+  - `special_instructions` (text, nullable) - One-time order notes
+    - **Validation:** Max 1000 chars
+    - **Examples:** "Call when arriving", "Extra dirty items", "Handle with care"
+- **Service Preferences:**
+  - `needs_ironing` (boolean) - Ironing needed for this order
+    - **Default:** `false`
+- **Pricing (Calculated by cleaner after pickup):**
+  - `actual_weight_kg` (decimal, nullable) - Actual weight after pickup
+  - `pricing_notes` (text, nullable) - Cleaner's pricing explanation/notes
+  - `price_calculated_at` (timestamp, nullable) - When cleaner calculated the price
+  - `total_cost_ore` (integer, nullable) - Total order cost in øre
+    - **Default:** `NULL` (cleaner sets after weighing)
+    - **Note:** Cleaner calculates based on weight, ironing, and other factors
+- **Other:**
+  - `declined_by_cleaner_ids` (uuid[], nullable) - Array of cleaner IDs who declined this order
+    - **Note:** Used during reassignment to prevent offering order to same cleaner again
+  - `assigned_at` (timestamp, nullable) - Cleaner assignment timestamp
+  - `picked_up_at` (timestamp, nullable) - Actual pickup timestamp
+  - `in_cleaning_at` (timestamp, nullable) - When driver delivered to cleaner
+  - `ready_for_delivery_at` (timestamp, nullable) - When cleaner marked laundry as ready
+  - `out_for_delivery_at` (timestamp, nullable) - When driver collected from cleaner
+  - `completed_at` (timestamp, nullable) - Order completion timestamp
+  - `cancelled_at` (timestamp, nullable) - Cancellation timestamp
+  - `cancellation_reason` (text, nullable) - Reason for cancellation
+    - **Validation:** Required if status = `cancelled`, max 500 chars
+  - `mission_accepted_at` (timestamp, nullable) - When cleaner accepted the order
+  - `created_at` (timestamp) - Order creation timestamp
+  - `updated_at` (timestamp) - Last update timestamp
 
 **Relationships:**
 
 - Belongs to Customer
-- Belongs to SubscriptionPlan
 - Belongs to Subscription (nullable)
 - Assigned to Cleaner
-- Has many Payments
+- Has many Payments (one-time payment per order)
+
+**Notes:**
+
+- **FLEXIBLE Pricing:** Orders created with `total_cost_ore = NULL`. Cleaner weighs laundry after pickup and calculates price.
+- **Single Address Model:** Pickup and delivery use same address (simplified from previous two-address model).
+- **No Plan Reference:** Removed subscription_plans table - pricing is fully flexible.
 
 **Indexes:**
 
 - Unique: order_number
-- Foreign: customer_id, subscription_id, plan_id, cleaner_id
+- Foreign: customer_id, subscription_id, cleaner_id
 - Index: status, scheduled_date
 - Composite: (customer_id, created_at DESC), (cleaner_id, status)
 
@@ -346,15 +313,16 @@
 
 ### Payment
 
-**Description:** Payment transaction records. Subscriptions generate monthly recurring payments that cover all included orders. One-time plans create a single payment per order.
+**Description:** Payment transaction records. FLEXIBLE pricing model: each order has individual payment created by cleaner after calculating price.
 
 **Fields:**
 
 - `id` (uuid, PK) - Unique identifier
 - `customer_id` (uuid, FK → Customer.id, required) - Customer reference
-- `order_id` (uuid, FK → Order.id, nullable) - Order reference (for one-time plan orders only)
-- `subscription_id` (uuid, FK → Subscription.id, nullable) - Subscription reference (for monthly billing)
+- `order_id` (uuid, FK → Order.id, nullable) - Order reference (for per-order payments)
+- `subscription_id` (uuid, FK → Subscription.id, nullable) - Subscription reference (for tracking, not billing)
 - `payment_type` (enum, required) - Type: `recurring`, `one_time`, `refund`
+  - **Note:** In FLEXIBLE model, most payments are `one_time` per order
 - `amount_ore` (integer, required) - Amount in øre
   - **Constraints:** >= 0
 - `status` (enum, required) - Status: `pending`, `authorized`, `captured`, `failed`, `refunded`, `cancelled`
@@ -366,7 +334,7 @@
   - **ePayment API:** Order number or custom reference
   - **Indexed:** For fast webhook processing
 - `provider_metadata` (jsonb, nullable) - Complete provider response data (single source of truth)
-  - **Recurring:** `{"vipps_agreement_id": "agr_Abc123", "vipps_charge_id": "chr_Xyz789", "vipps_transaction_id": "txn_Def456", "vipps_status": "CHARGED", "retry_count": 0}`
+  - **Recurring:** `{"vipps_agreement_id": "agr_Abc123", "vipps_charge_id": "chr_Xyz789", "vipps_transaction_id": "txn_Def456", "vipps_status": "CHARGED"}`
   - **ePayment:** `{"vipps_psp_reference": "psp_Xyz789", "vipps_status": "CAPTURED", "vipps_amount": 50000, "vipps_currency": "NOK"}`
   - **Note:** Stores all provider-specific details for debugging, reconciliation, and audit trail.
 - `authorized_at` (timestamp, nullable) - Authorization timestamp (when funds reserved via RESERVE_CAPTURE)
@@ -383,12 +351,14 @@
 **Relationships:**
 
 - Belongs to Customer
-- Belongs to Order (nullable, for one-time plan orders)
-- Belongs to Subscription (nullable, for monthly subscription billing)
+- Belongs to Order (nullable, for per-order payments)
+- Belongs to Subscription (nullable, for association only)
 
 **Notes:**
 
-- See [BUSINESS_LOGIC.md](./BUSINESS_LOGIC.md#payment-types--amount-calculation) for payment type rules and amount calculation formulas
+- **FLEXIBLE Pricing Model:** No upfront subscription billing. Cleaner creates individual charge per order after calculating price.
+- **Vipps APIs:** Platform uses both Recurring API (for agreements) and ePayment API (for individual payments).
+- See [BUSINESS_LOGIC.md](./BUSINESS_LOGIC.md#payment-processing) for payment workflows.
 
 **Indexes:**
 
@@ -442,11 +412,6 @@
 - `formal` - Suits and formal wear
 - `outerwear` - Coats and heavy outerwear
 
-### SubscriptionBillingPeriod
-
-- `monthly` - Charged monthly (recurring billing on billing_date each month)
-- `one_time` - Pay-per-order (customer is billed each time they place an order, e.g., "Enkeltvask" plan)
-
 ### SubscriptionStatus
 
 - `pending_payment` - Awaiting initial payment confirmation
@@ -461,22 +426,6 @@
 - `biweekly` - Every 2 weeks
 - `monthly` - Every month
 - `on_demand` - As requested
-
-### Weekday
-
-- `monday`
-- `tuesday`
-- `wednesday`
-- `thursday`
-- `friday`
-- `saturday`
-- `sunday`
-
-### PickupMethod
-
-- `home` - Customer is home (knock on door)
-- `entrance` - Leave outside entrance
-- `other` - Custom location (requires description)
 
 ### OrderStatus
 
@@ -496,19 +445,14 @@
 ### Database-Level Constraints (Enforced by PostgreSQL)
 
 **CHECK Constraints:**
-- `Payment`: `(order_id IS NOT NULL) != (subscription_id IS NOT NULL)` - Payment must have EITHER order_id OR subscription_id, not both, not neither (XOR)
 - `Order`: `delivery_date >= scheduled_date` - Delivery cannot be before pickup
-- `Subscription`: `expires_at >= started_at` - Expiration must be after start date (if set)
-- `Subscription`: `next_billing_date > started_at` - Next billing must be after start date (if set)
 
 **Unique Partial Indexes:**
-- `Address`: `(user_id) WHERE is_default = true` - Only one default address per user
 - `Subscription`: `(customer_id) WHERE status IN ('pending_payment', 'active', 'paused')` - Only one active/pending subscription per customer
 
 **Foreign Key Cascades:**
 - `Customer.user_id` → `User.id` (ON DELETE CASCADE)
 - `Cleaner.user_id` → `User.id` (ON DELETE CASCADE)
-- `Address.user_id` → `User.id` (ON DELETE CASCADE)
 - `Order.customer_id` → `Customer.id` (ON DELETE CASCADE)
 
 ### Application-Level Validation (Enforced by Code)
@@ -519,6 +463,7 @@
 - Cleaner cannot receive assignments if `is_accepting_orders = false`
 - `business_name` and `business_address` required if `Cleaner.business_type = 'business'`
 - Order number must be unique and follow format `XXXXXX` (6-character random alphanumeric)
+- **FLEXIBLE Pricing:** Orders created with `total_cost_ore = NULL`, cleaner calculates price after pickup
 
 ---
 
