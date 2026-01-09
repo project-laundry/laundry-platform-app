@@ -60,7 +60,7 @@ export default function CleanerSignupPage() {
         emailRedirectTo: `${window.location.origin}/bli-renser/signup/callback`,
         data: {
           full_name: formData.name,
-          phone: formData.phone,
+          phone: `+47${formData.phone}`,
           role: 'cleaner',
         },
       },
@@ -136,16 +136,24 @@ export default function CleanerSignupPage() {
               <label htmlFor="phone" className="block text-sm font-semibold text-dark-gray mb-2">
                 Telefonnummer
               </label>
-              <input
-                type="tel"
-                id="phone"
-                name="phone"
-                value={formData.phone}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue"
-                placeholder="+47 123 45 678"
-                required
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value="+47"
+                  disabled
+                  className="w-16 px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 text-dark-gray"
+                />
+                <input
+                  type="tel"
+                  id="phone"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue"
+                  placeholder="123 45 678"
+                  required
+                />
+              </div>
             </div>
 
             <div>
