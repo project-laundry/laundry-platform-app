@@ -3,7 +3,9 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { getCleanerByUserId } from '@/lib/database/cleaners';
 import { getUsersById } from '@/lib/database/users';
+import { getOrdersByCleanerId } from '@/lib/database/orders';
 import { LogoutButton } from '@/components/ui/LogoutButton';
+import { CleanerOrderList } from './components/CleanerOrderList';
 
 export default async function CleanerDashboardPage() {
   // Auth check
@@ -34,6 +36,9 @@ export default async function CleanerDashboardPage() {
   const isApproved = cleaner.verification_status === 'approved';
   const isRejected = cleaner.verification_status === 'rejected';
   const isSuspended = cleaner.verification_status === 'suspended';
+
+  // Get orders for approved cleaners
+  const orders = isApproved ? await getOrdersByCleanerId(cleaner.id) : [];
 
   return (
     <div className="min-h-screen bg-soft-gray">
@@ -101,13 +106,9 @@ export default async function CleanerDashboardPage() {
         )}
 
         {isApproved && (
-          <div className="bg-white rounded-2xl shadow-sm p-8">
-            <h2 className="text-xl font-semibold text-dark-gray mb-4">
-              Dine oppdrag
-            </h2>
-            <p className="text-medium-gray">
-              Du har ingen aktive oppdrag for øyeblikket.
-            </p>
+          <div className="bg-white rounded-2xl shadow-sm p-6">
+            <h2 className="text-xl font-semibold text-dark-gray mb-6">Dine oppdrag</h2>
+            <CleanerOrderList orders={orders} />
           </div>
         )}
       </main>

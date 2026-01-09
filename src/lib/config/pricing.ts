@@ -2,6 +2,9 @@
 // All prices are in øre (1 NOK = 100 øre)
 
 export const PRICING = {
+  // Base price
+  base_price_per_kg_ore: 18500, // 185 NOK per kg
+
   // Add-on service prices
   ironing_price_ore: 4000, // 40 NOK per order
   delicate_item_price_ore: 7500, // 75 NOK per item
@@ -12,6 +15,7 @@ export const PRICING = {
 } as const;
 
 // NOK display values (for UI components)
+export const BASE_PRICE_PER_KG_NOK = PRICING.base_price_per_kg_ore / 100;
 export const IRONING_PRICE_NOK = PRICING.ironing_price_ore / 100;
 export const DELICATE_PRICE_NOK = PRICING.delicate_item_price_ore / 100;
 export const EXTRA_KG_PRICE_NOK = PRICING.extra_kg_price_ore / 100;
@@ -50,4 +54,22 @@ export function calculateBillingCostOre(
   }
 
   return total;
+}
+
+/**
+ * Calculate order price based on weight and ironing preference
+ * Used by cleaners after weighing laundry
+ *
+ * @param weightKg - Weight in kilograms
+ * @param needsIroning - Whether ironing is included
+ * @returns Total price in øre
+ */
+export function calculateOrderPrice(weightKg: number, needsIroning: boolean): number {
+  let total = weightKg * PRICING.base_price_per_kg_ore;
+
+  if (needsIroning) {
+    total += PRICING.ironing_price_ore;
+  }
+
+  return Math.round(total);
 }
