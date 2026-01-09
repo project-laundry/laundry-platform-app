@@ -1,7 +1,15 @@
 // Order database operations
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import type { Order, OrderStatus, OrderWithRelations } from '@/types/database';
+import type { Order, OrderStatus, OrderWithRelations, Customer, User, Subscription } from '@/types/database';
+
+/**
+ * Order with customer and subscription details for cleaner dashboard
+ */
+export interface OrderWithCustomer extends Order {
+  customer: Customer & { user: User };
+  subscription: Pick<Subscription, 'frequency'> | null;
+}
 import { generateOrderNumber } from '@/lib/utils/order-number';
 
 export interface CreateOrderData {
@@ -313,6 +321,88 @@ export async function updateOrderPricing(
 
   if (error) {
     console.error('Error updating order pricing:', error);
+    return null;
+  }
+
+  return data;
+}
+
+/**
+ * Get orders assigned to a cleaner
+ * Returns active orders (not completed/cancelled) with customer details
+ */
+export async function getOrdersByCleanerId(
+  cleanerId: string
+): Promise<OrderWithCustomer[]> {
+  const supabase = await createAdminClient();
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select(`
+      *,
+      customer:customers!customer_id(
+        *,
+        user:users!user_id(*)
+      ),
+      subscription:subscriptions(frequency)
+    `)
+    .eq('cleaner_id', cleanerId)
+    .not('status', 'in', '(completed,cancelled)')
+    .order('scheduled_date', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching cleaner orders:', error);
+    return [];
+  }
+
+  return data as OrderWithCustomer[];
+}
+
+/**
+ * Cleaner declines an order - resets to pending_assignment
+ * Adds cleaner to declined_by_cleaner_ids to avoid re-assignment
+ */
+export async function declineOrder(
+  orderId: string,
+  cleanerId: string
+): Promise<Order | null> {
+  const supabase = await createAdminClient();
+
+  // Get current declined IDs
+  const { data: order, error: fetchError } = await supabase
+    .from('orders')
+    .select('declined_by_cleaner_ids, cleaner_id')
+    .eq('id', orderId)
+    .single();
+
+  if (fetchError || !order) {
+    console.error('Error fetching order for decline:', fetchError);
+    return null;
+  }
+
+  // Verify this cleaner is assigned to the order
+  if (order.cleaner_id !== cleanerId) {
+    console.error('Cleaner not assigned to this order');
+    return null;
+  }
+
+  const currentDeclined = order.declined_by_cleaner_ids || [];
+  const updatedDeclined = [...currentDeclined, cleanerId];
+
+  const { data, error } = await supabase
+    .from('orders')
+    .update({
+      cleaner_id: null,
+      status: 'pending_assignment',
+      assigned_at: null,
+      declined_by_cleaner_ids: updatedDeclined,
+    })
+    .eq('id', orderId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error declining order:', error);
     return null;
   }
 
