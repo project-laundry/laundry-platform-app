@@ -26,7 +26,8 @@ export default function LoginPage() {
 
     const supabase = createClient();
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
+    // Step 1: Authenticate
+    const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
       email: formData.email,
       password: formData.password,
     });
@@ -37,6 +38,53 @@ export default function LoginPage() {
       return;
     }
 
+    if (!authData.user) {
+      setError('Kunne ikke logge inn. Vennligst prøv igjen.');
+      setLoading(false);
+      return;
+    }
+
+    // Step 2: Fetch user role from database
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', authData.user.id)
+      .single();
+
+    if (userError || !userData) {
+      setError('Kunne ikke hente brukerdata. Vennligst prøv igjen.');
+      setLoading(false);
+      return;
+    }
+
+    const role = userData.role;
+
+    if (role === 'admin') {
+      router.push('/admin/orders');
+      router.refresh();
+      return;
+    }
+
+    if (role === 'cleaner') {
+      // Check if cleaner has a profile (completed onboarding)
+      const { data: cleanerProfile } = await supabase
+        .from('cleaners')
+        .select('id')
+        .eq('user_id', authData.user.id)
+        .single();
+
+      if (!cleanerProfile) {
+        // No profile - continue onboarding
+        router.push('/bli-renser/business');
+      } else {
+        // Has profile - go to cleaner dashboard
+        router.push('/dashboard/cleaner');
+      }
+      router.refresh();
+      return;
+    }
+
+    // Default: customer dashboard
     router.push('/dashboard');
     router.refresh();
   };
