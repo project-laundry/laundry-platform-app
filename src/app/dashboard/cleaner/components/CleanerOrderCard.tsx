@@ -14,26 +14,50 @@ interface CleanerOrderCardProps {
 }
 
 // Status workflow mapping - what action leads to what next status
-const STATUS_ACTIONS: Record<OrderStatus, { next: OrderStatus; label: string } | null> = {
-  pickup_scheduled: { next: 'picked_up', label: 'Marker som hentet' },
-  picked_up: { next: 'in_cleaning', label: 'Sett i maskin' },
-  in_cleaning: { next: 'ready_for_delivery', label: 'Ferdig vasket' },
-  ready_for_delivery: { next: 'out_for_delivery', label: 'Ut for levering' },
-  out_for_delivery: { next: 'completed', label: 'Levert' },
+const STATUS_ACTIONS: Record<OrderStatus, { next: OrderStatus; label: string; confirmText: string } | null> = {
+  pickup_scheduled: {
+    next: 'picked_up',
+    label: 'Marker som hentet',
+    confirmText: 'Bekreft at du har hentet vaskeklærne?',
+  },
+  picked_up: {
+    next: 'in_cleaning',
+    label: 'Sett i maskin',
+    confirmText: 'Bekreft at klærne er satt i vaskemaskinen?',
+  },
+  in_cleaning: {
+    next: 'ready_for_delivery',
+    label: 'Ferdig vasket',
+    confirmText: 'Bekreft at vask og evt. stryking er ferdig?',
+  },
+  ready_for_delivery: {
+    next: 'out_for_delivery',
+    label: 'Ut for levering',
+    confirmText: 'Bekreft at du er på vei for å levere?',
+  },
+  out_for_delivery: {
+    next: 'completed',
+    label: 'Levert',
+    confirmText: 'Bekreft at klærne er levert til kunden?',
+  },
   pending_assignment: null,
   completed: null,
   cancelled: null,
 };
 
+type PendingAction = 'status' | 'decline' | 'weight' | null;
+
 export function CleanerOrderCard({ order }: CleanerOrderCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showWeightInput, setShowWeightInput] = useState(false);
-  const [weight, setWeight] = useState('');
-  const [notes, setNotes] = useState('');
+  const [weight, setWeight] = useState(order.actual_weight_kg?.toString() || '');
+  const [notes, setNotes] = useState(order.pricing_notes || '');
+  const [pendingAction, setPendingAction] = useState<PendingAction>(null);
 
   const action = STATUS_ACTIONS[order.status];
   const needsWeight = order.status === 'picked_up' && !order.actual_weight_kg;
+  const hasWeight = order.actual_weight_kg !== null;
 
   // Calculate preview price when weight is entered
   const previewPrice =
@@ -41,7 +65,7 @@ export function CleanerOrderCard({ order }: CleanerOrderCardProps) {
       ? parseFloat(weight) * PRICING.base_price_per_kg_ore + (order.needs_ironing ? PRICING.ironing_price_ore : 0)
       : 0;
 
-  async function handleStatusUpdate() {
+  function handleStatusClick() {
     if (!action) return;
 
     // If transitioning from picked_up and no weight set, show weight input first
@@ -50,15 +74,26 @@ export function CleanerOrderCard({ order }: CleanerOrderCardProps) {
       return;
     }
 
+    setPendingAction('status');
+  }
+
+  async function confirmStatusUpdate() {
+    if (!action) return;
+
     setIsLoading(true);
     const result = await updateCleanerOrderStatus(order.id, action.next);
     if (!result.success) {
       alert(result.error || 'Kunne ikke oppdatere status');
     }
     setIsLoading(false);
+    setPendingAction(null);
   }
 
-  async function handleSetWeight() {
+  function handleWeightClick() {
+    setPendingAction('weight');
+  }
+
+  async function confirmSetWeight() {
     if (!weight || parseFloat(weight) <= 0) {
       alert('Vennligst oppgi en gyldig vekt');
       return;
@@ -68,23 +103,35 @@ export function CleanerOrderCard({ order }: CleanerOrderCardProps) {
     const result = await setOrderWeight(order.id, parseFloat(weight), notes || undefined);
     if (result.success) {
       setShowWeightInput(false);
-      setWeight('');
-      setNotes('');
+      setPendingAction(null);
     } else {
       alert(result.error || 'Kunne ikke lagre vekt');
     }
     setIsLoading(false);
   }
 
-  async function handleDecline() {
-    if (!confirm('Er du sikker på at du vil avslå dette oppdraget?')) return;
+  function handleDeclineClick() {
+    setPendingAction('decline');
+  }
 
+  async function confirmDecline() {
     setIsLoading(true);
     const result = await declineCleanerOrder(order.id);
     if (!result.success) {
       alert(result.error || 'Kunne ikke avslå oppdrag');
     }
     setIsLoading(false);
+    setPendingAction(null);
+  }
+
+  function cancelPendingAction() {
+    setPendingAction(null);
+  }
+
+  function handleEditWeight() {
+    setWeight(order.actual_weight_kg?.toString() || '');
+    setNotes(order.pricing_notes || '');
+    setShowWeightInput(true);
   }
 
   return (
@@ -164,9 +211,14 @@ export function CleanerOrderCard({ order }: CleanerOrderCardProps) {
                 </span>
               )}
             </div>
-            {order.actual_weight_kg && (
+            {hasWeight && !showWeightInput && (
               <div>
-                <p className="text-medium-gray">Vekt / Pris</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-medium-gray">Vekt / Pris</p>
+                  <button onClick={handleEditWeight} className="text-xs text-nordic-blue hover:underline">
+                    Endre
+                  </button>
+                </div>
                 <p className="font-medium">
                   {order.actual_weight_kg} kg - {oreToNok(order.total_cost_ore || 0)} kr
                 </p>
@@ -176,7 +228,7 @@ export function CleanerOrderCard({ order }: CleanerOrderCardProps) {
           </div>
         )}
 
-        {/* Weight input form (shown after pickup, before putting in machine) */}
+        {/* Weight input form */}
         {showWeightInput && (
           <div className="border-t pt-3 mb-3 space-y-3">
             <div>
@@ -211,25 +263,79 @@ export function CleanerOrderCard({ order }: CleanerOrderCardProps) {
                 placeholder="f.eks. Ekstra skitne klær"
               />
             </div>
+
+            {/* Weight confirmation */}
+            {pendingAction === 'weight' ? (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <p className="text-sm text-yellow-800 mb-3">
+                  Bekreft lagring av vekt: {weight} kg = {oreToNok(previewPrice)} kr?
+                </p>
+                <div className="flex gap-2">
+                  <Button onClick={confirmSetWeight} disabled={isLoading} className="flex-1">
+                    {isLoading ? 'Lagrer...' : 'Bekreft'}
+                  </Button>
+                  <Button variant="outline" onClick={cancelPendingAction} disabled={isLoading}>
+                    Avbryt
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Button onClick={handleWeightClick} disabled={isLoading || !weight} className="flex-1">
+                  Lagre vekt
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowWeightInput(false);
+                    setWeight(order.actual_weight_kg?.toString() || '');
+                    setNotes(order.pricing_notes || '');
+                  }}
+                >
+                  Avbryt
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Confirmation dialogs */}
+        {pendingAction === 'status' && action && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
+            <p className="text-sm text-yellow-800 mb-3">{action.confirmText}</p>
             <div className="flex gap-2">
-              <Button onClick={handleSetWeight} disabled={isLoading || !weight} className="flex-1">
-                {isLoading ? 'Lagrer...' : 'Lagre vekt'}
+              <Button onClick={confirmStatusUpdate} disabled={isLoading} className="flex-1">
+                {isLoading ? 'Oppdaterer...' : 'Bekreft'}
               </Button>
-              <Button variant="outline" onClick={() => setShowWeightInput(false)}>
+              <Button variant="outline" onClick={cancelPendingAction} disabled={isLoading}>
                 Avbryt
               </Button>
             </div>
           </div>
         )}
 
-        {/* Action buttons */}
-        {action && !showWeightInput && (
+        {pendingAction === 'decline' && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+            <p className="text-sm text-red-800 mb-3">Er du sikker på at du vil avslå dette oppdraget?</p>
+            <div className="flex gap-2">
+              <Button variant="destructive" onClick={confirmDecline} disabled={isLoading} className="flex-1">
+                {isLoading ? 'Avslår...' : 'Ja, avslå'}
+              </Button>
+              <Button variant="outline" onClick={cancelPendingAction} disabled={isLoading}>
+                Nei, behold
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Action buttons (hidden when confirmation is showing) */}
+        {action && !showWeightInput && !pendingAction && (
           <div className="flex gap-2">
-            <Button onClick={handleStatusUpdate} disabled={isLoading} className="flex-1">
+            <Button onClick={handleStatusClick} disabled={isLoading} className="flex-1">
               {isLoading ? 'Oppdaterer...' : action.label}
             </Button>
             {order.status === 'pickup_scheduled' && (
-              <Button variant="outline" onClick={handleDecline} disabled={isLoading}>
+              <Button variant="outline" onClick={handleDeclineClick} disabled={isLoading}>
                 Avslå
               </Button>
             )}
@@ -237,7 +343,7 @@ export function CleanerOrderCard({ order }: CleanerOrderCardProps) {
         )}
 
         {/* Show weight prompt for picked_up orders without weight */}
-        {needsWeight && !showWeightInput && (
+        {needsWeight && !showWeightInput && !pendingAction && (
           <Button onClick={() => setShowWeightInput(true)} className="w-full">
             Registrer vekt
           </Button>
