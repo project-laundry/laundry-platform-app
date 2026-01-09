@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getCleanerByUserId } from '@/lib/database/cleaners';
 import {
   getOrdersByCleanerId,
+  getOrderById,
   updateOrderStatus,
   updateOrderPricing,
   declineOrder,
@@ -95,23 +96,23 @@ export async function setOrderWeight(
     return { success: false, error: 'Renserprofil ikke funnet' };
   }
 
-  // Get order to check needs_ironing and ownership
-  const { data: order } = await supabase
-    .from('orders')
-    .select('needs_ironing, cleaner_id')
-    .eq('id', orderId)
-    .single();
+  // Get order to check needs_ironing and ownership (using admin client via getOrderById)
+  const order = await getOrderById(orderId);
 
-  if (!order || order.cleaner_id !== cleaner.id) {
-    return { success: false, error: 'Ordre ikke funnet eller ikke tildelt deg' };
+  if (!order) {
+    return { success: false, error: 'Ordre ikke funnet' };
+  }
+
+  if (order.cleaner_id !== cleaner.id) {
+    return { success: false, error: 'Denne ordren er ikke tildelt deg' };
   }
 
   const totalCostOre = calculateOrderPrice(weightKg, order.needs_ironing);
 
   const result = await updateOrderPricing(orderId, cleaner.id, weightKg, totalCostOre, pricingNotes);
 
-  if (!result) {
-    return { success: false, error: 'Kunne ikke lagre prising' };
+  if (result.error || !result.data) {
+    return { success: false, error: result.error || 'Kunne ikke lagre prising' };
   }
 
   revalidatePath('/dashboard/cleaner');

@@ -304,7 +304,7 @@ export async function updateOrderPricing(
   actualWeightKg: number,
   totalCostOre: number,
   pricingNotes?: string
-): Promise<Order | null> {
+): Promise<{ data: Order | null; error: string | null }> {
   const supabase = await createAdminClient();
 
   const { data, error } = await supabase
@@ -321,10 +321,10 @@ export async function updateOrderPricing(
 
   if (error) {
     console.error('Error updating order pricing:', error);
-    return null;
+    return { data: null, error: error.message };
   }
 
-  return data;
+  return { data, error: null };
 }
 
 /**
