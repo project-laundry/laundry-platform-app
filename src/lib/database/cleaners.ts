@@ -142,6 +142,27 @@ export async function getAvailableWeekdaysForCity(city: string): Promise<Weekday
 }
 
 /**
+ * Get a cleaner profile by user ID
+ * @param userId - The authenticated user's ID
+ * @returns Cleaner record or null if not found
+ */
+export async function getCleanerByUserId(userId: string): Promise<Cleaner | null> {
+  const supabase = createAdminClient();
+
+  const { data: cleaner, error } = await supabase
+    .from('cleaners')
+    .select('*')
+    .eq('user_id', userId)
+    .single();
+
+  if (error || !cleaner) {
+    return null;
+  }
+
+  return cleaner;
+}
+
+/**
  * Create a new cleaner profile
  * @param userId - The authenticated user's ID
  * @param cleanerData - Partial cleaner data from onboarding
