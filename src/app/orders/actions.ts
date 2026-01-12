@@ -163,26 +163,34 @@ export async function forceAcceptAgreementAction(
       };
     }
 
-    // 2. Get authenticated user and phone number
+    // 2. Get authenticated user and phone number from users table
     const supabase = await createClient();
     const {
-      data: { user },
+      data: { user: authUser },
     } = await supabase.auth.getUser();
 
-    if (!user) {
+    if (!authUser) {
       return {
         success: false,
         error: 'Ikke autentisert',
       };
     }
 
-    const phoneNumber = user.user_metadata?.phone;
-    if (!phoneNumber) {
+    // Fetch phone number from users table
+    const { data: dbUser, error: userError } = await supabase
+      .from('users')
+      .select('phone')
+      .eq('id', authUser.id)
+      .single();
+
+    if (userError || !dbUser?.phone) {
       return {
         success: false,
         error: 'Telefonnummer mangler. Vennligst oppdater profilen din.',
       };
     }
+
+    const phoneNumber = dbUser.phone;
 
     // Format phone number: Remove +47 prefix (Vipps expects format: 4712345678)
     const formattedPhone = phoneNumber.replace(/^\+/, '');
@@ -197,7 +205,7 @@ export async function forceAcceptAgreementAction(
     }
 
     // Verify customer ownership
-    const customer = await getCustomerByUserId(user.id);
+    const customer = await getCustomerByUserId(authUser.id);
     if (!customer || customer.id !== subscription.customer_id) {
       return {
         success: false,
