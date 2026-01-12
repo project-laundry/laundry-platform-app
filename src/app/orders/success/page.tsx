@@ -41,7 +41,7 @@ function OrderSuccessPageContent() {
             Din avtale er opprettet!
           </h1>
           <p className="text-xl text-medium-gray mb-8">
-            Abonnementet ditt er nå aktivt og renseren vil hente tøyet ditt på avtalt dato.
+            Abonnementet ditt er nå aktivt. Renseren henter tøyet ditt på avtalt dato.
           </p>
 
           {subscriptionId && (
