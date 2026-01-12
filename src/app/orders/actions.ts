@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { createSubscription, getActiveSubscriptionByCustomerId } from "@/lib/database/subscriptions";
+import { createSubscription, getActiveSubscriptionByCustomerId, getSubscriptionById } from "@/lib/database/subscriptions";
 import { getCustomerByUserId } from "@/lib/database/customers";
 import {
   findAvailableCleaner,
@@ -10,10 +10,14 @@ import {
 import { createVippsAgreement } from "@/lib/payments/vipps/service";
 import { getWeekdayFromDate } from "@/lib/utils/date";
 import { translateFrequency } from "@/lib/utils/i18n";
+import { getOrderWithDetailsByIdAndCustomerId, updateOrderStatus } from "@/lib/database/orders";
+import { checkAndGenerateNextOrders } from "@/lib/services/order-generation";
+import { cancelSubscriptionAction } from "@/app/dashboard/subscription/actions";
 import type {
   Weekday,
   SubscriptionFrequency,
   SubscriptionOrderDefaults,
+  OrderStatus,
 } from "@/types/database";
 
 export interface CreateSubscriptionInput {
@@ -136,4 +140,82 @@ export async function getAvailableWeekdaysAction(
   city: string,
 ): Promise<Weekday[]> {
   return getAvailableWeekdaysForCity(city);
+}
+
+export interface ActionResult {
+  success: boolean;
+  error?: string;
+}
+
+/**
+ * Cancel an order - customer can only cancel before pickup
+ * Allowed statuses: pending_assignment, pickup_scheduled
+ *
+ * @param orderId - The order ID to cancel
+ * @param alsoCancel Subscription - If true, also cancel the subscription (stops all future orders + Vipps agreement)
+ */
+export async function cancelOrderAction(
+  orderId: string,
+  alsoCancelSubscription: boolean = false
+): Promise<ActionResult> {
+  try {
+    // Get current user
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    // Get customer
+    const customer = await getCustomerByUserId(user.id);
+    if (!customer) {
+      return { success: false, error: 'Customer not found' };
+    }
+
+    // Get order and verify ownership
+    const order = await getOrderWithDetailsByIdAndCustomerId(orderId, customer.id);
+    if (!order) {
+      return { success: false, error: 'Order not found' };
+    }
+
+    // Verify order status is cancellable
+    const cancellableStatuses: OrderStatus[] = ['pending_assignment', 'pickup_scheduled'];
+    if (!cancellableStatuses.includes(order.status)) {
+      return {
+        success: false,
+        error: `Kan ikke kansellere ordre med status: ${order.status}`
+      };
+    }
+
+    // If user wants to cancel subscription along with order
+    if (alsoCancelSubscription && order.subscription_id) {
+      const result = await cancelSubscriptionAction(order.subscription_id);
+      return result;
+    }
+
+    // Otherwise, cancel order only
+    const cancelled = await updateOrderStatus(orderId, 'cancelled');
+    if (!cancelled) {
+      return { success: false, error: 'Failed to cancel order' };
+    }
+
+    // If order belongs to active subscription, generate next order to maintain rolling window
+    if (order.subscription_id) {
+      const subscription = await getSubscriptionById(order.subscription_id);
+      if (subscription && subscription.status === 'active') {
+        try {
+          await checkAndGenerateNextOrders(order.subscription_id);
+        } catch (genError) {
+          console.error('Error generating next order after cancellation:', genError);
+          // Don't fail the cancellation if next order generation fails
+        }
+      }
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error cancelling order:', error);
+    return { success: false, error: 'An error occurred while cancelling order' };
+  }
 }

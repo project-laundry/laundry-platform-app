@@ -26,26 +26,33 @@ export function Hero() {
               </div>
               {/* Headline */}
               <h1 className="font-serif text-5xl md:text-6xl lg:text-7xl font-light tracking-tight mb-6 animate-fade-in opacity-0" style={{ animationDelay: "0.2s" }}>
-                <span className="text-foreground">Din hverdag,</span>
+                <span className="text-foreground">Klesvask hentet</span>
                 <br />
-                <span className="text-gradient font-medium">lysere og lettere</span>
-              </h1>
+                <span className="text-gradient font-medium">og levert hjem</span>
+              </h1>              
 
-              {/* Subheadline */}
+              {/* Explainer text */}
               <p className="text-lg md:text-xl text-muted-foreground max-w-2xl lg:max-w-none mb-10 leading-relaxed animate-fade-in opacity-0" style={{ animationDelay: "0.4s" }}>
                 Noora henter, vasker og leverer klærne dine – så du kan bruke tiden din på det som virkelig betyr noe.
-                <span className="block mt-2 text-foreground font-medium">Renhet. Omtanke. Noora.</span>
               </p>
 
               {/* CTAs */}
-              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start items-center animate-fade-in opacity-0" style={{ animationDelay: "0.6s" }}>
-                <Button variant="hero" size="xl">
-                  Bestill henting
-                  <ArrowRight className="w-5 h-5" />
-                </Button>
-                <Button variant="hero-outline" size="lg">
-                  <Link href="#slik-virker-det">Se hvordan det fungerer</Link>
-                </Button>
+              <div className="flex flex-col gap-4 animate-fade-in opacity-0" style={{ animationDelay: "0.6s" }}>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start items-center">
+                  <div className="flex flex-col gap-2">
+                    <Link href="/auth/login">
+                      <Button variant="hero" size="xl">
+                        Bestill klesvask
+                        <ArrowRight className="w-5 h-5" />
+                      </Button>
+                    </Link>
+                  </div>
+                  <Link href="#slik-virker-det">
+                    <Button variant="hero-outline" size="lg">
+                      Se hvordan det fungerer
+                    </Button>
+                  </Link>
+                </div>
               </div>
 
               {/* Trust indicators */}

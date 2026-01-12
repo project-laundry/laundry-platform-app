@@ -51,7 +51,7 @@ export async function cancelSubscriptionAction(
     // Cancel Vipps agreement if exists
     if (subscription.provider_agreement_id) {
       try {
-        await cancelVippsAgreement(subscriptionId);
+        await cancelVippsAgreement(subscription.provider_agreement_id);
       } catch (vippsError) {
         console.error('Error cancelling Vipps agreement:', vippsError);
         // Continue with database cancellation even if Vipps fails
