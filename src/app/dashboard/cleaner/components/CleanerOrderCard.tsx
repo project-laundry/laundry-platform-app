@@ -48,7 +48,6 @@ const STATUS_ACTIONS: Record<OrderStatus, { next: OrderStatus; label: string; co
 type PendingAction = 'status' | 'decline' | 'weight' | null;
 
 export function CleanerOrderCard({ order }: CleanerOrderCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showWeightInput, setShowWeightInput] = useState(false);
   const [weight, setWeight] = useState(order.actual_weight_kg?.toString() || '');
@@ -170,63 +169,57 @@ export function CleanerOrderCard({ order }: CleanerOrderCardProps) {
           </div>
         </div>
 
-        {/* Expandable details */}
-        <button onClick={() => setIsExpanded(!isExpanded)} className="text-sm text-nordic-blue mb-3">
-          {isExpanded ? 'Vis mindre' : 'Vis detaljer'}
-        </button>
-
-        {isExpanded && (
-          <div className="border-t pt-3 mb-3 text-sm space-y-2">
+        {/* Details section - always visible */}
+        <div className="border-t pt-3 mb-3 text-sm space-y-2">
+          <div>
+            <p className="text-medium-gray">Adresse</p>
+            <p className="font-medium">
+              {order.street}, {order.postal_code} {order.city}
+            </p>
+          </div>
+          {order.special_instructions && (
             <div>
-              <p className="text-medium-gray">Adresse</p>
-              <p className="font-medium">
-                {order.street}, {order.postal_code} {order.city}
-              </p>
+              <p className="text-medium-gray">Instruksjoner</p>
+              <p>{order.special_instructions}</p>
             </div>
-            {order.special_instructions && (
-              <div>
-                <p className="text-medium-gray">Instruksjoner</p>
-                <p>{order.special_instructions}</p>
-              </div>
-            )}
-            {order.special_instructions_address && (
-              <div>
-                <p className="text-medium-gray">Adresseinstruksjoner</p>
-                <p>{order.special_instructions_address}</p>
-              </div>
-            )}
-            <div className="flex gap-2 flex-wrap">
-              {order.needs_ironing && (
-                <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">Stryking inkludert</span>
-              )}
-              {order.subscription && (
-                <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
-                  {order.subscription.frequency === 'weekly'
-                    ? 'Ukentlig'
-                    : order.subscription.frequency === 'biweekly'
-                      ? 'Annenhver uke'
-                      : order.subscription.frequency === 'monthly'
-                        ? 'Månedlig'
-                        : 'Enkeltordre'}
-                </span>
-              )}
+          )}
+          {order.special_instructions_address && (
+            <div>
+              <p className="text-medium-gray">Adresseinstruksjoner</p>
+              <p>{order.special_instructions_address}</p>
             </div>
-            {hasWeight && !showWeightInput && (
-              <div>
-                <div className="flex items-center justify-between">
-                  <p className="text-medium-gray">Vekt / Pris</p>
-                  <button onClick={handleEditWeight} className="text-xs text-nordic-blue hover:underline">
-                    Endre
-                  </button>
-                </div>
-                <p className="font-medium">
-                  {order.actual_weight_kg} kg - {oreToNok(order.total_cost_ore || 0)} kr
-                </p>
-                {order.pricing_notes && <p className="text-xs text-medium-gray mt-1">{order.pricing_notes}</p>}
-              </div>
+          )}
+          <div className="flex gap-2 flex-wrap">
+            {order.needs_ironing && (
+              <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">Stryking inkludert</span>
+            )}
+            {order.subscription && (
+              <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                {order.subscription.frequency === 'weekly'
+                  ? 'Ukentlig'
+                  : order.subscription.frequency === 'biweekly'
+                    ? 'Annenhver uke'
+                    : order.subscription.frequency === 'monthly'
+                      ? 'Månedlig'
+                      : 'Enkeltordre'}
+              </span>
             )}
           </div>
-        )}
+          {hasWeight && !showWeightInput && (
+            <div>
+              <div className="flex items-center justify-between">
+                <p className="text-medium-gray">Vekt / Pris</p>
+                <button onClick={handleEditWeight} className="text-xs text-nordic-blue hover:underline">
+                  Endre
+                </button>
+              </div>
+              <p className="font-medium">
+                {order.actual_weight_kg} kg - {oreToNok(order.total_cost_ore || 0)} kr
+              </p>
+              {order.pricing_notes && <p className="text-xs text-medium-gray mt-1">{order.pricing_notes}</p>}
+            </div>
+          )}
+        </div>
 
         {/* Weight input form */}
         {showWeightInput && (
