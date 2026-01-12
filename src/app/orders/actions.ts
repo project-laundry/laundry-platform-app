@@ -265,6 +265,12 @@ export interface ActionResult {
   error?: string;
 }
 
+export interface CancelOrderResult {
+  success: boolean;
+  error?: string;
+  nextOrderId?: string;
+}
+
 /**
  * Update special instructions for an order
  * Customer can only update before pickup (pending_assignment, pickup_scheduled)
@@ -374,12 +380,12 @@ export async function updateOrderIroningAction(
  * Allowed statuses: pending_assignment, pickup_scheduled
  *
  * @param orderId - The order ID to cancel
- * @param alsoCancel Subscription - If true, also cancel the subscription (stops all future orders + Vipps agreement)
+ * @param alsoCancelSubscription - If true, also cancel the subscription (stops all future orders + Vipps agreement)
  */
 export async function cancelOrderAction(
   orderId: string,
   alsoCancelSubscription: boolean = false
-): Promise<ActionResult> {
+): Promise<CancelOrderResult> {
   try {
     // Get current user
     const supabase = await createClient();
@@ -423,11 +429,27 @@ export async function cancelOrderAction(
     }
 
     // If order belongs to active subscription, generate next order to maintain rolling window
+    let nextOrderId: string | undefined;
     if (order.subscription_id) {
       const subscription = await getSubscriptionById(order.subscription_id);
       if (subscription && subscription.status === 'active') {
         try {
           await checkAndGenerateNextOrders(order.subscription_id);
+
+          // Query for the newly created order
+          const adminClient = createAdminClient();
+          const { data: nextOrder } = await adminClient
+            .from('orders')
+            .select('id')
+            .eq('subscription_id', order.subscription_id)
+            .not('status', 'in', '(completed,cancelled)')
+            .order('scheduled_date', { ascending: true })
+            .limit(1)
+            .single();
+
+          if (nextOrder) {
+            nextOrderId = nextOrder.id;
+          }
         } catch (genError) {
           console.error('Error generating next order after cancellation:', genError);
           // Don't fail the cancellation if next order generation fails
@@ -435,7 +457,7 @@ export async function cancelOrderAction(
       }
     }
 
-    return { success: true };
+    return { success: true, nextOrderId };
   } catch (error) {
     console.error('Error cancelling order:', error);
     return { success: false, error: 'An error occurred while cancelling order' };

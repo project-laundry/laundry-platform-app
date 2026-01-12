@@ -251,14 +251,10 @@ export default async function OrderDetailPage({ params }: OrderPageProps) {
             </Card>
 
             {/* Cancel Order Button */}
-            {(order.status === 'pending_assignment' || order.status === 'pickup_scheduled') && (
-              <CancelOrderButton
-                orderId={order.id}
-                orderNumber={order.order_number}
-                orderStatus={order.status}
-                subscriptionId={order.subscription_id}
-              />
-            )}
+            <CancelOrderButton
+              orderId={order.id}
+              orderStatus={order.status}
+            />
 
             {/* Special Instructions */}
             <EditableSpecialInstructions
