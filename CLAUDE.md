@@ -20,6 +20,7 @@ The application supports three user roles:
 - Avoid over-engineering - build what's needed now, not what might be needed later
 - Prefer existing patterns and libraries over custom solutions
 - Keep code readable and maintainable rather than clever
+- **Clean up unused code**: When removing a component, function, or import, always check if it's still used elsewhere. If not, delete the file/function entirely. Don't leave dead code in the codebase.
 
 ## Technology Stack
 

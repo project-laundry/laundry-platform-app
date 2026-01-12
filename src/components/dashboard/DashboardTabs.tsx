@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { SubscriptionOverviewCard } from './SubscriptionOverviewCard';
-import { LatestOrderCard } from './LatestOrderCard';
 import { OrderHistorySection } from './OrderHistorySection';
 import type { SubscriptionWithRelations, OrderWithRelations } from '@/types/database';
 
@@ -51,22 +50,12 @@ export function DashboardTabs({ subscription, nextOrder, completedOrders }: Dash
         </div>
       ) : (
         <>
-          {/* Latest Order */}
-          {nextOrder && (
-            <div className="mb-8">
-              <LatestOrderCard order={nextOrder} />
-            </div>
-          )}
-
-          {/* Order History */}
-          {completedOrders.length > 0 && (
+          {/* Order History - Only completed/cancelled orders */}
+          {completedOrders.length > 0 ? (
             <div className="mb-8">
               <OrderHistorySection orders={completedOrders} />
             </div>
-          )}
-
-          {/* Empty state if no orders */}
-          {!nextOrder && completedOrders.length === 0 && (
+          ) : (
             <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
               <p className="text-medium-gray">Ingen ordrehistorikk ennå.</p>
             </div>
