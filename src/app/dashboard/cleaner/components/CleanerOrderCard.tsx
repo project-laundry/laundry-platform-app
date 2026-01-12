@@ -18,7 +18,7 @@ const STATUS_ACTIONS: Record<OrderStatus, { next: OrderStatus; label: string; co
   pickup_scheduled: {
     next: 'picked_up',
     label: 'Marker som hentet',
-    confirmText: 'Bekreft at du har hentet vaskeklærne?',
+    confirmText: 'Bekreft at du har hentet klærne?',
   },
   picked_up: {
     next: 'in_cleaning',
@@ -135,9 +135,9 @@ export function CleanerOrderCard({ order }: CleanerOrderCardProps) {
 
   return (
     <Card>
-      <CardContent className="pt-6">
+      <CardContent className="pt-4 sm:pt-6">
         {/* Header row */}
-        <div className="flex items-start justify-between mb-3">
+        <div className="flex items-start justify-between mb-2 sm:mb-3">
           <div>
             <p className="font-semibold text-dark-gray">#{order.order_number}</p>
             <p className="text-sm text-medium-gray">{order.customer.user.full_name}</p>
@@ -146,7 +146,7 @@ export function CleanerOrderCard({ order }: CleanerOrderCardProps) {
         </div>
 
         {/* Key info */}
-        <div className="grid grid-cols-2 gap-3 text-sm mb-3">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 text-sm mb-2 sm:mb-3">
           <div>
             <p className="text-medium-gray">Henting</p>
             <p className="font-medium text-dark-gray">
@@ -170,7 +170,7 @@ export function CleanerOrderCard({ order }: CleanerOrderCardProps) {
         </div>
 
         {/* Details section - always visible */}
-        <div className="border-t pt-3 mb-3 text-sm space-y-2">
+        <div className="border-t pt-2 sm:pt-3 mb-2 sm:mb-3 text-sm space-y-1.5 sm:space-y-2">
           <div>
             <p className="text-medium-gray">Adresse</p>
             <p className="font-medium">
@@ -263,17 +263,17 @@ export function CleanerOrderCard({ order }: CleanerOrderCardProps) {
                 <p className="text-sm text-yellow-800 mb-3">
                   Bekreft lagring av vekt: {weight} kg = {oreToNok(previewPrice)} kr?
                 </p>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Button onClick={confirmSetWeight} disabled={isLoading} className="flex-1">
                     {isLoading ? 'Lagrer...' : 'Bekreft'}
                   </Button>
-                  <Button variant="outline" onClick={cancelPendingAction} disabled={isLoading}>
+                  <Button variant="outline" onClick={cancelPendingAction} disabled={isLoading} className="sm:flex-initial">
                     Avbryt
                   </Button>
                 </div>
               </div>
             ) : (
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Button onClick={handleWeightClick} disabled={isLoading || !weight} className="flex-1">
                   Lagre vekt
                 </Button>
@@ -284,6 +284,7 @@ export function CleanerOrderCard({ order }: CleanerOrderCardProps) {
                     setWeight(order.actual_weight_kg?.toString() || '');
                     setNotes(order.pricing_notes || '');
                   }}
+                  className="sm:flex-initial"
                 >
                   Avbryt
                 </Button>
@@ -296,11 +297,11 @@ export function CleanerOrderCard({ order }: CleanerOrderCardProps) {
         {pendingAction === 'status' && action && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
             <p className="text-sm text-yellow-800 mb-3">{action.confirmText}</p>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Button onClick={confirmStatusUpdate} disabled={isLoading} className="flex-1">
                 {isLoading ? 'Oppdaterer...' : 'Bekreft'}
               </Button>
-              <Button variant="outline" onClick={cancelPendingAction} disabled={isLoading}>
+              <Button variant="outline" onClick={cancelPendingAction} disabled={isLoading} className="sm:flex-initial">
                 Avbryt
               </Button>
             </div>
@@ -310,11 +311,11 @@ export function CleanerOrderCard({ order }: CleanerOrderCardProps) {
         {pendingAction === 'decline' && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
             <p className="text-sm text-red-800 mb-3">Er du sikker på at du vil avslå dette oppdraget?</p>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Button variant="destructive" onClick={confirmDecline} disabled={isLoading} className="flex-1">
                 {isLoading ? 'Avslår...' : 'Ja, avslå'}
               </Button>
-              <Button variant="outline" onClick={cancelPendingAction} disabled={isLoading}>
+              <Button variant="outline" onClick={cancelPendingAction} disabled={isLoading} className="sm:flex-initial">
                 Nei, behold
               </Button>
             </div>
@@ -323,12 +324,12 @@ export function CleanerOrderCard({ order }: CleanerOrderCardProps) {
 
         {/* Action buttons (hidden when confirmation is showing) */}
         {action && !showWeightInput && !pendingAction && (
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <Button onClick={handleStatusClick} disabled={isLoading} className="flex-1">
               {isLoading ? 'Oppdaterer...' : action.label}
             </Button>
             {order.status === 'pickup_scheduled' && (
-              <Button variant="outline" onClick={handleDeclineClick} disabled={isLoading}>
+              <Button variant="outline" onClick={handleDeclineClick} disabled={isLoading} className="sm:flex-initial">
                 Avslå
               </Button>
             )}
