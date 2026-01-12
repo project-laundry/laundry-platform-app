@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createSubscription, getActiveSubscriptionByCustomerId, getSubscriptionById, getSubscriptionByAgreementId } from "@/lib/database/subscriptions";
 import { getCustomerByUserId } from "@/lib/database/customers";
 import {
@@ -94,11 +95,11 @@ export async function createSubscriptionAction(
   );
 
   // Create Vipps FLEXIBLE agreement (NO price parameter)
-  const ironingSuffix = input.needsIroning ? ' + Stryking' : '';
+  // Note: Don't include ironing in agreement name since it can be changed per order
   const frequencyNorwegian = translateFrequency(frequency);
 
   const agreementResponse = await createVippsAgreement({
-    productName: `NooraCare - Vask${ironingSuffix}`,
+    productName: `NooraCare - Vask`,
     productDescription: `${frequencyNorwegian} henting i ${input.location}`,
     frequency,
   });
@@ -262,6 +263,110 @@ export async function getAvailableWeekdaysAction(
 export interface ActionResult {
   success: boolean;
   error?: string;
+}
+
+/**
+ * Update special instructions for an order
+ * Customer can only update before pickup (pending_assignment, pickup_scheduled)
+ */
+export async function updateOrderSpecialInstructionsAction(
+  orderId: string,
+  specialInstructions: string
+): Promise<ActionResult> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    const customer = await getCustomerByUserId(user.id);
+    if (!customer) {
+      return { success: false, error: 'Customer not found' };
+    }
+
+    const order = await getOrderWithDetailsByIdAndCustomerId(orderId, customer.id);
+    if (!order) {
+      return { success: false, error: 'Order not found' };
+    }
+
+    const editableStatuses: OrderStatus[] = ['pending_assignment', 'pickup_scheduled'];
+    if (!editableStatuses.includes(order.status)) {
+      return {
+        success: false,
+        error: 'Kan ikke redigere instruksjoner etter henting'
+      };
+    }
+
+    const adminClient = createAdminClient();
+    const { error } = await adminClient
+      .from('orders')
+      .update({ special_instructions: specialInstructions || null })
+      .eq('id', orderId);
+
+    if (error) {
+      console.error('Error updating special instructions:', error);
+      return { success: false, error: 'Failed to update instructions' };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating special instructions:', error);
+    return { success: false, error: 'An error occurred' };
+  }
+}
+
+/**
+ * Update ironing preference for an order
+ * Customer can only update before pickup (pending_assignment, pickup_scheduled)
+ */
+export async function updateOrderIroningAction(
+  orderId: string,
+  needsIroning: boolean
+): Promise<ActionResult> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    const customer = await getCustomerByUserId(user.id);
+    if (!customer) {
+      return { success: false, error: 'Customer not found' };
+    }
+
+    const order = await getOrderWithDetailsByIdAndCustomerId(orderId, customer.id);
+    if (!order) {
+      return { success: false, error: 'Order not found' };
+    }
+
+    const editableStatuses: OrderStatus[] = ['pending_assignment', 'pickup_scheduled'];
+    if (!editableStatuses.includes(order.status)) {
+      return {
+        success: false,
+        error: 'Kan ikke endre stryking etter henting'
+      };
+    }
+
+    const adminClient = createAdminClient();
+    const { error } = await adminClient
+      .from('orders')
+      .update({ needs_ironing: needsIroning })
+      .eq('id', orderId);
+
+    if (error) {
+      console.error('Error updating ironing preference:', error);
+      return { success: false, error: 'Failed to update ironing preference' };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating ironing preference:', error);
+    return { success: false, error: 'An error occurred' };
+  }
 }
 
 /**

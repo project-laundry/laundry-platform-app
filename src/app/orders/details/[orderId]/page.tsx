@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { getOrderStatusLabel, getOrderStatusVariant } from '@/lib/utils/order-status';
 import { oreToNok } from '@/lib/config/pricing';
 import { CancelOrderButton } from '@/components/orders/CancelOrderButton';
+import { EditableSpecialInstructions } from '@/components/orders/EditableSpecialInstructions';
+import { EditableIroning } from '@/components/orders/EditableIroning';
 import type { OrderStatus } from '@/types/database';
 
 interface OrderPageProps {
@@ -230,21 +232,19 @@ export default async function OrderDetailPage({ params }: OrderPageProps) {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2 text-sm">
-                  {order.total_cost_ore !== null ? (
-                    <>
-                      {order.needs_ironing && (
-                        <div className="flex justify-between">
-                          <span className="text-medium-gray">Stryking</span>
-                          <span className="font-medium text-dark-gray">Inkludert</span>
-                        </div>
-                      )}
-                      <div className={order.needs_ironing ? "border-t border-gray-200 pt-2 mt-2 flex justify-between font-semibold" : "flex justify-between font-semibold"}>
-                        <span className="text-dark-gray">Totalt</span>
-                        <span className="text-dark-gray">{oreToNok(order.total_cost_ore)} kr</span>
-                      </div>
-                    </>
-                  ) : (
-                    <p className="text-sm text-medium-gray">Pris beregnes av renser</p>
+                  <EditableIroning
+                    orderId={order.id}
+                    initialNeedsIroning={order.needs_ironing}
+                    isEditable={order.status === 'pending_assignment' || order.status === 'pickup_scheduled'}
+                  />
+                  {order.total_cost_ore !== null && (
+                    <div className="border-t border-gray-200 pt-2 mt-2 flex justify-between font-semibold">
+                      <span className="text-dark-gray">Totalt</span>
+                      <span className="text-dark-gray">{oreToNok(order.total_cost_ore)} kr</span>
+                    </div>
+                  )}
+                  {order.total_cost_ore === null && (
+                    <p className="text-sm text-medium-gray pt-2">Pris beregnes av renser</p>
                   )}
                 </div>
               </CardContent>
@@ -261,16 +261,11 @@ export default async function OrderDetailPage({ params }: OrderPageProps) {
             )}
 
             {/* Special Instructions */}
-            {order.special_instructions && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Spesielle instruksjoner</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-dark-gray">{order.special_instructions}</p>
-                </CardContent>
-              </Card>
-            )}
+            <EditableSpecialInstructions
+              orderId={order.id}
+              initialInstructions={order.special_instructions}
+              isEditable={order.status === 'pending_assignment' || order.status === 'pickup_scheduled'}
+            />
 
             {/* Pickup Details */}
             <Card>
