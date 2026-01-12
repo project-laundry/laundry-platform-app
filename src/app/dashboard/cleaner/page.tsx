@@ -63,8 +63,7 @@ export default async function CleanerDashboardPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-dark-gray mb-2">
             Hei, {firstName}!
-          </h1>
-          <p className="text-medium-gray">Velkommen til renserdashboardet.</p>
+          </h1>          
         </div>
 
         {/* Status-based content */}

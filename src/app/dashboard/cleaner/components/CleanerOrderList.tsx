@@ -12,7 +12,7 @@ interface CleanerOrderListProps {
 const ORDER_GROUPS: { statuses: OrderStatus[]; label: string; emptyLabel: string }[] = [
   {
     statuses: ['pickup_scheduled'],
-    label: 'Planlagte hentinger',
+    label: 'Kommende hentinger',
     emptyLabel: 'Ingen hentinger planlagt',
   },
   {
