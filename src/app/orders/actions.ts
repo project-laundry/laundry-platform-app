@@ -1,13 +1,15 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { createSubscription, getActiveSubscriptionByCustomerId, getSubscriptionById } from "@/lib/database/subscriptions";
+import { createSubscription, getActiveSubscriptionByCustomerId, getSubscriptionById, getSubscriptionByAgreementId } from "@/lib/database/subscriptions";
 import { getCustomerByUserId } from "@/lib/database/customers";
 import {
   findAvailableCleaner,
   getAvailableWeekdaysForCity,
 } from "@/lib/database/cleaners";
 import { createVippsAgreement } from "@/lib/payments/vipps/service";
+import { isVippsTestEnvironment } from "@/lib/payments/vipps/config";
+import { createVippsRecurringClient } from "@/lib/payments/vipps/recurring-client";
 import { getWeekdayFromDate } from "@/lib/utils/date";
 import { translateFrequency } from "@/lib/utils/i18n";
 import { getOrderWithDetailsByIdAndCustomerId, updateOrderStatus } from "@/lib/database/orders";
@@ -38,6 +40,7 @@ export interface CreateSubscriptionInput {
 
 export interface CreateSubscriptionResult {
   redirectUrl?: string;
+  agreementId?: string;
   error?: string;
   displayError?: string;
 }
@@ -130,7 +133,113 @@ export async function createSubscriptionAction(
 
   return {
     redirectUrl: agreementResponse.vippsConfirmationUrl,
+    agreementId: agreementResponse.agreementId,
   };
+}
+
+/**
+ * Force accept a Vipps agreement (TEST ENVIRONMENT ONLY)
+ * Bypasses manual approval in Vipps app for testing purposes
+ *
+ * Flow:
+ * 1. Validates test environment
+ * 2. Gets user phone number from auth metadata
+ * 3. Calls Vipps forceAcceptAgreement API
+ * 4. Polls subscription status until webhook activates it
+ * 5. Returns success or error
+ *
+ * @param agreementId - The Vipps agreement ID to force accept
+ * @returns { success: boolean, error?: string }
+ */
+export async function forceAcceptAgreementAction(
+  agreementId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // 1. Validate test environment
+    if (!isVippsTestEnvironment()) {
+      return {
+        success: false,
+        error: 'Auto-godkjenning er kun tilgjengelig i testmiljø',
+      };
+    }
+
+    // 2. Get authenticated user and phone number
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return {
+        success: false,
+        error: 'Ikke autentisert',
+      };
+    }
+
+    const phoneNumber = user.user_metadata?.phone;
+    if (!phoneNumber) {
+      return {
+        success: false,
+        error: 'Telefonnummer mangler. Vennligst oppdater profilen din.',
+      };
+    }
+
+    // Format phone number: Remove +47 prefix (Vipps expects format: 4712345678)
+    const formattedPhone = phoneNumber.replace(/^\+/, '');
+
+    // 3. Get subscription to verify ownership
+    const subscription = await getSubscriptionByAgreementId(agreementId);
+    if (!subscription) {
+      return {
+        success: false,
+        error: 'Abonnement ikke funnet',
+      };
+    }
+
+    // Verify customer ownership
+    const customer = await getCustomerByUserId(user.id);
+    if (!customer || customer.id !== subscription.customer_id) {
+      return {
+        success: false,
+        error: 'Ikke autorisert',
+      };
+    }
+
+    // 4. Call Vipps forceAcceptAgreement API
+    const vippsClient = createVippsRecurringClient();
+    await vippsClient.forceAcceptAgreement(agreementId, formattedPhone);
+
+    // 5. Poll subscription status until active (max 30 seconds)
+    const maxAttempts = 30;
+    const delayMs = 1000; // 1 second between attempts
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      // Wait before checking (except first attempt)
+      if (attempt > 0) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+
+      // Check subscription status
+      const updatedSubscription = await getSubscriptionByAgreementId(agreementId);
+      if (updatedSubscription?.status === 'active') {
+        return {
+          success: true,
+        };
+      }
+    }
+
+    // Timeout - webhook didn't activate subscription in time
+    return {
+      success: false,
+      error: 'Avtalen ble godkjent, men aktivering tok for lang tid. Sjekk abonnementsstatus i dashboard.',
+    };
+  } catch (error) {
+    console.error('Force accept agreement failed:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'En feil oppstod',
+    };
+  }
 }
 
 /**

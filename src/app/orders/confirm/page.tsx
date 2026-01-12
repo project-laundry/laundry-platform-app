@@ -6,13 +6,14 @@ import { useRouter } from 'next/navigation';
 import { Check, ChevronLeft } from 'lucide-react';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { OrderFlowProgress } from '@/components/ui/OrderFlowProgress';
-import { createSubscriptionAction } from '../actions';
+import { createSubscriptionAction, forceAcceptAgreementAction } from '../actions';
 
 function ConfirmPageContent() {
   const router = useRouter();
   const orderData = useOrderFlowStore((state) => state.orderData);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [autoAccept, setAutoAccept] = useState(false);
 
   // Redirect if required data not present
   useEffect(() => {
@@ -95,8 +96,21 @@ function ConfirmPageContent() {
         throw new Error(result.error || 'Failed to create subscription');
       }
 
-      // Redirect to Vipps agreement approval
-      window.location.href = result.redirectUrl!;
+      // Check if auto-accept is enabled
+      if (autoAccept && result.agreementId) {
+        // Auto-accept flow
+        const acceptResult = await forceAcceptAgreementAction(result.agreementId);
+
+        if (acceptResult.success) {
+          router.push('/orders/success');
+        } else {
+          alert(acceptResult.error || 'Auto-godkjenning feilet');
+          setIsSubmitting(false);
+        }
+      } else {
+        // Normal Vipps redirect flow
+        window.location.href = result.redirectUrl!;
+      }
     } catch (error) {
       console.error('Order creation failed:', error);
       alert('Det oppstod en feil. Vennligst prøv igjen.');
@@ -252,6 +266,20 @@ function ConfirmPageContent() {
             Du vil bli videresendt til Vipps for å godkjenne avtalen
           </p>
 
+          {/* Auto-accept checkbox (test environment only) */}
+          <div className="mb-4 flex items-center gap-2 justify-center">
+            <input
+              type="checkbox"
+              id="autoAccept"
+              checked={autoAccept}
+              onChange={(e) => setAutoAccept(e.target.checked)}
+              className="w-4 h-4 text-teal-600 bg-slate-100 border-slate-300 rounded focus:ring-teal-500 focus:ring-2"
+            />
+            <label htmlFor="autoAccept" className="text-sm text-slate-600 cursor-pointer">
+              Auto-godkjenn avtale (testmiljø)
+            </label>
+          </div>
+
           <button
             type="submit"
             disabled={isSubmitting}
@@ -283,7 +311,7 @@ function ConfirmPageContent() {
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   ></path>
                 </svg>
-                Behandler bestilling...
+                {autoAccept ? 'Auto-godkjenner avtale...' : 'Behandler bestilling...'}
               </>
             ) : (
               <>
