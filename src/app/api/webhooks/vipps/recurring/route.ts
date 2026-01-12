@@ -39,6 +39,7 @@ import {
 import { getCustomerById } from '@/lib/database/customers';
 import { createOrder } from '@/lib/database/orders';
 import { addDays, toISODateString, addMonths, getWeekdayFromDate, getNextOccurrenceOfWeekday } from '@/lib/utils/date';
+import { DAYS_PICKUP_TO_DELIVERY } from '@/lib/config/order-timing';
 import type { OrderStatus, SubscriptionStatus } from '@/types/database';
 
 
@@ -505,7 +506,7 @@ async function handleAgreementActivated(
       console.log(`[Vipps Recurring Webhook] Stored date passed, using next ${weekday}: ${toISODateString(pickupDate)}`);
     }
 
-    const deliveryDate = addDays(pickupDate, 3); // Delivery 3 days after pickup
+    const deliveryDate = addDays(pickupDate, DAYS_PICKUP_TO_DELIVERY);
 
     console.log(`[Vipps Recurring Webhook] Generating first order for subscription ${activatedSubscription.id}`);
 

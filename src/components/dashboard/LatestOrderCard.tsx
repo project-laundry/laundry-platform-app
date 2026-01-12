@@ -13,9 +13,7 @@ export function LatestOrderCard({ order }: LatestOrderCardProps) {
   return (
     <Card>
       <CardContent className="p-8">
-        <h3 className="text-2xl font-semibold text-dark-gray mb-2">Siste ordre</h3>
-        <p className="text-medium-gray mb-6">Din nyeste bestilling</p>
-
+        <h3 className="text-2xl font-semibold text-dark-gray mb-2">Ordrehistorikk</h3>        
         <Link href={`/orders/details/${order.id}`}>
           <div className="flex items-center justify-between p-4 rounded-lg border border-gray-200 hover:border-nordic-blue hover:bg-blue-50/30 transition-all cursor-pointer">
             <div className="flex items-center gap-4">

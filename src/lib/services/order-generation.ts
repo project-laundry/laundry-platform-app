@@ -5,6 +5,7 @@ import type {
   SubscriptionOrderDefaults,
 } from '@/types/database';
 import { getNextOccurrenceOfWeekday, addDays, toISODateString, getWeekdayFromDate } from '@/lib/utils/date';
+import { DAYS_PICKUP_TO_DELIVERY } from '@/lib/config/order-timing';
 
 /**
  * Check if subscription needs new orders generated and create them
@@ -113,7 +114,7 @@ export async function checkAndGenerateNextOrders(subscriptionId: string): Promis
     cleaner_id: defaultCleanerId,
     status: defaultCleanerId ? 'pickup_scheduled' : 'pending_assignment',
     scheduled_date: toISODateString(nextDate),
-    delivery_date: toISODateString(addDays(nextDate, 3)),
+    delivery_date: toISODateString(addDays(nextDate, DAYS_PICKUP_TO_DELIVERY)),
     needs_ironing: needsIroning,
     total_cost_ore: null, // Cleaner sets price    
     // Address from order defaults
