@@ -5,10 +5,8 @@ import { getCustomerByUserId } from '@/lib/database/customers';
 import { getActiveSubscriptionByCustomerId } from '@/lib/database/subscriptions';
 import { getUpcomingOrdersByCustomerId, getCompletedOrdersByCustomerId } from '@/lib/database/orders';
 import { LogoutButton } from '@/components/ui/LogoutButton';
-import { SubscriptionOverviewCard } from '@/components/dashboard/SubscriptionOverviewCard';
-import { LatestOrderCard } from '@/components/dashboard/LatestOrderCard';
+import { DashboardTabs } from '@/components/dashboard/DashboardTabs';
 import { EmptySubscriptionState } from '@/components/dashboard/EmptySubscriptionState';
-import { OrderHistorySection } from '@/components/dashboard/OrderHistorySection';
 
 export default async function DashboardPage() {
   // Auth check
@@ -61,40 +59,12 @@ export default async function DashboardPage() {
           <p className="text-medium-gray">Her kan du se ditt abonnement og alle dine ordrer.</p>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-2 mb-8">
-          <button className="px-4 py-2 rounded-lg bg-[hsl(var(--nordic-blue))] text-white font-medium">
-            Oversikt
-          </button>
-          <button className="px-4 py-2 rounded-lg bg-white border border-gray-200 text-medium-gray font-medium hover:border-nordic-blue transition-colors">
-            Ordrehistorikk
-          </button>
-        </div>
-
         {subscription ? (
-          <>
-            {/* Subscription Overview */}
-            <div className="mb-8">
-              <SubscriptionOverviewCard
-                subscription={subscription}
-                nextOrder={nextOrder}
-              />
-            </div>
-
-            {/* Latest Order */}
-            {nextOrder && (
-              <div className="mb-8">
-                <LatestOrderCard order={nextOrder} />
-              </div>
-            )}
-
-            {/* Order History (hidden by default, shown on tab click) */}
-            {completedOrders.length > 0 && (
-              <div className="hidden">
-                <OrderHistorySection orders={completedOrders} />
-              </div>
-            )}
-          </>
+          <DashboardTabs
+            subscription={subscription}
+            nextOrder={nextOrder}
+            completedOrders={completedOrders}
+          />
         ) : (
           <EmptySubscriptionState />
         )}
