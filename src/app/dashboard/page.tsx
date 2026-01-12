@@ -6,7 +6,6 @@ import { getActiveSubscriptionByCustomerId } from '@/lib/database/subscriptions'
 import { getUpcomingOrdersByCustomerId, getCompletedOrdersByCustomerId } from '@/lib/database/orders';
 import { LogoutButton } from '@/components/ui/LogoutButton';
 import { SubscriptionOverviewCard } from '@/components/dashboard/SubscriptionOverviewCard';
-import { QuickActionsCard } from '@/components/dashboard/QuickActionsCard';
 import { LatestOrderCard } from '@/components/dashboard/LatestOrderCard';
 import { EmptySubscriptionState } from '@/components/dashboard/EmptySubscriptionState';
 import { OrderHistorySection } from '@/components/dashboard/OrderHistorySection';
@@ -74,18 +73,11 @@ export default async function DashboardPage() {
 
         {subscription ? (
           <>
-            {/* Two Column Layout */}
-            <div className="grid lg:grid-cols-[1fr_400px] gap-6 mb-8">
-              {/* Left: Subscription Overview */}
+            {/* Subscription Overview */}
+            <div className="mb-8">
               <SubscriptionOverviewCard
                 subscription={subscription}
                 nextOrder={nextOrder}
-              />
-
-              {/* Right: Quick Actions */}
-              <QuickActionsCard
-                subscriptionId={subscription.id}
-                subscriptionStatus={subscription.status}
               />
             </div>
 

@@ -212,34 +212,6 @@ export async function failPaymentWithMetadata(
   return data;
 }
 
-/**
- * Cancel all pending/authorized payments for a subscription
- * Used when subscription is cancelled or expired
- */
-export async function cancelPendingPaymentsForSubscription(
-  subscriptionId: string,
-  reason?: string
-): Promise<number> {
-  const supabase = await createAdminClient();
-
-  const { data, error } = await supabase
-    .from('payments')
-    .update({
-      status: 'cancelled' as PaymentStatus,      
-      failure_reason: reason || 'Subscription cancelled',
-    })
-    .eq('subscription_id', subscriptionId)
-    .in('status', ['pending', 'authorized'])
-    .select('id');
-
-  if (error) {
-    console.error('Error cancelling pending payments:', error);
-    return 0;
-  }
-
-  return data?.length || 0;
-}
-
 // =============================================================================
 // EPAYMENT QUERIES
 // =============================================================================

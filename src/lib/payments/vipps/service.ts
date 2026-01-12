@@ -125,18 +125,13 @@ export async function captureVippsCharge(
 /**
  * Cancel subscription's Vipps agreement
  *
- * @param subscriptionId - Subscription ID to cancel agreement for
+ * @param providerAgreementId - Vipps provider agreement ID
  */
 export async function cancelVippsAgreement(
-  subscriptionId: string,
-): Promise<void> {
-  const subscription = await getSubscriptionById(subscriptionId);
-  if (!subscription || !subscription.provider_agreement_id) {
-    throw new Error("Subscription or Vipps agreement not found");
-  }
-
+  providerAgreementId: string,
+): Promise<void> {  
   const vipps = createVippsRecurringClient();
-  await vipps.stopAgreement(subscription.provider_agreement_id);
+  await vipps.stopAgreement(providerAgreementId);
 }
 
 // =============================================================================

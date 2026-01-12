@@ -2,3 +2,4 @@
 - Simplify henteinstruksjone
 - consider removing Entities.md since we have types
 - Order status not properly cancelled after subscription is cancelled. Check this out
+- Cancel whole subscription and not only per order

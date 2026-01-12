@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { getOrderStatusLabel, getOrderStatusVariant } from '@/lib/utils/order-status';
 import { oreToNok } from '@/lib/config/pricing';
+import { CancelOrderButton } from '@/components/orders/CancelOrderButton';
 import type { OrderStatus } from '@/types/database';
 
 interface OrderPageProps {
@@ -248,6 +249,16 @@ export default async function OrderDetailPage({ params }: OrderPageProps) {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Cancel Order Button */}
+            {(order.status === 'pending_assignment' || order.status === 'pickup_scheduled') && (
+              <CancelOrderButton
+                orderId={order.id}
+                orderNumber={order.order_number}
+                orderStatus={order.status}
+                subscriptionId={order.subscription_id}
+              />
+            )}
 
             {/* Special Instructions */}
             {order.special_instructions && (
