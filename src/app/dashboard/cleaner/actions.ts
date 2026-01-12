@@ -64,6 +64,26 @@ export async function updateCleanerOrderStatus(
     return result;
   }
 
+  // Check if cleaner is trying to pick up before the scheduled date
+  if (status === 'picked_up') {
+    const existingOrder = await getOrderById(orderId);
+    if (!existingOrder) {
+      return { success: false, error: 'Ordre ikke funnet' };
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const scheduledDate = new Date(existingOrder.scheduled_date);
+    scheduledDate.setHours(0, 0, 0, 0);
+
+    if (today < scheduledDate) {
+      return {
+        success: false,
+        error: 'Du kan ikke hente før planlagt hentedato',
+      };
+    }
+  }
+
   const order = await updateOrderStatus(orderId, status);
 
   if (!order) {
