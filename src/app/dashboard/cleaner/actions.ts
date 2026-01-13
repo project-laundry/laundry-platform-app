@@ -114,9 +114,6 @@ export async function updateCleanerOrderStatus(
     const scheduledDate = new Date(existingOrder.scheduled_date);
     scheduledDate.setHours(0, 0, 0, 0);
 
-    console.log('Today:', today);
-    console.log('Scheduled Date:', scheduledDate);
-
     if (today < scheduledDate) {
       return {
         success: false,
