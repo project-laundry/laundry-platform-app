@@ -1,7 +1,7 @@
 // Order database operations
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import type { Order, OrderStatus, OrderWithRelations, Customer, User, Subscription } from '@/types/database';
+import type { Order, OrderStatus, OrderWithRelations, Customer, User, Subscription, OrderIroningDetails } from '@/types/database';
 
 /**
  * Order with customer and subscription details for cleaner dashboard
@@ -407,4 +407,130 @@ export async function declineOrder(
   }
 
   return data;
+}
+
+/**
+ * Data for updating laundry details
+ */
+export interface UpdateLaundryDetailsData {
+  dark_loads: number;
+  white_loads: number;
+  ironing_details: OrderIroningDetails | null;
+  total_cost_ore: number;
+  pricing_notes?: string;
+}
+
+/**
+ * Update order with laundry details and calculated price
+ * Called by cleaner after registering loads and ironing items
+ */
+export async function updateOrderLaundryDetails(
+  orderId: string,
+  cleanerId: string,
+  data: UpdateLaundryDetailsData
+): Promise<{ data: Order | null; error: string | null }> {
+  const supabase = await createAdminClient();
+
+  // First verify the cleaner owns this order and it's not completed
+  const { data: order, error: fetchError } = await supabase
+    .from('orders')
+    .select('cleaner_id, status')
+    .eq('id', orderId)
+    .single();
+
+  if (fetchError || !order) {
+    return { data: null, error: 'Order not found' };
+  }
+
+  if (order.cleaner_id !== cleanerId) {
+    return { data: null, error: 'Not authorized to update this order' };
+  }
+
+  if (order.status === 'completed' || order.status === 'cancelled') {
+    return { data: null, error: 'Cannot update a completed or cancelled order' };
+  }
+
+  const { data: updatedOrder, error } = await supabase
+    .from('orders')
+    .update({
+      dark_loads: data.dark_loads,
+      white_loads: data.white_loads,
+      ironing_details: data.ironing_details,
+      total_cost_ore: data.total_cost_ore,
+      pricing_notes: data.pricing_notes || null,
+      price_calculated_at: new Date().toISOString(),
+    })
+    .eq('id', orderId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating order laundry details:', error);
+    return { data: null, error: error.message };
+  }
+
+  return { data: updatedOrder, error: null };
+}
+
+/**
+ * Get completed/cancelled orders for a cleaner (history)
+ * Returns orders ordered by completion date, most recent first
+ */
+export async function getCompletedOrdersByCleanerId(
+  cleanerId: string
+): Promise<OrderWithCustomer[]> {
+  const supabase = await createAdminClient();
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select(`
+      *,
+      customer:customers!customer_id(
+        *,
+        user:users!user_id(*)
+      ),
+      subscription:subscriptions(frequency)
+    `)
+    .eq('cleaner_id', cleanerId)
+    .in('status', ['completed', 'cancelled'])
+    .order('completed_at', { ascending: false, nullsFirst: false });
+
+  if (error) {
+    console.error('Error fetching cleaner order history:', error);
+    return [];
+  }
+
+  return data as OrderWithCustomer[];
+}
+
+/**
+ * Get a single order with full details for a cleaner
+ * Returns null if order doesn't exist or doesn't belong to cleaner
+ */
+export async function getOrderByIdAndCleanerId(
+  orderId: string,
+  cleanerId: string
+): Promise<OrderWithCustomer | null> {
+  const supabase = await createAdminClient();
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select(`
+      *,
+      customer:customers!customer_id(
+        *,
+        user:users!user_id(*)
+      ),
+      subscription:subscriptions(frequency)
+    `)
+    .eq('id', orderId)
+    .eq('cleaner_id', cleanerId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching order for cleaner:', error);
+    return null;
+  }
+
+  return data as OrderWithCustomer;
 }

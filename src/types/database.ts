@@ -152,6 +152,19 @@ export interface SubscriptionOrderDefaults {
   [key: string]: unknown; // Allow additional fields from Vipps metadata
 }
 
+/**
+ * Ironing quantities per category (stored in orders.ironing_details JSONB)
+ */
+export interface OrderIroningDetails {
+  kids_pillow: number;
+  tshirts_shorts: number;
+  business_shirts: number;
+  single_bedding: number;
+  complex_dresses: number;
+  double_bedding: number;
+  king_bedding: number;
+}
+
 export interface Order {
   id: string;
   order_number: string;
@@ -172,6 +185,10 @@ export interface Order {
   special_instructions: string | null;
   // Service preferences
   needs_ironing: boolean;
+  // Laundry details (cleaner input)
+  dark_loads: number;
+  white_loads: number;
+  ironing_details: OrderIroningDetails | null;
   // Pricing (calculated by cleaner)
   actual_weight_kg: number | null;
   pricing_notes: string | null;

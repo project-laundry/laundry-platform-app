@@ -3,9 +3,9 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { getCleanerByUserId } from '@/lib/database/cleaners';
 import { getUsersById } from '@/lib/database/users';
-import { getOrdersByCleanerId } from '@/lib/database/orders';
+import { getOrdersByCleanerId, getCompletedOrdersByCleanerId } from '@/lib/database/orders';
 import { LogoutButton } from '@/components/ui/LogoutButton';
-import { CleanerOrderList } from './components/CleanerOrderList';
+import { CleanerDashboardTabs } from './components/CleanerDashboardTabs';
 
 export default async function CleanerDashboardPage() {
   // Auth check
@@ -38,7 +38,8 @@ export default async function CleanerDashboardPage() {
   const isSuspended = cleaner.verification_status === 'suspended';
 
   // Get orders for approved cleaners
-  const orders = isApproved ? await getOrdersByCleanerId(cleaner.id) : [];
+  const activeOrders = isApproved ? await getOrdersByCleanerId(cleaner.id) : [];
+  const historyOrders = isApproved ? await getCompletedOrdersByCleanerId(cleaner.id) : [];
 
   return (
     <div className="min-h-screen bg-soft-gray">
@@ -63,7 +64,7 @@ export default async function CleanerDashboardPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-dark-gray mb-2">
             Hei, {firstName}!
-          </h1>          
+          </h1>
         </div>
 
         {/* Status-based content */}
@@ -71,10 +72,10 @@ export default async function CleanerDashboardPage() {
           <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-8 text-center">
             <div className="text-4xl mb-4">&#8987;</div>
             <h2 className="text-xl font-semibold text-yellow-800 mb-2">
-              Profilen din venter på godkjenning
+              Profilen din venter pa godkjenning
             </h2>
             <p className="text-yellow-700">
-              Vi gjennomgår søknaden din og gir deg beskjed via e-post når den er behandlet.
+              Vi gjennomgar soknaden din og gir deg beskjed via e-post nar den er behandlet.
               Dette tar vanligvis 1-2 virkedager.
             </p>
           </div>
@@ -84,10 +85,10 @@ export default async function CleanerDashboardPage() {
           <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
             <div className="text-4xl mb-4">&#10060;</div>
             <h2 className="text-xl font-semibold text-red-800 mb-2">
-              Søknaden din ble avvist
+              Soknaden din ble avvist
             </h2>
             <p className="text-red-700">
-              Dessverre ble søknaden din ikke godkjent. Ta kontakt med oss for mer informasjon.
+              Dessverre ble soknaden din ikke godkjent. Ta kontakt med oss for mer informasjon.
             </p>
           </div>
         )}
@@ -105,10 +106,10 @@ export default async function CleanerDashboardPage() {
         )}
 
         {isApproved && (
-          <div className="bg-white rounded-2xl shadow-sm p-6">
-            <h2 className="text-xl font-semibold text-dark-gray mb-6">Dine oppdrag</h2>
-            <CleanerOrderList orders={orders} />
-          </div>
+          <CleanerDashboardTabs
+            activeOrders={activeOrders}
+            historyOrders={historyOrders}
+          />
         )}
       </main>
     </div>
