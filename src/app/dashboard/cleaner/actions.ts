@@ -158,11 +158,11 @@ export async function saveLaundryDetails(
 
   // Validate loads
   if (details.dark_loads < 0 || details.white_loads < 0) {
-    return { success: false, error: 'Antall lass kan ikke være negativt' };
+    return { success: false, error: 'Antall vask kan ikke være negativt' };
   }
 
   if (details.dark_loads === 0 && details.white_loads === 0) {
-    return { success: false, error: 'Du må registrere minst ett lass' };
+    return { success: false, error: 'Du må registrere minst ett vask' };
   }
 
   // Calculate price

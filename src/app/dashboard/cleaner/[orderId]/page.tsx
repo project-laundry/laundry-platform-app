@@ -113,7 +113,7 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
 
       {/* Main Content */}
       <main className="max-w-3xl mx-auto px-4 py-6 space-y-6">
-        {/* Order Info (Read-only) */}
+        {/* Customer & Delivery Info */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Ordreinformasjon</CardTitle>
@@ -153,17 +153,17 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
                 </div>
               )}
             </div>
+          </CardContent>
+        </Card>
 
-            {/* Special instructions */}
-            {order.special_instructions && (
-              <div>
-                <div className="text-sm text-medium-gray">Spesielle instruksjoner</div>
-                <div className="text-dark-gray">{order.special_instructions}</div>
-              </div>
-            )}
-
-            {/* Ironing badge */}
-            <div className="flex items-center gap-2 pt-2">
+        {/* Washing Instructions */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Vaskeinstruksjoner</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Ironing and Frequency badges */}
+            <div className="flex items-center gap-2">
               {order.needs_ironing ? (
                 <Badge variant="info">Stryking inkludert</Badge>
               ) : (
@@ -173,10 +173,20 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
                 <Badge variant="neutral">
                   {order.subscription.frequency === 'weekly' && 'Ukentlig'}
                   {order.subscription.frequency === 'biweekly' && 'Annenhver uke'}
-                  {order.subscription.frequency === 'monthly' && 'Manedlig'}
+                  {order.subscription.frequency === 'monthly' && 'Månedlig'}
                 </Badge>
               )}
             </div>
+
+            {/* Special instructions */}
+            {order.special_instructions ? (
+              <div>
+                <div className="text-sm text-medium-gray">Spesielle instruksjoner</div>
+                <div className="text-dark-gray">{order.special_instructions}</div>
+              </div>
+            ) : (
+              <div className="text-sm text-medium-gray">Ingen spesielle instruksjoner</div>
+            )}
           </CardContent>
         </Card>
 

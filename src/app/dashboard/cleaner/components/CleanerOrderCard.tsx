@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatNok } from '@/lib/config/pricing';
+import { isToday } from '@/lib/utils/date';
 import type { OrderWithCustomer } from '../actions';
 import type { OrderStatus } from '@/types/database';
 
@@ -30,10 +31,20 @@ const STATUS_CONFIG: Record<
 export function CleanerOrderCard({ order }: CleanerOrderCardProps) {
   const statusConfig = STATUS_CONFIG[order.status];
   const hasPrice = order.total_cost_ore !== null;
+  const needsPickupToday = isToday(order.scheduled_date) && order.status === 'pickup_scheduled';
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className={`hover:shadow-md transition-shadow ${needsPickupToday ? 'border-2 border-orange-500 bg-orange-50' : ''}`}>
       <CardContent className="pt-4">
+        {/* Urgent pickup badge */}
+        {needsPickupToday && (
+          <div className="mb-3">
+            <Badge variant="destructive" className="bg-orange-500 hover:bg-orange-600">
+              Hentes i dag!
+            </Badge>
+          </div>
+        )}
+
         {/* Header row */}
         <div className="flex items-start justify-between mb-3">
           <div>
