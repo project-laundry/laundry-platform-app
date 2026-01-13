@@ -38,7 +38,9 @@ export default function SchedulePage() {
 
   // Redirect if location not selected (only after hydration)
   useEffect(() => {
+    console.log('[Schedule] Hydration check:', { hasHydrated, orderData, location: orderData?.location });
     if (hasHydrated && !orderData?.location) {
+      console.log('[Schedule] Redirecting - no location after hydration');
       router.push('/orders/location-service');
     }
   }, [hasHydrated, orderData, router]);
