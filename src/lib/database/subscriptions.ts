@@ -188,8 +188,7 @@ export async function updateSubscription(
  *
  * Actions performed:
  * 1. Cancels all pending/upcoming orders
- * 2. Cancels all pending/authorized payments (imported from payments.ts to avoid circular dependency)
- * 3. Updates subscription status to 'cancelled'
+ * 2. Updates subscription status to 'cancelled'
  *
  * @param subscriptionId - The subscription ID to cancel
  * @param cancelledAt - Optional timestamp (defaults to now, used by webhooks for accurate timing)
@@ -203,7 +202,14 @@ export async function cancelSubscription(
   const supabase = createAdminClient();
 
   console.log(`[cancelSubscription] Cancelling subscription ${subscriptionId}${reason ? ` - Reason: ${reason}` : ''}`);
-  
+
+  // Import here to avoid circular dependency
+  const { cancelOrdersBySubscriptionId } = await import('./orders');
+
+  // Cancel all pending/upcoming orders
+  await cancelOrdersBySubscriptionId(subscriptionId);
+
+  // Update subscription status
   const { data, error } = await supabase
     .from('subscriptions')
     .update({
@@ -231,8 +237,7 @@ export async function cancelSubscription(
  *
  * Actions performed:
  * 1. Cancels all pending/upcoming orders
- * 2. Cancels all pending/authorized payments
- * 3. Updates subscription status to 'expired'
+ * 2. Updates subscription status to 'expired'
  *
  * @param subscriptionId - The subscription ID to expire
  */
@@ -242,7 +247,14 @@ export async function expireSubscription(
   const supabase = createAdminClient();
 
   console.log(`[expireSubscription] Expiring subscription ${subscriptionId}`);
-  
+
+  // Import here to avoid circular dependency
+  const { cancelOrdersBySubscriptionId } = await import('./orders');
+
+  // Cancel all pending/upcoming orders
+  await cancelOrdersBySubscriptionId(subscriptionId);
+
+  // Update subscription status
   const { data, error } = await supabase
     .from('subscriptions')
     .update({

@@ -534,3 +534,40 @@ export async function getOrderByIdAndCleanerId(
 
   return data as OrderWithCustomer;
 }
+
+/**
+ * Cancel all pending/upcoming orders for a subscription
+ *
+ * Called when a subscription is cancelled or expired to prevent future orders.
+ * Only cancels orders that haven't been completed yet.
+ *
+ * @param subscriptionId - The subscription ID
+ * @returns Number of orders cancelled
+ */
+export async function cancelOrdersBySubscriptionId(
+  subscriptionId: string
+): Promise<number> {
+  const supabase = await createAdminClient();
+
+  console.log(`[cancelOrdersBySubscriptionId] Cancelling orders for subscription ${subscriptionId}`);
+
+  // Cancel all non-completed/non-cancelled orders
+  const { data, error } = await supabase
+    .from('orders')
+    .update({
+      status: 'cancelled' as OrderStatus,
+      cancelled_at: new Date().toISOString(),
+    })
+    .eq('subscription_id', subscriptionId)
+    .not('status', 'in', '(completed,cancelled)')
+    .select('id');
+
+  if (error) {
+    console.error('[cancelOrdersBySubscriptionId] Error cancelling orders:', error);
+    return 0;
+  }
+
+  const count = data?.length || 0;
+  console.log(`[cancelOrdersBySubscriptionId] Cancelled ${count} orders`);
+  return count;
+}
