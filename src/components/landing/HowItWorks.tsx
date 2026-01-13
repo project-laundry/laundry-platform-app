@@ -96,7 +96,7 @@ export function HowItWorks() {
         {/* CTA Button */}
         <div className="flex justify-center mt-12 md:mt-16">
           <Link
-            href="/orders/services"
+            href="/dashboard"
             className="inline-flex items-center justify-center px-8 py-4 bg-linear-to-r from-primary to-sea-green text-primary-foreground font-medium rounded-full shadow-soft hover:shadow-glow transition-all duration-300 hover:-translate-y-0.5"
           >
             Bestill nå
