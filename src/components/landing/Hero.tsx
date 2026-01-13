@@ -40,7 +40,7 @@ export function Hero() {
               <div className="flex flex-col gap-4 animate-fade-in opacity-0" style={{ animationDelay: "0.6s" }}>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start items-center">
                   <div className="flex flex-col gap-2">
-                    <Link href="/auth/login">
+                    <Link href="/dashboard">
                       <Button variant="hero" size="xl">
                         Bestill klesvask
                         <ArrowRight className="w-5 h-5" />

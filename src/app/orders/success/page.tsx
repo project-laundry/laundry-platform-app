@@ -41,7 +41,7 @@ function OrderSuccessPageContent() {
             Din avtale er opprettet!
           </h1>
           <p className="text-xl text-medium-gray mb-8">
-            Abonnementet ditt er nå aktivt. Renseren henter tøyet ditt på avtalt dato.
+            Abonnementet er aktivt. Vi henter tøyet ditt på avtalt dato.
           </p>
 
           {subscriptionId && (
@@ -65,15 +65,15 @@ function OrderSuccessPageContent() {
             <ul className="space-y-2 text-sm text-medium-gray">
               <li className="flex items-start">
                 <span className="text-nordic-blue mr-2 mt-0.5">1.</span>
-                Gjør klar vasken din. Bruk NooraCare-poser hvis du har fått de, eller bruk egne poser.
+                Gjør klar vasken: Bruk NooraCare-posene du har fått utdelt. Har du ikke mottatt poser ennå, går det fint å bruke egne poser inntil videre.
               </li>
               <li className="flex items-start">
                 <span className="text-nordic-blue mr-2 mt-0.5">2.</span>
-                Renseren henter tøyet ditt på den datoen du har valgt.
+                Henting: Vi kommer innom og henter tøyet på datoen du har valgt.
               </li>
               <li className="flex items-start">
                 <span className="text-nordic-blue mr-2 mt-0.5">3.</span>
-                Du blir automatisk belastet basert på mengde og valgt tjeneste.
+                Levering og betaling: Når klærne leveres ferdig renset tilbake, belastes du automatisk via Vipps.
               </li>
             </ul>
           </div>
@@ -83,10 +83,16 @@ function OrderSuccessPageContent() {
             <div className="flex items-start">
               <div className="text-blue-600 mr-3 mt-0.5">💰</div>
               <div className="text-left">
-                <h3 className="font-semibold text-blue-900 mb-2">Viktig om pris</h3>
-                <p className="text-sm text-blue-800">
-                  Prisen beregnes basert på faktisk vekt og valgt tjeneste. Du belastes automatisk via Vipps etter hver henting.
+                <h3 className="font-semibold text-blue-900 mb-2">Betaling og pris</h3>
+                <p className="text-sm text-blue-800 mb-3">
+                  Prisen baseres på valgt tjeneste og tøyets vekt, som vi veier ved henting. Du belastes automatisk via Vipps først når klærne dine er levert ferdig renset tilbake til deg.
                 </p>
+                <Link
+                  href="/pris-kalkulator"
+                  className="text-sm text-blue-700 hover:text-blue-900 hover:underline font-medium"
+                >
+                  Se prisliste og kalkulator →
+                </Link>
               </div>
             </div>
           </div>          
