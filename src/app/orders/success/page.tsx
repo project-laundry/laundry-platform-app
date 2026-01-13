@@ -87,12 +87,14 @@ function OrderSuccessPageContent() {
                 <p className="text-sm text-blue-800 mb-3">
                   Prisen baseres på valgt tjeneste og tøyets vekt, som vi veier ved henting. Du belastes automatisk via Vipps først når klærne dine er levert ferdig renset tilbake til deg.
                 </p>
-                <Link
+                <a
+                  target='_blank'
                   href="/pris-kalkulator"
-                  className="text-sm text-blue-700 hover:text-blue-900 hover:underline font-medium"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-700 hover:text-blue-900 hover:underline font-medium underline"
                 >
-                  Se prisliste og kalkulator →
-                </Link>
+                  Se prisliste og kalkulator
+                </a>
               </div>
             </div>
           </div>          

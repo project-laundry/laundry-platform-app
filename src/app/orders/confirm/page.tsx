@@ -47,7 +47,7 @@ function ConfirmPageContent() {
     const pickupDateFormatted = formatShortDate(firstPickupDate);
 
     if (!isRecurring) {
-      return `Engangshenting - ${pickupDateFormatted.charAt(0).toUpperCase() + pickupDateFormatted.slice(1)}`;
+      return `Engangsbestilling - ${pickupDateFormatted.charAt(0).toUpperCase() + pickupDateFormatted.slice(1)}`;
     }
 
     const dayOfWeek = firstPickupDate ? new Date(firstPickupDate).toLocaleDateString('no-NO', { weekday: 'long' }) : '';
@@ -188,7 +188,7 @@ function ConfirmPageContent() {
                     ) : (
                       <>
                         <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
-                        Engangshenting
+                        Engangsbestilling
                       </>
                     )}
                   </div>
@@ -267,12 +267,14 @@ function ConfirmPageContent() {
             Du vil bli videresendt til Vipps for å godkjenne avtalen
           </p>
           <p className="text-sm text-slate-500 mb-4 text-center">
-            <Link
+            <a
+              target='_blank'
+              rel="noopener noreferrer"
               href="/pris-kalkulator"
               className="text-teal-600 hover:underline"
             >
               Se prisliste
-            </Link>
+            </a>
           </p>
 
           {/* Auto-accept checkbox (test environment only) */}
