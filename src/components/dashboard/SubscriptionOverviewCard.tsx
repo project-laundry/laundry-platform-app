@@ -1,6 +1,6 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, MapPin, FileText, Clock } from 'lucide-react';
+import { Calendar, MapPin, FileText, Clock, Sparkles } from 'lucide-react';
 import {
   getSubscriptionStatusLabel,
   getSubscriptionStatusVariant,
@@ -67,7 +67,7 @@ export function SubscriptionOverviewCard({ subscription, nextOrder }: Subscripti
                   <div className="w-10 h-10 rounded-xl bg-[hsl(var(--nordic-blue))]/10 flex items-center justify-center group-hover:bg-[hsl(var(--nordic-blue))]/20 transition-colors">
                     <Calendar className="w-5 h-5 text-nordic-blue" />
                   </div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Hentedato</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Dato</p>
                 </div>
                 <p className="text-xl font-semibold text-foreground">
                   {getRelativeDateDisplay(nextOrder.scheduled_date)}
@@ -80,7 +80,7 @@ export function SubscriptionOverviewCard({ subscription, nextOrder }: Subscripti
                   <div className="w-10 h-10 rounded-xl bg-[hsl(var(--nordic-blue))]/10 flex items-center justify-center group-hover:bg-[hsl(var(--nordic-blue))]/20 transition-colors">
                     <Clock className="w-5 h-5 text-nordic-blue" />
                   </div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Hentetid</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Tidspunkt</p>
                 </div>
                 <p className="text-xl font-semibold text-foreground">
                   {pickupTimeRange}
@@ -94,7 +94,7 @@ export function SubscriptionOverviewCard({ subscription, nextOrder }: Subscripti
                     <div className="w-10 h-10 rounded-xl bg-[hsl(var(--nordic-blue))]/10 flex items-center justify-center group-hover:bg-[hsl(var(--nordic-blue))]/20 transition-colors">
                       <MapPin className="w-5 h-5 text-nordic-blue" />
                     </div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Henteadresse</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Adresse</p>
                   </div>
                   <p className="text-base font-semibold text-foreground">
                     {address.street}
