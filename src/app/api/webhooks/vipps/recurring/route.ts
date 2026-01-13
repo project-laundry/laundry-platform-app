@@ -34,7 +34,6 @@ import {
   capturePaymentWithMetadata,
   failPaymentWithMetadata,
   updatePaymentWithMetadata,
-  getPaymentForSubscription,
 } from '@/lib/database/payments';
 import { getCustomerById } from '@/lib/database/customers';
 import { createOrder } from '@/lib/database/orders';
@@ -383,17 +382,12 @@ async function handleChargeFailed(
 
   console.error(`[Vipps Recurring Webhook] Charge failed: ${chargeId} - ${failureReason} (code: ${failureCode})`);
 
-  // Find payment record
-  let payment = await getPaymentByReference(chargeId);
+  // Find payment record by charge ID
+  const payment = await getPaymentByReference(chargeId);
 
   if (!payment) {
-    // Try to find by subscription
-    payment = await getPaymentForSubscription(subscription.id);
-
-    if (!payment) {
-      console.error(`[Vipps Recurring Webhook] No payment found for failed charge ${chargeId}`);
-      return;
-    }
+    console.error(`[Vipps Recurring Webhook] Payment not found for failed charge ${chargeId}`);
+    return;
   }
 
   // Mark payment as failed

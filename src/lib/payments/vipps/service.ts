@@ -248,12 +248,9 @@ export async function createChargeForCompletedOrder(
   }
 
   // 3. Create payment record
-  // Note: Only set order_id (not subscription_id) because this is a one-time charge for a specific order
-  // The XOR constraint requires exactly one: order_id OR subscription_id, not both
   const payment = await createPayment({
     customer_id: subscription.customer_id,
     order_id: orderId,
-    subscription_id: null,
     payment_type: 'one_time',
     amount_ore: amountOre,
     payment_provider: 'vipps',

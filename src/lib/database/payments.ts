@@ -5,8 +5,7 @@ import type { Payment, PaymentStatus, PaymentType, PaymentProvider } from '@/typ
 
 export interface CreatePaymentData {
   customer_id: string;
-  order_id?: string | null;
-  subscription_id?: string | null;
+  order_id: string;
   payment_type: PaymentType;
   amount_ore: number;
   payment_provider?: PaymentProvider,
@@ -24,8 +23,7 @@ export async function createPayment(data: CreatePaymentData): Promise<Payment | 
     .from('payments')
     .insert({
       customer_id: data.customer_id,
-      order_id: data.order_id || null,
-      subscription_id: data.subscription_id || null,
+      order_id: data.order_id,
       payment_type: data.payment_type,
       amount_ore: data.amount_ore,
       status: 'pending' as PaymentStatus,
@@ -44,28 +42,6 @@ export async function createPayment(data: CreatePaymentData): Promise<Payment | 
   return payment;
 }
 
-/**
- * Get payment for a subscription
- */
-export async function getPaymentForSubscription(
-  subscriptionId: string
-): Promise<Payment | null> {
-  const supabase = await createAdminClient();
-
-  const { data, error } = await supabase
-    .from('payments')
-    .select('*')
-    .eq('subscription_id', subscriptionId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single();
-
-  if (error) {
-    return null;
-  }
-
-  return data;
-}
 
 // =============================================================================
 // VIPPS PAYMENT METADATA MANAGEMENT
