@@ -73,7 +73,7 @@ export function PriceSummary({
           <div className="mt-4 pt-4 border-t-2 border-nordic-blue/30 bg-nordic-blue/5 -mx-6 px-6 py-4 rounded-b-xl">
             <div className="flex justify-between items-center">
               <div>
-                <div className="text-sm text-medium-gray">Din utbetaling ({PRICING.cleaner_payout_percent}%)</div>
+                <div className="text-sm text-medium-gray">Din andel ({PRICING.cleaner_payout_percent}%)</div>
                 <div className="text-xs text-medium-gray/70">Etter plattformavgift</div>
               </div>
               <div className="text-xl font-bold text-nordic-blue">
