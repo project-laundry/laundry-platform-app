@@ -2,9 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { updateOrderSpecialInstructionsAction } from '@/app/orders/actions';
+import { MessageSquare, Pencil, Check, X } from 'lucide-react';
 
 interface EditableSpecialInstructionsProps {
   orderId: string;
@@ -54,56 +53,62 @@ export function EditableSpecialInstructions({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle>Spesielle instruksjoner</CardTitle>
-          {isEditable && !isEditing && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsEditing(true)}
-              className="text-nordic-blue hover:text-nordic-blue/80"
-            >
-              Rediger
-            </Button>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent>
-        {isEditing ? (
-          <div className="space-y-3">
-            <textarea
-              value={instructions}
-              onChange={(e) => setInstructions(e.target.value)}
-              disabled={isLoading}
-              placeholder="Legg til instruksjoner for henting..."
-              className="w-full min-h-[100px] p-3 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-nordic-blue focus:border-transparent disabled:bg-gray-100"
-            />
-            <div className="flex gap-2">
-              <Button
-                onClick={handleSave}
-                disabled={isLoading}
-                size="sm"
-              >
-                {isLoading ? 'Lagrer...' : 'Lagre'}
-              </Button>
-              <Button
-                onClick={handleCancel}
-                disabled={isLoading}
-                variant="outline"
-                size="sm"
-              >
-                Avbryt
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <p className="text-sm text-dark-gray">
-            {initialInstructions || 'Ingen instruksjoner lagt til'}
-          </p>
+    <div className="bg-white rounded-2xl shadow-lg shadow-[hsl(var(--nordic-blue)/4%)] border border-[hsl(var(--nordic-blue)/8%)] p-6">
+      <div className="flex items-center justify-between mb-5">
+        <h3 className="font-serif text-lg text-[hsl(var(--nordic-blue))]">
+          Spesielle instruksjoner
+        </h3>
+        {isEditable && !isEditing && (
+          <button
+            onClick={() => setIsEditing(true)}
+            className="flex items-center gap-1.5 text-sm text-[hsl(var(--nordic-blue)/70%)] hover:text-[hsl(var(--nordic-blue))] transition-colors"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            <span>Rediger</span>
+          </button>
         )}
-      </CardContent>
-    </Card>
+      </div>
+
+      {isEditing ? (
+        <div className="space-y-4">
+          <textarea
+            value={instructions}
+            onChange={(e) => setInstructions(e.target.value)}
+            disabled={isLoading}
+            placeholder="Legg til instruksjoner for henting..."
+            className="w-full min-h-[120px] p-4 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[hsl(var(--nordic-blue)/30%)] focus:border-transparent disabled:bg-gray-100 resize-none transition-all"
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={handleSave}
+              disabled={isLoading}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-[hsl(var(--nordic-blue))] to-[hsl(var(--sea-green))] rounded-lg hover:opacity-90 disabled:opacity-50 transition-all"
+            >
+              <Check className="w-4 h-4" />
+              {isLoading ? 'Lagrer...' : 'Lagre'}
+            </button>
+            <button
+              onClick={handleCancel}
+              disabled={isLoading}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-all"
+            >
+              <X className="w-4 h-4" />
+              Avbryt
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-start gap-4">
+          <div className="w-10 h-10 rounded-xl bg-[hsl(var(--nordic-blue)/8%)] flex items-center justify-center shrink-0">
+            <MessageSquare className="w-5 h-5 text-[hsl(var(--nordic-blue))]" />
+          </div>
+          <p className="text-gray-700 pt-2">
+            {initialInstructions || (
+              <span className="text-gray-400 italic">Ingen instruksjoner lagt til</span>
+            )}
+          </p>
+        </div>
+      )}
+    </div>
   );
 }

@@ -17,23 +17,23 @@ export function DashboardTabs({ subscription, nextOrder, completedOrders }: Dash
   return (
     <>
       {/* Tabs */}
-      <div className="flex gap-2 mb-8">
+      <div className="flex gap-3 mb-8 animate-fade-in opacity-0" style={{ animationDelay: '0.2s', animationFillMode: 'forwards' }}>
         <button
           onClick={() => setActiveTab('oversikt')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 ${
             activeTab === 'oversikt'
-              ? 'bg-[hsl(var(--nordic-blue))] text-white'
-              : 'bg-white border border-gray-200 text-medium-gray hover:border-nordic-blue'
+              ? 'bg-gradient-to-r from-[hsl(var(--nordic-blue))] to-[hsl(var(--sea-green))] text-white shadow-soft'
+              : 'bg-card/80 backdrop-blur-sm border border-border/50 text-muted-foreground hover:border-[hsl(var(--nordic-blue))]/30 hover:shadow-card'
           }`}
         >
           Oversikt
         </button>
         <button
           onClick={() => setActiveTab('historikk')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 ${
             activeTab === 'historikk'
-              ? 'bg-[hsl(var(--nordic-blue))] text-white'
-              : 'bg-white border border-gray-200 text-medium-gray hover:border-nordic-blue'
+              ? 'bg-gradient-to-r from-[hsl(var(--nordic-blue))] to-[hsl(var(--sea-green))] text-white shadow-soft'
+              : 'bg-card/80 backdrop-blur-sm border border-border/50 text-muted-foreground hover:border-[hsl(var(--nordic-blue))]/30 hover:shadow-card'
           }`}
         >
           Ordrehistorikk
@@ -56,8 +56,8 @@ export function DashboardTabs({ subscription, nextOrder, completedOrders }: Dash
               <OrderHistorySection orders={completedOrders} />
             </div>
           ) : (
-            <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
-              <p className="text-medium-gray">Ingen ordrehistorikk ennå.</p>
+            <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl p-12 text-center animate-fade-in">
+              <p className="font-serif text-xl text-muted-foreground">Ingen ordrehistorikk ennå.</p>
             </div>
           )}
         </>

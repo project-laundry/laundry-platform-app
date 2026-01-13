@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
 import { updateOrderIroningAction } from '@/app/orders/actions';
+import { Pencil, Check, X, Shirt } from 'lucide-react';
 
 interface EditableIroningProps {
   orderId: string;
@@ -49,9 +49,14 @@ export function EditableIroning({
 
   if (isEditing) {
     return (
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-medium-gray">Stryking</span>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-[hsl(var(--nordic-blue)/10%)] flex items-center justify-center">
+              <Shirt className="w-4 h-4 text-[hsl(var(--nordic-blue))]" />
+            </div>
+            <span className="text-gray-700 font-medium">Stryking</span>
+          </div>
           <label className="relative inline-flex items-center cursor-pointer">
             <input
               type="checkbox"
@@ -60,49 +65,59 @@ export function EditableIroning({
               disabled={isLoading}
               className="sr-only peer"
             />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-nordic-blue rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-nordic-blue"></div>
-            <span className="ml-2 text-sm font-medium text-dark-gray">
+            <div className="w-12 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[hsl(var(--nordic-blue)/30%)] rounded-full peer peer-checked:after:translate-x-6 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all after:shadow-sm peer-checked:bg-gradient-to-r peer-checked:from-[hsl(var(--nordic-blue))] peer-checked:to-[hsl(var(--sea-green))]" />
+            <span className="ml-3 text-sm font-medium text-gray-700">
               {needsIroning ? 'Ja' : 'Nei'}
             </span>
           </label>
         </div>
         <div className="flex gap-2">
-          <Button
+          <button
             onClick={handleSave}
             disabled={isLoading}
-            size="sm"
+            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-gradient-to-r from-[hsl(var(--nordic-blue))] to-[hsl(var(--sea-green))] rounded-lg hover:opacity-90 disabled:opacity-50 transition-all"
           >
+            <Check className="w-3.5 h-3.5" />
             {isLoading ? 'Lagrer...' : 'Lagre'}
-          </Button>
-          <Button
+          </button>
+          <button
             onClick={handleCancel}
             disabled={isLoading}
-            variant="outline"
-            size="sm"
+            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-all"
           >
+            <X className="w-3.5 h-3.5" />
             Avbryt
-          </Button>
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex justify-between items-center">
-      <span className="text-medium-gray">Stryking</span>
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-[hsl(var(--nordic-blue)/10%)] flex items-center justify-center">
+          <Shirt className="w-4 h-4 text-[hsl(var(--nordic-blue))]" />
+        </div>
+        <span className="text-gray-600">Stryking</span>
+      </div>
       <div className="flex items-center gap-2">
-        <span className="font-medium text-dark-gray">
+        <span
+          className={`px-3 py-1 rounded-full text-sm font-medium ${
+            initialNeedsIroning
+              ? 'bg-[hsl(var(--sea-green)/15%)] text-[hsl(var(--sea-green))]'
+              : 'bg-gray-100 text-gray-500'
+          }`}
+        >
           {initialNeedsIroning ? 'Ja' : 'Nei'}
         </span>
         {isEditable && (
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
             onClick={() => setIsEditing(true)}
-            className="text-nordic-blue hover:text-nordic-blue/80 h-auto p-1"
+            className="p-1.5 text-[hsl(var(--nordic-blue)/60%)] hover:text-[hsl(var(--nordic-blue))] hover:bg-[hsl(var(--nordic-blue)/5%)] rounded-lg transition-all"
           >
-            Endre
-          </Button>
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
         )}
       </div>
     </div>
