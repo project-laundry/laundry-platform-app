@@ -8,7 +8,8 @@
       "mcp__ide__getDiagnostics",
       "Bash(find:*)",
       "Bash(cat:*)",
-      "Bash(npm run lint:*)"
+      "Bash(npm run lint:*)",
+      "Skill(frontend-design)"
     ],
     "deny": [],
     "ask": []
