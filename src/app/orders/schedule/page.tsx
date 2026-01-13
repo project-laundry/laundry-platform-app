@@ -18,6 +18,9 @@ export default function SchedulePage() {
   const hasHydrated = useOrderFlowStore((state) => state._hasHydrated);
   const updateOrderData = useOrderFlowStore((state) => state.updateOrderData);
 
+  // Log every render
+  console.log('[Schedule] RENDER:', { hasHydrated, location: orderData?.location });
+
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [isRecurring, setIsRecurring] = useState(false);
   const [frequency, setFrequency] = useState<Frequency>('weekly');
