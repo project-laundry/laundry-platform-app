@@ -29,7 +29,7 @@ interface OrderPageProps {
 
 // Status timeline configuration
 const STATUS_TIMELINE: { status: OrderStatus; label: string; description: string }[] = [
-  { status: 'pending_assignment', label: 'Mottatt', description: 'Venter på renser' },
+  { status: 'pending_assignment', label: 'Mottatt', description: 'Vi har mottatt din bestilling' },
   { status: 'pickup_scheduled', label: 'Planlagt', description: 'Renser tildelt' },
   { status: 'picked_up', label: 'Hentet', description: 'Hos renser' },
   { status: 'in_cleaning', label: 'Vaskes', description: 'Under behandling' },
@@ -308,7 +308,7 @@ export default async function OrderDetailPage({ params }: OrderPageProps) {
               className="bg-white rounded-2xl shadow-lg shadow-[hsl(var(--nordic-blue)/4%)] border border-[hsl(var(--nordic-blue)/8%)] p-6 animate-fade-in opacity-0"
               style={{ animationDelay: '0.4s', animationFillMode: 'forwards' }}
             >
-              <h3 className="font-serif text-lg text-[hsl(var(--nordic-blue))] mb-5">Kostnad</h3>
+              <h3 className="font-serif text-lg text-[hsl(var(--nordic-blue))] mb-5">Tjeneste og kostnad</h3>
               <div className="space-y-4">
                 <EditableIroning
                   orderId={order.id}
@@ -338,6 +338,15 @@ export default async function OrderDetailPage({ params }: OrderPageProps) {
               </div>
             </div>
 
+            {/* Special Instructions */}
+            <div className="animate-fade-in opacity-0" style={{ animationDelay: '0.5s', animationFillMode: 'forwards' }}>
+              <EditableSpecialInstructions
+                orderId={order.id}
+                initialInstructions={order.special_instructions}
+                isEditable={isEditable}
+              />
+            </div>
+
             {/* Address Card */}
             <div
               className="bg-white rounded-2xl shadow-lg shadow-[hsl(var(--nordic-blue)/4%)] border border-[hsl(var(--nordic-blue)/8%)] p-6 animate-fade-in opacity-0"
@@ -358,16 +367,7 @@ export default async function OrderDetailPage({ params }: OrderPageProps) {
                   )}
                 </div>
               </div>
-            </div>
-
-            {/* Special Instructions */}
-            <div className="animate-fade-in opacity-0" style={{ animationDelay: '0.5s', animationFillMode: 'forwards' }}>
-              <EditableSpecialInstructions
-                orderId={order.id}
-                initialInstructions={order.special_instructions}
-                isEditable={isEditable}
-              />
-            </div>
+            </div>            
 
             {/* Cancel Button */}
             <div className="animate-fade-in opacity-0" style={{ animationDelay: '0.55s', animationFillMode: 'forwards' }}>

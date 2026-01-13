@@ -56,7 +56,7 @@ export function EditableSpecialInstructions({
     <div className="bg-white rounded-2xl shadow-lg shadow-[hsl(var(--nordic-blue)/4%)] border border-[hsl(var(--nordic-blue)/8%)] p-6">
       <div className="flex items-center justify-between mb-5">
         <h3 className="font-serif text-lg text-[hsl(var(--nordic-blue))]">
-          Spesielle instruksjoner
+          Vaskeinstruksjoner
         </h3>
         {isEditable && !isEditing && (
           <button
