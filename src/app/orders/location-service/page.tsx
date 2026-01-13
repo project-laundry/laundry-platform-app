@@ -72,7 +72,7 @@ export default function LocationServicePage() {
 
         {/* Page Header */}
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-light text-slate-900 mb-2">Sted & Tjeneste</h2>
+          <h2 className="text-3xl font-light text-slate-900 mb-2">Sted & Tjeneste1</h2>
           <p className="text-slate-500">Velg lokasjon og tjeneste</p>
         </div>
 
