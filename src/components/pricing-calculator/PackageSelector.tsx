@@ -66,7 +66,7 @@ export function PackageSelector({
             {/* Estimated price */}
             <div className="flex items-baseline gap-1">
               <span className="text-lg font-bold text-teal-600">
-                ~{formatNok(breakdown.total_ore)} kr
+                {formatNok(breakdown.total_ore)} kr
               </span>
             </div>
           </button>

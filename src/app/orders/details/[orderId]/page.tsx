@@ -7,6 +7,7 @@ import { oreToNok } from '@/lib/config/pricing';
 import { CancelOrderButton } from '@/components/orders/CancelOrderButton';
 import { EditableSpecialInstructions } from '@/components/orders/EditableSpecialInstructions';
 import { EditableIroning } from '@/components/orders/EditableIroning';
+import { EditableAddress } from '@/components/orders/EditableAddress';
 import type { OrderStatus } from '@/types/database';
 import {
   Sparkles,
@@ -347,26 +348,19 @@ export default async function OrderDetailPage({ params }: OrderPageProps) {
               />
             </div>
 
-            {/* Address Card */}
-            <div
-              className="bg-white rounded-2xl shadow-lg shadow-[hsl(var(--nordic-blue)/4%)] border border-[hsl(var(--nordic-blue)/8%)] p-6 animate-fade-in opacity-0"
-              style={{ animationDelay: '0.45s', animationFillMode: 'forwards' }}
-            >
-              <h3 className="font-serif text-lg text-[hsl(var(--nordic-blue))] mb-5">Adresse</h3>
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-xl bg-[hsl(var(--nordic-blue)/8%)] flex items-center justify-center shrink-0">
-                  <MapPin className="w-5 h-5 text-[hsl(var(--nordic-blue))]" />
-                </div>
-                <div className="text-gray-700">
-                  <p className="font-medium">{order.street}</p>
-                  <p className="text-gray-500">{order.postal_code} {order.city}</p>
-                  {order.special_instructions_address && (
-                    <p className="text-sm text-gray-400 mt-2 italic">
-                      {order.special_instructions_address}
-                    </p>
-                  )}
-                </div>
-              </div>
+            {/* Address Card - Editable */}
+            <div className="animate-fade-in opacity-0" style={{ animationDelay: '0.45s', animationFillMode: 'forwards' }}>
+              <EditableAddress
+                orderId={order.id}
+                initialAddress={{
+                  street: order.street,
+                  postalCode: order.postal_code,
+                  city: order.city,
+                  country: order.country,
+                  specialInstructionsAddress: order.special_instructions_address,
+                }}
+                isEditable={isEditable}
+              />
             </div>            
 
             {/* Cancel Button */}

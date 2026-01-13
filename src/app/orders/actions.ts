@@ -16,6 +16,7 @@ import { translateFrequency } from "@/lib/utils/i18n";
 import { getOrderWithDetailsByIdAndCustomerId, updateOrderStatus } from "@/lib/database/orders";
 import { checkAndGenerateNextOrders } from "@/lib/services/order-generation";
 import { cancelSubscriptionAction } from "@/app/dashboard/subscription/actions";
+import { validatePostalCode } from "@/lib/validation/cleaner";
 import type {
   Weekday,
   SubscriptionFrequency,
@@ -371,6 +372,94 @@ export async function updateOrderIroningAction(
     return { success: true };
   } catch (error) {
     console.error('Error updating ironing preference:', error);
+    return { success: false, error: 'An error occurred' };
+  }
+}
+
+export interface UpdateOrderAddressInput {
+  street: string;
+  postalCode: string;
+  city: string;
+  specialInstructionsAddress?: string | null;
+}
+
+/**
+ * Update address and address-specific instructions for an order
+ * Customer can only update before pickup (pending_assignment, pickup_scheduled)
+ */
+export async function updateOrderAddressAction(
+  orderId: string,
+  addressData: UpdateOrderAddressInput
+): Promise<ActionResult> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    const customer = await getCustomerByUserId(user.id);
+    if (!customer) {
+      return { success: false, error: 'Customer not found' };
+    }
+
+    const order = await getOrderWithDetailsByIdAndCustomerId(orderId, customer.id);
+    if (!order) {
+      return { success: false, error: 'Order not found' };
+    }
+
+    const editableStatuses: OrderStatus[] = ['pending_assignment', 'pickup_scheduled'];
+    if (!editableStatuses.includes(order.status)) {
+      return {
+        success: false,
+        error: 'Kan ikke endre adresse etter henting'
+      };
+    }
+
+    // Validate street
+    const trimmedStreet = addressData.street.trim();
+    if (!trimmedStreet || trimmedStreet.length < 3) {
+      return { success: false, error: 'Gateadresse må være minst 3 tegn' };
+    }
+    if (trimmedStreet.length > 200) {
+      return { success: false, error: 'Gateadresse kan ikke være mer enn 200 tegn' };
+    }
+
+    // Validate postal code
+    if (!validatePostalCode(addressData.postalCode)) {
+      return { success: false, error: 'Postnummer må være 4 siffer' };
+    }
+
+    // Validate city
+    if (!['Bergen', 'Oslo'].includes(addressData.city)) {
+      return { success: false, error: 'By må være Bergen eller Oslo' };
+    }
+
+    // Validate address instructions (optional)
+    if (addressData.specialInstructionsAddress && addressData.specialInstructionsAddress.length > 500) {
+      return { success: false, error: 'Adresseinstruksjoner kan ikke være mer enn 500 tegn' };
+    }
+
+    const adminClient = createAdminClient();
+    const { error } = await adminClient
+      .from('orders')
+      .update({
+        street: trimmedStreet,
+        postal_code: addressData.postalCode,
+        city: addressData.city,
+        special_instructions_address: addressData.specialInstructionsAddress || null,
+      })
+      .eq('id', orderId);
+
+    if (error) {
+      console.error('Error updating address:', error);
+      return { success: false, error: 'Failed to update address' };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating address:', error);
     return { success: false, error: 'An error occurred' };
   }
 }

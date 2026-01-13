@@ -76,7 +76,7 @@ export const IRONING_LABELS: Record<
 > = {
   kids_pillow: {
     label: 'Barneklær, putevar',
-    description: 'Små plagg og putevar',
+    description: 'Små plagg og tekstiler',
   },
   tshirts_shorts: {
     label: 'T-skjorter, shorts, skjørt, jeans, bukser',
@@ -88,11 +88,11 @@ export const IRONING_LABELS: Record<
   },
   single_bedding: {
     label: 'Enkelt sengetøy, duker (≤1.5m x 1.5m)',
-    description: 'Laken, putevar, små duker',
+    description: 'Laken, små duker',
   },
   complex_dresses: {
     label: 'Komplekse kjoler',
-    description: 'Maxi, puffermer, plissé, volanger, sari',
+    description: 'Puffermer, plissé, volanger, sari',
   },
   double_bedding: {
     label: 'Dobbelt/queen sengetøy, duker (≤1.8m x 1.8m)',
