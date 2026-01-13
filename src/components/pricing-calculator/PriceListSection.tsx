@@ -1,6 +1,6 @@
 "use client";
 
-import { Shirt, Sparkles, Truck, CreditCard, AlertTriangle } from "lucide-react";
+import { Shirt, Sparkles, Truck, CreditCard, Info } from "lucide-react";
 import {
   PRICING,
   IRONING_LABELS,
@@ -111,22 +111,19 @@ export function PriceListSection() {
             </p>
           </div>
         </div>
-      </div>
 
-      {/* Minimum Order Callout */}
-      <div className="mt-8 bg-amber-50 border-2 border-amber-300 rounded-xl p-5 max-w-xl mx-auto">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-amber-200 flex items-center justify-center flex-shrink-0">
-            <AlertTriangle className="w-5 h-5 text-amber-700" />
-          </div>
-          <div>
-            <p className="font-semibold text-amber-900">
-              Minimumsordre: {formatNok(PRICING.minimum_order_ore)} kr
-            </p>
-            <p className="text-sm text-amber-800">
-              Alle ordrer har en minimumspris på{" "}
-              {formatNok(PRICING.minimum_order_ore)} kr
-            </p>
+        {/* Minimum Order - Subtle integrated info */}
+        <div className="mt-6 max-w-xl mx-auto">
+          <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+            <div className="flex items-start gap-2">
+              <Info className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-medium text-foreground">Minimumsordre:</span>{" "}
+                  {formatNok(PRICING.minimum_order_ore)} kr (før gebyrer)
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
