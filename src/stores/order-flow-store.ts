@@ -35,6 +35,7 @@ export const useOrderFlowStore = create<OrderFlowStore>()(
       name: 'nooracare-order-flow',
       storage: createJSONStorage(() => localStorage),
       onRehydrateStorage: () => (state) => {
+        console.log('[Store] Rehydrated from localStorage:', state?.orderData);
         state?.setHasHydrated(true);
       },
     }

@@ -36,11 +36,19 @@ export default function LocationServicePage() {
     }
 
     // Update store
-    updateOrderData({
+    const dataToSave = {
       location,
       needsIroning: service === 'wash_and_iron',
       specialInstructions: additionalInfo,
-    });
+    };
+    console.log('[LocationService] Saving to store:', dataToSave);
+    updateOrderData(dataToSave);
+
+    // Debug: Check localStorage immediately after update
+    setTimeout(() => {
+      const stored = localStorage.getItem('nooracare-order-flow');
+      console.log('[LocationService] localStorage after save:', stored);
+    }, 100);
 
     router.push('/orders/schedule');
   };
