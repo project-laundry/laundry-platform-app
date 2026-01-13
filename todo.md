@@ -1,7 +1,5 @@
 - I think we can remove payment_type from Payment. All payments should be tracked. And also we can just see the subscription_id if the payment is a subscription or not.
-- Simplify henteinstruksjone
 - consider removing Entities.md since we have types
-- Order status not properly cancelled after subscription is cancelled. Check this out
 - Cancel whole subscription and not only per order
 - Subscription status is payment_pending. After creation. THis is wrong
 - Abort Vipps lead to SUCCESS

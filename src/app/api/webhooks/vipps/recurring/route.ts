@@ -587,8 +587,16 @@ async function handleAgreementStopped(
 
   console.log(`[Vipps Recurring Webhook] Agreement stopped: ${agreementId} by ${actor || 'unknown'}`);
 
+  // If actor is MERCHANT, we stopped it ourselves (user cancelled from our dashboard)
+  // Database updates were already handled, so just acknowledge the webhook
+  if (actor === 'MERCHANT') {
+    console.log(`[Vipps Recurring Webhook] Agreement stopped by MERCHANT - database already updated, skipping`);
+    return;
+  }
+
+  // For USER or ADMIN initiated stops, we need to cancel the subscription
   if (subscription.status === 'active') {
-    // Use unified cancellation function (cancels orders + payments + subscription)
+    // Use unified cancellation function (cancels orders + subscription)
     await cancelSubscription(
       subscription.id,
       occurred,
