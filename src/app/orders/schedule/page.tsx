@@ -15,6 +15,7 @@ type Frequency = 'weekly' | 'biweekly' | 'monthly';
 export default function SchedulePage() {
   const router = useRouter();
   const orderData = useOrderFlowStore((state) => state.orderData);
+  const hasHydrated = useOrderFlowStore((state) => state._hasHydrated);
   const updateOrderData = useOrderFlowStore((state) => state.updateOrderData);
 
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -35,12 +36,12 @@ export default function SchedulePage() {
     }
   }, [orderData]);
 
-  // Redirect if location not selected
+  // Redirect if location not selected (only after hydration)
   useEffect(() => {
-    if (!orderData?.location) {      
+    if (hasHydrated && !orderData?.location) {
       router.push('/orders/location-service');
     }
-  }, [orderData, router]);
+  }, [hasHydrated, orderData, router]);
 
   // Fetch available weekdays when location is available
   useEffect(() => {
