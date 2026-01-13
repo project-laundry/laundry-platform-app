@@ -13,7 +13,7 @@ function ConfirmPageContent() {
   const orderData = useOrderFlowStore((state) => state.orderData);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [autoAccept, setAutoAccept] = useState(false);
+  const [autoAccept, setAutoAccept] = useState(true);
 
   // Redirect if required data not present
   useEffect(() => {
