@@ -51,8 +51,8 @@ export function Navbar() {
 
   const navLinks = [
     { href: "#slik-virker-det", label: "Slik virker det" },
-    { href: "#priser", label: "Priser" },
-    { href: "#områder", label: "Områder" },
+    { href: "/pris-kalkulator", label: "Priser" },
+    { href: "/#områder", label: "Områder" },
   ];
 
   const getDashboardUrl = () => {
@@ -81,13 +81,23 @@ export function Navbar() {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
             {navLinks.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                className="text-sm font-medium text-foreground/80 hover:text-[hsl(var(--nordic-blue))] transition-colors"
-              >
-                {link.label}
-              </a>
+              link.href.startsWith('#') ? (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  className="text-sm font-medium text-foreground/80 hover:text-[hsl(var(--nordic-blue))] transition-colors"
+                >
+                  {link.label}
+                </a>
+              ) : (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="text-sm font-medium text-foreground/80 hover:text-[hsl(var(--nordic-blue))] transition-colors"
+                >
+                  {link.label}
+                </Link>
+              )
             ))}
           </div>
 
@@ -129,14 +139,25 @@ export function Navbar() {
         <div className="md:hidden bg-background border-t border-border shadow-lg">
           <div className="container mx-auto px-4 py-6 space-y-4">
             {navLinks.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                className="block py-2 text-sm font-medium text-foreground/80 hover:text-[hsl(var(--nordic-blue))] transition-colors"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                {link.label}
-              </a>
+              link.href.startsWith('#') ? (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  className="block py-2 text-sm font-medium text-foreground/80 hover:text-[hsl(var(--nordic-blue))] transition-colors"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  {link.label}
+                </a>
+              ) : (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="block py-2 text-sm font-medium text-foreground/80 hover:text-[hsl(var(--nordic-blue))] transition-colors"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  {link.label}
+                </Link>
+              )
             ))}
             <div className="pt-4 space-y-3">
               {isAuthenticated ? (
