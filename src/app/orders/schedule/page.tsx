@@ -38,6 +38,7 @@ export default function SchedulePage() {
   // Redirect if location not selected
   useEffect(() => {
     if (!orderData?.location) {
+      console.log('No location selected, redirecting to location-service page');
       router.push('/orders/location-service');
     }
   }, [orderData, router]);
