@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, Inter, Geist_Mono } from "next/font/google";
+import { Source_Serif_4, Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const cormorant = Cormorant_Garamond({
-  weight: ["300", "400", "500", "600"],
-  variable: "--font-cormorant",
+const sourceSerif = Source_Serif_4({
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-source-serif",
   subsets: ["latin"],
   display: "swap",
 });
@@ -47,7 +47,7 @@ export default function RootLayout({
   return (
     <html lang="no">
       <body
-        className={`${cormorant.variable} ${inter.variable} ${geistMono.variable} antialiased font-sans`}
+        className={`${sourceSerif.variable} ${inter.variable} ${geistMono.variable} antialiased font-sans`}
       >
         {children}
       </body>
