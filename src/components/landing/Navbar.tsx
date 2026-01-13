@@ -4,10 +4,14 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/client";
+import type { UserRole } from "@/types/database";
 
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -18,11 +22,44 @@ export function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  useEffect(() => {
+    const checkAuth = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (user) {
+        setIsAuthenticated(true);
+
+        // Fetch user role
+        const { data: userData } = await supabase
+          .from('users')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+
+        if (userData) {
+          setUserRole(userData.role);
+        }
+      } else {
+        setIsAuthenticated(false);
+        setUserRole(null);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
   const navLinks = [
     { href: "#slik-virker-det", label: "Slik virker det" },
     { href: "#priser", label: "Priser" },
     { href: "#områder", label: "Områder" },
   ];
+
+  const getDashboardUrl = () => {
+    if (userRole === 'admin') return '/admin/orders';
+    if (userRole === 'cleaner') return '/dashboard/cleaner';
+    return '/dashboard';
+  };
 
   return (
     <nav
@@ -56,12 +93,20 @@ export function Navbar() {
 
           {/* Desktop Auth Buttons */}
           <div className="hidden md:flex items-center gap-4">
-            <Button variant="outline" size="default" asChild>
-              <Link href="/auth/login">Logg inn</Link>
-            </Button>
-            <Button variant="hero" size="default" asChild>
-              <Link href="/auth/signup">Kom i gang</Link>
-            </Button>
+            {isAuthenticated ? (
+              <Button variant="hero" size="default" asChild>
+                <Link href={getDashboardUrl()}>Dashboard</Link>
+              </Button>
+            ) : (
+              <>
+                <Button variant="outline" size="default" asChild>
+                  <Link href="/auth/login">Logg inn</Link>
+                </Button>
+                <Button variant="hero" size="default" asChild>
+                  <Link href="/auth/signup">Kom i gang</Link>
+                </Button>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -94,17 +139,30 @@ export function Navbar() {
               </a>
             ))}
             <div className="pt-4 space-y-3">
-              <Button
-                variant="outline"
-                size="default"
-                className="w-full"
-                asChild
-              >
-                <Link href="/auth/login">Logg inn</Link>
-              </Button>
-              <Button variant="hero" size="default" className="w-full" asChild>
-                <Link href="/auth/signup">Kom i gang</Link>
-              </Button>
+              {isAuthenticated ? (
+                <Button
+                  variant="hero"
+                  size="default"
+                  className="w-full"
+                  asChild
+                >
+                  <Link href={getDashboardUrl()}>Dashboard</Link>
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    size="default"
+                    className="w-full"
+                    asChild
+                  >
+                    <Link href="/auth/login">Logg inn</Link>
+                  </Button>
+                  <Button variant="hero" size="default" className="w-full" asChild>
+                    <Link href="/auth/signup">Kom i gang</Link>
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
