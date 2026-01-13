@@ -3,3 +3,6 @@
 - Cancel whole subscription and not only per order
 - Subscription status is payment_pending. After creation. THis is wrong
 - Abort Vipps lead to SUCCESS
+- When chosing simple order, the DB is storing Monthly
+- frequency should be enum in DB
+- consider if Vipps agreement should be it's own table and separated from subscription 
