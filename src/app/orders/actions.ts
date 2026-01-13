@@ -415,17 +415,16 @@ export async function cancelOrderAction(
         error: `Kan ikke kansellere ordre med status: ${order.status}`
       };
     }
+    
+    const cancelled = await updateOrderStatus(orderId, 'cancelled');
+    if (!cancelled) {
+      return { success: false, error: 'Failed to cancel order' };
+    }
 
     // If user wants to cancel subscription along with order
     if (alsoCancelSubscription && order.subscription_id) {
       const result = await cancelSubscriptionAction(order.subscription_id);
       return result;
-    }
-
-    // Otherwise, cancel order only
-    const cancelled = await updateOrderStatus(orderId, 'cancelled');
-    if (!cancelled) {
-      return { success: false, error: 'Failed to cancel order' };
     }
 
     // If order belongs to active subscription, generate next order to maintain rolling window
