@@ -92,6 +92,17 @@ export function Pricing() {
             </div>
           ))}
         </div>
+
+        {/* Link to Price Calculator */}
+        <p className="text-center mt-10 text-foreground/70">
+          Usikker på prisen?{" "}
+          <Link
+            href="/pris-kalkulator"
+            className="text-nordic-blue hover:underline font-medium"
+          >
+            Beregn din vaskepris med vår kalkulator
+          </Link>
+        </p>
       </div>
     </section>
   );

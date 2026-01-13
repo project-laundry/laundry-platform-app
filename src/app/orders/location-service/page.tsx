@@ -76,37 +76,47 @@ export default function LocationServicePage() {
               <MapPin className="w-5 h-5 text-teal-600 mr-2" />
               <h3 className="text-lg font-medium text-slate-900">Velg lokasjon</h3>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Bergen - Available */}
               <button
                 onClick={() => setLocation('Bergen')}
-                className={`p-4 rounded-xl border-2 transition-all duration-200 ${
+                className={`p-5 rounded-xl border-2 transition-all duration-200 ${
                   location === 'Bergen'
                     ? 'border-teal-600 bg-teal-50/50'
                     : 'border-slate-200 bg-white hover:border-slate-300'
                 }`}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium text-slate-900">Bergen</span>
+                <div className="flex items-center justify-between">
+                  {/* Content */}
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-semibold text-slate-900">Bergen</h4>
+                    <span className="px-2 py-0.5 bg-teal-100 text-teal-700 text-xs rounded-full font-medium">
+                      Tilgjengelig
+                    </span>
+                  </div>
+                  {/* Checkmark */}
                   {location === 'Bergen' && (
-                    <div className="w-5 h-5 rounded-full bg-teal-600 flex items-center justify-center">
-                      <Check className="w-3 h-3 text-white" />
+                    <div className="w-6 h-6 rounded-full bg-teal-600 flex items-center justify-center flex-shrink-0">
+                      <Check className="w-4 h-4 text-white" />
                     </div>
                   )}
                 </div>
-                <p className="text-sm text-slate-500">Tilgjengelig nå</p>
               </button>
 
               {/* Oslo - Coming Soon */}
               <button
                 disabled
-                className="p-4 rounded-xl border-2 border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed relative"
+                className="p-5 rounded-xl border-2 border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed"
               >
-                <Clock className="w-4 h-4 text-slate-400 absolute top-3 right-3" />
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium text-slate-500">Oslo</span>
+                <div className="flex items-center justify-between">
+                  {/* Content */}
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-semibold text-slate-500">Oslo</h4>
+                    <span className="px-2 py-0.5 bg-slate-200 text-slate-500 text-xs rounded-full font-medium">
+                      Kommer snart
+                    </span>
+                  </div>
                 </div>
-                <p className="text-sm text-slate-400">Kommer snart</p>
               </button>
             </div>
           </div>
@@ -117,47 +127,27 @@ export default function LocationServicePage() {
               <Sparkles className="w-5 h-5 text-teal-600 mr-2" />
               <h3 className="text-lg font-medium text-slate-900">Velg tjeneste</h3>
             </div>
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Wash & Ironing - Popular */}
               <button
                 onClick={() => setService('wash_and_iron')}
-                className={`w-full p-5 rounded-xl border-2 transition-all duration-200 ${
+                className={`p-5 rounded-xl border-2 transition-all duration-200 ${
                   service === 'wash_and_iron'
                     ? 'border-teal-600 bg-teal-50/50'
                     : 'border-slate-200 bg-white hover:border-slate-300'
                 }`}
               >
-                <div className="flex items-start">
-                  {/* Icon */}
-                  <div
-                    className={`w-12 h-12 rounded-lg flex items-center justify-center mr-4 ${
-                      service === 'wash_and_iron' ? 'bg-teal-100' : 'bg-slate-100'
-                    }`}
-                  >
-                    <Sparkles
-                      className={`w-6 h-6 ${
-                        service === 'wash_and_iron' ? 'text-teal-600' : 'text-slate-400'
-                      }`}
-                    />
-                  </div>
-
+                <div className="flex items-center justify-between">
                   {/* Content */}
-                  <div className="flex-1 text-left">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-semibold text-slate-900">Vask & Stryking</h4>
-                      <span className="px-2 py-0.5 bg-teal-100 text-teal-700 text-xs rounded-full font-medium">
-                        Populær
-                      </span>
-                    </div>
-                    <p className="text-sm text-slate-500 mb-2">
-                      Komplett behandling med profesjonell stryking
-                    </p>
-                    <p className="text-sm font-medium text-teal-600">Fra 299 kr</p>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-semibold text-slate-900">Vask & Stryking</h4>
+                    <span className="px-2 py-0.5 bg-teal-100 text-teal-700 text-xs rounded-full font-medium">
+                      Populær
+                    </span>
                   </div>
-
                   {/* Checkmark */}
                   {service === 'wash_and_iron' && (
-                    <div className="w-6 h-6 rounded-full bg-teal-600 flex items-center justify-center flex-shrink-0 ml-4">
+                    <div className="w-6 h-6 rounded-full bg-teal-600 flex items-center justify-center flex-shrink-0">
                       <Check className="w-4 h-4 text-white" />
                     </div>
                   )}
@@ -167,38 +157,20 @@ export default function LocationServicePage() {
               {/* Wash Only */}
               <button
                 onClick={() => setService('wash_only')}
-                className={`w-full p-5 rounded-xl border-2 transition-all duration-200 ${
+                className={`p-5 rounded-xl border-2 transition-all duration-200 ${
                   service === 'wash_only'
                     ? 'border-teal-600 bg-teal-50/50'
                     : 'border-slate-200 bg-white hover:border-slate-300'
                 }`}
               >
-                <div className="flex items-start">
-                  {/* Icon */}
-                  <div
-                    className={`w-12 h-12 rounded-lg flex items-center justify-center mr-4 ${
-                      service === 'wash_only' ? 'bg-teal-100' : 'bg-slate-100'
-                    }`}
-                  >
-                    <Sparkles
-                      className={`w-6 h-6 ${
-                        service === 'wash_only' ? 'text-teal-600' : 'text-slate-400'
-                      }`}
-                    />
-                  </div>
-
+                <div className="flex items-center justify-between">
                   {/* Content */}
-                  <div className="flex-1 text-left">
-                    <h4 className="font-semibold text-slate-900 mb-1">Kun Vask</h4>
-                    <p className="text-sm text-slate-500 mb-2">
-                      Skånsom vask med premium produkter
-                    </p>
-                    <p className="text-sm font-medium text-teal-600">Fra 199 kr</p>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-semibold text-slate-900">Kun Vask</h4>
                   </div>
-
                   {/* Checkmark */}
                   {service === 'wash_only' && (
-                    <div className="w-6 h-6 rounded-full bg-teal-600 flex items-center justify-center flex-shrink-0 ml-4">
+                    <div className="w-6 h-6 rounded-full bg-teal-600 flex items-center justify-center flex-shrink-0">
                       <Check className="w-4 h-4 text-white" />
                     </div>
                   )}
