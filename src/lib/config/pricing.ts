@@ -44,22 +44,22 @@ export interface PriceBreakdown {
 
 export const PRICING = {
   // Per-load pricing (5kg load)
-  price_per_load_ore: 18595, // 185.95 NOK per 5kg load
+  price_per_load_ore: 22900, // 229.00 NOK per 5kg load
 
   // Ironing prices by category (in øre)
   ironing: {
-    kids_pillow: 1859, // 18.59 NOK - Kids clothes, pillow cases
-    tshirts_shorts: 2306, // 23.06 NOK - T-shirts, shorts, skirts, jeans, trousers
-    business_shirts: 2820, // 28.20 NOK - Business shirts, blouses, dresses
-    single_bedding: 4611, // 46.11 NOK - Single bedding, tablecloths ≤1.5m x 1.5m
-    complex_dresses: 5653, // 56.53 NOK - Complex dresses (maxi, puff sleeves, pleating)
-    double_bedding: 6910, // 69.10 NOK - Double/queen bedding, tablecloths ≤1.8m x 1.8m
-    king_bedding: 8330, // 83.30 NOK - King bedding, tablecloths ≤2.2m x 2.2m
+    kids_pillow: 2290, // 22.90 NOK - Kids clothes, pillow cases
+    tshirts_shorts: 2840, // 28.40 NOK - T-shirts, shorts, skirts, jeans, trousers
+    business_shirts: 3470, // 34.70 NOK - Business shirts, blouses, dresses
+    single_bedding: 5680, // 56.80 NOK - Single bedding, tablecloths ≤1.5m x 1.5m
+    complex_dresses: 6960, // 69.60 NOK - Complex dresses (maxi, puff sleeves, pleating)
+    double_bedding: 8510, // 85.10 NOK - Double/queen bedding, tablecloths ≤1.8m x 1.8m
+    king_bedding: 10260, // 102.60 NOK - King bedding, tablecloths ≤2.2m x 2.2m
   } as const,
 
   // Additional fees
-  pickup_delivery_fee_ore: 8452, // 84.52 NOK (combined pickup + delivery)
-  service_fee_ore: 1488, // 14.88 NOK
+  pickup_delivery_fee_ore: 10400, // 104.00 NOK (combined pickup + delivery)
+  service_fee_ore: 1830, // 18.30 NOK
   minimum_order_ore: 50000, // 500 NOK minimum order
 
   // Cleaner payout percentage
