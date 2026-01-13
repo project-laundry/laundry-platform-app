@@ -10,6 +10,7 @@ import { OrderFlowProgress } from '@/components/ui/OrderFlowProgress';
 export default function AddressPage() {
   const router = useRouter();
   const orderData = useOrderFlowStore((state) => state.orderData);
+  const hasHydrated = useOrderFlowStore((state) => state._hasHydrated);
   const updateOrderData = useOrderFlowStore((state) => state.updateOrderData);
 
   // Address state
@@ -32,12 +33,12 @@ export default function AddressPage() {
     }
   }, [orderData]);
 
-  // Redirect if previous steps not completed
+  // Redirect if previous steps not completed (only after hydration)
   useEffect(() => {
-    if (!orderData?.location || !orderData?.firstPickupDate) {
+    if (hasHydrated && (!orderData?.location || !orderData?.firstPickupDate)) {
       router.push('/orders/location-service');
     }
-  }, [orderData, router]);
+  }, [hasHydrated, orderData, router]);
 
   const handleContinue = () => {
     // Validate
