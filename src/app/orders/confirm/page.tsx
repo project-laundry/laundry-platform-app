@@ -11,16 +11,17 @@ import { createSubscriptionAction, forceAcceptAgreementAction } from '../actions
 function ConfirmPageContent() {
   const router = useRouter();
   const orderData = useOrderFlowStore((state) => state.orderData);
+  const hasHydrated = useOrderFlowStore((state) => state._hasHydrated);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [autoAccept, setAutoAccept] = useState(true);
 
-  // Redirect if required data not present
+  // Redirect if required data not present (only after hydration)
   useEffect(() => {
-    if (!orderData?.location || !orderData?.firstPickupDate || !orderData?.address) {
+    if (hasHydrated && (!orderData?.location || !orderData?.firstPickupDate || !orderData?.address)) {
       router.push('/orders/location-service');
     }
-  }, [orderData, router]);
+  }, [hasHydrated, orderData, router]);
 
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return 'Ikke valgt';
