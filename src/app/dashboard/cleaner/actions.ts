@@ -110,8 +110,7 @@ export async function updateCleanerOrderStatus(
       return { success: false, error: 'Ordre ikke funnet' };
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = new Date();    
     const scheduledDate = new Date(existingOrder.scheduled_date);
     scheduledDate.setHours(0, 0, 0, 0);
 
