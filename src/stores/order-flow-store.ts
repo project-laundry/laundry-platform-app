@@ -28,7 +28,7 @@ export const useOrderFlowStore = create<OrderFlowStore>()(
     }),
     {
       name: 'nooracare-order-flow',
-      storage: createJSONStorage(() => sessionStorage),
+      storage: createJSONStorage(() => localStorage),
     }
   )
 );
