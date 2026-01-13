@@ -50,7 +50,7 @@ export function Navbar() {
   }, []);
 
   const navLinks = [
-    { href: "#slik-virker-det", label: "Slik virker det" },
+    { href: "/#slik-virker-det", label: "Slik virker det" },
     { href: "/pris-kalkulator", label: "Priser" },
     { href: "/#områder", label: "Områder" },
   ];

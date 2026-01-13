@@ -120,7 +120,7 @@ export function PriceListSection() {
               <div>
                 <p className="text-sm text-muted-foreground">
                   <span className="font-medium text-foreground">Minimumsordre:</span>{" "}
-                  {formatNok(PRICING.minimum_order_ore)} kr (før gebyrer)
+                  {formatNok(PRICING.minimum_order_ore)} kr
                 </p>
               </div>
             </div>

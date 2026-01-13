@@ -57,7 +57,7 @@ export function PriceSummary({
         {/* Minimum indicator */}
         {breakdown.minimum_applied && (
           <div className="flex justify-between text-sm text-amber-600">
-            <span>Minimumsbeløp pålagt</span>
+            <span>Minimumsbeløp</span>
             <span>{formatNok(PRICING.minimum_order_ore)} kr</span>
           </div>
         )}
