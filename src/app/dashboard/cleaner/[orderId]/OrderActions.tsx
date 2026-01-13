@@ -107,7 +107,7 @@ export function OrderActions({
     try {
       const result = await declineCleanerOrder(orderId);
       if (!result.success) {
-        setError(result.error || 'Kunne ikke avsla oppdraget');
+        setError(result.error || 'Kunne ikke avslå oppdraget');
         return;
       }
       router.push('/dashboard/cleaner');
@@ -286,38 +286,47 @@ export function OrderActions({
       {canDecline && (
         <Card className="border-red-200">
           <CardHeader>
-            <CardTitle className="text-lg text-red-600">Avsla oppdrag</CardTitle>
+            <CardTitle className="text-lg text-dark-gray">
+              Har du ikke mulighet til å ta dette oppdraget?
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {!showDeclineConfirm ? (
-              <Button
-                variant="outline"
-                onClick={() => setShowDeclineConfirm(true)}
-                className="w-full border-red-200 text-red-600 hover:bg-red-50"
-              >
-                Avsla dette oppdraget
-              </Button>
+              <div className="space-y-4">
+                <p className="text-sm text-medium-gray">
+                  Ved å avslå blir oppdraget ledig for andre.
+                </p>
+                <div className="space-y-3">
+                  <Button
+                    onClick={() => setShowDeclineConfirm(true)}
+                    className="w-full bg-red-600 hover:bg-red-700 text-white"
+                    size="lg"
+                  >
+                    Avslå oppdrag
+                  </Button>                  
+                </div>
+              </div>
             ) : (
               <div className="space-y-4">
                 <p className="text-medium-gray">
                   Er du sikker pa at du vil avsla ordre #{orderNumber}? Ordren vil bli tildelt en annen renser.
                 </p>
-                <div className="flex gap-3">
+                <div className="flex flex-col gap-3">
+                  <Button
+                    onClick={handleDecline}
+                    disabled={isLoading}
+                    className="w-full bg-red-600 hover:bg-red-700 text-white"
+                    size="lg"
+                  >
+                    {isLoading ? 'Avslår...' : 'Ja, avslå oppdraget'}
+                  </Button>
                   <Button
                     variant="outline"
                     onClick={() => setShowDeclineConfirm(false)}
                     disabled={isLoading}
-                    className="flex-1"
+                    className="w-full"
                   >
                     Avbryt
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={handleDecline}
-                    disabled={isLoading}
-                    className="flex-1"
-                  >
-                    {isLoading ? 'Avslar...' : 'Ja, avsla'}
                   </Button>
                 </div>
               </div>

@@ -115,17 +115,17 @@ export function LaundryDetailsForm({
         <CardHeader>
           <CardTitle className="text-lg">Vaskemengde</CardTitle>
           <p className="text-sm text-medium-gray">
-            Mørke og hvite klær vaskes alltid separat. Hvert lass er inntil 5 kg.
+            Mørke og hvite klær vaskes separat. Prisen gjelder per vask (inntil 5 kg).
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Dark loads */}
           <div className="flex items-center justify-between">
             <div>
-              <div className="font-medium text-dark-gray">Mørke lass</div>
+              <div className="font-medium text-dark-gray">Mørk vask</div>
               <div className="text-sm text-medium-gray">Mørke og fargede klær</div>
               <div className="text-xs text-nordic-blue mt-1">
-                {formatNok(PRICING.price_per_load_ore)} kr/lass
+                {formatNok(PRICING.price_per_load_ore)} kr/vask
               </div>
             </div>
             <div className="flex items-center gap-1 bg-soft-gray rounded-lg p-1">
@@ -166,10 +166,10 @@ export function LaundryDetailsForm({
           {/* White loads */}
           <div className="flex items-center justify-between">
             <div>
-              <div className="font-medium text-dark-gray">Hvite lass</div>
+              <div className="font-medium text-dark-gray">Hvit vask</div>
               <div className="text-sm text-medium-gray">Hvite og lyse klær</div>
               <div className="text-xs text-nordic-blue mt-1">
-                {formatNok(PRICING.price_per_load_ore)} kr/lass
+                {formatNok(PRICING.price_per_load_ore)} kr/vask
               </div>
             </div>
             <div className="flex items-center gap-1 bg-soft-gray rounded-lg p-1">
