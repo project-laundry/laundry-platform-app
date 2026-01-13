@@ -40,8 +40,8 @@ export const COMMON_PACKAGES: PackagePreset[] = [
     white_loads: 1,
     ironing_details: {
       kids_pillow: 0,
-      tshirts_shorts: 3,
-      business_shirts: 0,
+      tshirts_shorts: 0,
+      business_shirts: 3,
       single_bedding: 0,
       complex_dresses: 0,
       double_bedding: 0,
