@@ -141,8 +141,7 @@ export function PriceBreakdownDisplay({
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground pl-0">
-                  Minimumsordre er {formatNok(PRICING.minimum_order_ore)} kr
-                  før gebyrer
+                  Minimumsordre er {formatNok(PRICING.minimum_order_ore)} kr                  
                 </p>
               </div>
             )}
