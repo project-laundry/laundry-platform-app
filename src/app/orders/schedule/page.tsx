@@ -41,12 +41,13 @@ export default function SchedulePage() {
 
   // Redirect if location not selected (only after hydration)
   useEffect(() => {
-    console.log('[Schedule] Hydration check:', { hasHydrated, orderData, location: orderData?.location });
+    console.log('[Schedule] useEffect running:', { hasHydrated, location: orderData?.location });
     if (hasHydrated && !orderData?.location) {
-      console.log('[Schedule] Redirecting - no location after hydration');
-      router.push('/orders/location-service');
+      console.log('[Schedule] >>> REDIRECTING NOW <<<');
+      alert('Vennligst velg lokasjon og tjeneste først');
+      /* router.push('/orders/location-service'); */
     }
-  }, [hasHydrated, orderData, router]);
+  }, [hasHydrated, orderData?.location, router]);
 
   // Fetch available weekdays when location is available
   useEffect(() => {
