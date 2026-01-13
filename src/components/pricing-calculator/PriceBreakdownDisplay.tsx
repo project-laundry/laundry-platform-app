@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle } from "lucide-react";
+import { Info } from "lucide-react";
 import {
   PRICING,
   IRONING_LABELS,
@@ -124,19 +124,29 @@ export function PriceBreakdownDisplay({
                 {formatNok(breakdown.service_fee_ore)} kr
               </span>
             </div>
-          </div>
 
-          {/* Minimum order notice */}
-          {breakdown.minimum_applied && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-              <p className="text-xs text-amber-800">
-                Minimumsordre på {formatNok(PRICING.minimum_order_ore)} kr er
-                pålagt. Din opprinnelige total var{" "}
-                {formatNok(breakdown.subtotal_ore)} kr.
-              </p>
-            </div>
-          )}
+            {/* Minimum order adjustment - integrated line item */}
+            {breakdown.minimum_applied && (
+              <div className="space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground flex items-center gap-1.5">
+                    Tillegg opp til minimumsordre
+                    <Info className="w-3.5 h-3.5 text-slate-400" />
+                  </span>
+                  <span className="text-foreground">
+                    {formatNok(
+                      PRICING.minimum_order_ore - breakdown.subtotal_ore
+                    )}{" "}
+                    kr
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground pl-0">
+                  Minimumsordre er {formatNok(PRICING.minimum_order_ore)} kr
+                  før gebyrer
+                </p>
+              </div>
+            )}
+          </div>
 
           {/* Total */}
           <div className="border-t border-slate-200 pt-4">
