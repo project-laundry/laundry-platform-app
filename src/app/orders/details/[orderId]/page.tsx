@@ -368,6 +368,7 @@ export default async function OrderDetailPage({ params }: OrderPageProps) {
               <CancelOrderButton
                 orderId={order.id}
                 orderStatus={order.status}
+                scheduledDate={order.scheduled_date}
               />
             </div>
           </div>
