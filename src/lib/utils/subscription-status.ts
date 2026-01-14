@@ -18,7 +18,7 @@ export const SUBSCRIPTION_FREQUENCY_LABELS: Record<SubscriptionFrequency, string
   weekly: 'Ukentlig',
   biweekly: 'Annenhver uke',
   monthly: 'Månedlig',
-  on_demand: 'Ved behov',
+  on_demand: 'Engangsbestilling',
 };
 
 /**
