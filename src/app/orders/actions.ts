@@ -84,10 +84,17 @@ export async function createSubscriptionAction(
     return { displayError: "Du har allerede et aktivt abonnement", error: "Customer already has an active subscription" };
   }
 
-  const frequency: 'weekly' | 'biweekly' | 'monthly' =
-    input.isRecurring && input.frequency && input.frequency !== 'on_demand'
-      ? input.frequency
-      : 'monthly';
+  // Determine the subscription frequency
+  // - For recurring orders: use the selected frequency
+  // - For single orders: store 'on_demand' in database
+  const frequency: SubscriptionFrequency = input.isRecurring && input.frequency
+    ? input.frequency
+    : 'on_demand';
+
+  // For Vipps agreement, we need a billing interval
+  // 'on_demand' (single orders) uses 'monthly' as Vipps requires an interval
+  const vippsFrequency: 'weekly' | 'biweekly' | 'monthly' =
+    frequency === 'on_demand' ? 'monthly' : frequency;
 
   // Find available cleaner
   const cleaner = await findAvailableCleaner(
@@ -102,7 +109,7 @@ export async function createSubscriptionAction(
   const agreementResponse = await createVippsAgreement({
     productName: `NooraCare - Vask`,
     productDescription: `${frequencyNorwegian} henting i ${input.location}`,
-    frequency,
+    frequency: vippsFrequency, // Vipps requires a billing interval
   });
 
   // Build complete order defaults object
