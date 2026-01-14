@@ -562,3 +562,163 @@ export async function cancelOrderAction(
     return { success: false, error: 'An error occurred while cancelling order' };
   }
 }
+
+// ----- Reschedule Actions -----
+
+export interface OrderDetailsForReschedule {
+  id: string;
+  orderNumber: string;
+  scheduledDate: string;
+  deliveryDate: string;
+  city: string;
+  status: OrderStatus;
+}
+
+/**
+ * Get order details needed for the reschedule page
+ */
+export async function getOrderDetailsForRescheduleAction(
+  orderId: string
+): Promise<{ data: OrderDetailsForReschedule | null; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { data: null, error: 'Not authenticated' };
+    }
+
+    const customer = await getCustomerByUserId(user.id);
+    if (!customer) {
+      return { data: null, error: 'Customer not found' };
+    }
+
+    const order = await getOrderWithDetailsByIdAndCustomerId(orderId, customer.id);
+    if (!order) {
+      return { data: null, error: 'Order not found' };
+    }
+
+    return {
+      data: {
+        id: order.id,
+        orderNumber: order.order_number,
+        scheduledDate: order.scheduled_date,
+        deliveryDate: order.delivery_date,
+        city: order.city,
+        status: order.status,
+      }
+    };
+  } catch (error) {
+    console.error('Error fetching order for reschedule:', error);
+    return { data: null, error: 'An error occurred' };
+  }
+}
+
+export interface RescheduleOrderResult {
+  success: boolean;
+  error?: string;
+  newScheduledDate?: string;
+  newDeliveryDate?: string;
+}
+
+/**
+ * Reschedule an order's pickup date
+ * Customer can only reschedule orders in pending_assignment or pickup_scheduled status
+ * Must be at least 2 days before the new pickup date
+ * Must be more than 24 hours before current pickup date
+ */
+export async function rescheduleOrderAction(
+  orderId: string,
+  newScheduledDate: string
+): Promise<RescheduleOrderResult> {
+  try {
+    const { updateOrderScheduledDate } = await import('@/lib/database/orders');
+    const { DAYS_PICKUP_TO_DELIVERY, HOURS_BEFORE_PICKUP_RESCHEDULE_CUTOFF } = await import('@/lib/config/order-timing');
+    const { addDays, toISODateString } = await import('@/lib/utils/date');
+
+    // 1. Authenticate user
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    // 2. Get customer and verify ownership
+    const customer = await getCustomerByUserId(user.id);
+    if (!customer) {
+      return { success: false, error: 'Customer not found' };
+    }
+
+    // 3. Get order and verify it belongs to customer
+    const order = await getOrderWithDetailsByIdAndCustomerId(orderId, customer.id);
+    if (!order) {
+      return { success: false, error: 'Order not found' };
+    }
+
+    // 4. Check order status is editable
+    const editableStatuses: OrderStatus[] = ['pending_assignment', 'pickup_scheduled'];
+    if (!editableStatuses.includes(order.status)) {
+      return {
+        success: false,
+        error: 'Kan ikke endre dato etter at hentedag er passert'
+      };
+    }
+
+    // 5. Check 24-hour cutoff for current pickup date
+    const now = new Date();
+    const currentPickupDate = new Date(order.scheduled_date);
+    const hoursUntilCurrentPickup = (currentPickupDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+    if (hoursUntilCurrentPickup <= HOURS_BEFORE_PICKUP_RESCHEDULE_CUTOFF) {
+      return {
+        success: false,
+        error: 'Kan ikke endre dato mindre enn 24 timer før henting'
+      };
+    }
+
+    // 6. Validate new date is at least 2 days in future
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const minDate = new Date(today);
+    minDate.setDate(today.getDate() + 2);
+
+    const newDate = new Date(newScheduledDate);
+    if (newDate < minDate) {
+      return {
+        success: false,
+        error: 'Hentedato må være minst 2 dager fram i tid'
+      };
+    }
+
+    // 7. Validate weekday is available for the city
+    const weekday = getWeekdayFromDate(newScheduledDate);
+    const availableWeekdays = await getAvailableWeekdaysAction(order.city);
+    if (!availableWeekdays.includes(weekday)) {
+      return {
+        success: false,
+        error: 'Denne dagen er ikke tilgjengelig for henting i din by'
+      };
+    }
+
+    // 8. Update order dates
+    const result = await updateOrderScheduledDate(orderId, newScheduledDate);
+
+    if (result.error) {
+      return { success: false, error: 'Kunne ikke oppdatere dato' };
+    }
+
+    // 9. Calculate delivery date for response
+    const pickupDate = new Date(newScheduledDate);
+    const deliveryDate = addDays(pickupDate, DAYS_PICKUP_TO_DELIVERY);
+
+    return {
+      success: true,
+      newScheduledDate,
+      newDeliveryDate: toISODateString(deliveryDate)
+    };
+  } catch (error) {
+    console.error('Error rescheduling order:', error);
+    return { success: false, error: 'En feil oppstod' };
+  }
+}

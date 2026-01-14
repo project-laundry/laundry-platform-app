@@ -571,3 +571,43 @@ export async function cancelOrdersBySubscriptionId(
   console.log(`[cancelOrdersBySubscriptionId] Cancelled ${count} orders`);
   return count;
 }
+
+/**
+ * Update the scheduled pickup and delivery dates for an order
+ * Delivery date is calculated as pickup date + DAYS_PICKUP_TO_DELIVERY
+ *
+ * @param orderId - The order ID
+ * @param scheduledDate - New pickup date in ISO format (YYYY-MM-DD)
+ * @returns Updated order or error
+ */
+export async function updateOrderScheduledDate(
+  orderId: string,
+  scheduledDate: string
+): Promise<{ data: Order | null; error: string | null }> {
+  const { addDays, toISODateString } = await import('@/lib/utils/date');
+  const { DAYS_PICKUP_TO_DELIVERY } = await import('@/lib/config/order-timing');
+
+  const supabase = await createAdminClient();
+
+  // Calculate delivery date using centralized constant
+  const pickupDate = new Date(scheduledDate);
+  const deliveryDate = addDays(pickupDate, DAYS_PICKUP_TO_DELIVERY);
+  const deliveryDateStr = toISODateString(deliveryDate);
+
+  const { data, error } = await supabase
+    .from('orders')
+    .update({
+      scheduled_date: scheduledDate,
+      delivery_date: deliveryDateStr,
+    })
+    .eq('id', orderId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating order dates:', error);
+    return { data: null, error: error.message };
+  }
+
+  return { data, error: null };
+}

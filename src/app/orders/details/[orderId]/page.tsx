@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getCustomerByUserId } from '@/lib/database/customers';
 import { getOrderWithDetailsByIdAndCustomerId } from '@/lib/database/orders';
 import { oreToNok } from '@/lib/config/pricing';
+import { HOURS_BEFORE_PICKUP_RESCHEDULE_CUTOFF } from '@/lib/config/order-timing';
 import { CancelOrderButton } from '@/components/orders/CancelOrderButton';
 import { EditableSpecialInstructions } from '@/components/orders/EditableSpecialInstructions';
 import { EditableIroning } from '@/components/orders/EditableIroning';
@@ -22,6 +23,7 @@ import {
   Shirt,
   Package,
   AlertCircle,
+  CalendarDays,
 } from 'lucide-react';
 
 interface OrderPageProps {
@@ -67,6 +69,16 @@ function formatDateTime(dateString: string): string {
   });
 }
 
+function canReschedule(scheduledDate: string, status: OrderStatus): boolean {
+  const editableStatuses: OrderStatus[] = ['pending_assignment', 'pickup_scheduled'];
+  if (!editableStatuses.includes(status)) return false;
+
+  const now = new Date();
+  const pickupDate = new Date(scheduledDate);
+  const hoursUntilPickup = (pickupDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+  return hoursUntilPickup > HOURS_BEFORE_PICKUP_RESCHEDULE_CUTOFF;
+}
+
 export default async function OrderDetailPage({ params }: OrderPageProps) {
   const { orderId } = await params;
 
@@ -91,6 +103,7 @@ export default async function OrderDetailPage({ params }: OrderPageProps) {
   const isEditable = order.status === 'pending_assignment' || order.status === 'pickup_scheduled';
   const isCancelled = order.status === 'cancelled';
   const isCompleted = order.status === 'completed';
+  const showRescheduleLink = canReschedule(order.scheduled_date, order.status);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[hsl(var(--cream))] via-white to-[hsl(var(--cream-dark)/30%)]">
@@ -257,7 +270,18 @@ export default async function OrderDetailPage({ params }: OrderPageProps) {
               className="bg-white rounded-2xl shadow-lg shadow-[hsl(var(--nordic-blue)/4%)] border border-[hsl(var(--nordic-blue)/8%)] p-6 animate-fade-in opacity-0"
               style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}
             >
-              <h3 className="font-serif text-lg text-[hsl(var(--nordic-blue))] mb-5">Datoer</h3>
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="font-serif text-lg text-[hsl(var(--nordic-blue))]">Datoer</h3>
+                {showRescheduleLink && (
+                  <Link
+                    href={`/orders/reschedule/${order.id}`}
+                    className="flex items-center gap-1.5 text-sm text-[hsl(var(--nordic-blue)/70%)] hover:text-[hsl(var(--nordic-blue))] transition-colors"
+                  >
+                    <CalendarDays className="w-3.5 h-3.5" />
+                    <span>Endre dato</span>
+                  </Link>
+                )}
+              </div>
               <div className="space-y-4">
                 <div className="flex items-start gap-4 group">
                   <div className="w-10 h-10 rounded-xl bg-[hsl(var(--nordic-blue)/8%)] flex items-center justify-center group-hover:bg-[hsl(var(--nordic-blue)/12%)] transition-colors">
