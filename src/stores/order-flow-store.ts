@@ -28,7 +28,7 @@ export const useOrderFlowStore = create<OrderFlowStore>()(
 
       hasRequiredData: () => {
         const { orderData } = get();
-        return orderData !== null && orderData.location !== undefined && orderData.firstPickupDate !== undefined;
+        return orderData !== null && orderData.city !== undefined && orderData.firstPickupDate !== undefined;
       }
     }),
     {

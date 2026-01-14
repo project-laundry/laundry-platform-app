@@ -139,7 +139,7 @@ export function SubscriptionOverviewCard({ subscription, nextOrder }: Subscripti
           </div>
 
           {/* CTA Button - Create New Order */}
-          <Link href="/orders/location-service">
+          <Link href="/orders/service">
             <Button
               variant="hero"
               className="w-full"

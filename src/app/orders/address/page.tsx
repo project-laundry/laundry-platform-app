@@ -3,9 +3,14 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { MapPin, ChevronLeft } from 'lucide-react';
+import { MapPin, ChevronLeft, AlertCircle } from 'lucide-react';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { OrderFlowProgress } from '@/components/ui/OrderFlowProgress';
+import {
+  getCityFromPostalCode,
+  isValidPostalCodeFormat,
+  type SupportedCity,
+} from '@/lib/config/postal-codes';
 
 export default function AddressPage() {
   const router = useRouter();
@@ -16,56 +21,68 @@ export default function AddressPage() {
   // Address state
   const [street, setStreet] = useState('');
   const [postalCode, setPostalCode] = useState('');
-  const [city, setCity] = useState('');
-  const [specialInstructions, setSpecialInstructions] = useState('');
+  const [pickupInstructions, setPickupInstructions] = useState('');
+
+  // Postal code validation state
+  const [derivedCity, setDerivedCity] = useState<SupportedCity | null>(null);
+  const [outOfAreaError, setOutOfAreaError] = useState(false);
+
+  // Redirect if service not selected (only after hydration)
+  useEffect(() => {
+    if (hasHydrated && orderData?.needsIroning === undefined) {
+      router.push('/orders/service');
+    }
+  }, [hasHydrated, orderData?.needsIroning, router]);
 
   // Initialize form state from store
   useEffect(() => {
-    if (orderData) {
-      // Pre-fill city from location selection
+    if (orderData?.address) {
+      setStreet(orderData.address.street || '');
+      setPostalCode(orderData.address.postalCode || '');
+      setPickupInstructions(orderData.address.specialInstructions || '');
 
-      if (orderData.address) {
-        setStreet(orderData.address.street || '');
-        setPostalCode(orderData.address.postalCode || '');
-        setSpecialInstructions(orderData.address.specialInstructions || '');
-        setCity(orderData.address.city || '');
+      // Re-derive city from stored postal code
+      if (orderData.address.postalCode && isValidPostalCodeFormat(orderData.address.postalCode)) {
+        const city = getCityFromPostalCode(orderData.address.postalCode);
+        setDerivedCity(city);
+        setOutOfAreaError(city === null);
       }
     }
   }, [orderData]);
 
-  // Redirect if previous steps not completed (only after hydration)
-  useEffect(() => {
-    if (hasHydrated && (!orderData?.location || !orderData?.firstPickupDate)) {
-      router.push('/orders/location-service');
+  // Handle postal code change with city derivation
+  const handlePostalCodeChange = (value: string) => {
+    // Only allow digits
+    const digitsOnly = value.replace(/\D/g, '').slice(0, 4);
+    setPostalCode(digitsOnly);
+
+    // Validate and derive city when we have 4 digits
+    if (digitsOnly.length === 4 && isValidPostalCodeFormat(digitsOnly)) {
+      const city = getCityFromPostalCode(digitsOnly);
+      setDerivedCity(city);
+      setOutOfAreaError(city === null);
+    } else {
+      setDerivedCity(null);
+      setOutOfAreaError(false);
     }
-  }, [hasHydrated, orderData, router]);
+  };
+
+  const canContinue = street.trim() && postalCode.length === 4 && derivedCity && !outOfAreaError;
 
   const handleContinue = () => {
-    // Validate
-    if (!street.trim()) {
-      alert('Vennligst fyll ut gateadresse');
-      return;
-    }
-    if (!postalCode.trim()) {
-      alert('Vennligst fyll ut postnummer');
-      return;
-    }
-    if (postalCode.length !== 4) {
-      alert('Postnummer må være 4 siffer');
-      return;
-    }
+    if (!canContinue || !derivedCity) return;
 
     // Update store with address data
     updateOrderData({
+      city: derivedCity,
       address: {
         street,
-        city,
         postalCode,
-        specialInstructions,
+        specialInstructions: pickupInstructions,
       },
     });
 
-    router.push('/orders/confirm');
+    router.push('/orders/schedule');
   };
 
   return (
@@ -83,7 +100,7 @@ export default function AddressPage() {
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Progress Indicator */}
-        <OrderFlowProgress currentStep={3} />
+        <OrderFlowProgress currentStep={2} />
 
         {/* Page Header */}
         <div className="text-center mb-8">
@@ -114,7 +131,7 @@ export default function AddressPage() {
               />
             </div>
 
-            {/* Postal Code and City */}
+            {/* Postal Code and Derived City */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -122,9 +139,12 @@ export default function AddressPage() {
                 </label>
                 <input
                   type="text"
+                  inputMode="numeric"
                   value={postalCode}
-                  onChange={(e) => setPostalCode(e.target.value)}
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
+                  onChange={(e) => handlePostalCodeChange(e.target.value)}
+                  className={`w-full px-4 py-3 bg-white border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all ${
+                    outOfAreaError ? 'border-amber-400' : 'border-slate-200'
+                  }`}
                   placeholder="5001"
                   maxLength={4}
                   required
@@ -133,16 +153,26 @@ export default function AddressPage() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Poststed <span className="text-teal-600">*</span>
+                  By
                 </label>
                 <input
-                  onChange={(e) => setCity(e.target.value)}
                   type="text"
-                  value={city}                  
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg text-slate-600"
+                  value={derivedCity || ''}
+                  readOnly
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-600"
                 />
               </div>
             </div>
+
+            {/* Out of Area Warning */}
+            {outOfAreaError && (
+              <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <p className="text-amber-800">
+                  Vi tilbyr dessverre ikke tjenester i dette området ennå, men forhåpentligvis snart.
+                </p>
+              </div>
+            )}
 
             {/* Pickup Instructions */}
             <div>
@@ -150,8 +180,8 @@ export default function AddressPage() {
                 Henteinstruksjoner
               </label>
               <textarea
-                value={specialInstructions}
-                onChange={(e) => setSpecialInstructions(e.target.value)}
+                value={pickupInstructions}
+                onChange={(e) => setPickupInstructions(e.target.value)}
                 className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all resize-none"
                 placeholder="F.eks. Ring på døren, posen står utenfor, kode til port: 1234..."
                 rows={3}
@@ -164,7 +194,7 @@ export default function AddressPage() {
         {/* Navigation */}
         <div className="flex justify-between items-center pt-6 border-t border-slate-100">
           <Link
-            href="/orders/schedule"
+            href="/orders/service"
             className="flex items-center text-slate-600 hover:text-slate-900 transition-colors"
           >
             <ChevronLeft className="w-4 h-4 mr-1" />
@@ -173,9 +203,9 @@ export default function AddressPage() {
 
           <button
             onClick={handleContinue}
-            disabled={!street.trim() || !postalCode.trim() || postalCode.length !== 4}
+            disabled={!canContinue}
             className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm ${
-              street.trim() && postalCode.trim() && postalCode.length === 4
+              canContinue
                 ? 'bg-teal-600 text-white hover:bg-teal-700'
                 : 'bg-slate-300 text-slate-500 cursor-not-allowed'
             }`}

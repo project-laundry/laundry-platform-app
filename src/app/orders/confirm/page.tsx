@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Check, ChevronLeft } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { OrderFlowProgress } from '@/components/ui/OrderFlowProgress';
 import { createSubscriptionAction, forceAcceptAgreementAction } from '../actions';
@@ -18,8 +18,8 @@ function ConfirmPageContent() {
 
   // Redirect if required data not present (only after hydration)
   useEffect(() => {
-    if (hasHydrated && (!orderData?.location || !orderData?.firstPickupDate || !orderData?.address)) {
-      router.push('/orders/location-service');
+    if (hasHydrated && (!orderData?.city || !orderData?.firstPickupDate || !orderData?.address)) {
+      router.push('/orders/service');
     }
   }, [hasHydrated, orderData, router]);
 
@@ -33,39 +33,6 @@ function ConfirmPageContent() {
     return `${dayNames[date.getDay()]} ${date.getDate()}. ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
   };
 
-  const formatShortDate = (dateString: string | undefined) => {
-    if (!dateString) return 'Ikke valgt';
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return 'Ikke valgt';
-    const dayNames = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag'];
-    const monthNames = ['januar', 'februar', 'mars', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'desember'];
-
-    return `${dayNames[date.getDay()]} ${date.getDate()}. ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
-  };
-
-  const getScheduleLabel = (isRecurring: boolean, frequency: string | null, firstPickupDate: string | undefined) => {
-    const pickupDateFormatted = formatShortDate(firstPickupDate);
-
-    if (!isRecurring) {
-      return `Engangsbestilling - ${pickupDateFormatted.charAt(0).toUpperCase() + pickupDateFormatted.slice(1)}`;
-    }
-
-    const dayOfWeek = firstPickupDate ? new Date(firstPickupDate).toLocaleDateString('no-NO', { weekday: 'long' }) : '';
-    const dayOfWeekCapitalized = dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1);
-
-    if (frequency === 'weekly') {
-      return `Ukentlig henting hver ${dayOfWeek} - Første henting ${pickupDateFormatted}`;
-    }
-    if (frequency === 'biweekly') {
-      return `Henting annenhver uke (${dayOfWeek}er) - Første henting ${pickupDateFormatted}`;
-    }
-    if (frequency === 'monthly') {
-      return `Månedlig henting - Første henting ${pickupDateFormatted}`;
-    }
-
-    return `${dayOfWeekCapitalized} - ${pickupDateFormatted}`;
-  };
-
   const handleConfirmOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!orderData) return;
@@ -74,7 +41,7 @@ function ConfirmPageContent() {
 
     try {
       const result = await createSubscriptionAction({
-        location: orderData.location!,
+        location: orderData.city!,
         needsIroning: orderData.needsIroning || false,
         isRecurring: orderData.isRecurring || false,
         frequency: orderData.frequency || undefined,
@@ -82,7 +49,7 @@ function ConfirmPageContent() {
         pickupAddress: {
           street: orderData.address!.street,
           postalCode: orderData.address!.postalCode,
-          city: orderData.address!.city,
+          city: orderData.city!,
           country: 'Norge',
           specialInstructions: orderData.address!.specialInstructions || undefined,
         },
@@ -126,7 +93,7 @@ function ConfirmPageContent() {
           <h2 className="text-2xl font-light text-slate-900 mb-4">Laster bestillingsdetaljer...</h2>
           <p className="text-slate-500">
             Hvis dette tar for lang tid,{' '}
-            <Link href="/orders/location-service" className="text-teal-600 hover:underline">
+            <Link href="/orders/service" className="text-teal-600 hover:underline">
               start på nytt
             </Link>
             .
@@ -221,7 +188,7 @@ function ConfirmPageContent() {
             <div className="grid grid-cols-2 gap-4 py-4 border-y border-slate-100">
               <div>
                 <p className="text-sm text-slate-500 mb-1">Område</p>
-                <p className="text-slate-900 font-medium">{orderData.location}</p>
+                <p className="text-slate-900 font-medium">{orderData.city}</p>
               </div>
               <div>
                 <p className="text-sm text-slate-500 mb-1">Tjeneste</p>
@@ -238,7 +205,7 @@ function ConfirmPageContent() {
                 <div className="bg-slate-50 rounded-lg p-4">
                   <p className="font-medium text-slate-900">{orderData.address.street}</p>
                   <p className="text-sm text-slate-600 mt-1">
-                    {orderData.address.postalCode} {orderData.address.city}
+                    {orderData.address.postalCode} {orderData.city}
                   </p>
                   {orderData.address.specialInstructions && (
                     <p className="text-sm text-slate-600 italic mt-3 pt-3 border-t border-slate-200">
@@ -336,7 +303,7 @@ function ConfirmPageContent() {
         {/* Navigation */}
         <div className="flex justify-center items-center pt-6 border-t border-slate-100 mt-8">
           <Link
-            href="/orders/address"
+            href="/orders/schedule"
             className="flex items-center text-slate-600 hover:text-slate-900 transition-colors"
           >
             <ChevronLeft className="w-4 h-4 mr-1" />

@@ -1,6 +1,6 @@
 export interface OrderData {
-  // Location
-  location: 'Bergen' | 'Oslo';
+  // City - derived from postal code (replaces location)
+  city: 'Bergen' | 'Oslo' | null;
 
   // Frequency
   isRecurring: boolean;
@@ -12,10 +12,9 @@ export interface OrderData {
   // Ironing preference (default for all orders)
   needsIroning: boolean;
 
-  // Address (kept separate for clarity)
+  // Address (city is derived from postalCode, not stored here)
   address: {
     street: string;
-    city: string;
     postalCode: string;
     specialInstructions: string;
   };

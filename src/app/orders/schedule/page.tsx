@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Calendar as CalendarIcon, RefreshCw, Info, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { Calendar as CalendarIcon, RefreshCw, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { OrderFlowProgress } from '@/components/ui/OrderFlowProgress';
 import { getAvailableWeekdaysAction } from '../actions';
@@ -19,7 +19,7 @@ export default function SchedulePage() {
   const updateOrderData = useOrderFlowStore((state) => state.updateOrderData);
 
   // Log every render
-  console.log('[Schedule] RENDER:', { hasHydrated, location: orderData?.location });
+  console.log('[Schedule] RENDER:', { hasHydrated, city: orderData?.city });
 
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [isRecurring, setIsRecurring] = useState(false);
@@ -39,21 +39,21 @@ export default function SchedulePage() {
     }
   }, [orderData]);
 
-  // Redirect if location not selected (only after hydration)
-  useEffect(() => {    
-    if (hasHydrated && !orderData?.location) {      
-      router.push('/orders/location-service');
+  // Redirect if city not derived (only after hydration)
+  useEffect(() => {
+    if (hasHydrated && !orderData?.city) {
+      router.push('/orders/address');
     }
-  }, [hasHydrated, orderData?.location, router]);
+  }, [hasHydrated, orderData?.city, router]);
 
-  // Fetch available weekdays when location is available
+  // Fetch available weekdays when city is available
   useEffect(() => {
     const fetchAvailability = async () => {
-      if (!orderData?.location) return;
+      if (!orderData?.city) return;
 
       setIsLoadingAvailability(true);
       try {
-        const weekdays = await getAvailableWeekdaysAction(orderData.location);
+        const weekdays = await getAvailableWeekdaysAction(orderData.city);
         setAvailableWeekdays(weekdays);
       } catch {
         setAvailableWeekdays([]);
@@ -63,7 +63,7 @@ export default function SchedulePage() {
     };
 
     fetchAvailability();
-  }, [orderData?.location]);
+  }, [orderData?.city]);
 
   const handleContinue = () => {
     if (!selectedDate) {
@@ -77,7 +77,7 @@ export default function SchedulePage() {
       frequency: isRecurring ? frequency : null,
     });
 
-    router.push('/orders/address');
+    router.push('/orders/confirm');
   };
 
   // Calendar logic
@@ -147,7 +147,7 @@ export default function SchedulePage() {
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Progress Indicator */}
-        <OrderFlowProgress currentStep={2} />
+        <OrderFlowProgress currentStep={3} />
 
         {/* Page Header */}
         <div className="text-center mb-8">
@@ -330,7 +330,7 @@ export default function SchedulePage() {
         {/* Navigation */}
         <div className="flex justify-between items-center pt-6 border-t border-slate-100">
           <Link
-            href="/orders/location-service"
+            href="/orders/address"
             className="flex items-center text-slate-600 hover:text-slate-900 transition-colors"
           >
             <ChevronLeft className="w-4 h-4 mr-1" />
