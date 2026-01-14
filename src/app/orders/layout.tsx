@@ -4,13 +4,14 @@ import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 
-const START_ROUTE = '/orders/location-service';
+const START_ROUTE = '/orders/service';
 
 // Define what data is required for each route
 const ROUTE_REQUIREMENTS: Record<string, (data: Record<string, unknown> | null) => boolean> = {
-  '/orders/schedule': (data) => !!data?.location,
-  '/orders/address': (data) => !!data?.location && !!data?.firstPickupDate,
-  '/orders/confirm': (data) => !!data?.location && !!data?.firstPickupDate && !!data?.address,
+  '/orders/service': () => true, // No requirements - entry point
+  '/orders/address': (data) => data?.needsIroning !== undefined,
+  '/orders/schedule': (data) => !!data?.city && data?.needsIroning !== undefined,
+  '/orders/confirm': (data) => !!data?.city && !!data?.firstPickupDate && !!data?.address,
 };
 
 export default function OrdersLayout({ children }: { children: React.ReactNode }) {

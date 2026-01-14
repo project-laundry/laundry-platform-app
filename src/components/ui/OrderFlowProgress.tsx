@@ -5,10 +5,10 @@ interface OrderFlowProgressProps {
 }
 
 const steps = [
-  { number: 1, label: 'Sted & Tjeneste' },
-  { number: 2, label: 'Dato & Frekvens' },
-  { number: 3, label: 'Adresse' },
-  { number: 4, label: 'Bekreftelse' }
+  { number: 1, label: 'Tjeneste' },
+  { number: 2, label: 'Adresse' },
+  { number: 3, label: 'Dato & Frekvens' },
+  { number: 4, label: 'Bekreftelse' },
 ];
 
 export function OrderFlowProgress({ currentStep }: OrderFlowProgressProps) {
