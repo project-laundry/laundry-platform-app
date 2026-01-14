@@ -9,7 +9,8 @@
       "Bash(find:*)",
       "Bash(cat:*)",
       "Bash(npm run lint:*)",
-      "Skill(frontend-design)"
+      "Skill(frontend-design)",
+      "mcp__context7__query-docs"
     ],
     "deny": [],
     "ask": []
