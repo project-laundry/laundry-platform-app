@@ -504,7 +504,18 @@ export async function cancelOrderAction(
         error: `Kan ikke kansellere ordre med status: ${order.status}`
       };
     }
-    
+
+    // Verify it's more than 24 hours before pickup
+    const now = new Date();
+    const pickupDate = new Date(order.scheduled_date);
+    const hoursUntilPickup = (pickupDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+    if (hoursUntilPickup <= 24) {
+      return {
+        success: false,
+        error: 'Kan ikke kansellere ordre mindre enn 24 timer før henting'
+      };
+    }
+
     const cancelled = await updateOrderStatus(orderId, 'cancelled');
     if (!cancelled) {
       return { success: false, error: 'Failed to cancel order' };
