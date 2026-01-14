@@ -76,6 +76,9 @@ export async function checkAndGenerateNextOrders(subscriptionId: string): Promis
     const weekday = getWeekdayFromDate(orderDefaults.first_pickup_date);
     const approximateDate = addDays(new Date(lastOrder.scheduled_date), 30);
     nextDate = getNextOccurrenceOfWeekday(approximateDate, weekday);
+  } else if (subscription.frequency === 'on_demand') {
+    // on_demand = single order, no recurring orders to generate
+    return;
   } else {
     console.error(`[Order Generation] Unsupported frequency: ${subscription.frequency}`);
     return;
