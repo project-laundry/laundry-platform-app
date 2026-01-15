@@ -3,12 +3,12 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Calendar as CalendarIcon, RefreshCw, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { Calendar as CalendarIcon, RefreshCw, ChevronLeft, Check } from 'lucide-react';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { OrderFlowProgress } from '@/components/ui/OrderFlowProgress';
+import { PickupCalendar } from '@/components/ui/PickupCalendar';
 import { getAvailableWeekdaysAction } from '../actions';
 import type { Weekday } from '@/types/database';
-import { getWeekdayFromDate } from '@/lib/utils/date';
 
 type Frequency = 'weekly' | 'biweekly' | 'monthly';
 
@@ -24,7 +24,6 @@ export default function SchedulePage() {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [isRecurring, setIsRecurring] = useState(false);
   const [frequency, setFrequency] = useState<Frequency>('weekly');
-  const [currentMonth, setCurrentMonth] = useState(new Date());
 
   // Availability state
   const [availableWeekdays, setAvailableWeekdays] = useState<Weekday[]>([]);
@@ -80,58 +79,6 @@ export default function SchedulePage() {
     router.push('/orders/confirm');
   };
 
-  // Calendar logic
-  const getDaysInMonth = (date: Date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    // Convert Sunday (0) to 6, and shift all days back by 1 to start week on Monday
-    const startingDayOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
-
-    const days = [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const minDate = new Date(today);
-    minDate.setDate(today.getDate() + 2); // Minimum 2 days notice
-
-    // Add empty cells for days before month starts
-    for (let i = 0; i < startingDayOfWeek; i++) {
-      days.push(null);
-    }
-
-    // Add all days in month
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(year, month, day);
-      const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      const weekday = getWeekdayFromDate(dateString);
-      const isAvailable = availableWeekdays.includes(weekday) && date >= minDate;
-
-      days.push({
-        day,
-        date: dateString,
-        isAvailable,
-        isToday: date.toDateString() === today.toDateString(),
-        isPast: date < minDate,
-      });
-    }
-
-    return days;
-  };
-
-  const days = getDaysInMonth(currentMonth);
-  const monthNames = ['Januar', 'Februar', 'Mars', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Desember'];
-  const weekdayLabels = ['Ma', 'Ti', 'On', 'To', 'Fr', 'Lø', 'Sø'];
-
-  const previousMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
-  };
-
-  const nextMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
-  };
-
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
@@ -162,66 +109,12 @@ export default function SchedulePage() {
             <h3 className="text-lg font-medium text-slate-900">Velg hentedato</h3>
           </div>
 
-          {/* Calendar */}
-          <div className="border border-slate-200 rounded-lg p-3">
-            {/* Month Header */}
-            <div className="flex items-center justify-between mb-3">
-              <button
-                onClick={previousMonth}
-                className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
-                aria-label="Forrige måned"
-              >
-                <ChevronLeft className="w-4 h-4 text-slate-600" />
-              </button>
-              <h4 className="text-sm font-medium text-slate-900">
-                {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-              </h4>
-              <button
-                onClick={nextMonth}
-                className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
-                aria-label="Neste måned"
-              >
-                <ChevronRight className="w-4 h-4 text-slate-600" />
-              </button>
-            </div>
-
-            {/* Weekday Labels */}
-            <div className="grid grid-cols-7 gap-0.5 mb-1">
-              {weekdayLabels.map((label) => (
-                <div key={label} className="text-center text-xs text-slate-500 py-1.5">
-                  {label}
-                </div>
-              ))}
-            </div>
-
-            {/* Calendar Grid */}
-            <div className="grid grid-cols-7 gap-0.5">
-              {days.map((day, index) => {
-                if (!day) {
-                  return <div key={`empty-${index}`} className="aspect-square" />;
-                }
-
-                const isSelected = selectedDate === day.date;
-
-                return (
-                  <button
-                    key={day.date}
-                    onClick={() => day.isAvailable && setSelectedDate(day.date)}
-                    disabled={!day.isAvailable}
-                    className={`aspect-square rounded-md text-xs font-medium transition-all duration-200 ${
-                      isSelected
-                        ? 'bg-teal-600 text-white'
-                        : day.isAvailable
-                        ? 'text-slate-700 hover:bg-slate-100'
-                        : 'text-slate-300 cursor-not-allowed'
-                    }`}
-                  >
-                    {day.day}
-                  </button>
-                );
-              })}
-            </div>
-          </div>          
+          <PickupCalendar
+            availableWeekdays={availableWeekdays}
+            selectedDate={selectedDate}
+            onDateSelect={setSelectedDate}
+            isLoading={isLoadingAvailability}
+          />
         </div>
 
         {/* Recurring Toggle and Frequency */}

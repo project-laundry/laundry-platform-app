@@ -11,7 +11,8 @@ import {
 import { createVippsAgreement } from "@/lib/payments/vipps/service";
 import { isVippsTestEnvironment } from "@/lib/payments/vipps/config";
 import { createVippsRecurringClient } from "@/lib/payments/vipps/recurring-client";
-import { getWeekdayFromDate } from "@/lib/utils/date";
+import { getWeekdayFromDate, isWeekdayInSchedule, addDays, toISODateString } from "@/lib/utils/date";
+import { DAYS_PICKUP_TO_DELIVERY, MIN_DAYS_NOTICE } from "@/lib/config/order-timing";
 import { translateFrequency } from "@/lib/utils/i18n";
 import { getOrderWithDetailsByIdAndCustomerId, updateOrderStatus } from "@/lib/database/orders";
 import { checkAndGenerateNextOrders } from "@/lib/services/order-generation";
@@ -567,5 +568,140 @@ export async function cancelOrderAction(
   } catch (error) {
     console.error('Error cancelling order:', error);
     return { success: false, error: 'An error occurred while cancelling order' };
+  }
+}
+
+export interface UpdatePickupDateResult {
+  success: boolean;
+  error?: string;
+  newPickupDate?: string;
+  newDeliveryDate?: string;
+  cleanerChanged?: boolean;
+  newCleanerName?: string;
+}
+
+/**
+ * Update pickup date for an order
+ * Customer can only update before pickup (pending_assignment, pickup_scheduled)
+ * Automatically updates delivery date (pickup + 2 days)
+ * Smart cleaner reassignment: keeps cleaner if they work on new day, otherwise finds new cleaner
+ */
+export async function updateOrderPickupDateAction(
+  orderId: string,
+  newPickupDate: string
+): Promise<UpdatePickupDateResult> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    const customer = await getCustomerByUserId(user.id);
+    if (!customer) {
+      return { success: false, error: 'Customer not found' };
+    }
+
+    const order = await getOrderWithDetailsByIdAndCustomerId(orderId, customer.id);
+    if (!order) {
+      return { success: false, error: 'Order not found' };
+    }
+
+    // Verify order status is editable
+    const editableStatuses: OrderStatus[] = ['pending_assignment', 'pickup_scheduled'];
+    if (!editableStatuses.includes(order.status)) {
+      return {
+        success: false,
+        error: 'Kan ikke endre hentedato etter at ordren er hentet'
+      };
+    }
+
+    // Validate new date is at least MIN_DAYS_NOTICE days in the future
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const minDate = new Date(today);
+    minDate.setDate(today.getDate() + MIN_DAYS_NOTICE);
+    const pickupDate = new Date(newPickupDate);
+
+    if (pickupDate < minDate) {
+      return {
+        success: false,
+        error: `Hentedato må være minst ${MIN_DAYS_NOTICE} dager frem i tid`
+      };
+    }
+
+    // Validate weekday has cleaner availability in order's city
+    const newWeekday = getWeekdayFromDate(newPickupDate);
+    const availableWeekdays = await getAvailableWeekdaysForCity(order.city);
+
+    if (!availableWeekdays.includes(newWeekday)) {
+      return {
+        success: false,
+        error: 'Ingen rensere tilgjengelig på denne dagen'
+      };
+    }
+
+    // Calculate new delivery date
+    const newDeliveryDate = toISODateString(addDays(pickupDate, DAYS_PICKUP_TO_DELIVERY));
+
+    // Smart cleaner reassignment
+    const adminClient = createAdminClient();
+    let newCleanerId = order.assigned_cleaner_id;
+    let cleanerChanged = false;
+    let newCleanerName: string | undefined;
+
+    if (order.assigned_cleaner_id) {
+      // Check if current cleaner works on new weekday
+      const { data: currentCleaner } = await adminClient
+        .from('cleaners')
+        .select('id, display_name, weekly_schedule')
+        .eq('id', order.assigned_cleaner_id)
+        .single();
+
+      if (currentCleaner) {
+        const cleanerWorksOnNewDay = isWeekdayInSchedule(currentCleaner.weekly_schedule, newWeekday);
+
+        if (!cleanerWorksOnNewDay) {
+          // Find new cleaner
+          const newCleaner = await findAvailableCleaner(order.city, pickupDate);
+          if (!newCleaner) {
+            return {
+              success: false,
+              error: 'Ingen rensere tilgjengelig på denne dagen. Vennligst velg en annen dato.'
+            };
+          }
+          newCleanerId = newCleaner.id;
+          cleanerChanged = true;
+          newCleanerName = newCleaner.display_name;
+        }
+      }
+    }
+
+    // Update order
+    const { error } = await adminClient
+      .from('orders')
+      .update({
+        scheduled_date: newPickupDate,
+        delivery_date: newDeliveryDate,
+        assigned_cleaner_id: newCleanerId,
+      })
+      .eq('id', orderId);
+
+    if (error) {
+      console.error('Error updating pickup date:', error);
+      return { success: false, error: 'Kunne ikke oppdatere hentedato' };
+    }
+
+    return {
+      success: true,
+      newPickupDate,
+      newDeliveryDate,
+      cleanerChanged,
+      newCleanerName,
+    };
+  } catch (error) {
+    console.error('Error updating pickup date:', error);
+    return { success: false, error: 'En feil oppstod' };
   }
 }

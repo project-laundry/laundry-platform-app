@@ -5,6 +5,7 @@ import { getCustomerByUserId } from '@/lib/database/customers';
 import { getOrderWithDetailsByIdAndCustomerId } from '@/lib/database/orders';
 import { oreToNok } from '@/lib/config/pricing';
 import { CancelOrderButton } from '@/components/orders/CancelOrderButton';
+import { RescheduleButton } from '@/components/orders/RescheduleButton';
 import { EditableSpecialInstructions } from '@/components/orders/EditableSpecialInstructions';
 import { EditableIroning } from '@/components/orders/EditableIroning';
 import { EditableAddress } from '@/components/orders/EditableAddress';
@@ -283,6 +284,13 @@ export default async function OrderDetailPage({ params }: OrderPageProps) {
                   </div>
                 </div>
               </div>
+
+              {/* Reschedule Button */}
+              {isEditable && (
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <RescheduleButton orderId={order.id} orderStatus={order.status} />
+                </div>
+              )}
             </div>
 
             {/* Cleaner Card */}
