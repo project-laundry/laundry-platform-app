@@ -257,6 +257,7 @@ export interface OrderWithRelations extends Order {
   cleaner?: Cleaner;
   subscription?: Subscription;
   payments?: Payment[];
+  assigned_cleaner_id?: string | null;
 }
 
 export interface SubscriptionWithRelations extends Subscription {
