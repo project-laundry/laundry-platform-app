@@ -52,6 +52,23 @@ export function CancelConfirmationForm({
     }
   };
 
+  // For one-time orders, just show the cancel button
+  if (!hasSubscription) {
+    return (
+      <div className="space-y-4">
+        <Button
+          onClick={handleCancel}
+          disabled={isLoading}
+          variant="destructive"
+          className="w-full py-6 text-base"
+        >
+          {isLoading ? 'Kansellerer...' : 'Bekreft kansellering'}
+        </Button>
+      </div>
+    );
+  }
+
+  // For subscription orders, show options
   return (
     <div className="space-y-4">
       <h3 className="font-semibold text-dark-gray">Velg kanselleringstype</h3>
@@ -82,47 +99,43 @@ export function CancelConfirmationForm({
               Kanseller kun denne bestillingen
             </h4>
             <p className="text-sm text-medium-gray">
-              {hasSubscription
-                ? 'En ny ordre vil automatisk bli opprettet for neste periode. Abonnementet fortsetter som normalt.'
-                : 'Denne bestillingen vil bli kansellert.'}
+              En ny ordre vil automatisk bli opprettet for neste periode. Abonnementet fortsetter som normalt.
             </p>
           </div>
         </div>
       </button>
 
-      {/* Option 2: Cancel subscription (only if has subscription) */}
-      {hasSubscription && (
-        <button
-          type="button"
-          onClick={() => setSelectedOption('subscription')}
-          disabled={isLoading}
-          className={`w-full text-left p-6 rounded-xl border-2 transition-all ${
+      {/* Option 2: Cancel subscription */}
+      <button
+        type="button"
+        onClick={() => setSelectedOption('subscription')}
+        disabled={isLoading}
+        className={`w-full text-left p-6 rounded-xl border-2 transition-all ${
+          selectedOption === 'subscription'
+            ? 'border-red-500 bg-red-50'
+            : 'border-gray-200 bg-white hover:border-gray-300'
+        }`}
+      >
+        <div className="flex items-start">
+          <div className={`w-5 h-5 rounded-full border-2 mr-4 mt-0.5 flex items-center justify-center flex-shrink-0 ${
             selectedOption === 'subscription'
-              ? 'border-red-500 bg-red-50'
-              : 'border-gray-200 bg-white hover:border-gray-300'
-          }`}
-        >
-          <div className="flex items-start">
-            <div className={`w-5 h-5 rounded-full border-2 mr-4 mt-0.5 flex items-center justify-center flex-shrink-0 ${
-              selectedOption === 'subscription'
-                ? 'border-red-500'
-                : 'border-gray-300'
-            }`}>
-              {selectedOption === 'subscription' && (
-                <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
-              )}
-            </div>
-            <div>
-              <h4 className="font-semibold text-dark-gray mb-1">
-                Kanseller abonnementet
-              </h4>
-              <p className="text-sm text-medium-gray">
-                Alle fremtidige ordrer vil bli stoppet og Vipps-avtalen avsluttes. Dette kan ikke angres.
-              </p>
-            </div>
+              ? 'border-red-500'
+              : 'border-gray-300'
+          }`}>
+            {selectedOption === 'subscription' && (
+              <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+            )}
           </div>
-        </button>
-      )}
+          <div>
+            <h4 className="font-semibold text-dark-gray mb-1">
+              Kanseller abonnementet
+            </h4>
+            <p className="text-sm text-medium-gray">
+              Alle fremtidige ordrer vil bli stoppet og Vipps-avtalen avsluttes. Dette kan ikke angres.
+            </p>
+          </div>
+        </div>
+      </button>
 
       {/* Warning for subscription cancellation */}
       {selectedOption === 'subscription' && (
