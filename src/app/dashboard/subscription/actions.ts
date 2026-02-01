@@ -1,9 +1,9 @@
 'use server';
 
-import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getCustomerByUserId } from '@/lib/database/customers';
 import { getSubscriptionById, cancelSubscription } from '@/lib/database/subscriptions';
+import { getPaymentAgreementById, stopPaymentAgreement } from '@/lib/database/payment-agreements';
 import { cancelVippsAgreement } from '@/lib/payments/vipps/service';
 
 interface ActionResult {
@@ -13,7 +13,7 @@ interface ActionResult {
 
 /**
  * Cancel a customer's subscription
- * Sets status to 'cancelled' and stops Vipps agreement
+ * Sets status to 'cancelled', stops Vipps agreement, and updates payment agreement
  */
 export async function cancelSubscriptionAction(
   subscriptionId: string
@@ -48,13 +48,18 @@ export async function cancelSubscriptionAction(
       return { success: false, error: 'Subscription is already cancelled' };
     }
 
-    // Cancel Vipps agreement if exists
-    if (subscription.provider_agreement_id) {
-      try {
-        await cancelVippsAgreement(subscription.provider_agreement_id);
-      } catch (vippsError) {
-        console.error('Error cancelling Vipps agreement:', vippsError);
-        // Continue with database cancellation even if Vipps fails
+    // Cancel Vipps agreement via payment agreement
+    if (subscription.payment_agreement_id) {
+      const paymentAgreement = await getPaymentAgreementById(subscription.payment_agreement_id);
+      if (paymentAgreement) {
+        try {
+          await cancelVippsAgreement(paymentAgreement.provider_agreement_id);
+        } catch (vippsError) {
+          console.error('Error cancelling Vipps agreement:', vippsError);
+          // Continue with database cancellation even if Vipps fails
+        }
+        // Update payment agreement status
+        await stopPaymentAgreement(paymentAgreement.id);
       }
     }
 
@@ -64,7 +69,7 @@ export async function cancelSubscriptionAction(
     if (!result) {
       return { success: false, error: 'Failed to cancel subscription' };
     }
-    return { success: true };    
+    return { success: true };
   } catch (error) {
     console.error('Error cancelling subscription:', error);
     return { success: false, error: 'An error occurred while cancelling subscription' };

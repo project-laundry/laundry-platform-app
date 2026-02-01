@@ -23,6 +23,8 @@ export type CleanerSpecialization =
   | 'formal'
   | 'outerwear';
 
+export type PaymentAgreementStatus = 'pending' | 'active' | 'stopped' | 'expired';
+
 export type SubscriptionStatus = 'pending_payment' | 'active' | 'paused' | 'cancelled' | 'expired';
 
 export type SubscriptionFrequency = 'weekly' | 'biweekly' | 'monthly' | 'on_demand';
@@ -116,6 +118,19 @@ export interface Admin {
   updated_at: string;
 }
 
+export interface PaymentAgreement {
+  id: string;
+  customer_id: string;
+  provider: string;
+  provider_agreement_id: string;
+  status: PaymentAgreementStatus;
+  provider_metadata: Record<string, unknown> | null;
+  created_at: string;
+  activated_at: string | null;
+  stopped_at: string | null;
+  updated_at: string;
+}
+
 export interface Subscription {
   id: string;
   customer_id: string;
@@ -123,7 +138,7 @@ export interface Subscription {
   frequency: SubscriptionFrequency;
   // Status and metadata
   status: SubscriptionStatus;
-  provider_agreement_id: string | null;
+  payment_agreement_id: string | null;
   order_defaults: SubscriptionOrderDefaults | null;
   started_at: string | null;
   paused_at: string | null;
@@ -170,6 +185,7 @@ export interface Order {
   order_number: string;
   customer_id: string;
   subscription_id: string | null;
+  payment_agreement_id: string | null;
   cleaner_id: string | null;
   status: OrderStatus;
   // Address (single address - pickup = delivery)
@@ -283,7 +299,7 @@ export type VippsChargeStatus = 'PENDING' | 'DUE' | 'RESERVED' | 'CHARGED' | 'FA
 
 /**
  * Vipps agreement metadata structure
- * Stored in subscriptions.order_defaults (merged with order generation defaults)
+ * Stored in payment_agreements.provider_metadata
  */
 export interface VippsAgreementMetadata {
   vipps_agreement_id: string;
@@ -319,6 +335,7 @@ export type Tables = {
   customers: Customer;
   cleaners: Cleaner;
   admins: Admin;
+  payment_agreements: PaymentAgreement;
   subscriptions: Subscription;
   orders: Order;
   payments: Payment;

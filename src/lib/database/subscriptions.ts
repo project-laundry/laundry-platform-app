@@ -11,7 +11,7 @@ import type {
 export interface CreateSubscriptionData {
   customer_id: string;
   frequency: SubscriptionFrequency;
-  provider_agreement_id: string;
+  payment_agreement_id: string;
   order_defaults?: SubscriptionOrderDefaults | null;
 }
 
@@ -33,7 +33,7 @@ export async function createSubscription(
       frequency: data.frequency,
       status: 'pending_payment' as SubscriptionStatus,
       started_at: null,
-      provider_agreement_id: data.provider_agreement_id,
+      payment_agreement_id: data.payment_agreement_id,
       order_defaults: data.order_defaults || null,
     })
     .select()
@@ -91,32 +91,6 @@ export async function getActiveSubscriptionByCustomerId(
 
   if (error) {
     console.error('Error fetching active subscription:', error);
-    return null;
-  }
-
-  return data;
-}
-
-// =============================================================================
-// VIPPS AGREEMENT MANAGEMENT
-// =============================================================================
-
-/**
- * Get subscription by Vipps agreement ID
- * Uses admin client to bypass RLS (no SELECT policy on subscriptions table)
- */
-export async function getSubscriptionByAgreementId(
-  agreementId: string
-): Promise<Subscription | null> {
-  const supabase = createAdminClient();
-
-  const { data, error } = await supabase
-    .from('subscriptions')
-    .select('*')
-    .eq('provider_agreement_id', agreementId)
-    .single();
-
-  if (error) {
     return null;
   }
 

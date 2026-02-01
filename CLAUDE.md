@@ -117,8 +117,9 @@ src/
 │   │   ├── cleaners.ts     # Cleaner queries & matching
 │   │   ├── customers.ts    # Customer queries
 │   │   ├── orders.ts       # Order CRUD
+│   │   ├── payment-agreements.ts  # Payment agreement CRUD (Vipps agreement lifecycle)
 │   │   ├── payments.ts     # Payment operations (includes Vipps metadata management)
-│   │   └── subscriptions.ts   # Subscription operations (includes Vipps agreement management)
+│   │   └── subscriptions.ts   # Subscription operations (recurring order management)
 │   ├── payments/           # Payment processing integrations
 │   │   └── vipps/          # Vipps Recurring API integration
 │   │       ├── client.ts   # Vipps API client (auth, agreements, charges, capture)
@@ -163,8 +164,8 @@ All database operations use dedicated functions in `lib/database/`:
 
 `src/types/database.ts` contains all entity types and enums:
 
-- **Enums**: UserRole, OrderStatus, PaymentStatus, SubscriptionStatus, etc.
-- **Entities**: User, Customer, Cleaner, Order, Subscription, Payment, etc.
+- **Enums**: UserRole, OrderStatus, PaymentStatus, SubscriptionStatus, PaymentAgreementStatus, etc.
+- **Entities**: User, Customer, Cleaner, PaymentAgreement, Order, Subscription, Payment, etc.
 
 ### Middleware
 
@@ -177,15 +178,15 @@ All database operations use dedicated functions in `lib/database/`:
 The platform uses Vipps Recurring API for production payments with RESERVE_CAPTURE flow:
 
 **Key Files:**
+- `lib/database/payment-agreements.ts` - Payment agreement CRUD (Vipps agreement lifecycle, decoupled from subscriptions)
 - `lib/payments/vipps/recurring-client.ts` - Vipps Recurring API client (agreements, charges)
 - `lib/payments/vipps/epayment-client.ts` - Vipps ePayment API client (one-time payments)
 - `lib/payments/vipps/base-client.ts` - Shared OAuth and HTTP utilities
 - `lib/payments/vipps/webhook-auth.ts` - Shared webhook authentication (HMAC-SHA256)
 - `lib/payments/vipps/service.ts` - High-level service layer orchestrating Vipps + database operations
 - `lib/payments/vipps/config.ts` - Configuration validation and environment checks
-- `app/orders/actions.ts` - Server actions including `createVippsAgreementAction()` for agreement creation
-- `app/api/vipps/agreements/callback/route.ts` - Post-approval redirect handler (API route)
-- `app/api/webhooks/vipps/recurring/route.ts` - **Critical** webhook handler for Recurring API events (subscriptions) - handles order generation and self-perpetuating charge creation
+- `app/orders/actions.ts` - Server actions including checkout flow (creates PaymentAgreement + optional Subscription)
+- `app/api/webhooks/vipps/recurring/route.ts` - **Critical** webhook handler for Recurring API events - handles agreement activation, order generation, and charge events
 - `app/api/webhooks/vipps/epayment/route.ts` - **Critical** webhook handler for ePayment API events (one-time payments)
 - `lib/services/order-generation.ts` - Order generation service (calculates pickup dates based on subscription frequency)
 
@@ -217,9 +218,13 @@ Both webhooks use HMAC-SHA256 signature verification. You can use a shared secre
 - Vipps test environment available at https://apitest.vipps.no
 
 **Key Database Schema:**
+- **New Table:** `payment_agreements` - Decoupled Vipps agreement lifecycle from subscriptions
+  - `provider_agreement_id` - Vipps agreement ID (unique)
+  - `status` - pending/active/stopped/expired
+  - `provider_metadata` - For one-time orders, stores `order_defaults`
 - **Removed Tables:** `subscription_plans`, `bag_deliveries` (FLEXIBLE pricing eliminated need for plans)
-- **Removed Fields:** `subscriptions.next_billing_date`, `subscriptions.billing_cost_ore`, `subscriptions.recurring_weekday`, `subscriptions.expires_at`, `orders.plan_id`, `orders.extra_kg`, `orders.delicate_items_count`
-- `subscriptions.provider_agreement_id` - Stores Vipps agreement ID (for managing subscription, not billing)
+- **Removed Fields:** `subscriptions.provider_agreement_id` (moved to `payment_agreements`), `subscriptions.next_billing_date`, `subscriptions.billing_cost_ore`, `subscriptions.recurring_weekday`, `subscriptions.expires_at`, `orders.plan_id`, `orders.extra_kg`, `orders.delicate_items_count`
+- `subscriptions.payment_agreement_id` - FK to `payment_agreements` (replaces `provider_agreement_id`)
 - `subscriptions.order_defaults` - Stores order generation defaults (JSONB):
   - `initial_address` - Pickup/delivery address
   - `special_instructions` - Pickup details
@@ -227,6 +232,7 @@ Both webhooks use HMAC-SHA256 signature verification. You can use a shared secre
   - `default_needs_ironing` - Default ironing preference for orders
   - `default_cleaner_id` - Default cleaner assignment (orders can be reassigned)
   - `first_pickup_date` - ISO date for first order pickup (replaces recurring_weekday)
+- `orders.payment_agreement_id` - FK to `payment_agreements` (for one-time orders without subscription)
 - `orders.total_cost_ore` - **NULLABLE** (NULL until cleaner sets price)
 - `orders.actual_weight_kg` - Actual weight after pickup
 - `orders.pricing_notes` - Cleaner's pricing explanation
@@ -239,12 +245,21 @@ See migrations:
 - `supabase/migrations/20251219133224_refactor_subscription_metadata.sql` - Moved fields into order_defaults JSONB
 - `supabase/migrations/20251220120000_remove_recurring_weekday.sql` - Replaced with first_pickup_date
 - `supabase/migrations/20251221135400_remove_bag_deliveries.sql` - Removed unused table
+- `supabase/migrations/20260201120000_create_payment_agreements.sql` - Decoupled PaymentAgreement from Subscription
 
 **Order Generation Architecture (Rolling Window):**
 The platform uses a **rolling window** pattern that maintains 1 upcoming order at all times:
-1. Agreement activated → First order generated with `total_cost_ore = NULL`
-2. Cleaner sets price after pickup → Creates ePayment charge
-3. Order completes → Next order auto-generated (pickup date based on frequency)
-4. Pattern repeats indefinitely until subscription paused/cancelled
+
+**Recurring subscriptions:**
+1. PaymentAgreement + Subscription created → Vipps checkout
+2. Agreement activated → PaymentAgreement + Subscription activated → First order generated with `total_cost_ore = NULL`
+3. Cleaner sets price after pickup → Creates charge via `payment_agreements.provider_agreement_id`
+4. Order completes → Next order auto-generated (pickup date based on frequency)
+5. Pattern repeats indefinitely until subscription paused/cancelled
+
+**One-time orders:**
+1. PaymentAgreement created (no Subscription) → order_defaults stored in provider_metadata → Vipps checkout
+2. Agreement activated → PaymentAgreement activated → Single order generated from metadata
+3. Cleaner sets price → Creates charge → Order completes (no further orders generated)
 
 This eliminates batch order generation - orders are created just-in-time as needed.

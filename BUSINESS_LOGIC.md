@@ -6,35 +6,41 @@
 
 ## Business Logic & Workflows
 
-### Subscription Creation & Order Generation (FLEXIBLE Pricing)
+### Checkout & Order Generation (FLEXIBLE Pricing)
 
-**Core Principle:** FLEXIBLE pricing model with rolling window order generation. Orders created with NULL price, cleaner calculates after weighing.
+**Core Principle:** FLEXIBLE pricing model. Orders created with NULL price, cleaner calculates after weighing. PaymentAgreement is created for every checkout; Subscription is only created for recurring orders.
 
 **Workflow:**
 
-1. **Customer Subscribes:**
-   - Customer selects frequency (weekly, biweekly, monthly, on_demand)
+1. **Customer Checkout:**
+   - Customer selects frequency (weekly, biweekly, monthly for recurring; on_demand for one-time)
    - Selects preferences (needs_ironing)
    - Provides service address and first pickup date
-   - System creates Subscription with:
-     - `status = 'pending_payment'`
-     - `started_at = null` (set when agreement activated)
-     - `order_defaults` populated with address, preferences, first_pickup_date
+   - System creates:
+     - **PaymentAgreement** (always): `status = 'pending'`, linked to Vipps agreement
+     - **Subscription** (recurring only): `status = 'pending_payment'`, `payment_agreement_id` set, `order_defaults` populated
+     - For one-time orders: `order_defaults` stored in `payment_agreements.provider_metadata`
    - Vipps recurring agreement created (no initial charge)
 
 2. **Agreement Activation Triggers First Order** (via `agreement-activated` webhook):
    - When customer approves Vipps agreement:
-     - Set subscription `status = 'active'`
-     - Set `started_at = now()`
-     - Generate **first order only** with:
+     - Activate PaymentAgreement: `status = 'active'`, `activated_at = now()`
+     - **If subscription exists (recurring):**
+       - Set subscription `status = 'active'`, `started_at = now()`
+       - Read `order_defaults` from subscription
+     - **If no subscription (one-time):**
+       - Read `order_defaults` from `payment_agreements.provider_metadata`
+     - Generate **first order** with:
        - Pickup date from `order_defaults.first_pickup_date`
-       - Delivery date = pickup + 3 days
+       - Delivery date = pickup + 2 days
        - `total_cost_ore = NULL` (cleaner sets later)
        - Address from `order_defaults.initial_address`
        - `needs_ironing` from `order_defaults.default_needs_ironing`
+       - `payment_agreement_id` set on order
+       - `subscription_id` set if recurring, null if one-time
        - Status: 'pickup_scheduled' if cleaner assigned, else 'pending_assignment'
 
-3. **Rolling Window Order Generation** (triggered when order completes):
+3. **Rolling Window Order Generation** (recurring only, triggered when order completes):
    - System maintains **1 upcoming order** at all times
    - When order transitions to 'completed' or 'cancelled':
      - Check if upcoming order count < 1
@@ -204,16 +210,20 @@ These timestamps provide sufficient audit trail for MVP compliance.
 
 **Core Principle:** No upfront subscription charges. Each order is priced and charged individually by cleaner.
 
-**Subscription Creation Flow:**
+**Checkout Flow:**
 
-1. Customer completes subscription form
-2. System creates subscription with `status = 'pending_payment'`
+1. Customer completes checkout form
+2. System creates:
+   - `PaymentAgreement` with `status = 'pending'`
+   - `Subscription` with `status = 'pending_payment'` and `payment_agreement_id` (recurring only)
+   - For one-time: `order_defaults` stored in `payment_agreements.provider_metadata`
 3. Server action creates Vipps recurring agreement **WITHOUT initial charge**
 4. User redirected to Vipps app, approves agreement
 5. **Webhook:** `POST /api/webhooks/vipps/recurring` receives `agreement-activated` event:
-   - Subscription activated: `status = 'active'`, `started_at = now()`
+   - PaymentAgreement activated: `status = 'active'`, `activated_at = now()`
+   - If subscription: activated with `status = 'active'`, `started_at = now()`
    - Cleaner assigned via matching algorithm
-   - **First order generated** with `total_cost_ore = NULL`
+   - **First order generated** with `total_cost_ore = NULL`, `payment_agreement_id` set
 6. Customer can track order in dashboard
 
 **Per-Order Payment Flow (FLEXIBLE):**
@@ -266,7 +276,9 @@ These timestamps provide sufficient audit trail for MVP compliance.
 
 **Key Implementation Details:**
 
-- Vipps agreements stored in `subscriptions.provider_agreement_id`
+- Vipps agreements stored in `payment_agreements.provider_agreement_id` (decoupled from subscriptions)
+- Subscriptions link to payment agreements via `subscriptions.payment_agreement_id`
+- Orders link to payment agreements via `orders.payment_agreement_id` (for charge resolution)
 - Payment metadata stored in `payments.provider_metadata` (JSONB)
 - Payment references stored in `payments.provider_reference` for webhook lookups
 - Automatic capture recommended for MVP (capture immediately when authorized)

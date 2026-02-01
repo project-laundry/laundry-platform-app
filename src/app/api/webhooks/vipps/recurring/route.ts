@@ -8,24 +8,29 @@
 //
 // CHARGE EVENTS:
 // - recurring.charge-reserved.v1 → Authorize payment → Capture charge
-// - recurring.charge-captured.v1 → Complete payment → Activate subscription → Generate orders
+// - recurring.charge-captured.v1 → Complete payment
 // - recurring.charge-canceled.v1 → Mark payment as canceled
 // - recurring.charge-refunded.v1 → Process refund
 // - recurring.charge-failed.v1 → Mark payment as failed
 // - recurring.charge-creation-failed.v1 → Handle charge creation failure
 //
 // AGREEMENT EVENTS:
-// - recurring.agreement-activated.v1 → Agreement accepted by user → Activate subscription
-// - recurring.agreement-rejected.v1 → Agreement rejected by user → Cancel subscription
-// - recurring.agreement-stopped.v1 → Agreement stopped by user/merchant/admin → Cancel subscription
-// - recurring.agreement-expired.v1 → Agreement expired → Mark subscription as expired
+// - recurring.agreement-activated.v1 → Agreement accepted by user → Activate payment agreement + subscription (if any) → Generate first order
+// - recurring.agreement-rejected.v1 → Agreement rejected by user → Stop payment agreement + cancel subscription (if any)
+// - recurring.agreement-stopped.v1 → Agreement stopped by user/merchant/admin → Stop payment agreement + cancel subscription (if any)
+// - recurring.agreement-expired.v1 → Agreement expired → Expire payment agreement + expire subscription (if any)
 
 import { NextRequest, NextResponse } from 'next/server';
 import { validateVippsWebhook, getVippsWebhookSecret } from '@/lib/payments/vipps/webhook-auth';
 import {
-  getSubscriptionByAgreementId,
+  getPaymentAgreementByProviderId,
+  activatePaymentAgreement,
+  stopPaymentAgreement,
+  expirePaymentAgreement,
+  getSubscriptionByPaymentAgreementId,
+} from '@/lib/database/payment-agreements';
+import {
   activateSubscriptionOnAgreementActivation,
-  updateSubscription,
   cancelSubscription,
   expireSubscription,
 } from '@/lib/database/subscriptions';
@@ -35,11 +40,10 @@ import {
   failPaymentWithMetadata,
   updatePaymentWithMetadata,
 } from '@/lib/database/payments';
-import { getCustomerById } from '@/lib/database/customers';
 import { createOrder } from '@/lib/database/orders';
-import { addDays, toISODateString, addMonths, getWeekdayFromDate, getNextOccurrenceOfWeekday } from '@/lib/utils/date';
+import { addDays, toISODateString, getWeekdayFromDate, getNextOccurrenceOfWeekday } from '@/lib/utils/date';
 import { DAYS_PICKUP_TO_DELIVERY } from '@/lib/config/order-timing';
-import type { OrderStatus, SubscriptionStatus } from '@/types/database';
+import type { OrderStatus, PaymentAgreement, SubscriptionOrderDefaults } from '@/types/database';
 
 
 // =============================================================================
@@ -184,34 +188,34 @@ async function handleRecurringChargeWebhook(body: VippsChargeWebhookBody): Promi
 
   console.log(`[Vipps Recurring Webhook] Charge event: ${eventType} for agreement ${agreementId}`);
 
-  // Get subscription by agreement ID
-  const subscription = await getSubscriptionByAgreementId(agreementId);
+  // Get payment agreement by provider agreement ID
+  const paymentAgreement = await getPaymentAgreementByProviderId(agreementId);
 
-  if (!subscription) {
-    console.error(`[Vipps Recurring Webhook] Subscription not found for agreement ${agreementId}`);
-    return; // Return silently - subscription may have been deleted
+  if (!paymentAgreement) {
+    console.error(`[Vipps Recurring Webhook] Payment agreement not found for agreement ${agreementId}`);
+    return; // Return silently - agreement may have been deleted
   }
 
   // Route to appropriate handler
-  switch (eventType) {    
+  switch (eventType) {
     case 'recurring.charge-captured.v1':
-      await handleChargeCaptured(body, subscription);
+      await handleChargeCaptured(body);
       break;
 
     case 'recurring.charge-canceled.v1':
-      await handleChargeCanceled(body, subscription);
+      await handleChargeCanceled(body);
       break;
 
     case 'recurring.charge-refunded.v1':
-      await handleChargeRefunded(body, subscription);
+      await handleChargeRefunded(body);
       break;
 
     case 'recurring.charge-failed.v1':
-      await handleChargeFailed(body, subscription);
+      await handleChargeFailed(body);
       break;
 
     case 'recurring.charge-creation-failed.v1':
-      await handleChargeCreationFailed(body, subscription);
+      await handleChargeCreationFailed(body, paymentAgreement);
       break;
 
     default:
@@ -227,30 +231,30 @@ async function handleRecurringAgreementWebhook(body: VippsAgreementWebhookBody):
 
   console.log(`[Vipps Recurring Webhook] Agreement event: ${eventType} for agreement ${agreementId}`);
 
-  // Get subscription by agreement ID
-  const subscription = await getSubscriptionByAgreementId(agreementId);
+  // Get payment agreement by provider agreement ID
+  const paymentAgreement = await getPaymentAgreementByProviderId(agreementId);
 
-  if (!subscription) {
-    console.error(`[Vipps Recurring Webhook] Subscription not found for agreement ${agreementId}`);
-    return; // Return silently - subscription may have been deleted
+  if (!paymentAgreement) {
+    console.error(`[Vipps Recurring Webhook] Payment agreement not found for agreement ${agreementId}`);
+    return; // Return silently - agreement may have been deleted
   }
 
   // Route to appropriate handler
   switch (eventType) {
     case 'recurring.agreement-activated.v1':
-      await handleAgreementActivated(body, subscription);
+      await handleAgreementActivated(body, paymentAgreement);
       break;
 
     case 'recurring.agreement-rejected.v1':
-      await handleAgreementRejected(body, subscription);
+      await handleAgreementRejected(body, paymentAgreement);
       break;
 
     case 'recurring.agreement-stopped.v1':
-      await handleAgreementStopped(body, subscription);
+      await handleAgreementStopped(body, paymentAgreement);
       break;
 
     case 'recurring.agreement-expired.v1':
-      await handleAgreementExpired(body, subscription);
+      await handleAgreementExpired(body, paymentAgreement);
       break;
 
     default:
@@ -270,8 +274,7 @@ async function handleRecurringAgreementWebhook(body: VippsAgreementWebhookBody):
  * This handler only marks the payment as captured - no order generation or next charge creation.
  */
 async function handleChargeCaptured(
-  webhook: VippsChargeWebhookBody,
-  subscription: any
+  webhook: VippsChargeWebhookBody
 ): Promise<void> {
   const { chargeId, agreementId, amount, amountCaptured, currency, occurred } = webhook;
 
@@ -308,8 +311,7 @@ async function handleChargeCaptured(
  * Charge was fully or partially cancelled.
  */
 async function handleChargeCanceled(
-  webhook: VippsChargeWebhookBody,
-  subscription: any
+  webhook: VippsChargeWebhookBody
 ): Promise<void> {
   const { chargeId, agreementId, amountCanceled, occurred } = webhook;
 
@@ -341,8 +343,7 @@ async function handleChargeCanceled(
  * Charge was fully or partially refunded.
  */
 async function handleChargeRefunded(
-  webhook: VippsChargeWebhookBody,
-  subscription: any
+  webhook: VippsChargeWebhookBody
 ): Promise<void> {
   const { chargeId, agreementId, amountRefunded, occurred } = webhook;
 
@@ -375,8 +376,7 @@ async function handleChargeRefunded(
  * Charge failed and will no longer be retried by Vipps.
  */
 async function handleChargeFailed(
-  webhook: VippsChargeWebhookBody,
-  subscription: any
+  webhook: VippsChargeWebhookBody
 ): Promise<void> {
   const { chargeId, agreementId, failureReason, failureCode, occurred } = webhook;
 
@@ -417,7 +417,7 @@ async function handleChargeFailed(
  */
 async function handleChargeCreationFailed(
   webhook: VippsChargeWebhookBody,
-  subscription: any
+  paymentAgreement: PaymentAgreement
 ): Promise<void> {
   const { chargeId, agreementId, failureReason, failureCode } = webhook;
 
@@ -429,11 +429,10 @@ async function handleChargeCreationFailed(
     chargeId,
     failureCode,
     failureReason,
-    subscriptionId: subscription.id,
+    paymentAgreementId: paymentAgreement.id,
   });
 
   // TODO: Send admin notification about charge creation failure
-  // TODO: Determine if subscription needs to be paused/cancelled based on failure type
 }
 
 // =============================================================================
@@ -444,110 +443,161 @@ async function handleChargeCreationFailed(
  * Handle recurring.agreement-activated.v1
  *
  * Agreement was accepted/activated by the user.
- * Activates the subscription and generates initial batch of orders (without pricing).
+ * 1. Activates the payment agreement
+ * 2. If linked subscription exists: activate it and generate first order
+ * 3. If no subscription (one-time order): generate order directly from payment agreement metadata
  */
 async function handleAgreementActivated(
   webhook: VippsAgreementWebhookBody,
-  subscription: any
+  paymentAgreement: PaymentAgreement
 ): Promise<void> {
-  const { agreementId, occurred } = webhook;
+  const { agreementId } = webhook;
 
   console.log(`[Vipps Recurring Webhook] Agreement activated: ${agreementId}`);
 
-  // Activate subscription when agreement is activated
+  // 1. Activate payment agreement
+  const activatedAgreement = await activatePaymentAgreement(paymentAgreement.id);
+  if (!activatedAgreement) {
+    throw new Error(`Failed to activate payment agreement ${paymentAgreement.id}`);
+  }
+
+  console.log(`[Vipps Recurring Webhook] Payment agreement ${paymentAgreement.id} activated`);
+
+  // 2. Check if there's a linked subscription
+  const subscription = await getSubscriptionByPaymentAgreementId(paymentAgreement.id);
+
+  if (subscription) {
+    // RECURRING ORDER: Activate subscription and generate first order
+    await handleSubscriptionActivation(paymentAgreement, subscription);
+  } else {
+    // ONE-TIME ORDER: Generate order directly from payment agreement metadata
+    await handleOneTimeOrderCreation(paymentAgreement);
+  }
+}
+
+/**
+ * Handle subscription activation and first order generation (recurring orders)
+ */
+async function handleSubscriptionActivation(
+  paymentAgreement: PaymentAgreement,
+  subscription: { id: string; customer_id: string; order_defaults: unknown }
+): Promise<void> {
+  // Activate subscription
   const activatedSubscription = await activateSubscriptionOnAgreementActivation(subscription.id);
 
   if (!activatedSubscription) {
     throw new Error(`Failed to activate subscription ${subscription.id} on agreement activation`);
   }
 
-  console.log(`[Vipps Recurring Webhook] Subscription ${subscription.id} activated with status='active', started_at=${activatedSubscription.started_at}`);
+  console.log(`[Vipps Recurring Webhook] Subscription ${subscription.id} activated`);
 
-  // Generate initial batch of orders (FLEXIBLE pricing - no cost yet)
+  // Generate first order
   try {
-    // Extract order defaults from subscription
-    const orderDefaults = activatedSubscription.order_defaults as any;
-    if (!orderDefaults || !orderDefaults.initial_address) {
+    const orderDefaults = activatedSubscription.order_defaults as SubscriptionOrderDefaults;
+    if (!orderDefaults?.initial_address) {
       throw new Error('No order_defaults found in subscription');
     }
 
-    const address = orderDefaults.initial_address;
-    const defaultCleanerId = orderDefaults.default_cleaner_id;
-    const needsIroning = orderDefaults.default_needs_ironing;
-
-    // Get customer data
-    const customer = await getCustomerById(activatedSubscription.customer_id);
-    if (!customer) {
-      throw new Error('Customer not found');
-    }
-
-    // Calculate first pickup date from stored first_pickup_date
-    const storedDate = new Date(orderDefaults.first_pickup_date);
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-
-    let pickupDate: Date;
-
-    if (storedDate >= now) {
-      // Use the user's chosen first pickup date
-      pickupDate = storedDate;
-      console.log(`[Vipps Recurring Webhook] Using user's chosen first pickup date: ${toISODateString(pickupDate)}`);
-    } else {
-      // Safety fallback: if stored date has passed (extremely rare due to 10min Vipps expiry)
-      // Find next occurrence of the same weekday
-      const weekday = getWeekdayFromDate(orderDefaults.first_pickup_date);
-      pickupDate = getNextOccurrenceOfWeekday(new Date(), weekday);
-      console.log(`[Vipps Recurring Webhook] Stored date passed, using next ${weekday}: ${toISODateString(pickupDate)}`);
-    }
-
-    const deliveryDate = addDays(pickupDate, DAYS_PICKUP_TO_DELIVERY);
-
-    console.log(`[Vipps Recurring Webhook] Generating first order for subscription ${activatedSubscription.id}`);
-
-    // Create first order WITHOUT pricing (cleaner sets price later)
-    // Next orders will be generated automatically when current order completes
-
-    try {
-      // Determine order status based on default cleaner
-      const orderStatus: OrderStatus = defaultCleanerId
-        ? 'pickup_scheduled'
-        : 'pending_assignment';
-
-      // Create order with null pricing
-      const order = await createOrder({
-        customer_id: activatedSubscription.customer_id,
-        subscription_id: activatedSubscription.id,
-        cleaner_id: defaultCleanerId,
-        status: orderStatus,
-        // Address fields (from order defaults)
-        street: address.street,
-        postal_code: address.postal_code,
-        city: address.city,
-        country: address.country,
-        special_instructions_address: address.special_instructions,
-        // Scheduling
-        scheduled_date: toISODateString(pickupDate),
-        delivery_date: toISODateString(deliveryDate),
-        // Pickup details (from order defaults)
-        special_instructions: orderDefaults.special_instructions,
-        // Ironing preference (from order defaults)
-        needs_ironing: needsIroning,
-        // Pricing (NULL - cleaner sets later)
-        total_cost_ore: null,
-      });
-
-      if (order) {
-        console.log(`[Vipps Recurring Webhook] First order ${order.order_number} created (pickup: ${order.scheduled_date}, pricing: TBD by cleaner)`);
-      } else {
-        console.error(`[Vipps Recurring Webhook] Failed to create first order`);
-      }
-    } catch (error) {
-      console.error(`[Vipps Recurring Webhook] Error creating first order:`, error);
-      // Don't throw - subscription is already activated
-    }
+    await generateFirstOrder(
+      activatedSubscription.customer_id,
+      orderDefaults,
+      activatedSubscription.id,
+      paymentAgreement.id,
+    );
   } catch (error) {
-    console.error(`[Vipps Recurring Webhook] Failed to generate orders:`, error);
+    console.error(`[Vipps Recurring Webhook] Failed to generate first order for subscription:`, error);
     // Don't throw - subscription is already activated
+  }
+}
+
+/**
+ * Handle one-time order creation (no subscription)
+ */
+async function handleOneTimeOrderCreation(
+  paymentAgreement: PaymentAgreement
+): Promise<void> {
+  console.log(`[Vipps Recurring Webhook] No linked subscription - creating one-time order`);
+
+  try {
+    // Read order_defaults from payment agreement metadata
+    const metadata = paymentAgreement.provider_metadata as { order_defaults?: SubscriptionOrderDefaults } | null;
+    const orderDefaults = metadata?.order_defaults;
+
+    if (!orderDefaults?.initial_address) {
+      throw new Error('No order_defaults found in payment agreement metadata');
+    }
+
+    await generateFirstOrder(
+      paymentAgreement.customer_id,
+      orderDefaults,
+      null, // no subscription_id
+      paymentAgreement.id,
+    );
+  } catch (error) {
+    console.error(`[Vipps Recurring Webhook] Failed to generate one-time order:`, error);
+    // Don't throw - payment agreement is already activated
+  }
+}
+
+/**
+ * Generate the first order from order defaults
+ * Used by both subscription and one-time order flows
+ */
+async function generateFirstOrder(
+  customerId: string,
+  orderDefaults: SubscriptionOrderDefaults,
+  subscriptionId: string | null,
+  paymentAgreementId: string,
+): Promise<void> {
+  const address = orderDefaults.initial_address;
+  const defaultCleanerId = orderDefaults.default_cleaner_id;
+  const needsIroning = orderDefaults.default_needs_ironing;
+
+  // Calculate first pickup date
+  const storedDate = new Date(orderDefaults.first_pickup_date);
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  let pickupDate: Date;
+
+  if (storedDate >= now) {
+    pickupDate = storedDate;
+    console.log(`[Vipps Recurring Webhook] Using user's chosen first pickup date: ${toISODateString(pickupDate)}`);
+  } else {
+    // Safety fallback: if stored date has passed
+    const weekday = getWeekdayFromDate(orderDefaults.first_pickup_date);
+    pickupDate = getNextOccurrenceOfWeekday(new Date(), weekday);
+    console.log(`[Vipps Recurring Webhook] Stored date passed, using next ${weekday}: ${toISODateString(pickupDate)}`);
+  }
+
+  const deliveryDate = addDays(pickupDate, DAYS_PICKUP_TO_DELIVERY);
+
+  const orderStatus: OrderStatus = defaultCleanerId
+    ? 'pickup_scheduled'
+    : 'pending_assignment';
+
+  const order = await createOrder({
+    customer_id: customerId,
+    subscription_id: subscriptionId,
+    payment_agreement_id: paymentAgreementId,
+    cleaner_id: defaultCleanerId,
+    status: orderStatus,
+    street: address.street,
+    postal_code: address.postal_code,
+    city: address.city,
+    country: address.country,
+    special_instructions_address: address.special_instructions,
+    scheduled_date: toISODateString(pickupDate),
+    delivery_date: toISODateString(deliveryDate),
+    special_instructions: orderDefaults.special_instructions,
+    needs_ironing: needsIroning,
+    total_cost_ore: null,
+  });
+
+  if (order) {
+    console.log(`[Vipps Recurring Webhook] Order ${order.order_number} created (pickup: ${order.scheduled_date}, subscription: ${subscriptionId || 'none'})`);
+  } else {
+    console.error(`[Vipps Recurring Webhook] Failed to create order`);
   }
 }
 
@@ -558,20 +608,20 @@ async function handleAgreementActivated(
  */
 async function handleAgreementRejected(
   webhook: VippsAgreementWebhookBody,
-  subscription: any
+  paymentAgreement: PaymentAgreement
 ): Promise<void> {
   const { agreementId, occurred } = webhook;
 
   console.log(`[Vipps Recurring Webhook] Agreement rejected: ${agreementId}`);
 
-  // Use unified cancellation function (cancels orders + payments + subscription)
-  await cancelSubscription(
-    subscription.id,
-    occurred,
-    'Agreement rejected by user'
-  );
+  // Stop payment agreement
+  await stopPaymentAgreement(paymentAgreement.id);
 
-  // TODO: Consider sending notification to user or admin
+  // Cancel linked subscription if exists
+  const subscription = await getSubscriptionByPaymentAgreementId(paymentAgreement.id);
+  if (subscription) {
+    await cancelSubscription(subscription.id, occurred, 'Agreement rejected by user');
+  }
 }
 
 /**
@@ -581,7 +631,7 @@ async function handleAgreementRejected(
  */
 async function handleAgreementStopped(
   webhook: VippsAgreementWebhookBody,
-  subscription: any
+  paymentAgreement: PaymentAgreement
 ): Promise<void> {
   const { agreementId, actor, occurred } = webhook;
 
@@ -594,9 +644,12 @@ async function handleAgreementStopped(
     return;
   }
 
-  // For USER or ADMIN initiated stops, we need to cancel the subscription
-  if (subscription.status === 'active') {
-    // Use unified cancellation function (cancels orders + subscription)
+  // Stop payment agreement
+  await stopPaymentAgreement(paymentAgreement.id);
+
+  // Cancel linked subscription if exists and is active
+  const subscription = await getSubscriptionByPaymentAgreementId(paymentAgreement.id);
+  if (subscription && subscription.status === 'active') {
     await cancelSubscription(
       subscription.id,
       occurred,
@@ -607,8 +660,6 @@ async function handleAgreementStopped(
     // - RESERVED charges are NOT automatically cancelled (merchant can still capture)
     // - PENDING/DUE charges are cancelled
     // - New future charges will result in an error
-  } else {
-    console.log(`[Vipps Recurring Webhook] Agreement stopped but subscription ${subscription.id} is ${subscription.status}`);
   }
 }
 
@@ -619,14 +670,18 @@ async function handleAgreementStopped(
  */
 async function handleAgreementExpired(
   webhook: VippsAgreementWebhookBody,
-  subscription: any
+  paymentAgreement: PaymentAgreement
 ): Promise<void> {
-  const { agreementId, occurred } = webhook;
+  const { agreementId } = webhook;
 
   console.log(`[Vipps Recurring Webhook] Agreement expired: ${agreementId}`);
 
-  // Use unified expiration function (cancels orders + payments, sets status to 'expired')
-  await expireSubscription(subscription.id);
+  // Expire payment agreement
+  await expirePaymentAgreement(paymentAgreement.id);
 
-  // TODO: Consider if any cleanup is needed for expired agreements
+  // Expire linked subscription if exists
+  const subscription = await getSubscriptionByPaymentAgreementId(paymentAgreement.id);
+  if (subscription) {
+    await expireSubscription(subscription.id);
+  }
 }
