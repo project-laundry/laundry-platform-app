@@ -1,6 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { ArrowRight } from 'lucide-react';
 import { SubscriptionOverviewCard } from './SubscriptionOverviewCard';
 import { OneTimeOrderCard } from './OneTimeOrderCard';
 import { OrderHistorySection } from './OrderHistorySection';
@@ -62,8 +65,21 @@ export function DashboardTabs({ subscription, nextOrder, completedOrders, upcomi
                   ))}
                 </div>
               ) : (
-                <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl p-12 text-center">
-                  <p className="font-serif text-xl text-muted-foreground">Ingen kommende ordrer.</p>
+                <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl p-12 text-center hover:border-[hsl(var(--nordic-blue))]/30 hover:shadow-card transition-all duration-300">
+                  <div className="mb-6">
+                    <p className="font-serif text-2xl text-foreground mb-2">Ingen kommende ordrer</p>
+                    <p className="text-muted-foreground">Bestill en ny vask for å komme i gang</p>
+                  </div>
+                  <Link href="/orders/service">
+                    <Button
+                      variant="hero"
+                      size="lg"
+                      className="w-full max-w-sm"
+                    >
+                      Bestill klesvask
+                      <ArrowRight className="w-5 h-5 ml-2" />
+                    </Button>
+                  </Link>
                 </div>
               )}
             </>
