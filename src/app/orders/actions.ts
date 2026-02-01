@@ -2,7 +2,8 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createSubscription, getActiveSubscriptionByCustomerId, getSubscriptionById, getSubscriptionByAgreementId } from "@/lib/database/subscriptions";
+import { createSubscription, getActiveSubscriptionByCustomerId, getSubscriptionById } from "@/lib/database/subscriptions";
+import { createPaymentAgreement, getPaymentAgreementByProviderId } from "@/lib/database/payment-agreements";
 import { getCustomerByUserId } from "@/lib/database/customers";
 import {
   findAvailableCleaner,
@@ -49,15 +50,16 @@ export interface CreateSubscriptionResult {
 }
 
 /**
- * Create a new subscription with Vipps agreement
+ * Create a new order checkout with Vipps agreement
  * Called from the order confirmation page
  *
  * Flow:
- * 1. Create subscription record in database
- * 2. Create Vipps recurring agreement
- * 3. Return Vipps checkout URL for user to approve
- * 4. User redirects to Vipps, approves, then redirects to /orders/success
- * 5. Webhook activates subscription when agreement approved
+ * 1. Create PaymentAgreement record (required for all checkouts)
+ * 2. If recurring: create Subscription linked to PaymentAgreement
+ * 3. If one-time: store order_defaults on PaymentAgreement.provider_metadata
+ * 4. Create Vipps recurring agreement
+ * 5. Return Vipps checkout URL for user to approve
+ * 6. Webhook activates agreement and creates orders
  */
 export async function createSubscriptionAction(
   input: CreateSubscriptionInput,
@@ -79,18 +81,22 @@ export async function createSubscriptionAction(
     return { error: "Customer not found" };
   }
 
-  // Check if customer already has an active subscription
-  const existingSubscription = await getActiveSubscriptionByCustomerId(customer.id);
-  if (existingSubscription) {
-    return { displayError: "Du har allerede et aktivt abonnement", error: "Customer already has an active subscription" };
-  }
-
   // Determine the subscription frequency
   // - For recurring orders: use the selected frequency
-  // - For single orders: store 'on_demand' in database
+  // - For single orders: 'on_demand' (no subscription created)
   const frequency: SubscriptionFrequency = input.isRecurring && input.frequency
     ? input.frequency
     : 'on_demand';
+
+  const isRecurring = frequency !== 'on_demand';
+
+  // Only check for existing active subscription for recurring orders
+  if (isRecurring) {
+    const existingSubscription = await getActiveSubscriptionByCustomerId(customer.id);
+    if (existingSubscription) {
+      return { displayError: "Du har allerede et aktivt abonnement", error: "Customer already has an active subscription" };
+    }
+  }
 
   // For Vipps agreement, we need a billing interval
   // 'on_demand' (single orders) uses 'monthly' as Vipps requires an interval
@@ -104,7 +110,6 @@ export async function createSubscriptionAction(
   );
 
   // Create Vipps FLEXIBLE agreement (NO price parameter)
-  // Note: Don't include ironing in agreement name since it can be changed per order
   const frequencyNorwegian = translateFrequency(frequency);
 
   const agreementResponse = await createVippsAgreement({
@@ -129,16 +134,31 @@ export async function createSubscriptionAction(
     first_pickup_date: input.firstPickupDate,
   };
 
-  // Create subscription with all order defaults
-  const subscription = await createSubscription({
+  // 1. Create PaymentAgreement (required for all checkouts)
+  const paymentAgreement = await createPaymentAgreement({
     customer_id: customer.id,
-    frequency,
     provider_agreement_id: agreementResponse.agreementId,
-    order_defaults: orderDefaults,
+    // For one-time orders, store order_defaults in provider_metadata
+    // since there's no subscription to hold them
+    provider_metadata: !isRecurring ? { order_defaults: orderDefaults } : null,
   });
 
-  if (!subscription) {
-    return { error: "Failed to create subscription" };
+  if (!paymentAgreement) {
+    return { error: "Failed to create payment agreement" };
+  }
+
+  // 2. If recurring: create Subscription linked to PaymentAgreement
+  if (isRecurring) {
+    const subscription = await createSubscription({
+      customer_id: customer.id,
+      frequency,
+      payment_agreement_id: paymentAgreement.id,
+      order_defaults: orderDefaults,
+    });
+
+    if (!subscription) {
+      return { error: "Failed to create subscription" };
+    }
   }
 
   return {
@@ -205,18 +225,18 @@ export async function forceAcceptAgreementAction(
     // Format phone number: Remove +47 prefix (Vipps expects format: 4712345678)
     const formattedPhone = phoneNumber.replace(/^\+/, '');
 
-    // 3. Get subscription to verify ownership
-    const subscription = await getSubscriptionByAgreementId(agreementId);
-    if (!subscription) {
+    // 3. Get payment agreement to verify ownership
+    const paymentAgreement = await getPaymentAgreementByProviderId(agreementId);
+    if (!paymentAgreement) {
       return {
         success: false,
-        error: 'Abonnement ikke funnet',
+        error: 'Avtale ikke funnet',
       };
     }
 
     // Verify customer ownership
     const customer = await getCustomerByUserId(authUser.id);
-    if (!customer || customer.id !== subscription.customer_id) {
+    if (!customer || customer.id !== paymentAgreement.customer_id) {
       return {
         success: false,
         error: 'Ikke autorisert',
@@ -227,7 +247,7 @@ export async function forceAcceptAgreementAction(
     const vippsClient = createVippsRecurringClient();
     await vippsClient.forceAcceptAgreement(agreementId, formattedPhone);
 
-    // 5. Poll subscription status until active (max 30 seconds)
+    // 5. Poll payment agreement status until active (max 30 seconds)
     const maxAttempts = 30;
     const delayMs = 1000; // 1 second between attempts
 
@@ -237,9 +257,9 @@ export async function forceAcceptAgreementAction(
         await new Promise((resolve) => setTimeout(resolve, delayMs));
       }
 
-      // Check subscription status
-      const updatedSubscription = await getSubscriptionByAgreementId(agreementId);
-      if (updatedSubscription?.status === 'active') {
+      // Check payment agreement status
+      const updatedAgreement = await getPaymentAgreementByProviderId(agreementId);
+      if (updatedAgreement?.status === 'active') {
         return {
           success: true,
         };

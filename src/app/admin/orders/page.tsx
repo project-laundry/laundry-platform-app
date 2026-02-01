@@ -55,7 +55,7 @@ export default function AdminOrdersPage() {
     return (
       <div className="min-h-screen bg-gray-50 p-8">
         <div className="max-w-6xl mx-auto">
-          <h1 className="text-2xl font-bold mb-6">Ordrer som venter tildeling</h1>
+          <h1 className="text-2xl font-bold mb-6">Ordre som venter tildeling</h1>
           <p>Laster...</p>
         </div>
       </div>
@@ -65,11 +65,11 @@ export default function AdminOrdersPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6">Ordrer som venter tildeling</h1>
+        <h1 className="text-2xl font-bold mb-6">Ordre som venter tildeling</h1>
 
         {orders.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-6">
-            <p className="text-gray-500">Ingen ordrer venter på tildeling</p>
+            <p className="text-gray-500">Ingen ordre venter på tildeling</p>
           </div>
         ) : (
           <div className="space-y-4">

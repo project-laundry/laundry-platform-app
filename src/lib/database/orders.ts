@@ -15,6 +15,7 @@ import { generateOrderNumber } from '@/lib/utils/order-number';
 export interface CreateOrderData {
   customer_id: string;
   subscription_id?: string | null;
+  payment_agreement_id?: string | null;
   cleaner_id?: string | null;
   // Address (single address - pickup = delivery)
   street: string;
@@ -72,6 +73,7 @@ export async function createOrder(data: CreateOrderData): Promise<Order | null> 
       order_number: orderNumber,
       customer_id: data.customer_id,
       subscription_id: data.subscription_id || null,
+      payment_agreement_id: data.payment_agreement_id || null,
       cleaner_id: data.cleaner_id || null,
       status: data.status,
       // Address (single address - pickup = delivery)

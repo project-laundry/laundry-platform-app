@@ -4,9 +4,6 @@
 import { createVippsRecurringClient } from "./recurring-client";
 import { createVippsEPaymentClient } from "./epayment-client";
 import {
-  getSubscriptionById  
-} from "@/lib/database/subscriptions";
-import {
   createPayment,
 } from "@/lib/database/payments";
 
@@ -229,10 +226,11 @@ export async function createChargeForCompletedOrder(
   const { createAdminClient } = await import('@/lib/supabase/admin');
   const adminClient = createAdminClient();
 
-  // 1. Get order with subscription
+  // 1. Get order with payment agreement
+  // Try direct payment_agreement_id first (one-time orders), then via subscription (recurring orders)
   const { data: order, error: orderError } = await adminClient
     .from('orders')
-    .select('*, subscriptions!inner(provider_agreement_id, customer_id, id)')
+    .select('*, payment_agreements(*), subscriptions(payment_agreement_id, customer_id, id)')
     .eq('id', orderId)
     .single();
 
@@ -240,16 +238,30 @@ export async function createChargeForCompletedOrder(
     throw new Error(`Order not found: ${orderId}`);
   }
 
-  const subscription = order.subscriptions as any;
+  // 2. Resolve payment agreement - either directly on order or through subscription
+  let providerAgreementId: string | null = null;
+  const customerId: string = order.customer_id;
 
-  // 2. Verify agreement exists and is active
-  if (!subscription.provider_agreement_id) {
-    throw new Error('No Vipps agreement found for subscription');
+  const directAgreement = order.payment_agreements as Record<string, string> | null;
+  const subscription = order.subscriptions as Record<string, string> | null;
+
+  if (directAgreement?.provider_agreement_id) {
+    // Order has direct payment agreement (both one-time and recurring orders)
+    providerAgreementId = directAgreement.provider_agreement_id;
+  } else if (subscription?.payment_agreement_id) {
+    // Fallback: look up through subscription's payment agreement
+    const { getPaymentAgreementById } = await import('@/lib/database/payment-agreements');
+    const agreement = await getPaymentAgreementById(subscription.payment_agreement_id);
+    providerAgreementId = agreement?.provider_agreement_id || null;
+  }
+
+  if (!providerAgreementId) {
+    throw new Error('No Vipps agreement found for order');
   }
 
   // 3. Create payment record
   const payment = await createPayment({
-    customer_id: subscription.customer_id,
+    customer_id: customerId,
     order_id: orderId,
     payment_type: 'one_time',
     amount_ore: amountOre,
@@ -266,7 +278,7 @@ export async function createChargeForCompletedOrder(
   const dueDateString = dueDate.toISOString().split('T')[0]; // YYYY-MM-DD
 
   const vipps = createVippsRecurringClient();
-  const result = await vipps.createCharge(subscription.provider_agreement_id, {
+  const result = await vipps.createCharge(providerAgreementId, {
     amount: amountOre,
     description,
     due: dueDateString,
@@ -279,7 +291,7 @@ export async function createChargeForCompletedOrder(
   await updatePayment(payment.id, {
     provider_reference: result.chargeId,
     provider_metadata: {
-      vipps_agreement_id: subscription.provider_agreement_id,
+      vipps_agreement_id: providerAgreementId,
       vipps_charge_id: result.chargeId,
     },
   });

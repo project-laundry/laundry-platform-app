@@ -163,27 +163,64 @@
 ---
 
 
-### Subscription
+### PaymentAgreement
 
-**Description:** Active customer subscriptions with FLEXIBLE pricing model.
-
-**Note:**
-- A customer can only have ONE active or paused subscription at a time
-- Uses Vipps FLEXIBLE pricing: orders generated with NULL price, cleaner calculates after weighing laundry
-- No upfront billing - each order is charged individually by cleaner
+**Description:** Vipps recurring agreement records, decoupled from subscriptions. Every checkout (both recurring and one-time) creates a payment agreement. Subscriptions optionally link to a payment agreement.
 
 **Fields:**
 
 - `id` (uuid, PK) - Unique identifier
 - `customer_id` (uuid, FK → Customer.id, required) - Customer reference
-- `frequency` (enum → [SubscriptionFrequency](#subscriptionfrequency), required) - Pickup frequency (weekly, biweekly, monthly, on_demand)
+  - **On Delete:** CASCADE
+- `provider` (text, required) - Payment provider name
+  - **Default:** `'vipps'`
+- `provider_agreement_id` (text, unique, required) - Vipps recurring agreement ID
+  - **Format:** `agr_*` (Vipps format)
+- `status` (text, required) - Agreement status
+  - **Values:** `'pending'`, `'active'`, `'stopped'`, `'expired'`
+  - **Default:** `'pending'`
+- `provider_metadata` (jsonb, nullable) - Provider-specific metadata
+  - **Note:** For one-time orders, stores `order_defaults` (address, preferences, pickup date) since there's no subscription to hold them.
+- `created_at` (timestamp) - Creation timestamp
+- `activated_at` (timestamp, nullable) - When agreement was activated by user
+- `stopped_at` (timestamp, nullable) - When agreement was stopped
+- `updated_at` (timestamp) - Last update timestamp
+
+**Relationships:**
+
+- Belongs to Customer
+- Has zero or one Subscription (via `subscriptions.payment_agreement_id`)
+- Has many Orders (via `orders.payment_agreement_id`)
+
+**Indexes:**
+
+- Foreign: customer_id
+- Unique: provider_agreement_id
+- Index: status
+
+---
+
+### Subscription
+
+**Description:** Active customer subscriptions with FLEXIBLE pricing model. Only created for recurring orders (not one-time).
+
+**Note:**
+- A customer can only have ONE active or paused subscription at a time
+- Uses Vipps FLEXIBLE pricing: orders generated with NULL price, cleaner calculates after weighing laundry
+- No upfront billing - each order is charged individually by cleaner
+- One-time orders do NOT create a subscription - they use PaymentAgreement directly
+
+**Fields:**
+
+- `id` (uuid, PK) - Unique identifier
+- `customer_id` (uuid, FK → Customer.id, required) - Customer reference
+- `frequency` (enum → [SubscriptionFrequency](#subscriptionfrequency), required) - Pickup frequency (weekly, biweekly, monthly)
   - **Default:** `'weekly'`
 - `status` (enum → [SubscriptionStatus](#subscriptionstatus), required) - Subscription status
   - **Default:** `pending_payment`
   - **Note:** Transitions to `active` when Vipps agreement is approved
-- `provider_agreement_id` (string, nullable, unique) - Vipps recurring agreement ID
-  - **Format:** `agr_*` (Vipps format)
-  - **Note:** Set when customer approves Vipps agreement. Used for subscription management and per-order billing.
+- `payment_agreement_id` (uuid, FK → PaymentAgreement.id, nullable) - Link to the Vipps payment agreement
+  - **Note:** Used to resolve provider_agreement_id for Vipps API calls
 - `order_defaults` (jsonb, nullable) - Order generation defaults (single source of truth)
   - **Default:** `null`
   - **Structure:**
@@ -205,6 +242,7 @@
 **Relationships:**
 
 - Belongs to Customer
+- Belongs to PaymentAgreement (nullable)
 - Has many Orders (generated from subscription)
 - Has many Payments (per-order billing, no recurring charges)
 - Default cleaner stored in order_defaults.default_cleaner_id (not a foreign key - orders can be reassigned)
@@ -218,10 +256,9 @@
 
 **Indexes:**
 
-- Foreign: customer_id
-- Index: status, provider_agreement_id
+- Foreign: customer_id, payment_agreement_id
+- Index: status
 - Unique: (customer_id) WHERE status IN ('pending_payment', 'active', 'paused') - enforces one active/pending subscription per customer
-- Unique: provider_agreement_id (for Vipps agreement lookups)
 
 ---
 
@@ -239,6 +276,8 @@
   - **On Delete:** CASCADE
 - `subscription_id` (uuid, FK → [Subscription](#subscription).id, nullable) - Subscription reference
   - **Note:** Set if order is part of subscription, null for one-time orders
+- `payment_agreement_id` (uuid, FK → [PaymentAgreement](#paymentagreement).id, nullable) - Payment agreement reference
+  - **Note:** Set for all orders (both subscription and one-time). Used to resolve Vipps agreement for charging.
 - `cleaner_id` (uuid, FK → [Cleaner](#cleaner).id, nullable) - Assigned cleaner
 - `status` (enum → [OrderStatus](#orderstatus), required) - Order status
   - **Default:** `pending_assignment`
@@ -293,6 +332,7 @@
 
 - Belongs to Customer
 - Belongs to Subscription (nullable)
+- Belongs to PaymentAgreement (nullable)
 - Assigned to Cleaner
 - Has many Payments (one-time payment per order)
 
@@ -305,7 +345,7 @@
 **Indexes:**
 
 - Unique: order_number
-- Foreign: customer_id, subscription_id, cleaner_id
+- Foreign: customer_id, subscription_id, payment_agreement_id, cleaner_id
 - Index: status, scheduled_date
 - Composite: (customer_id, created_at DESC), (cleaner_id, status)
 

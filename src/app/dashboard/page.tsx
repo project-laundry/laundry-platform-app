@@ -33,6 +33,9 @@ export default async function DashboardPage() {
   const userName = user.user_metadata?.full_name || 'Bruker';
   const firstName = userName.split(' ')[0];
 
+  // Show empty state only if no subscription AND no orders
+  const hasNoActivity = !subscription && upcomingOrders.length === 0 && completedOrders.length === 0;
+
   return (
     <div className="min-h-screen bg-aurora relative overflow-hidden">
       {/* Decorative floating blobs */}
@@ -69,17 +72,18 @@ export default async function DashboardPage() {
           <h1 className="font-serif text-4xl md:text-5xl font-light text-foreground mb-3">
             Hei, <span className="text-gradient font-medium">{firstName}</span>
           </h1>
-          <p className="text-muted-foreground text-lg">Her kan du se ditt abonnement og alle dine ordrer.</p>
+          <p className="text-muted-foreground text-lg">Her kan du se ditt abonnement og alle dine ordre.</p>
         </div>
 
-        {subscription ? (
+        {hasNoActivity ? (
+          <EmptySubscriptionState />
+        ) : (
           <DashboardTabs
             subscription={subscription}
             nextOrder={nextOrder}
             completedOrders={completedOrders}
+            upcomingOrders={upcomingOrders}
           />
-        ) : (
-          <EmptySubscriptionState />
         )}
       </main>
     </div>
