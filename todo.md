@@ -5,4 +5,4 @@
 - Abort Vipps lead to SUCCESS
 - When chosing simple order, the DB is storing Monthly
 - frequency should be enum in DB
-- consider if Vipps agreement should be it's own table and separated from subscription 
+- No way to do a new order when you cancel a subscription and an order
