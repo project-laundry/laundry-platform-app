@@ -230,9 +230,9 @@ function ConfirmPageContent() {
 
         {/* Submit Form */}
         <form onSubmit={handleConfirmOrder}>
-          <p className="text-sm text-slate-600 mb-2 text-center">
+          {/* <p className="text-sm text-slate-600 mb-2 text-center">
             Du vil bli videresendt til Vipps for å godkjenne avtalen
-          </p>
+          </p> */}
           <p className="text-sm text-slate-500 mb-4 text-center">
             <a
               target='_blank'
