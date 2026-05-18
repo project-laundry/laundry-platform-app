@@ -245,8 +245,9 @@ function ConfirmPageContent() {
           </p>
 
           {/* Auto-accept checkbox (test environment only) */}
-          <div className="mb-4 flex items-center gap-2 justify-center">
+          {/* <div className="mb-4 flex items-center gap-2 justify-center">
             <input
+              disabled
               type="checkbox"
               id="autoAccept"
               checked={autoAccept}
@@ -256,7 +257,7 @@ function ConfirmPageContent() {
             <label htmlFor="autoAccept" className="text-sm text-slate-600 cursor-pointer">
               Auto-godkjenn avtale (testmiljø)
             </label>
-          </div>
+          </div> */}
 
           <button
             type="submit"
@@ -294,7 +295,7 @@ function ConfirmPageContent() {
             ) : (
               <>
                 <span className="text-2xl mr-2">📱</span>
-                Bekreft og betal med Vipps
+                Bekreft
               </>
             )}
           </button>
