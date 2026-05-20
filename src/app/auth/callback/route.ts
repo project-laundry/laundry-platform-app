@@ -21,6 +21,12 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/auth/error`);
   }
 
+  const role = data.user.user_metadata?.role;
+
+  if (role === 'cleaner') {
+    return NextResponse.redirect(`${origin}/bli-renser/business`);
+  }
+
   const { error: customerError } = await createCustomer(data.user.id);
   if (customerError) {
     console.error('Failed to create customer:', customerError);

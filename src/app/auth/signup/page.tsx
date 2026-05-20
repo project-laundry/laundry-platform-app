@@ -55,6 +55,7 @@ export default function SignupPage() {
         data: {
           full_name: formData.name,
           phone: `+47${formData.phone}`,
+          role: 'customer',
         },
       },
     });
