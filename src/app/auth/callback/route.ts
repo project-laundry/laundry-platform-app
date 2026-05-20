@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase/server';
-import { createCustomer } from '@/lib/database/customers';
 import { type EmailOtpType } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
@@ -25,12 +24,6 @@ export async function GET(request: Request) {
 
   if (role === 'cleaner') {
     return NextResponse.redirect(`${origin}/bli-renser/business`);
-  }
-
-  const { error: customerError } = await createCustomer(data.user.id);
-  if (customerError) {
-    console.error('Failed to create customer:', customerError);
-    // Continue anyway - customer might already exist (MVP: edge case handling)
   }
 
   return NextResponse.redirect(`${origin}${next}`);

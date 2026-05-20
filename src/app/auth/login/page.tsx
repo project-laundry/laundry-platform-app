@@ -13,6 +13,9 @@ export default function LoginPage() {
   });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
+  const [resendStatus, setResendStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [resendError, setResendError] = useState<string | null>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -22,6 +25,9 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setNeedsConfirmation(false);
+    setResendStatus('idle');
+    setResendError(null);
     setLoading(true);
 
     const supabase = createClient();
@@ -33,7 +39,15 @@ export default function LoginPage() {
     });
 
     if (signInError) {
-      setError(signInError.message);
+      const isUnconfirmed =
+        (signInError as { code?: string }).code === 'email_not_confirmed' ||
+        /email not confirmed/i.test(signInError.message);
+      if (isUnconfirmed) {
+        setNeedsConfirmation(true);
+        setError('E-postadressen din er ikke bekreftet ennå. Sjekk innboksen din eller send bekreftelsen på nytt.');
+      } else {
+        setError(signInError.message);
+      }
       setLoading(false);
       return;
     }
@@ -89,6 +103,23 @@ export default function LoginPage() {
     router.refresh();
   };
 
+  const handleResend = async () => {
+    setResendStatus('sending');
+    setResendError(null);
+    const supabase = createClient();
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: formData.email,
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    });
+    if (error) {
+      setResendStatus('error');
+      setResendError(error.message);
+      return;
+    }
+    setResendStatus('sent');
+  };
+
   return (
     <div className="min-h-screen bg-soft-gray flex items-center justify-center px-4">
       <div className="max-w-md w-full">
@@ -107,6 +138,29 @@ export default function LoginPage() {
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
                 {error}
+              </div>
+            )}
+
+            {needsConfirmation && (
+              <div className="bg-amber-50 border border-amber-200 text-dark-gray px-4 py-3 rounded-lg text-sm space-y-2">
+                <p>Vi sendte en bekreftelseslenke til {formData.email}.</p>
+                {resendStatus === 'sent' ? (
+                  <p className="text-green-700 font-medium">
+                    Bekreftelses-e-post sendt på nytt. Sjekk innboksen din.
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    disabled={resendStatus === 'sending' || !formData.email}
+                    className="text-nordic-blue font-semibold hover:underline disabled:opacity-50"
+                  >
+                    {resendStatus === 'sending' ? 'Sender...' : 'Send bekreftelses-e-post på nytt'}
+                  </button>
+                )}
+                {resendStatus === 'error' && resendError && (
+                  <p className="text-red-600">Kunne ikke sende: {resendError}</p>
+                )}
               </div>
             )}
 
