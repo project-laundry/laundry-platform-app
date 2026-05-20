@@ -25,21 +25,6 @@ export async function getCustomerByUserId(userId: string): Promise<Customer | nu
 }
 
 /**
- * Create a new customer record
- */
-export async function createCustomer(userId: string) {
-  const supabase = await createClient();
-
-  return await supabase
-    .from('customers')
-    .insert({
-      user_id: userId
-    })
-    .select()
-    .single();
-}
-
-/**
  * Get a customer by ID (using admin client for webhook access)
  */
 export async function getCustomerById(customerId: string): Promise<Customer | null> {
