@@ -14,6 +14,11 @@ export function Footer() {
               Mer tid til det som betyr noe. Profesjonell vaskservice for
               travle familier i Bergen og Oslo.
             </p>
+            {/* TODO: replace with the legal entity name and 9-digit org number before production */}
+            <div className="text-sm text-white/60 space-y-1">
+              <p>NooraCare AS</p>
+              <p>Org.nr: 836 788 842</p>
+            </div>
             {/* Social Icons */}
             <div className="flex gap-4 pt-2">
               <a
@@ -36,45 +41,46 @@ export function Footer() {
           {/* Service Areas Column */}
           <div className="space-y-4">
             <h4 className="text-lg font-semibold">Serviceområder</h4>
-            <ul className="space-y-3">
-              <li>
-                <a
-                  href="#"
-                  className="text-white/70 hover:text-white transition-colors"
-                >
-                  Bergen
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="text-white/70 hover:text-white transition-colors"
-                >
-                  Oslo
-                </a>
-              </li>
+            <ul className="space-y-3 text-white/70">
+              <li>Bergen</li>
+              <li>Oslo</li>
             </ul>
           </div>
 
-          {/* Support Column */}
+          {/* Contact Column */}
           <div className="space-y-4">
-            <h4 className="text-lg font-semibold">Støtte</h4>
-            <ul className="space-y-3">
+            <h4 className="text-lg font-semibold">Kontakt</h4>
+            <ul className="space-y-3 text-white/70">
               <li>
                 <a
-                  href="#"
-                  className="text-white/70 hover:text-white transition-colors"
+                  href="mailto:support@nooracare.no"
+                  className="hover:text-white transition-colors"
                 >
-                  Kontakt oss
+                  support@nooracare.no
                 </a>
               </li>
+              {/* TODO: replace with real phone number before production */}
               <li>
                 <a
-                  href="#"
-                  className="text-white/70 hover:text-white transition-colors"
+                  href="tel:+4700000000"
+                  className="hover:text-white transition-colors"
                 >
-                  Ofte stilte spørsmål
+                  +47 976 16 468
                 </a>
+              </li>
+              {/* TODO: replace with real postal address before production */}
+              <li className="leading-relaxed">
+                Breimyra 232
+                <br />
+                5134 Flaktveit
+              </li>
+              <li>
+                <Link
+                  href="/kontakt"
+                  className="hover:text-white transition-colors"
+                >
+                  Kontakt oss
+                </Link>
               </li>
             </ul>
           </div>
@@ -84,12 +90,12 @@ export function Footer() {
             <h4 className="text-lg font-semibold">Selskap</h4>
             <ul className="space-y-3">
               <li>
-                <a
-                  href="#"
+                <Link
+                  href="/pris-kalkulator"
                   className="text-white/70 hover:text-white transition-colors"
                 >
-                  Om oss
-                </a>
+                  Priser
+                </Link>
               </li>
               <li>
                 <a
@@ -100,12 +106,12 @@ export function Footer() {
                 </a>
               </li>
               <li>
-                <a
-                  href="#"
+                <Link
+                  href="/salgsvilkar"
                   className="text-white/70 hover:text-white transition-colors"
                 >
                   Vilkår
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
@@ -121,9 +127,12 @@ export function Footer() {
               <a href="#" className="hover:text-white transition-colors">
                 Personvern
               </a>
-              <a href="#" className="hover:text-white transition-colors">
+              <Link
+                href="/salgsvilkar"
+                className="hover:text-white transition-colors"
+              >
                 Vilkår
-              </a>
+              </Link>
             </div>
           </div>
         </div>
