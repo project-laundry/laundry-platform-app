@@ -380,8 +380,8 @@ export default function BecomeCleanerPage() {
               <h4 className="font-semibold mb-4 text-lg">Selskap</h4>
               <ul className="space-y-3 text-gray-400">
                 <li><a href="#" className="hover:text-white transition-colors">Om oss</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Personvern</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Vilkår</a></li>
+                <li><Link href="/personvern-renser" className="hover:text-white transition-colors">Personvern</Link></li>
+                <li><Link href="/salgsvilkar" className="hover:text-white transition-colors">Vilkår</Link></li>
               </ul>
             </div>
           </div>

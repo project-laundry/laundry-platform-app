@@ -191,13 +191,13 @@ export default function SignupPage() {
               />
               <label htmlFor="acceptTerms" className="ml-2 text-sm text-medium-gray">
                 Jeg aksepterer{' '}
-                <a href="#" className="text-nordic-blue hover:underline">
+                <Link href="/salgsvilkar" className="text-nordic-blue hover:underline">
                   vilkårene for bruk
-                </a>{' '}
+                </Link>{' '}
                 og{' '}
-                <a href="#" className="text-nordic-blue hover:underline">
+                <Link href="/personvern" className="text-nordic-blue hover:underline">
                   personvernerklæringen
-                </a>
+                </Link>
               </label>
             </div>
 

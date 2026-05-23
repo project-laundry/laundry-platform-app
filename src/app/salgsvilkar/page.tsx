@@ -22,7 +22,7 @@ export default function SalgsvilkarPage() {
                 Salgsvilkår
               </h1>
               <p className="text-sm text-muted-foreground">
-                Sist oppdatert: [DATO – fyll inn]
+                Sist oppdatert: 23.05.2026
               </p>
             </header>
 

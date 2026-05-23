@@ -98,12 +98,12 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <a
-                  href="#"
+                <Link
+                  href="/personvern"
                   className="text-white/70 hover:text-white transition-colors"
                 >
                   Personvern
-                </a>
+                </Link>
               </li>
               <li>
                 <Link
@@ -124,9 +124,12 @@ export function Footer() {
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-white/60">
             <p>© 2025 NooraCare. Alle rettigheter reservert.</p>
             <div className="flex gap-6">
-              <a href="#" className="hover:text-white transition-colors">
+              <Link
+                href="/personvern"
+                className="hover:text-white transition-colors"
+              >
                 Personvern
-              </a>
+              </Link>
               <Link
                 href="/salgsvilkar"
                 className="hover:text-white transition-colors"

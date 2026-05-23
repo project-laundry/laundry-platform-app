@@ -214,9 +214,9 @@ export default function ConfirmPage() {
                 label={
                   <>
                     Jeg godtar{' '}
-                    <a href="#" className="text-teal-600 hover:underline">
+                    <Link href="/salgsvilkar" className="text-teal-600 hover:underline">
                       vilkårene
-                    </a>{' '}
+                    </Link>{' '}
                     for å være renser hos NooraCare
                   </>
                 }
@@ -229,9 +229,9 @@ export default function ConfirmPage() {
                 label={
                   <>
                     Jeg samtykker til behandling av personopplysninger i henhold til{' '}
-                    <a href="#" className="text-teal-600 hover:underline">
+                    <Link href="/personvern-renser" className="text-teal-600 hover:underline">
                       personvernpolitikken
-                    </a>
+                    </Link>
                   </>
                 }
                 required
