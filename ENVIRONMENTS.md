@@ -12,10 +12,14 @@ projects** (one staging, one production).
 | Branch    | Supabase project                | Vercel environment   | Vipps            | Domain                  |
 |-----------|---------------------------------|----------------------|------------------|-------------------------|
 | `main`    | production (`mdglaondbvwsmsdtygmj`) | Production        | `api.vipps.no`   | `nooracare.no`          |
-| `develop` | **separate staging project**    | `staging` (custom)   | `apitest.vipps.no` | `staging.nooracare.no` |
+| `develop` | **separate staging project**    | Preview (branch-scoped) | `apitest.vipps.no` | `staging.nooracare.no` |
 
 **Promotion flow:** feature branch → PR into `develop` (CI runs) → merge deploys
 migrations to the staging project → PR `develop` → `main` deploys to production.
+
+> Vercel staging uses the **Hobby-friendly** approach: `develop` deploys as a **Preview**
+> with environment variables scoped to that branch, and a stable domain pinned to it.
+> (Vercel "Custom Environments" are a Pro feature and are intentionally not used.)
 
 ## CI/CD workflows
 
@@ -26,8 +30,8 @@ migrations to the staging project → PR `develop` → `main` deploys to product
 | `.github/workflows/production.yaml` | push to `main` | `supabase db push` to the **production** project |
 
 Migrations are applied by CI via `supabase db push` against each project. Vercel deploys
-are triggered automatically by its Git integration (Production from `main`, the `staging`
-custom environment from `develop`). `supabase/config.toml` is committed so `supabase link`
+are triggered automatically by its Git integration (Production from `main`, a branch-scoped
+Preview from `develop`). `supabase/config.toml` is committed so `supabase link`
 + `db push` behave consistently in CI.
 
 ## Environment variable matrix
@@ -72,17 +76,32 @@ in the dashboard.
 
 ### 2. Vercel staging environment (one-time, manual)
 
-Done in the Vercel dashboard (the MCP can't manage environments or env vars).
+Hobby-plan approach — no Custom Environment needed. `develop` already auto-deploys as a
+Vercel **Preview**; we give it staging env vars and a stable domain.
 
-1. Project → Settings → **Environments** → create a custom environment named
-   **`staging`** and attach branch `develop`.
-2. Add env vars **scoped to `staging`** per the matrix above (keep Production vars unchanged).
-3. Project → **Domains** → assign `staging.nooracare.no` to the `staging` environment.
-4. In the **Vipps test** portal, register webhooks pointing at staging:
+1. **Env vars** — add the staging values from the matrix above scoped to **Preview**.
+   Either via the dashboard (Settings → Environment Variables → select **Preview**, then
+   "specific branch" → `develop`) or the CLI:
+   ```bash
+   vercel env add NEXT_PUBLIC_SUPABASE_URL preview develop
+   vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY preview develop
+   vercel env add SUPABASE_SERVICE_ROLE_KEY preview develop
+   vercel env add NEXT_PUBLIC_APP_URL preview develop      # https://staging.nooracare.no
+   vercel env add VIPPS_API_URL preview develop            # https://apitest.vipps.no
+   # ...repeat for the remaining VIPPS_* vars
+   ```
+   - `NEXT_PUBLIC_*` are inlined at build time, so each `develop` build picks up its
+     branch-scoped value automatically.
+   - PR/feature-branch previews use the **generic Preview** vars (not branch-scoped). For an
+     MVP it's fine to point those at staging too, or leave them unset if you don't need
+     feature previews to boot.
+2. **Domain** — Settings → Domains → add `staging.nooracare.no` and assign it to the
+   **`develop` git branch** (so it always serves the latest `develop` Preview deployment).
+3. In the **Vipps test** portal, register webhooks pointing at staging:
    - `https://staging.nooracare.no/api/webhooks/vipps/recurring` — all `recurring.*` events
    - `https://staging.nooracare.no/api/webhooks/vipps/epayment` — all `epayments.payment.*` events
 
-   using the staging webhook secrets.
+   using the staging webhook secrets. Keep Production env vars/domain unchanged.
 
 ### 3. Verify
 
