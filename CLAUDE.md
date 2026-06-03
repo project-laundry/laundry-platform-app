@@ -52,6 +52,7 @@ Key implications:
   - See `ENTITIES.md` for complete database schema, entity definitions, relationships, and data integrity rules
   - See `BUSINESS_LOGIC.md` for application workflows, operational rules, and business process definitions
   - See `DASHBOARDS.md` for role-based UI specifications (Admin, Cleaner, Customer dashboards)
+  - See `ENVIRONMENTS.md` for staging/production setup, branch→environment mapping, and the env var matrix
 
 ## Development Commands
 
