@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { EnvironmentBadge } from "@/components/ui/EnvironmentBadge";
 import { createClient } from "@/lib/supabase/client";
 import type { UserRole } from "@/types/database";
 
@@ -72,10 +73,11 @@ export function Navbar() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center">
+          <Link href="/" className="flex items-center gap-2">
             <span className="text-2xl font-serif font-semibold text-[hsl(var(--nordic-blue))]">
               NooraCare
             </span>
+            <EnvironmentBadge />
           </Link>
 
           {/* Desktop Navigation */}
