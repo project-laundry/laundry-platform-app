@@ -30,22 +30,15 @@ A peer-to-peer laundry platform connecting customers with local cleaners in Berg
 
 ### Environment Variables
 
-Create a `.env.local` file with:
+Copy `.env.example` to `.env.local` and fill in your values:
 
 ```bash
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-
-# Vipps
-VIPPS_CLIENT_ID=your_client_id
-VIPPS_CLIENT_SECRET=your_client_secret
-VIPPS_SUBSCRIPTION_KEY=your_subscription_key
-VIPPS_MERCHANT_SERIAL_NUMBER=your_msn
-VIPPS_API_URL=https://apitest.vipps.no  # or https://api.vipps.no for production
-VIPPS_WEBHOOK_SECRET=your_webhook_secret
+cp .env.example .env.local
 ```
+
+`.env.example` documents every variable. For how values differ across local,
+staging, and production (and how to provision those environments), see
+**[ENVIRONMENTS.md](./ENVIRONMENTS.md)**.
 
 ### Installation
 
@@ -79,6 +72,7 @@ src/
 ## Documentation
 
 - **[CLAUDE.md](./CLAUDE.md)** - Project overview and development guide
+- **[ENVIRONMENTS.md](./ENVIRONMENTS.md)** - Staging/production setup, branch→env mapping, env var matrix
 - **[ENTITIES.md](./ENTITIES.md)** - Database schema and entity definitions
 - **[BUSINESS_LOGIC.md](./BUSINESS_LOGIC.md)** - Application workflows and business rules
 - **[DASHBOARDS.md](./DASHBOARDS.md)** - UI specifications for different roles
