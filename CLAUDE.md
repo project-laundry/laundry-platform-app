@@ -122,10 +122,13 @@ src/
 │   │   ├── payments.ts     # Payment operations (includes Vipps metadata management)
 │   │   └── subscriptions.ts   # Subscription operations (recurring order management)
 │   ├── payments/           # Payment processing integrations
-│   │   └── vipps/          # Vipps Recurring API integration
-│   │       ├── client.ts   # Vipps API client (auth, agreements, charges, capture)
-│   │       ├── service.ts  # High-level Vipps service layer
-│   │       └── config.ts   # Vipps configuration validation
+│   │   └── vipps/          # Vipps integration (Recurring + ePayment APIs)
+│   │       ├── base-client.ts      # Shared OAuth and HTTP utilities
+│   │       ├── recurring-client.ts # Recurring API client (agreements, charges)
+│   │       ├── epayment-client.ts  # ePayment API client (one-time payments)
+│   │       ├── webhook-auth.ts     # Shared webhook HMAC-SHA256 verification
+│   │       ├── service.ts          # High-level Vipps service layer
+│   │       └── config.ts           # Vipps configuration validation
 │   ├── services/
 │   │   └── order-generation.ts  # Subscription to orders logic
 │   ├── supabase/
@@ -176,7 +179,7 @@ All database operations use dedicated functions in `lib/database/`:
 
 ### Vipps Integration
 
-The platform uses Vipps Recurring API for production payments with RESERVE_CAPTURE flow:
+The platform uses Vipps Recurring API for production payments with DIRECT_CAPTURE flow (charges capture immediately; no separate capture step):
 
 **Key Files:**
 - `lib/database/payment-agreements.ts` - Payment agreement CRUD (Vipps agreement lifecycle, decoupled from subscriptions)
