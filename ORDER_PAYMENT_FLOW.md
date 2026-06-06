@@ -80,8 +80,7 @@ Cleaner actions: `src/app/dashboard/cleaner/actions.ts`.
 3. **Finish + charge:** `finishOrderAction(orderId)` (`actions.ts:192`):
    - Requires status `out_for_delivery`.
    - `completeOrderAction()` → status `completed`, then triggers `checkAndGenerateNextOrders()` (rolling window).
-   - For recurring orders (has `subscription_id`): `createChargeForCompletedOrder(orderId, total_cost_ore, "NooraCare vask #<order_number>")` (`service.ts`) → creates a Vipps charge (due +2 days, retryDays 3, **DIRECT_CAPTURE**) and a `Payment` (status `pending`) with `provider_reference` + charge metadata.
-   - ⚠️ **One-time orders are not charged here.** `finishOrderAction` gates charge creation on `order.subscription_id`, so one-time orders (which have no subscription) currently complete without a charge. `createChargeForCompletedOrder` itself *does* support one-time orders (it resolves the agreement directly via `order.payment_agreements`), but nothing invokes it for them. See "Known gaps" below.
+   - On completion: `createChargeForCompletedOrder(orderId, total_cost_ore, "NooraCare vask #<order_number>")` (`service.ts`) → creates a Vipps charge (due +2 days, retryDays 3, **DIRECT_CAPTURE**) and a `Payment` (status `pending`) with `provider_reference` + charge metadata. Runs for **both** recurring and one-time orders — `createChargeForCompletedOrder` resolves the agreement from the subscription (recurring) or directly from `order.payment_agreement_id` (one-time).
 
 `declineCleanerOrder(orderId)` (`actions.ts:257`) resets the order to `pending_assignment` and appends the cleaner to `declined_by_cleaner_ids` so they aren't reassigned.
 
@@ -152,7 +151,7 @@ createSubscriptionAction → PaymentAgreement(pending) + Subscription(pending_pa
 ```
 createSubscriptionAction(isRecurring=false) → PaymentAgreement(pending, order_defaults in metadata) → Vipps checkout
   → [webhook] agreement-activated → activate agreement + handleOneTimeOrderCreation (single order)
-  → cleaner prices & finishes order. ⚠️ No charge is created today (finishOrderAction skips orders without a subscription_id). No further orders.
+  → cleaner prices & finishes → createChargeForCompletedOrder (via order.payment_agreement_id) → charge captured. No further orders.
 ```
 
 ---
@@ -169,9 +168,3 @@ createSubscriptionAction(isRecurring=false) → PaymentAgreement(pending, order_
 | Cleaner pricing / finish | `src/app/dashboard/cleaner/actions.ts` |
 | DB CRUD | `src/lib/database/*.ts` |
 | Types / enums | `src/types/database.ts` |
-
----
-
-## 12. Known gaps
-
-- **One-time orders are never charged.** `finishOrderAction` (`src/app/dashboard/cleaner/actions.ts`) only calls `createChargeForCompletedOrder` when `order.subscription_id` is set. One-time orders have no subscription, so they complete without a charge. They were originally intended to be charged via the Vipps ePayment API, but that integration was unused dead code and has been removed. To wire one-time charging, drop the `subscription_id` guard in `finishOrderAction` — `createChargeForCompletedOrder` already resolves the agreement directly from `order.payment_agreements`.
