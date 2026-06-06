@@ -10,12 +10,18 @@ import {
 interface PriceSummaryProps {
   breakdown: PriceBreakdown;
   showCleanerPayout?: boolean;
+  promoCode?: string | null;
+  discountOre?: number;
 }
 
 export function PriceSummary({
   breakdown,
   showCleanerPayout = true,
+  promoCode = null,
+  discountOre = 0,
 }: PriceSummaryProps) {
+  const hasDiscount = discountOre > 0;
+  const customerPaysOre = Math.max(0, breakdown.total_ore - discountOre);
   return (
     <Card className="bg-soft-gray/50">
       <CardHeader className="pb-4">
@@ -67,6 +73,23 @@ export function PriceSummary({
           <span>Totalt</span>
           <span>{formatNok(breakdown.total_ore)} kr</span>
         </div>
+
+        {/* Promo discount (platform-absorbed; does not reduce cleaner payout) */}
+        {hasDiscount && (
+          <>
+            <div className="flex justify-between text-sm text-emerald-600">
+              <span>Rabatt{promoCode ? ` (${promoCode})` : ''}</span>
+              <span>−{formatNok(discountOre)} kr</span>
+            </div>
+            <div className="flex justify-between text-sm font-medium">
+              <span>Kunden betaler</span>
+              <span>{formatNok(customerPaysOre)} kr</span>
+            </div>
+            <p className="text-xs text-medium-gray/70">
+              Rabatten dekkes av plattformen og påvirker ikke din andel.
+            </p>
+          </>
+        )}
 
         {/* Cleaner payout */}
         {showCleanerPayout && (

@@ -199,6 +199,7 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
           initialIroningDetails={order.ironing_details}
           initialNotes={order.pricing_notes}
           isEditable={isEditable}
+          promo={order.promo}
         />
 
         {/* Order Actions (Status changes, decline, finish) */}
@@ -208,7 +209,7 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
           currentStatus={order.status}
           needsIroning={order.needs_ironing}
           hasLaundryDetails={order.dark_loads > 0 || order.white_loads > 0}
-          hasPrice={!!order.total_cost_ore}
+          hasPrice={order.total_cost_ore !== null}
         />
       </main>
     </div>

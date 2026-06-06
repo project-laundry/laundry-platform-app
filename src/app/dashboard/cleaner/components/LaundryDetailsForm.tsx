@@ -13,9 +13,11 @@ import {
   type IroningCategory,
   getEmptyIroningDetails,
   calculateOrderPrice,
+  computeDiscountOre,
   PRICING,
   formatNok,
 } from '@/lib/config/pricing';
+import type { OrderPromo } from '@/types/database';
 
 interface LaundryDetailsFormProps {
   orderId: string;
@@ -25,6 +27,7 @@ interface LaundryDetailsFormProps {
   initialIroningDetails: IroningDetails | null;
   initialNotes: string | null;
   isEditable: boolean;
+  promo?: OrderPromo | null;
 }
 
 const IRONING_CATEGORIES: IroningCategory[] = [
@@ -45,6 +48,7 @@ export function LaundryDetailsForm({
   initialIroningDetails,
   initialNotes,
   isEditable,
+  promo = null,
 }: LaundryDetailsFormProps) {
   const [darkLoads, setDarkLoads] = useState(initialDarkLoads);
   const [whiteLoads, setWhiteLoads] = useState(initialWhiteLoads);
@@ -252,7 +256,12 @@ export function LaundryDetailsForm({
       </Card>
 
       {/* Price Summary */}
-      <PriceSummary breakdown={priceBreakdown} showCleanerPayout={true} />
+      <PriceSummary
+        breakdown={priceBreakdown}
+        showCleanerPayout={true}
+        promoCode={promo?.code}
+        discountOre={promo ? computeDiscountOre(priceBreakdown.total_ore, promo) : 0}
+      />
 
       {/* Error/Success messages */}
       {error && (
