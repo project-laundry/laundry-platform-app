@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { OrderFlowProgress } from '@/components/ui/OrderFlowProgress';
+import { isNonProduction } from '@/lib/utils/environment';
 import { createSubscriptionAction, forceAcceptAgreementAction } from '../actions';
 
 function ConfirmPageContent() {
@@ -14,7 +15,10 @@ function ConfirmPageContent() {
   const hasHydrated = useOrderFlowStore((state) => state._hasHydrated);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [autoAccept, setAutoAccept] = useState(true);
+  // Auto-accept bypasses the Vipps approval flow and is only available outside
+  // production. In production this stays false so users always go through Vipps.
+  const showAutoAccept = isNonProduction();
+  const [autoAccept, setAutoAccept] = useState(showAutoAccept);
 
   // Redirect if required data not present (only after hydration)
   useEffect(() => {
@@ -244,20 +248,21 @@ function ConfirmPageContent() {
             </a>
           </p>
 
-          {/* Auto-accept checkbox (test environment only) */}
-          {/* <div className="mb-4 flex items-center gap-2 justify-center">
-            <input
-              disabled
-              type="checkbox"
-              id="autoAccept"
-              checked={autoAccept}
-              onChange={(e) => setAutoAccept(e.target.checked)}
-              className="w-4 h-4 text-teal-600 bg-slate-100 border-slate-300 rounded focus:ring-teal-500 focus:ring-2"
-            />
-            <label htmlFor="autoAccept" className="text-sm text-slate-600 cursor-pointer">
-              Auto-godkjenn avtale (testmiljø)
-            </label>
-          </div> */}
+          {/* Auto-accept checkbox (non-production environments only) */}
+          {showAutoAccept && (
+            <div className="mb-4 flex items-center gap-2 justify-center">
+              <input
+                type="checkbox"
+                id="autoAccept"
+                checked={autoAccept}
+                onChange={(e) => setAutoAccept(e.target.checked)}
+                className="w-4 h-4 text-teal-600 bg-slate-100 border-slate-300 rounded focus:ring-teal-500 focus:ring-2"
+              />
+              <label htmlFor="autoAccept" className="text-sm text-slate-600 cursor-pointer">
+                Auto-godkjenn avtale (testmiljø)
+              </label>
+            </div>
+          )}
 
           <button
             type="submit"
@@ -295,7 +300,7 @@ function ConfirmPageContent() {
             ) : (
               <>
                 <span className="text-2xl mr-2">📱</span>
-                Bekreft
+                {autoAccept ? 'Bekreft' : 'Bekreft og betal med Vipps'}
               </>
             )}
           </button>
