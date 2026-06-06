@@ -240,7 +240,7 @@ These timestamps provide sufficient audit trail for MVP compliance.
 5. **Cleaner Processes:** Cleaner completes laundry service
 6. **Next Order Generated:** When order completes, rolling window generates next order (recurring only)
 
-> ⚠️ **Known gap:** Charge creation on completion currently only runs for recurring orders (those with a `subscription_id`). One-time orders complete without a charge today. See `ORDER_PAYMENT_FLOW.md` §12.
+Charge creation on completion runs for both recurring and one-time orders. `createChargeForCompletedOrder` resolves the Vipps agreement from the subscription (recurring) or directly from `order.payment_agreement_id` (one-time).
 
 **Agreement Lifecycle:**
 

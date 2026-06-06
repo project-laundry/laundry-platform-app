@@ -233,16 +233,16 @@ export async function finishOrderAction(
     return { success: false, error: result.error || 'Kunne ikke fullføre ordren' };
   }
 
-  // Create Vipps charge for the order
-  if (order.subscription_id) {
-    try {
-      const description = `NooraCare vask #${order.order_number}`;
-      await createChargeForCompletedOrder(orderId, order.total_cost_ore, description);
-    } catch (error) {
-      // Log the error but don't fail the completion
-      // The charge can be retried manually or via webhook
-      console.error('Failed to create Vipps charge:', error);
-    }
+  // Create Vipps charge for the order.
+  // Works for both recurring orders (resolved via subscription's agreement) and
+  // one-time orders (resolved via the order's own payment_agreement_id).
+  try {
+    const description = `NooraCare vask #${order.order_number}`;
+    await createChargeForCompletedOrder(orderId, order.total_cost_ore, description);
+  } catch (error) {
+    // Log the error but don't fail the completion
+    // The charge can be retried manually or via webhook
+    console.error('Failed to create Vipps charge:', error);
   }
 
   revalidatePath('/dashboard/cleaner');
