@@ -89,7 +89,7 @@ export function validateVippsWebhook(
  * 1. Endpoint-specific secret (e.g., VIPPS_WEBHOOK_SECRET_RECURRING)
  * 2. Shared secret (VIPPS_WEBHOOK_SECRET)
  *
- * @param endpoint - Optional endpoint name (e.g., 'recurring', 'epayment')
+ * @param endpoint - Optional endpoint name (e.g., 'recurring')
  * @returns Webhook secret or undefined if not found
  */
 export function getVippsWebhookSecret(endpoint?: string): string | undefined {

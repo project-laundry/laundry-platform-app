@@ -189,16 +189,16 @@ export async function failPaymentWithMetadata(
 }
 
 // =============================================================================
-// EPAYMENT QUERIES
+// PAYMENT LOOKUP
 // =============================================================================
 
 /**
  * Get payment by provider reference
  *
  * Queries provider_reference field to find payment by merchant reference.
- * Used by both Recurring and ePayment webhook handlers.
+ * Used by the Recurring API webhook handler.
  *
- * @param reference - For Recurring API: Vipps chargeId. For ePayment API: order number or custom reference.
+ * @param reference - Vipps chargeId used as the merchant reference.
  */
 export async function getPaymentByReference(reference: string): Promise<Payment | null> {
   const supabase = await createAdminClient();

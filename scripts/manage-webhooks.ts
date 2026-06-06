@@ -8,8 +8,8 @@ config({ path: resolve(__dirname, '../.env.local') });
 // =============================================================================
 // EVENT PRESETS
 // =============================================================================
-// The exact event strings each webhook endpoint expects, mirroring the handlers
-// in src/app/api/webhooks/vipps/{recurring,epayment}/route.ts.
+// The exact event strings each webhook endpoint expects, mirroring the handler
+// in src/app/api/webhooks/vipps/recurring/route.ts.
 
 const EVENT_PRESETS: Record<string, string[]> = {
   recurring: [
@@ -23,16 +23,6 @@ const EVENT_PRESETS: Record<string, string[]> = {
     'recurring.charge-refunded.v1',
     'recurring.charge-failed.v1',
     'recurring.charge-creation-failed.v1',
-  ],
-  epayment: [
-    'epayments.payment.created.v1',
-    'epayments.payment.authorized.v1',
-    'epayments.payment.captured.v1',
-    'epayments.payment.refunded.v1',
-    'epayments.payment.cancelled.v1',
-    'epayments.payment.aborted.v1',
-    'epayments.payment.expired.v1',
-    'epayments.payment.terminated.v1',
   ],
 };
 
@@ -134,7 +124,6 @@ async function registerWebhook(
   console.log(`     ${data.secret}\n`);
   console.log('   Add it to the matching env var in Vercel (and .env.local for local runs):');
   console.log('     • recurring endpoint → VIPPS_WEBHOOK_SECRET_RECURRING');
-  console.log('     • epayment endpoint  → VIPPS_WEBHOOK_SECRET_EPAYMENT');
 }
 
 async function deleteWebhook(client: VippsBaseClient, id: string): Promise<void> {
@@ -164,22 +153,20 @@ function printUsage(): void {
 
 Usage:
   npm run webhooks -- list
-  npm run webhooks -- register --url=<https-url> --events=recurring|epayment|<comma,separated>
+  npm run webhooks -- register --url=<https-url> --events=recurring|<comma,separated>
   npm run webhooks -- delete --id=<uuid>
 
 Event presets:
   recurring  → ${EVENT_PRESETS.recurring.length} agreement + charge events
-  epayment   → ${EVENT_PRESETS.epayment.length} payment events
 
 Examples:
   npm run webhooks -- register --url=https://test.nooracare.no/api/webhooks/vipps/recurring --events=recurring
-  npm run webhooks -- register --url=https://test.nooracare.no/api/webhooks/vipps/epayment --events=epayment
 `);
 }
 
 function resolveEvents(raw: string | undefined): string[] {
   if (!raw) {
-    console.error('❌ --events is required (use a preset "recurring"/"epayment" or a comma-separated list).');
+    console.error('❌ --events is required (use the preset "recurring" or a comma-separated list).');
     process.exit(1);
   }
   if (EVENT_PRESETS[raw]) return EVENT_PRESETS[raw];

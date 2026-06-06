@@ -328,9 +328,8 @@ The script targets **whichever Vipps environment your `.env.local` points at** �
 # List all registered webhooks
 npm run webhooks -- list
 
-# Register a webhook (use an event preset or a comma-separated list)
+# Register a webhook (use the event preset or a comma-separated list)
 npm run webhooks -- register --url=https://test.nooracare.no/api/webhooks/vipps/recurring --events=recurring
-npm run webhooks -- register --url=https://test.nooracare.no/api/webhooks/vipps/epayment  --events=epayment
 
 # Delete a webhook by ID (get the ID from `list`)
 npm run webhooks -- delete --id=<uuid>
@@ -341,18 +340,16 @@ npm run webhooks -- delete --id=<uuid>
 | Preset | Expands to |
 |--------|------------|
 | `recurring` | All `recurring.agreement-*` and `recurring.charge-*` events the recurring handler processes |
-| `epayment`  | All `epayments.payment.*` events the ePayment handler processes |
 
-These mirror the event types in `src/app/api/webhooks/vipps/{recurring,epayment}/route.ts`. You can also pass an explicit list: `--events=epayments.payment.captured.v1,epayments.payment.refunded.v1`.
+These mirror the event types in `src/app/api/webhooks/vipps/recurring/route.ts`. You can also pass an explicit list: `--events=recurring.charge-captured.v1,recurring.charge-refunded.v1`.
 
 ### After registering
 
 `register` prints a **secret** that Vipps generates once and never shows again. Store it immediately in the matching env var (Vercel for deployed envs, `.env.local` for local runs):
 
 - recurring endpoint → `VIPPS_WEBHOOK_SECRET_RECURRING`
-- epayment endpoint → `VIPPS_WEBHOOK_SECRET_EPAYMENT`
 
-(Or set a single shared `VIPPS_WEBHOOK_SECRET` for both endpoints.) The webhook handlers use this secret for HMAC-SHA256 signature verification.
+(Or set a single shared `VIPPS_WEBHOOK_SECRET`.) The webhook handler uses this secret for HMAC-SHA256 signature verification.
 
 ### Notes
 

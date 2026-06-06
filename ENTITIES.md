@@ -371,11 +371,9 @@
 - `payment_provider` (enum, required) - Provider: `vipps`, `stripe`, `manual`
 - `provider_reference` (string, nullable) - Merchant reference for webhook lookups
   - **Recurring API:** Vipps charge ID (chr_Xyz789)
-  - **ePayment API:** Order number or custom reference
   - **Indexed:** For fast webhook processing
 - `provider_metadata` (jsonb, nullable) - Complete provider response data (single source of truth)
   - **Recurring:** `{"vipps_agreement_id": "agr_Abc123", "vipps_charge_id": "chr_Xyz789", "vipps_transaction_id": "txn_Def456", "vipps_status": "CHARGED"}`
-  - **ePayment:** `{"vipps_psp_reference": "psp_Xyz789", "vipps_status": "CAPTURED", "vipps_amount": 50000, "vipps_currency": "NOK"}`
   - **Note:** Stores all provider-specific details for debugging, reconciliation, and audit trail.
 - `authorized_at` (timestamp, nullable) - Authorization timestamp (when funds reserved via RESERVE_CAPTURE)
 - `captured_at` (timestamp, nullable) - Capture timestamp (when funds actually captured)
@@ -397,7 +395,7 @@
 **Notes:**
 
 - **FLEXIBLE Pricing Model:** No upfront subscription billing. Cleaner creates individual charge per order after calculating price.
-- **Vipps APIs:** Platform uses both Recurring API (for agreements) and ePayment API (for individual payments).
+- **Vipps API:** Platform uses the Recurring API for both agreements and per-order charges.
 - See [BUSINESS_LOGIC.md](./BUSINESS_LOGIC.md#payment-processing) for payment workflows.
 
 **Indexes:**

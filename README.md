@@ -16,7 +16,7 @@ A peer-to-peer laundry platform connecting customers with local cleaners in Berg
 - **Framework**: Next.js 15.5.4 with App Router
 - **Language**: TypeScript
 - **Database**: Supabase (PostgreSQL)
-- **Payments**: Vipps Recurring & ePayment APIs
+- **Payments**: Vipps Recurring API
 - **UI**: Tailwind CSS v4
 - **Runtime**: React 19.1.0
 
