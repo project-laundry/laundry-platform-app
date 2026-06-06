@@ -38,18 +38,18 @@ PaymentType             recurring | one_time | refund
 
 ## 3. Checkout — creating the agreement
 
-Entry point: `createSubscriptionAction(input)` in `src/app/orders/actions.ts:64`.
+Entry point: `createSubscriptionAction(input)` in `src/app/orders/actions.ts`.
 
 Flow:
 1. Resolve authenticated user → customer record.
 2. Determine frequency (`on_demand` for single orders) and guard against an existing active subscription.
-3. `createVippsAgreement()` (`lib/payments/vipps/service.ts:64`) → creates a Vipps FLEXIBLE agreement, `merchantRedirectUrl = /orders/success`. Frequency maps to Vipps interval (`weekly→WEEK:1`, `biweekly→WEEK:2`, `monthly→MONTH:1`).
+3. `createVippsAgreement()` (`lib/payments/vipps/service.ts`) → creates a Vipps FLEXIBLE agreement, `merchantRedirectUrl = /orders/success`. Frequency maps to Vipps interval (`weekly→WEEK:1`, `biweekly→WEEK:2`, `monthly→MONTH:1`).
 4. Insert `PaymentAgreement` (status `pending`).
    - **One-time:** store `order_defaults` in `provider_metadata` (no subscription created).
    - **Recurring:** insert `Subscription` (status `pending_payment`) linked to the PaymentAgreement, with `order_defaults`.
 5. Return Vipps checkout `redirectUrl` → user approves in the Vipps app.
 
-Test helper: `forceAcceptAgreementAction(agreementId)` (`actions.ts:184`) force-accepts via whitelisted phone numbers (test env only) and polls for activation.
+Test helper: `forceAcceptAgreementAction(agreementId)` (`actions.ts`) force-accepts via whitelisted phone numbers (test env only) and polls for activation.
 
 Pre-pickup edit actions (all in `app/orders/actions.ts`): `updateOrderSpecialInstructionsAction`, `updateOrderIroningAction`, `updateOrderAddressAction`, `cancelOrderAction`, `updateOrderPickupDateAction` (smart cleaner reassignment).
 
@@ -62,12 +62,12 @@ Handler: `POST src/app/api/webhooks/vipps/recurring/route.ts`. HMAC-SHA256 verif
 ### Agreement events
 | Event | Handler | Effect |
 |---|---|---|
-| `recurring.agreement-activated.v1` | `handleAgreementActivated` (route.ts:450) | **Activates** PaymentAgreement. If linked Subscription → `handleSubscriptionActivation` (activate sub + `generateFirstOrder`). If no subscription (one-time) → `handleOneTimeOrderCreation` (order from `provider_metadata.order_defaults`). |
+| `recurring.agreement-activated.v1` | `handleAgreementActivated` | **Activates** PaymentAgreement. If linked Subscription → `handleSubscriptionActivation` (activate sub + `generateFirstOrder`). If no subscription (one-time) → `handleOneTimeOrderCreation` (order from `provider_metadata.order_defaults`). |
 | `recurring.agreement-rejected.v1` | `handleAgreementRejected` | Stop PaymentAgreement, cancel linked Subscription. |
 | `recurring.agreement-stopped.v1` | `handleAgreementStopped` | If actor `MERCHANT`: skip (already handled in-app). Else stop agreement + cancel subscription. RESERVED charges are **not** auto-cancelled. |
 | `recurring.agreement-expired.v1` | `handleAgreementExpired` | Expire PaymentAgreement + Subscription. |
 
-`generateFirstOrder` (route.ts:546): validates `first_pickup_date` from `order_defaults`, creates Order (`pickup_scheduled` if a cleaner is assigned, else `pending_assignment`), sets `delivery_date = pickup_date + DAYS_PICKUP_TO_DELIVERY` (2 days).
+`generateFirstOrder`: validates `first_pickup_date` from `order_defaults`, creates Order (`pickup_scheduled` if a cleaner is assigned, else `pending_assignment`), sets `delivery_date = pickup_date + DAYS_PICKUP_TO_DELIVERY` (2 days).
 
 ---
 
@@ -75,14 +75,14 @@ Handler: `POST src/app/api/webhooks/vipps/recurring/route.ts`. HMAC-SHA256 verif
 
 Cleaner actions: `src/app/dashboard/cleaner/actions.ts`.
 
-1. Order moves through statuses (`pickup_scheduled → picked_up → in_cleaning → ready_for_delivery → out_for_delivery`) via `updateOrderStatus` (`lib/database/orders.ts:159`), which stamps the matching timestamp column.
-2. **Set price:** `saveLaundryDetails(orderId, details, notes)` (`actions.ts:139`) — cleaner enters `dark_loads`, `white_loads`, `ironing_details`; `calculateOrderPrice()` computes the total; persisted via `updateOrderLaundryDetails` → sets `total_cost_ore`.
-3. **Finish + charge:** `finishOrderAction(orderId)` (`actions.ts:192`):
+1. Order moves through statuses (`pickup_scheduled → picked_up → in_cleaning → ready_for_delivery → out_for_delivery`) via `updateOrderStatus` (`lib/database/orders.ts`), which stamps the matching timestamp column.
+2. **Set price:** `saveLaundryDetails(orderId, details, notes)` (`actions.ts`) — cleaner enters `dark_loads`, `white_loads`, `ironing_details`; `calculateOrderPrice()` computes the total; persisted via `updateOrderLaundryDetails` → sets `total_cost_ore`.
+3. **Finish + charge:** `finishOrderAction(orderId)` (`actions.ts`):
    - Requires status `out_for_delivery`.
    - `completeOrderAction()` → status `completed`, then triggers `checkAndGenerateNextOrders()` (rolling window).
    - On completion: `createChargeForCompletedOrder(orderId, total_cost_ore, "NooraCare vask #<order_number>")` (`service.ts`) → creates a Vipps charge (due +2 days, retryDays 3, **DIRECT_CAPTURE**) and a `Payment` (status `pending`) with `provider_reference` + charge metadata. Runs for **both** recurring and one-time orders — `createChargeForCompletedOrder` resolves the agreement from the subscription (recurring) or directly from `order.payment_agreement_id` (one-time).
 
-`declineCleanerOrder(orderId)` (`actions.ts:257`) resets the order to `pending_assignment` and appends the cleaner to `declined_by_cleaner_ids` so they aren't reassigned.
+`declineCleanerOrder(orderId)` (`actions.ts`) resets the order to `pending_assignment` and appends the cleaner to `declined_by_cleaner_ids` so they aren't reassigned.
 
 ---
 
@@ -92,11 +92,11 @@ Cleaner actions: `src/app/dashboard/cleaner/actions.ts`.
 | Event | Handler | Effect |
 |---|---|---|
 | `recurring.charge-reserved.v1` | — | **Not handled** (DIRECT_CAPTURE emits charge-captured instead). |
-| `recurring.charge-captured.v1` | `handleChargeCaptured` (276) | Payment → `captured`. No order generation here (orders are pre-generated on activation / completion). |
-| `recurring.charge-canceled.v1` | `handleChargeCanceled` (313) | Payment metadata CANCELLED. |
-| `recurring.charge-refunded.v1` | `handleChargeRefunded` (345) | Payment metadata REFUNDED. (TODO: reverse sub/order.) |
-| `recurring.charge-failed.v1` | `handleChargeFailed` (378) | Payment → `failed` + reason/code. (TODO: notify + retry.) |
-| `recurring.charge-creation-failed.v1` | `handleChargeCreationFailed` (418) | Log only. (TODO: admin notify.) |
+| `recurring.charge-captured.v1` | `handleChargeCaptured` | Payment → `captured`. No order generation here (orders are pre-generated on activation / completion). |
+| `recurring.charge-canceled.v1` | `handleChargeCanceled` | Payment metadata CANCELLED. |
+| `recurring.charge-refunded.v1` | `handleChargeRefunded` | Payment metadata REFUNDED. (TODO: reverse sub/order.) |
+| `recurring.charge-failed.v1` | `handleChargeFailed` | Payment → `failed` + reason/code. (TODO: notify + retry.) |
+| `recurring.charge-creation-failed.v1` | `handleChargeCreationFailed` | Log only. (TODO: admin notify.) |
 
 > **Note:** All charges — for both recurring and one-time orders — flow through the Recurring API agreement and these `recurring.charge-*` events. There is no separate one-time payment API in use.
 
@@ -104,7 +104,7 @@ Cleaner actions: `src/app/dashboard/cleaner/actions.ts`.
 
 ## 7. Rolling-window order generation
 
-`checkAndGenerateNextOrders(subscriptionId)` — `src/lib/services/order-generation.ts:19`. Called when an order completes.
+`checkAndGenerateNextOrders(subscriptionId)` — `src/lib/services/order-generation.ts`. Called when an order completes.
 
 1. Load subscription; abort unless status `active`.
 2. Count upcoming (non-completed, non-cancelled) orders. If `>= 1`, return (window already full).
