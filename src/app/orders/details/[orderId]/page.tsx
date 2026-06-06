@@ -327,6 +327,20 @@ export default async function OrderDetailPage({ params }: OrderPageProps) {
 
                 {order.total_cost_ore !== null ? (
                   <div className="pt-4 border-t border-gray-100">
+                    {order.promo?.discount_ore ? (
+                      <div className="space-y-1.5 mb-3">
+                        <div className="flex items-center justify-between text-sm text-gray-500">
+                          <span>Pris</span>
+                          <span className="line-through">
+                            {oreToNok(order.total_cost_ore + order.promo.discount_ore)} kr
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm text-emerald-600">
+                          <span>Rabatt ({order.promo.code})</span>
+                          <span>−{oreToNok(order.promo.discount_ore)} kr</span>
+                        </div>
+                      </div>
+                    ) : null}
                     <div className="flex items-center justify-between">
                       <span className="text-gray-600">Totalt</span>
                       <span className="text-2xl font-serif font-semibold text-[hsl(var(--nordic-blue))]">

@@ -7,11 +7,12 @@ import { ChevronLeft } from 'lucide-react';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { OrderFlowProgress } from '@/components/ui/OrderFlowProgress';
 import { isNonProduction } from '@/lib/utils/environment';
-import { createSubscriptionAction, forceAcceptAgreementAction } from '../actions';
+import { createSubscriptionAction, forceAcceptAgreementAction, validatePromoCodeAction } from '../actions';
 
 function ConfirmPageContent() {
   const router = useRouter();
   const orderData = useOrderFlowStore((state) => state.orderData);
+  const updateOrderData = useOrderFlowStore((state) => state.updateOrderData);
   const hasHydrated = useOrderFlowStore((state) => state._hasHydrated);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -19,6 +20,44 @@ function ConfirmPageContent() {
   // production. In production this stays false so users always go through Vipps.
   const showAutoAccept = isNonProduction();
   const [autoAccept, setAutoAccept] = useState(showAutoAccept);
+
+  // Promo code state
+  const [promoInput, setPromoInput] = useState(orderData?.promoCode ?? '');
+  const [promoStatus, setPromoStatus] = useState<'idle' | 'validating' | 'valid' | 'invalid'>(
+    orderData?.promoCode ? 'valid' : 'idle'
+  );
+  const [promoMessage, setPromoMessage] = useState<string | null>(null);
+
+  const handleApplyPromo = async () => {
+    const code = promoInput.trim();
+    if (!code) return;
+
+    setPromoStatus('validating');
+    setPromoMessage(null);
+
+    try {
+      const result = await validatePromoCodeAction(code);
+      if (result.valid) {
+        setPromoStatus('valid');
+        setPromoMessage(result.discountLabel ? `Kode lagt til – ${result.discountLabel}` : 'Rabattkode lagt til');
+        updateOrderData({ promoCode: code });
+      } else {
+        setPromoStatus('invalid');
+        setPromoMessage(result.error || 'Ugyldig rabattkode');
+        updateOrderData({ promoCode: undefined });
+      }
+    } catch {
+      setPromoStatus('invalid');
+      setPromoMessage('Kunne ikke validere rabattkoden');
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setPromoInput('');
+    setPromoStatus('idle');
+    setPromoMessage(null);
+    updateOrderData({ promoCode: undefined });
+  };
 
   // Redirect if required data not present (only after hydration)
   useEffect(() => {
@@ -58,6 +97,7 @@ function ConfirmPageContent() {
           specialInstructions: orderData.address!.specialInstructions || undefined,
         },
         specialInstructions: orderData.specialInstructions || undefined,
+        promoCode: promoStatus === 'valid' ? promoInput.trim() || undefined : undefined,
       });
 
       if (result.displayError) {
@@ -230,6 +270,52 @@ function ConfirmPageContent() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Promo Code */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-8">
+          <label htmlFor="promoCode" className="block text-sm font-semibold text-slate-900 mb-3">
+            Rabattkode
+          </label>
+          <div className="flex gap-2">
+            <input
+              id="promoCode"
+              type="text"
+              value={promoInput}
+              onChange={(e) => {
+                setPromoInput(e.target.value);
+                if (promoStatus !== 'idle') {
+                  setPromoStatus('idle');
+                  setPromoMessage(null);
+                }
+              }}
+              disabled={promoStatus === 'valid'}              
+              className="flex-1 px-4 py-2.5 rounded-lg border border-slate-200 uppercase placeholder:normal-case focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 disabled:bg-slate-50 disabled:text-slate-500"
+            />
+            {promoStatus === 'valid' ? (
+              <button
+                type="button"
+                onClick={handleRemovePromo}
+                className="px-4 py-2.5 rounded-lg font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors"
+              >
+                Fjern
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleApplyPromo}
+                disabled={!promoInput.trim() || promoStatus === 'validating'}
+                className="px-4 py-2.5 rounded-lg font-medium text-white bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
+              >
+                {promoStatus === 'validating' ? 'Sjekker...' : 'Bruk'}
+              </button>
+            )}
+          </div>
+          {promoMessage && (
+            <p className={`text-sm mt-2 ${promoStatus === 'valid' ? 'text-emerald-600' : 'text-red-600'}`}>
+              {promoMessage}
+            </p>
+          )}
         </div>
 
         {/* Submit Form */}

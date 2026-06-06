@@ -112,13 +112,14 @@ src/
 ├── lib/                    # Core utilities and business logic
 │   ├── auth/               # Auth utilities (empty - using Supabase directly)
 │   ├── config/
-│   │   └── pricing.ts      # Pricing constants and helpers (oreToNok, nokToOre)
+│   │   └── pricing.ts      # Pricing constants and helpers (oreToNok, nokToOre, computeDiscountOre)
 │   ├── database/           # Database CRUD operations
 │   │   ├── cleaners.ts     # Cleaner queries & matching
 │   │   ├── customers.ts    # Customer queries
 │   │   ├── orders.ts       # Order CRUD
 │   │   ├── payment-agreements.ts  # Payment agreement CRUD (Vipps agreement lifecycle)
 │   │   ├── payments.ts     # Payment operations (includes Vipps metadata management)
+│   │   ├── promo-codes.ts  # Promo code validation & redemption (shared, once-per-customer)
 │   │   └── subscriptions.ts   # Subscription operations (recurring order management)
 │   ├── payments/           # Payment processing integrations
 │   │   └── vipps/          # Vipps integration (Recurring API)
@@ -236,12 +237,19 @@ The webhook uses HMAC-SHA256 signature verification with `VIPPS_WEBHOOK_SECRET` 
 - `payments.provider_reference` - Merchant reference for webhook lookups (Vipps charge ID, chr_*)
 - `payments.provider_metadata` - Stores Vipps charge/transaction details (JSONB)
 
+**Promo Codes (first-order discounts):**
+- **New Tables:** `promo_codes` (shared codes: percentage/fixed, optional cap, validity window, optional global redemption cap) and `promo_code_redemptions` (ledger; `UNIQUE(promo_code_id, customer_id)` enforces once-per-customer)
+- **New Field:** `orders.promo` (JSONB) - locked discount snapshot stamped onto the **first** order only; `discount_ore` filled in when the cleaner prices the order
+- Flow: customer enters code at checkout → validated + snapshot locked into `payment_agreements.provider_metadata.promo` → stamped onto first order + redemption recorded in the agreement-activated webhook → discount applied when cleaner prices the order (`total_cost_ore` = full − discount; **platform-absorbed**, cleaner payout unchanged; charge can fall below the 500 kr minimum, and a 0 total skips the Vipps charge)
+- See `lib/database/promo-codes.ts`, `computeDiscountOre` in `lib/config/pricing.ts`, and [BUSINESS_LOGIC.md](./BUSINESS_LOGIC.md#promo-codes--discounts)
+
 See migrations:
 - `supabase/migrations/20251218000000_redesign_order_flow_flexible_pricing.sql` - Major redesign to FLEXIBLE pricing
 - `supabase/migrations/20251219133224_refactor_subscription_metadata.sql` - Moved fields into order_defaults JSONB
 - `supabase/migrations/20251220120000_remove_recurring_weekday.sql` - Replaced with first_pickup_date
 - `supabase/migrations/20251221135400_remove_bag_deliveries.sql` - Removed unused table
 - `supabase/migrations/20260201120000_create_payment_agreements.sql` - Decoupled PaymentAgreement from Subscription
+- `supabase/migrations/20260606120000_add_promo_codes.sql` - Promo codes, redemptions ledger, and `orders.promo`
 
 **Order Generation Architecture (Rolling Window):**
 The platform uses a **rolling window** pattern that maintains 1 upcoming order at all times:

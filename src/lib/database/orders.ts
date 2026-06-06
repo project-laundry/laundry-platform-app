@@ -1,7 +1,7 @@
 // Order database operations
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import type { Order, OrderStatus, OrderWithRelations, Customer, User, Subscription, OrderIroningDetails } from '@/types/database';
+import type { Order, OrderStatus, OrderWithRelations, Customer, User, Subscription, OrderIroningDetails, OrderPromo } from '@/types/database';
 
 /**
  * Order with customer and subscription details for cleaner dashboard
@@ -32,6 +32,8 @@ export interface CreateOrderData {
   needs_ironing?: boolean;
   // Pricing (nullable - set by cleaner after pickup)
   total_cost_ore?: number | null;
+  // Promo code locked snapshot (first order only); null if none
+  promo?: OrderPromo | null;
   // Other
   status?: OrderStatus; // Optional: override auto-determined status
 }
@@ -91,6 +93,8 @@ export async function createOrder(data: CreateOrderData): Promise<Order | null> 
       needs_ironing: data.needs_ironing || false,
       // Pricing (nullable - set by cleaner after pickup)
       total_cost_ore: data.total_cost_ore || null,
+      // Promo code locked snapshot (first order only)
+      promo: data.promo ?? null,
       // Other
       assigned_at: data.cleaner_id ? new Date().toISOString() : null,
     })
@@ -420,6 +424,8 @@ export interface UpdateLaundryDetailsData {
   ironing_details: OrderIroningDetails | null;
   total_cost_ore: number;
   pricing_notes?: string;
+  // Updated promo snapshot with discount_ore filled in (if a promo was applied)
+  promo?: OrderPromo | null;
 }
 
 /**
@@ -452,16 +458,23 @@ export async function updateOrderLaundryDetails(
     return { data: null, error: 'Cannot update a completed or cancelled order' };
   }
 
+  const updateData: Record<string, unknown> = {
+    dark_loads: data.dark_loads,
+    white_loads: data.white_loads,
+    ironing_details: data.ironing_details,
+    total_cost_ore: data.total_cost_ore,
+    pricing_notes: data.pricing_notes || null,
+    price_calculated_at: new Date().toISOString(),
+  };
+
+  // Only touch promo when the caller provides it (with discount_ore filled in)
+  if (data.promo !== undefined) {
+    updateData.promo = data.promo;
+  }
+
   const { data: updatedOrder, error } = await supabase
     .from('orders')
-    .update({
-      dark_loads: data.dark_loads,
-      white_loads: data.white_loads,
-      ironing_details: data.ironing_details,
-      total_cost_ore: data.total_cost_ore,
-      pricing_notes: data.pricing_notes || null,
-      price_calculated_at: new Date().toISOString(),
-    })
+    .update(updateData)
     .eq('id', orderId)
     .select()
     .single();

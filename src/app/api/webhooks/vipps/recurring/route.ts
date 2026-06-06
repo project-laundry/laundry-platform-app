@@ -42,9 +42,10 @@ import {
 } from '@/lib/database/payments';
 import { cancelVippsAgreement } from '@/lib/payments/vipps/service';
 import { createOrder } from '@/lib/database/orders';
+import { recordPromoRedemption } from '@/lib/database/promo-codes';
 import { addDays, toISODateString, getWeekdayFromDate, getNextOccurrenceOfWeekday } from '@/lib/utils/date';
 import { DAYS_PICKUP_TO_DELIVERY } from '@/lib/config/order-timing';
-import type { OrderStatus, PaymentAgreement, SubscriptionOrderDefaults } from '@/types/database';
+import type { OrderStatus, PaymentAgreement, SubscriptionOrderDefaults, OrderPromo } from '@/types/database';
 
 
 // =============================================================================
@@ -525,6 +526,7 @@ async function handleSubscriptionActivation(
       orderDefaults,
       activatedSubscription.id,
       paymentAgreement.id,
+      readPromoFromAgreement(paymentAgreement),
     );
   } catch (error) {
     console.error(`[Vipps Recurring Webhook] Failed to generate first order for subscription:`, error);
@@ -554,11 +556,21 @@ async function handleOneTimeOrderCreation(
       orderDefaults,
       null, // no subscription_id
       paymentAgreement.id,
+      readPromoFromAgreement(paymentAgreement),
     );
   } catch (error) {
     console.error(`[Vipps Recurring Webhook] Failed to generate one-time order:`, error);
     // Don't throw - payment agreement is already activated
   }
+}
+
+/**
+ * Read the locked promo snapshot (if any) from a payment agreement's metadata.
+ * Stored at checkout for both recurring and one-time orders.
+ */
+function readPromoFromAgreement(paymentAgreement: PaymentAgreement): OrderPromo | null {
+  const metadata = paymentAgreement.provider_metadata as { promo?: OrderPromo } | null;
+  return metadata?.promo ?? null;
 }
 
 /**
@@ -570,6 +582,7 @@ async function generateFirstOrder(
   orderDefaults: SubscriptionOrderDefaults,
   subscriptionId: string | null,
   paymentAgreementId: string,
+  promo: OrderPromo | null,
 ): Promise<void> {
   const address = orderDefaults.initial_address;
   const defaultCleanerId = orderDefaults.default_cleaner_id;
@@ -614,10 +627,21 @@ async function generateFirstOrder(
     special_instructions: orderDefaults.special_instructions,
     needs_ironing: needsIroning,
     total_cost_ore: null,
+    promo, // locked discount terms; discount_ore filled in when cleaner prices the order
   });
 
   if (order) {
-    console.log(`[Vipps Recurring Webhook] Order ${order.order_number} created (pickup: ${order.scheduled_date}, subscription: ${subscriptionId || 'none'})`);
+    // Record the redemption now that a first order exists (committed customer).
+    // Idempotent via UNIQUE(promo_code_id, customer_id) — safe on webhook retries.
+    if (promo) {
+      await recordPromoRedemption({
+        promoCodeId: promo.promo_code_id,
+        customerId,
+        paymentAgreementId,
+        orderId: order.id,
+      });
+    }
+    console.log(`[Vipps Recurring Webhook] Order ${order.order_number} created (pickup: ${order.scheduled_date}, subscription: ${subscriptionId || 'none'}${promo ? `, promo: ${promo.code}` : ''})`);
   } else {
     console.error(`[Vipps Recurring Webhook] Failed to create order`);
   }

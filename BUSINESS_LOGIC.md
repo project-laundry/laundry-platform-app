@@ -16,6 +16,7 @@
    - Customer selects frequency (weekly, biweekly, monthly for recurring; on_demand for one-time)
    - Selects preferences (needs_ironing)
    - Provides service address and first pickup date
+   - **Optionally enters a promo code** (validated inline, then re-validated server-side at checkout). On success the locked discount snapshot is stored in `payment_agreements.provider_metadata.promo`. See [Promo Codes & Discounts](#promo-codes--discounts).
    - System creates:
      - **PaymentAgreement** (always): `status = 'pending'`, linked to Vipps agreement
      - **Subscription** (recurring only): `status = 'pending_payment'`, `payment_agreement_id` set, `order_defaults` populated
@@ -39,6 +40,7 @@
        - `payment_agreement_id` set on order
        - `subscription_id` set if recurring, null if one-time
        - Status: 'pickup_scheduled' if cleaner assigned, else 'pending_assignment'
+       - **If a promo was captured:** stamp the locked snapshot onto this (first) order's `promo` and insert a `promo_code_redemptions` row (idempotent). Recurring orders #2+ never receive it → **first order only**.
 
 3. **Rolling Window Order Generation** (recurring only, triggered when order completes):
    - System maintains **1 upcoming order** at all times
@@ -94,6 +96,31 @@ Customer subscribes Dec 26, 2025:
 - Cleaner's individual pricing model
 
 **Note:** No fixed plan prices - fully flexible based on actual laundry volume and services.
+
+### Promo Codes & Discounts
+
+**Core Principle:** Codes are **shared** (one code, many customers) but redeemable **once per customer**. A discount applies to the **first order** of an agreement only, and is **platform-absorbed** (the cleaner is paid 70% of the full service price; only the customer's charge is reduced).
+
+**Discount types:** `percentage` (with optional `max_discount_ore` cap) or `fixed` (øre). See [PromoCode](./ENTITIES.md#promocode).
+
+**Why "capture → lock → apply":** With FLEXIBLE pricing there is no price at checkout, so a code cannot reduce a cart total. Instead:
+
+1. **Capture (checkout):** Customer enters a code; it is validated (exists → active → within validity window → global cap not reached → not already redeemed by this customer) and a snapshot of the discount terms is **locked** into `payment_agreements.provider_metadata.promo`. Locking means the deal is honored even if the code is later changed or deactivated.
+2. **Stamp + redeem (agreement activated):** The snapshot is copied onto the first order's `promo`, and a `promo_code_redemptions` row is inserted. Recording here (not at checkout) means abandoned checkouts don't consume a customer's single use; the `UNIQUE(promo_code_id, customer_id)` constraint makes it idempotent on webhook retries.
+3. **Apply (cleaner prices the order):** The cleaner calculates the full service price as usual. The discount is then computed against that total and written back: `total_cost_ore = full_total − discount_ore`, with `discount_ore` saved into `orders.promo`.
+
+**Interaction with the order minimum:** The 500 kr minimum is the floor on the **service price** the cleaner calculates. The promo discount comes off **after** the minimum, so the **amount charged can fall below 500 kr**.
+
+**Edge cases:**
+- Discount is clamped to `[0, total]` — the charge is never negative.
+- A fully-discounted order (`total_cost_ore = 0`) is completed **without** a Vipps charge (Vipps cannot charge 0).
+- A code deactivated/expired *after* checkout is still honored (terms are locked at checkout).
+
+**Known MVP limitation:** Two simultaneous in-flight checkouts with the same code could both get it stamped before either activates; only one redemption row survives the unique constraint. No reservation logic is built for this (low risk).
+
+**Enforcement summary:**
+- *Once per customer* → `UNIQUE(promo_code_id, customer_id)` on the ledger + a checkout lookup
+- *Global cap* (`max_redemptions`) → count of ledger rows for the code, checked at validation
 
 ### Cleaner Assignment & Matching
 

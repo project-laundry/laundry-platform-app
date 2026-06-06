@@ -201,6 +201,38 @@ export function getIroningPriceOre(category: IroningCategory): number {
 }
 
 /**
+ * Compute the promo discount amount (in øre) for a given total.
+ * - percentage: discount_value% of total, optionally capped at max_discount_ore
+ * - fixed: discount_value øre
+ * Always clamped to [0, totalOre] so the charged amount never goes negative.
+ *
+ * The discount applies AFTER the order minimum (the minimum is the service-price floor;
+ * the promo is a real reduction on top, so the charged amount can fall below the minimum).
+ */
+export function computeDiscountOre(
+  totalOre: number,
+  promo: {
+    discount_type: 'percentage' | 'fixed';
+    discount_value: number;
+    max_discount_ore: number | null;
+  }
+): number {
+  if (totalOre <= 0) return 0;
+
+  let discount: number;
+  if (promo.discount_type === 'percentage') {
+    discount = Math.round((totalOre * promo.discount_value) / 100);
+    if (promo.max_discount_ore != null) {
+      discount = Math.min(discount, promo.max_discount_ore);
+    }
+  } else {
+    discount = promo.discount_value;
+  }
+
+  return Math.max(0, Math.min(discount, totalOre));
+}
+
+/**
  * Validate ironing details structure
  */
 export function isValidIroningDetails(details: unknown): details is IroningDetails {
