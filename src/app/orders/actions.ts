@@ -5,6 +5,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createSubscription, getActiveSubscriptionByCustomerId, getSubscriptionById } from "@/lib/database/subscriptions";
 import { createPaymentAgreement, getPaymentAgreementByProviderId } from "@/lib/database/payment-agreements";
 import { getCustomerByUserId } from "@/lib/database/customers";
+import { validatePromoCode } from "@/lib/database/promo-codes";
+import { oreToNok } from "@/lib/config/pricing";
 import {
   findAvailableCleaner,
   getAvailableWeekdaysForCity,
@@ -24,6 +26,7 @@ import type {
   SubscriptionFrequency,
   SubscriptionOrderDefaults,
   OrderStatus,
+  OrderPromo,
 } from "@/types/database";
 
 export interface CreateSubscriptionInput {
@@ -40,6 +43,7 @@ export interface CreateSubscriptionInput {
     specialInstructions?: string;
   };
   specialInstructions?: string;
+  promoCode?: string;
 }
 
 export interface CreateSubscriptionResult {
@@ -79,6 +83,20 @@ export async function createSubscriptionAction(
   const customer = await getCustomerByUserId(user.id);
   if (!customer) {
     return { error: "Customer not found" };
+  }
+
+  // Validate promo code (if provided) and lock its discount terms.
+  // Re-validated server-side here even though the UI validates inline — never trust the client.
+  let promoSnapshot: OrderPromo | null = null;
+  if (input.promoCode?.trim()) {
+    const promoResult = await validatePromoCode(input.promoCode, customer.id);
+    if (!promoResult.valid || !promoResult.promo) {
+      return {
+        displayError: promoResult.error || "Ugyldig rabattkode",
+        error: "Invalid promo code",
+      };
+    }
+    promoSnapshot = promoResult.promo;
   }
 
   // Determine the subscription frequency
@@ -134,13 +152,22 @@ export async function createSubscriptionAction(
     first_pickup_date: input.firstPickupDate,
   };
 
+  // Build payment agreement metadata.
+  // - one-time orders: store order_defaults here (no subscription to hold them)
+  // - promo snapshot (if any): stored here so the discount survives until first-order generation
+  const providerMetadata: Record<string, unknown> = {};
+  if (!isRecurring) {
+    providerMetadata.order_defaults = orderDefaults;
+  }
+  if (promoSnapshot) {
+    providerMetadata.promo = promoSnapshot;
+  }
+
   // 1. Create PaymentAgreement (required for all checkouts)
   const paymentAgreement = await createPaymentAgreement({
     customer_id: customer.id,
     provider_agreement_id: agreementResponse.agreementId,
-    // For one-time orders, store order_defaults in provider_metadata
-    // since there's no subscription to hold them
-    provider_metadata: !isRecurring ? { order_defaults: orderDefaults } : null,
+    provider_metadata: Object.keys(providerMetadata).length > 0 ? providerMetadata : null,
   });
 
   if (!paymentAgreement) {
@@ -165,6 +192,46 @@ export async function createSubscriptionAction(
     redirectUrl: agreementResponse.vippsConfirmationUrl,
     agreementId: agreementResponse.agreementId,
   };
+}
+
+export interface ValidatePromoCodeResult {
+  valid: boolean;
+  error?: string;
+  discountLabel?: string; // e.g. "20% rabatt" or "100 kr rabatt"
+}
+
+/**
+ * Validate a promo code for the current customer (inline check on the confirm page).
+ * This is advisory UX only — createSubscriptionAction re-validates server-side at checkout.
+ */
+export async function validatePromoCodeAction(
+  code: string,
+): Promise<ValidatePromoCodeResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { valid: false, error: "Ikke autentisert" };
+  }
+
+  const customer = await getCustomerByUserId(user.id);
+  if (!customer) {
+    return { valid: false, error: "Fant ikke kunde" };
+  }
+
+  const result = await validatePromoCode(code, customer.id);
+  if (!result.valid || !result.promo) {
+    return { valid: false, error: result.error };
+  }
+
+  const discountLabel =
+    result.promo.discount_type === "percentage"
+      ? `${result.promo.discount_value}% rabatt`
+      : `${oreToNok(result.promo.discount_value)} kr rabatt`;
+
+  return { valid: true, discountLabel };
 }
 
 /**

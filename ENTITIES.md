@@ -312,6 +312,12 @@
   - `total_cost_ore` (integer, nullable) - Total order cost in øre
     - **Default:** `NULL` (cleaner sets after weighing)
     - **Note:** Cleaner calculates based on weight, ironing, and other factors
+    - **Note:** When a promo is applied, this stores the **discounted** amount actually charged (can be below the order minimum, or `0` for a fully-discounted order)
+  - `promo` (jsonb, nullable) - Locked promo-code snapshot, set on the **first** order of an agreement only
+    - **Default:** `NULL` (no promo)
+    - **Shape:** `{ promo_code_id, code, discount_type, discount_value, max_discount_ore, discount_ore? }`
+    - **Note:** Discount terms are captured at checkout (so the deal survives if the code is later changed/deactivated); `discount_ore` is filled in when the cleaner prices the order
+    - **Note:** Discount is **platform-absorbed** — it reduces `total_cost_ore` but not the cleaner payout
 - **Other:**
   - `declined_by_cleaner_ids` (uuid[], nullable) - Array of cleaner IDs who declined this order
     - **Note:** Used during reassignment to prevent offering order to same cleaner again
@@ -407,6 +413,79 @@
 
 ---
 
+### PromoCode
+
+**Description:** Discount codes a customer can apply at checkout. Codes are **shared** (one code, many customers) but each customer may redeem a given code only **once**. The discount applies to the **first order** of an agreement and is **platform-absorbed** (cleaner payout is unaffected).
+
+**Fields:**
+
+- `id` (uuid, PK) - Unique identifier
+- `code` (string, unique, required) - The code customers type
+  - **Note:** Stored uppercase; matched case-insensitively
+- `discount_type` (enum → [PromoDiscountType](#promodiscounttype), required) - `percentage` or `fixed`
+- `discount_value` (integer, required) - Percentage (1–100) for `percentage`, or amount in øre for `fixed`
+  - **Constraints:** > 0
+- `max_discount_ore` (integer, nullable) - Optional cap for percentage codes (in øre)
+  - **Constraints:** >= 0; `NULL` = no cap
+- `active` (boolean, required) - Whether the code can be redeemed
+  - **Default:** `true`
+- `valid_from` (timestamp, nullable) - Start of validity window (`NULL` = no start bound)
+- `valid_until` (timestamp, nullable) - End of validity window (`NULL` = no expiry)
+- `max_redemptions` (integer, nullable) - Optional global cap on total redemptions
+  - **Constraints:** >= 0; `NULL` = unlimited
+- `created_at` (timestamp) - Creation timestamp
+- `updated_at` (timestamp) - Last update timestamp
+
+**Relationships:**
+
+- Has many PromoCodeRedemptions
+
+**Notes:**
+
+- **Validation** (at checkout): exists → active → within validity window → global cap not reached → not already redeemed by this customer.
+- **MVP:** No admin UI yet — codes are seeded via SQL.
+
+**Indexes:**
+
+- Unique: code
+- Index: code
+
+---
+
+### PromoCodeRedemption
+
+**Description:** Ledger of promo-code usage. One row per `(promo_code_id, customer_id)` enforces "once per customer"; the row count for a code enforces `max_redemptions`.
+
+**Fields:**
+
+- `id` (uuid, PK) - Unique identifier
+- `promo_code_id` (uuid, FK → [PromoCode](#promocode).id, required) - Redeemed code
+  - **On Delete:** CASCADE
+- `customer_id` (uuid, FK → [Customer](#customer).id, required) - Redeeming customer
+  - **On Delete:** CASCADE
+- `payment_agreement_id` (uuid, FK → [PaymentAgreement](#paymentagreement).id, nullable) - Agreement the redemption belongs to
+  - **On Delete:** SET NULL
+- `order_id` (uuid, FK → [Order](#order).id, nullable) - First order the discount was stamped onto
+  - **On Delete:** SET NULL
+- `redeemed_at` (timestamp) - Redemption timestamp
+
+**Relationships:**
+
+- Belongs to PromoCode
+- Belongs to Customer
+
+**Notes:**
+
+- **Recorded at first-order generation** (agreement activated), not at checkout — so abandoned checkouts don't consume a customer's single use.
+- **Idempotent:** the `UNIQUE(promo_code_id, customer_id)` constraint makes webhook retries safe.
+
+**Indexes:**
+
+- Unique: (promo_code_id, customer_id)
+- Foreign/Index: promo_code_id, customer_id
+
+---
+
 **Note:** For MVP, email/SMS notifications are tracked via provider audit logs (SendGrid, Twilio, etc.) - no database storage needed.
 
 ---
@@ -476,6 +555,11 @@
 - `completed` - Clean laundry delivered to customer (final state)
 - `cancelled` - Order cancelled (final state)
 
+### PromoDiscountType
+
+- `percentage` - `discount_value` is a percentage (1–100), optionally capped by `max_discount_ore`
+- `fixed` - `discount_value` is a fixed amount in øre
+
 ---
 
 ## Database Constraints & Validation
@@ -484,9 +568,14 @@
 
 **CHECK Constraints:**
 - `Order`: `delivery_date >= scheduled_date` - Delivery cannot be before pickup
+- `PromoCode`: `discount_type IN ('percentage','fixed')`, `discount_value > 0`, `max_discount_ore >= 0` (or NULL), `max_redemptions >= 0` (or NULL)
 
 **Unique Partial Indexes:**
 - `Subscription`: `(customer_id) WHERE status IN ('pending_payment', 'active', 'paused')` - Only one active/pending subscription per customer
+
+**Unique Constraints:**
+- `PromoCode`: `code`
+- `PromoCodeRedemption`: `(promo_code_id, customer_id)` - One redemption per customer per code
 
 **Foreign Key Cascades:**
 - `Customer.user_id` → `User.id` (ON DELETE CASCADE)

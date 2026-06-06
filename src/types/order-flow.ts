@@ -21,4 +21,7 @@ export interface OrderData {
 
   // Instructions
   specialInstructions?: string;
+
+  // Promo code (validated at checkout, applied to the first order)
+  promoCode?: string;
 }

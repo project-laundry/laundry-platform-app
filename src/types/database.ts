@@ -47,6 +47,8 @@ export type PaymentStatus = 'pending' | 'authorized' | 'captured' | 'failed' | '
 
 export type PaymentProvider = 'vipps' | 'stripe' | 'manual';
 
+export type PromoDiscountType = 'percentage' | 'fixed';
+
 // =============================================================================
 // ENTITY TYPES
 // =============================================================================
@@ -210,6 +212,8 @@ export interface Order {
   pricing_notes: string | null;
   price_calculated_at: string | null;
   total_cost_ore: number | null;
+  // Promo code applied at checkout (first order only); null if none
+  promo: OrderPromo | null;
   // Other
   declined_by_cleaner_ids: string[] | null;
   assigned_at: string | null;
@@ -245,6 +249,43 @@ export interface Payment {
   refund_reason: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface PromoCode {
+  id: string;
+  code: string;
+  discount_type: PromoDiscountType;
+  discount_value: number; // percentage 1-100, or amount in øre for fixed
+  max_discount_ore: number | null; // optional cap for percentage codes
+  active: boolean;
+  valid_from: string | null;
+  valid_until: string | null;
+  max_redemptions: number | null; // optional global cap; null = unlimited
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PromoCodeRedemption {
+  id: string;
+  promo_code_id: string;
+  customer_id: string;
+  payment_agreement_id: string | null;
+  order_id: string | null;
+  redeemed_at: string;
+}
+
+/**
+ * Locked promo snapshot stored in orders.promo and payment_agreements.provider_metadata.promo.
+ * Discount terms are captured at checkout so the deal survives even if the code is later
+ * deactivated or changed. discount_ore is filled in when the cleaner prices the order.
+ */
+export interface OrderPromo {
+  promo_code_id: string;
+  code: string;
+  discount_type: PromoDiscountType;
+  discount_value: number;
+  max_discount_ore: number | null;
+  discount_ore?: number; // actual discount applied (set at pricing time)
 }
 
 // =============================================================================
@@ -339,6 +380,8 @@ export type Tables = {
   subscriptions: Subscription;
   orders: Order;
   payments: Payment;
+  promo_codes: PromoCode;
+  promo_code_redemptions: PromoCodeRedemption;
 };
 
 export type TableName = keyof Tables;
