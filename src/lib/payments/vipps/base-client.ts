@@ -1,6 +1,6 @@
 // Vipps Base Client
 // Shared authentication and HTTP utilities for all Vipps APIs
-// Used by both Recurring API and ePayment API clients
+// Used by the Recurring API client
 
 // =============================================================================
 // TYPES
@@ -26,7 +26,7 @@ interface VippsAccessToken {
 
 /**
  * Base client providing shared authentication and HTTP utilities
- * for all Vipps APIs (Recurring, ePayment, etc.)
+ * for all Vipps APIs (Recurring, etc.)
  *
  * Uses composition pattern - specialized clients create and own
  * an instance of this base client to handle common functionality

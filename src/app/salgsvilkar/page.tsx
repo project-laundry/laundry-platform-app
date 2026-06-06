@@ -174,10 +174,11 @@ export default function SalgsvilkarPage() {
                 fastsatt endelig pris, og trekkes deretter fra Vipps.
               </p>
               <p className="text-base text-foreground/80 leading-relaxed">
-                For enkeltbestillinger skjer betaling via Vipps ePayment ved
-                fullført bestilling. NooraCare lagrer ikke kortinformasjon –
-                betalingsopplysninger håndteres av Vipps i henhold til deres
-                vilkår.
+                Også for enkeltbestillinger opprettes en Vipps-avtale ved
+                bestilling, slik at endelig beløp kan belastes når renseren har
+                fastsatt prisen etter henting. NooraCare lagrer ikke
+                kortinformasjon – betalingsopplysninger håndteres av Vipps i
+                henhold til deres vilkår.
               </p>
             </section>
 

@@ -12,18 +12,6 @@ export {
   createVippsRecurringClient,
 } from './recurring-client';
 
-export {
-  VippsEPaymentClient,
-  createVippsEPaymentClient,
-  type VippsCreatePaymentParams,
-  type VippsCreatePaymentResponse,
-  type VippsPaymentState,
-  type VippsPaymentDetails,
-  type VippsPaymentAggregate,
-  type VippsCapturePaymentParams,
-  type VippsCapturePaymentResponse,
-} from './epayment-client';
-
 // =============================================================================
 // SERVICE LAYER
 // =============================================================================
@@ -35,10 +23,6 @@ export {
   cancelVippsAgreement,
   createChargeForCompletedOrder,
   type CreateAgreementResult,
-  // ePayment API (One-time Orders)
-  createVippsEPayment,
-  captureVippsEPayment,
-  type CreateEPaymentResult,
 } from './service';
 
 // =============================================================================

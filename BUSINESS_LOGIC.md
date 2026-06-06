@@ -204,9 +204,8 @@ These timestamps provide sufficient audit trail for MVP compliance.
 
 **Payment Provider:** Vipps with FLEXIBLE pricing model
 
-**APIs Used:**
-- **Recurring API:** For creating recurring agreements (no initial charge)
-- **ePayment API:** For per-order payments after cleaner prices the order
+**API Used:**
+- **Recurring API:** For creating agreements (no initial charge) and for all per-order charges. Both recurring subscriptions and one-time orders use this API — a one-time order creates an agreement with a placeholder monthly interval but no subscription.
 
 **Core Principle:** No upfront subscription charges. Each order is priced and charged individually by cleaner.
 
@@ -234,14 +233,14 @@ These timestamps provide sufficient audit trail for MVP compliance.
    - Records `actual_weight_kg`
    - Calculates price based on weight, ironing, etc.
    - Sets `total_cost_ore` and `pricing_notes`
-   - Creates Vipps ePayment charge for calculated amount
-4. **Customer Notification:** Customer notified of price, approves payment
-5. **Webhook:** `POST /api/webhooks/vipps/epayment` receives payment events:
-   - `payment.authorized` → Payment status = 'authorized'
-   - System auto-captures funds
-   - `payment.captured` → Payment status = 'captured'
-6. **Cleaner Processes:** Cleaner completes laundry service
-7. **Next Order Generated:** When order completes, rolling window generates next order
+   - On order completion, creates a Vipps charge against the agreement for the calculated amount (`createChargeForCompletedOrder`, DIRECT_CAPTURE)
+4. **Webhook:** `POST /api/webhooks/vipps/recurring` receives the charge events:
+   - `recurring.charge-captured.v1` → Payment status = 'captured'
+   - DIRECT_CAPTURE means no separate authorize/capture step
+5. **Cleaner Processes:** Cleaner completes laundry service
+6. **Next Order Generated:** When order completes, rolling window generates next order (recurring only)
+
+> ⚠️ **Known gap:** Charge creation on completion currently only runs for recurring orders (those with a `subscription_id`). One-time orders complete without a charge today. See `ORDER_PAYMENT_FLOW.md` §12.
 
 **Agreement Lifecycle:**
 
@@ -259,20 +258,15 @@ These timestamps provide sufficient audit trail for MVP compliance.
 - **CANCELLED:** Payment cancelled before completion
 - **REFUNDED:** Full refund issued after capture
 
-**Webhook Endpoints:**
+**Webhook Endpoint:**
 
 1. **Recurring API Webhook:** `/api/webhooks/vipps/recurring`
    - Agreement events: activated, rejected, stopped, expired
-   - Charge events: captured, canceled, refunded, failed (if recurring charges used)
-
-2. **ePayment API Webhook:** `/api/webhooks/vipps/epayment`
-   - Payment events: created, authorized, captured, refunded, cancelled, aborted, expired, terminated
-   - Used for per-order payments in FLEXIBLE model
+   - Charge events: captured, canceled, refunded, failed, creation-failed
 
 **Webhook Authentication:**
 - HMAC-SHA256 signature verification
-- Secrets: `VIPPS_WEBHOOK_SECRET` (shared) or endpoint-specific overrides
-- Both webhooks use shared authentication utility
+- Secret: `VIPPS_WEBHOOK_SECRET` (shared) or `VIPPS_WEBHOOK_SECRET_RECURRING` override
 
 **Key Implementation Details:**
 

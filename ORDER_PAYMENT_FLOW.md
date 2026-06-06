@@ -11,13 +11,13 @@ End-to-end reference for how an order is created, paid for, executed by a cleane
 - **PaymentAgreement** — A Vipps agreement (FLEXIBLE pricing). Decoupled from subscriptions. Tracks the Vipps agreement lifecycle (`pending → active → stopped/expired`). For one-time orders it also carries `provider_metadata.order_defaults` (since there is no subscription to hold them).
 - **Subscription** — Only exists for recurring orders. Links to a `PaymentAgreement` via `payment_agreement_id`. Holds `order_defaults` (address, cleaner, ironing, instructions, `first_pickup_date`, `location_city`).
 - **Order** — A single pickup→clean→deliver job. `total_cost_ore` is **NULL until the cleaner sets the price** after pickup/weighing.
-- **Payment** — One charge attempt against an agreement (recurring) or an ePayment (one-time). `provider_reference` is the Vipps charge id / merchant ref used for webhook lookups.
+- **Payment** — One charge attempt against a Vipps agreement. `provider_reference` is the Vipps charge id / merchant ref used for webhook lookups.
 - **Rolling window** — At most **1 upcoming order** is kept alive per active subscription. The next order is generated just-in-time when the current one completes. No batch generation.
 
 ### Capture mode (important)
 
 The **active** flow uses **`DIRECT_CAPTURE`** — charges capture immediately, no separate capture step.
-- Active clients: `lib/payments/vipps/recurring-client.ts`, `epayment-client.ts`, `base-client.ts`, `service.ts`.
+- Active clients: `lib/payments/vipps/recurring-client.ts`, `base-client.ts`, `service.ts`.
 - The old `RESERVE_CAPTURE` client (`lib/payments/vipps/client.ts`) has been **deleted** (it was unused dead code). The active client is `recurring-client.ts`.
 
 ---
@@ -80,7 +80,8 @@ Cleaner actions: `src/app/dashboard/cleaner/actions.ts`.
 3. **Finish + charge:** `finishOrderAction(orderId)` (`actions.ts:192`):
    - Requires status `out_for_delivery`.
    - `completeOrderAction()` → status `completed`, then triggers `checkAndGenerateNextOrders()` (rolling window).
-   - For recurring orders (has `subscription_id`): `createChargeForCompletedOrder(orderId, total_cost_ore, "NooraCare vask #<order_number>")` (`service.ts:220`) → creates a Vipps charge (due +2 days, retryDays 3, **DIRECT_CAPTURE**) and a `Payment` (status `pending`) with `provider_reference` + charge metadata.
+   - For recurring orders (has `subscription_id`): `createChargeForCompletedOrder(orderId, total_cost_ore, "NooraCare vask #<order_number>")` (`service.ts`) → creates a Vipps charge (due +2 days, retryDays 3, **DIRECT_CAPTURE**) and a `Payment` (status `pending`) with `provider_reference` + charge metadata.
+   - ⚠️ **One-time orders are not charged here.** `finishOrderAction` gates charge creation on `order.subscription_id`, so one-time orders (which have no subscription) currently complete without a charge. `createChargeForCompletedOrder` itself *does* support one-time orders (it resolves the agreement directly via `order.payment_agreements`), but nothing invokes it for them. See "Known gaps" below.
 
 `declineCleanerOrder(orderId)` (`actions.ts:257`) resets the order to `pending_assignment` and appends the cleaner to `declined_by_cleaner_ids` so they aren't reassigned.
 
@@ -98,14 +99,7 @@ Cleaner actions: `src/app/dashboard/cleaner/actions.ts`.
 | `recurring.charge-failed.v1` | `handleChargeFailed` (378) | Payment → `failed` + reason/code. (TODO: notify + retry.) |
 | `recurring.charge-creation-failed.v1` | `handleChargeCreationFailed` (418) | Log only. (TODO: admin notify.) |
 
-### One-time payments — ePayment API (`src/app/api/webhooks/vipps/epayment/route.ts`)
-| Event | Effect |
-|---|---|
-| `epayments.payment.created.v1` | no-op |
-| `epayments.payment.authorized.v1` | Payment → `authorized`, then auto-capture via `captureVippsEPayment()`. |
-| `epayments.payment.captured.v1` | Payment → `captured`; Order → `pickup_scheduled` (cleaner assigned) or `pending_assignment`. |
-| `refunded / cancelled` | Payment metadata updated. |
-| `aborted / expired / terminated` | Payment → `failed` with the corresponding reason. |
+> **Note:** All charges — for both recurring and one-time orders — flow through the Recurring API agreement and these `recurring.charge-*` events. There is no separate one-time payment API in use.
 
 ---
 
@@ -137,8 +131,7 @@ Cleaner actions: `src/app/dashboard/cleaner/actions.ts`.
 
 - **`base-client.ts`** — `VippsBaseClient`: OAuth `authenticate()` (token cached w/ 1-min buffer), `getCommonHeaders()`, `handleVippsError()`.
 - **`recurring-client.ts`** — `VippsRecurringClient`: `listAgreements`, `createAgreement` (FLEXIBLE), `getAgreement`, `stopAgreement`, `forceAcceptAgreement` (test), `createCharge` (DIRECT_CAPTURE default), `getCharge`, `getChargeById`, `captureCharge` (RESERVE_CAPTURE only — unused), `cancelCharge`.
-- **`epayment-client.ts`** — `VippsEPaymentClient`: `createPayment`, `getPayment`, `capturePayment`.
-- **`service.ts`** — orchestration: `createVippsAgreement`, `captureVippsCharge`, `cancelVippsAgreement`, `createVippsEPayment`, `captureVippsEPayment`, `createChargeForCompletedOrder`.
+- **`service.ts`** — orchestration: `createVippsAgreement`, `captureVippsCharge`, `cancelVippsAgreement`, `createChargeForCompletedOrder`.
 - **`config.ts`** — `validateVippsConfig`, `isVippsConfigured`, `getVippsEnvironment`, `isVippsTestEnvironment`.
 
 ---
@@ -159,7 +152,7 @@ createSubscriptionAction → PaymentAgreement(pending) + Subscription(pending_pa
 ```
 createSubscriptionAction(isRecurring=false) → PaymentAgreement(pending, order_defaults in metadata) → Vipps checkout
   → [webhook] agreement-activated → activate agreement + handleOneTimeOrderCreation (single order)
-  → cleaner prices & finishes → charge created → captured. No further orders.
+  → cleaner prices & finishes order. ⚠️ No charge is created today (finishOrderAction skips orders without a subscription_id). No further orders.
 ```
 
 ---
@@ -171,10 +164,14 @@ createSubscriptionAction(isRecurring=false) → PaymentAgreement(pending, order_
 | Checkout / order edits | `src/app/orders/actions.ts` |
 | Vipps orchestration | `src/lib/payments/vipps/service.ts` |
 | Recurring API client | `src/lib/payments/vipps/recurring-client.ts` |
-| ePayment API client | `src/lib/payments/vipps/epayment-client.ts` |
 | Recurring webhooks (activation, charges) | `src/app/api/webhooks/vipps/recurring/route.ts` |
-| ePayment webhooks (one-time) | `src/app/api/webhooks/vipps/epayment/route.ts` |
 | Rolling-window generation | `src/lib/services/order-generation.ts` |
 | Cleaner pricing / finish | `src/app/dashboard/cleaner/actions.ts` |
 | DB CRUD | `src/lib/database/*.ts` |
 | Types / enums | `src/types/database.ts` |
+
+---
+
+## 12. Known gaps
+
+- **One-time orders are never charged.** `finishOrderAction` (`src/app/dashboard/cleaner/actions.ts`) only calls `createChargeForCompletedOrder` when `order.subscription_id` is set. One-time orders have no subscription, so they complete without a charge. They were originally intended to be charged via the Vipps ePayment API, but that integration was unused dead code and has been removed. To wire one-time charging, drop the `subscription_id` guard in `finishOrderAction` — `createChargeForCompletedOrder` already resolves the agreement directly from `order.payment_agreements`.

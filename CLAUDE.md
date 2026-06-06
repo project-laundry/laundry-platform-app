@@ -73,8 +73,7 @@ src/
 │   ├── api/                # API routes
 │   │   └── webhooks/
 │   │       └── vipps/
-│   │           ├── recurring/ # Vipps Recurring API webhooks (agreement activation, charge events)
-│   │           └── epayment/  # Vipps ePayment API webhooks (per-order payments)
+│   │           └── recurring/ # Vipps Recurring API webhooks (agreement activation, charge events)
 │   ├── auth/               # Authentication flow
 │   │   ├── address/        # Address input step
 │   │   ├── callback/       # Supabase auth callback
@@ -122,10 +121,9 @@ src/
 │   │   ├── payments.ts     # Payment operations (includes Vipps metadata management)
 │   │   └── subscriptions.ts   # Subscription operations (recurring order management)
 │   ├── payments/           # Payment processing integrations
-│   │   └── vipps/          # Vipps integration (Recurring + ePayment APIs)
+│   │   └── vipps/          # Vipps integration (Recurring API)
 │   │       ├── base-client.ts      # Shared OAuth and HTTP utilities
 │   │       ├── recurring-client.ts # Recurring API client (agreements, charges)
-│   │       ├── epayment-client.ts  # ePayment API client (one-time payments)
 │   │       ├── webhook-auth.ts     # Shared webhook HMAC-SHA256 verification
 │   │       ├── service.ts          # High-level Vipps service layer
 │   │       └── config.ts           # Vipps configuration validation
@@ -179,19 +177,17 @@ All database operations use dedicated functions in `lib/database/`:
 
 ### Vipps Integration
 
-The platform uses Vipps Recurring API for production payments with DIRECT_CAPTURE flow (charges capture immediately; no separate capture step):
+The platform uses Vipps Recurring API for production payments with DIRECT_CAPTURE flow (charges capture immediately; no separate capture step). Both recurring subscriptions and one-time orders go through the Recurring API — a one-time order creates a Vipps agreement (with a placeholder monthly interval) but no Subscription record, and is charged exactly once:
 
 **Key Files:**
 - `lib/database/payment-agreements.ts` - Payment agreement CRUD (Vipps agreement lifecycle, decoupled from subscriptions)
 - `lib/payments/vipps/recurring-client.ts` - Vipps Recurring API client (agreements, charges)
-- `lib/payments/vipps/epayment-client.ts` - Vipps ePayment API client (one-time payments)
 - `lib/payments/vipps/base-client.ts` - Shared OAuth and HTTP utilities
 - `lib/payments/vipps/webhook-auth.ts` - Shared webhook authentication (HMAC-SHA256)
 - `lib/payments/vipps/service.ts` - High-level service layer orchestrating Vipps + database operations
 - `lib/payments/vipps/config.ts` - Configuration validation and environment checks
 - `app/orders/actions.ts` - Server actions including checkout flow (creates PaymentAgreement + optional Subscription)
 - `app/api/webhooks/vipps/recurring/route.ts` - **Critical** webhook handler for Recurring API events - handles agreement activation, order generation, and charge events
-- `app/api/webhooks/vipps/epayment/route.ts` - **Critical** webhook handler for ePayment API events (one-time payments)
 - `lib/services/order-generation.ts` - Order generation service (calculates pickup dates based on subscription frequency)
 
 
@@ -201,21 +197,17 @@ The platform uses Vipps Recurring API for production payments with DIRECT_CAPTUR
 - `VIPPS_SUBSCRIPTION_KEY` - Vipps API subscription key
 - `VIPPS_MERCHANT_SERIAL_NUMBER` - Vipps merchant serial number (MSN)
 - `VIPPS_API_URL` - Vipps API base URL (test: https://apitest.vipps.no, prod: https://api.vipps.no)
-- `VIPPS_WEBHOOK_SECRET` - Shared webhook secret for HMAC-SHA256 signature verification (used by both webhooks)
+- `VIPPS_WEBHOOK_SECRET` - Shared webhook secret for HMAC-SHA256 signature verification
 - `VIPPS_WEBHOOK_SECRET_RECURRING` - Optional: Recurring API webhook-specific secret (overrides VIPPS_WEBHOOK_SECRET)
-- `VIPPS_WEBHOOK_SECRET_EPAYMENT` - Optional: ePayment API webhook-specific secret (overrides VIPPS_WEBHOOK_SECRET)
 
 **Webhook Configuration:**
-The platform provides two separate webhook endpoints that can be registered in the Vipps dashboard:
+The platform exposes a single webhook endpoint to register in the Vipps dashboard:
 
 1. **Recurring API Webhook**: `https://yourdomain.com/api/webhooks/vipps/recurring`
    - Subscribe to all `recurring.charge.*` events (reserved, captured, canceled, refunded, failed, creation-failed)
    - Subscribe to all `recurring.agreement.*` events (activated, rejected, stopped, expired)
 
-2. **ePayment API Webhook**: `https://yourdomain.com/api/webhooks/vipps/epayment`
-   - Subscribe to all `epayments.payment.*` events (created, authorized, captured, refunded, cancelled, aborted, expired, terminated)
-
-Both webhooks use HMAC-SHA256 signature verification. You can use a shared secret (`VIPPS_WEBHOOK_SECRET`) or configure separate secrets per endpoint for additional security.
+The webhook uses HMAC-SHA256 signature verification with `VIPPS_WEBHOOK_SECRET` (or the endpoint-specific `VIPPS_WEBHOOK_SECRET_RECURRING`).
 
 **Testing:**
 - Manual payment option (`payment_provider = 'manual'`) preserved for development
@@ -241,7 +233,7 @@ Both webhooks use HMAC-SHA256 signature verification. You can use a shared secre
 - `orders.actual_weight_kg` - Actual weight after pickup
 - `orders.pricing_notes` - Cleaner's pricing explanation
 - `orders.price_calculated_at` - When cleaner calculated price
-- `payments.provider_reference` - Merchant reference for webhook lookups (Recurring: chr_*, ePayment: custom ref)
+- `payments.provider_reference` - Merchant reference for webhook lookups (Vipps charge ID, chr_*)
 - `payments.provider_metadata` - Stores Vipps charge/transaction details (JSONB)
 
 See migrations:

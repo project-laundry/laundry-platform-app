@@ -47,7 +47,7 @@ Staging/production values are set **per environment** in the Vercel dashboard.
 | `NEXT_PUBLIC_APP_URL` | `https://test.nooracare.no` | `https://nooracare.no` |
 | `VIPPS_API_URL` | `https://apitest.vipps.no` | `https://api.vipps.no` |
 | `VIPPS_CLIENT_ID` / `_SECRET` / `_SUBSCRIPTION_KEY` / `_MERCHANT_SERIAL_NUMBER` | Vipps **test** creds | Vipps **live** creds |
-| `VIPPS_WEBHOOK_SECRET_RECURRING` / `_EPAYMENT` | staging webhook secrets | prod webhook secrets |
+| `VIPPS_WEBHOOK_SECRET_RECURRING` | staging webhook secret | prod webhook secret |
 
 > `CRON_SECRET` is not used anywhere in `src/` (order generation is webhook-driven).
 > It is intentionally omitted.
@@ -97,11 +97,10 @@ Vercel **Preview**; we give it staging env vars and a stable domain.
      feature previews to boot.
 2. **Domain** — Settings → Domains → add `test.nooracare.no` and assign it to the
    **`develop` git branch** (so it always serves the latest `develop` Preview deployment).
-3. In the **Vipps test** portal, register webhooks pointing at staging:
+3. In the **Vipps test** portal, register the webhook pointing at staging:
    - `https://test.nooracare.no/api/webhooks/vipps/recurring` — all `recurring.*` events
-   - `https://test.nooracare.no/api/webhooks/vipps/epayment` — all `epayments.payment.*` events
 
-   using the staging webhook secrets. Keep Production env vars/domain unchanged.
+   using the staging webhook secret. Keep Production env vars/domain unchanged.
 
 ### 3. Verify
 

@@ -2,7 +2,6 @@
 // High-level functions that orchestrate Vipps API calls with database operations
 
 import { createVippsRecurringClient } from "./recurring-client";
-import { createVippsEPaymentClient } from "./epayment-client";
 import {
   createPayment,
 } from "@/lib/database/payments";
@@ -129,72 +128,6 @@ export async function cancelVippsAgreement(
 ): Promise<void> {  
   const vipps = createVippsRecurringClient();
   await vipps.stopAgreement(providerAgreementId);
-}
-
-// =============================================================================
-// EPAYMENT API (ONE-TIME PAYMENTS)
-// =============================================================================
-
-export interface CreateEPaymentResult {
-  redirectUrl: string;
-}
-
-/**
- * Create Vipps ePayment for a standalone order
- *
- * Flow:
- * 1. Create Vipps ePayment via API
- * 2. Return redirect URL for user payment
- *
- * @param orderId - Order ID to create ePayment for
- * @param reference - Unique merchant reference for this payment (8-64 chars)
- * @returns Payment ID and checkout URL
- */
-export async function createVippsEPayment(
-  orderId: string,
-  reference: string,
-  amount: number,
-): Promise<CreateEPaymentResult> {
-  // Initialize Vipps ePayment client
-  const vipps = createVippsEPaymentClient();
-
-  // Create ePayment
-  const result = await vipps.createPayment({
-    reference,
-    amount: amount,
-    paymentDescription: `NooraCare - Laundry service`,
-    userFlow: "WEB_REDIRECT", // Most common flow
-    returnUrl:
-      `${process.env.NEXT_PUBLIC_APP_URL}/orders/success?orderId=${orderId}`,
-    paymentMethod: {
-      type: "WALLET", // Vipps app payment
-    },
-  });
-
-  return {
-    redirectUrl: result.redirectUrl || "",
-  };
-}
-
-/**
- * Capture authorized Vipps ePayment
- *
- * Called automatically by webhook when payment is authorized
- *
- * @param reference - Merchant reference
- * @param amount - Amount to capture in øre
- * @returns void
- */
-export async function captureVippsEPayment(
-  reference: string,
-  amount: number,
-): Promise<void> {
-  const vipps = createVippsEPaymentClient();
-
-  await vipps.capturePayment(reference, {
-    amount,
-    description: "Payment capture",
-  });
 }
 
 // =============================================================================
