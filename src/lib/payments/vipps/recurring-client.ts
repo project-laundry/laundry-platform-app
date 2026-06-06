@@ -31,7 +31,7 @@ interface VippsListAgreementsParams {
 interface VippsCreateChargeParams {
   amount: number; // in øre
   description: string;
-  due: string; // ISO date (YYYY-MM-DD), minimum 2 days in future
+  due: string; // ISO date (YYYY-MM-DD), minimum 1 day in future
   retryDays: number;
   transactionType?: 'DIRECT_CAPTURE' | 'RESERVE_CAPTURE'; // Default: DIRECT_CAPTURE for recurring
 }
