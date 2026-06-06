@@ -205,9 +205,9 @@ export async function createChargeForCompletedOrder(
     throw new Error('Failed to create payment record');
   }
 
-  // 4. Create Vipps charge (due in 2 days minimum per Vipps requirement)
+  // 4. Create Vipps charge (due in 1 day minimum per Vipps requirement)
   const dueDate = new Date();
-  dueDate.setDate(dueDate.getDate() + 2);
+  dueDate.setDate(dueDate.getDate() + 1);
   const dueDateString = dueDate.toISOString().split('T')[0]; // YYYY-MM-DD
 
   const vipps = createVippsRecurringClient();
