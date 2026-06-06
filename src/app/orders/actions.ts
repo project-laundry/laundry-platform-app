@@ -193,7 +193,7 @@ export async function forceAcceptAgreementAction(
       };
     }
 
-    // 2. Get authenticated user
+    // 2. Get authenticated user and phone number from users table
     const supabase = await createClient();
     const {
       data: { user: authUser },
@@ -206,16 +206,24 @@ export async function forceAcceptAgreementAction(
       };
     }
 
-    // Vipps test env only force-accepts for whitelisted numbers; rotate pool to spread concurrent dev sessions.
-    const VIPPS_TEST_PHONES = [
-      '4746170809',
-      '4796394196',
-      '4796595670',
-      '4796885121',
-      '4796841377',
-    ];
-    const formattedPhone =
-      VIPPS_TEST_PHONES[Math.floor(Math.random() * VIPPS_TEST_PHONES.length)];
+    // Fetch phone number from users table
+    const { data: dbUser, error: userError } = await supabase
+      .from('users')
+      .select('phone')
+      .eq('id', authUser.id)
+      .single();
+
+    if (userError || !dbUser?.phone) {
+      return {
+        success: false,
+        error: 'Telefonnummer mangler. Vennligst oppdater profilen din.',
+      };
+    }
+
+    const phoneNumber = dbUser.phone;
+
+    // Format phone number: Remove +47 prefix (Vipps expects format: 4712345678)
+    const formattedPhone = phoneNumber.replace(/^\+/, '');
 
     // 3. Get payment agreement to verify ownership
     const paymentAgreement = await getPaymentAgreementByProviderId(agreementId);
