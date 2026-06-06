@@ -318,21 +318,39 @@ function ConfirmPageContent() {
           )}
         </div>
 
+        {/* Estimated Price */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-slate-900">Estimert pris</h3>
+            <span className="text-lg font-bold text-teal-600">fra 500 kr</span>
+          </div>
+          <div className="flex items-start gap-2 rounded-lg bg-teal-50 border border-teal-100 p-4">
+            <svg className="w-4 h-4 text-teal-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-sm text-teal-800">
+              Dette er kun et estimat. Endelig pris beregnes når renseren har veid
+              og vurdert klærne dine. Du betaler ingenting nå – du belastes via
+              Vipps etter henting.
+            </p>
+          </div>
+          <p className="text-sm text-slate-500 mt-3 text-center">
+            <a
+              target="_blank"
+              rel="noopener noreferrer"
+              href="/pris-kalkulator"
+              className="text-teal-600 hover:underline"
+            >
+              Se full prisliste
+            </a>
+          </p>
+        </div>
+
         {/* Submit Form */}
         <form onSubmit={handleConfirmOrder}>
           {/* <p className="text-sm text-slate-600 mb-2 text-center">
             Du vil bli videresendt til Vipps for å godkjenne avtalen
           </p> */}
-          <p className="text-sm text-slate-500 mb-4 text-center">
-            <a
-              target='_blank'
-              rel="noopener noreferrer"
-              href="/pris-kalkulator"
-              className="text-teal-600 hover:underline"
-            >
-              Se prisliste
-            </a>
-          </p>
 
           {/* Auto-accept checkbox (non-production environments only) */}
           {showAutoAccept && (
