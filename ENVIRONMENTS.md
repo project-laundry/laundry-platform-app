@@ -12,7 +12,7 @@ projects** (one staging, one production).
 | Branch    | Supabase project                | Vercel environment   | Vipps            | Domain                  |
 |-----------|---------------------------------|----------------------|------------------|-------------------------|
 | `main`    | production (`mdglaondbvwsmsdtygmj`) | Production        | `api.vipps.no`   | `nooracare.no`          |
-| `develop` | **separate staging project**    | Preview (branch-scoped) | `apitest.vipps.no` | `staging.nooracare.no` |
+| `develop` | **separate staging project**    | Preview (branch-scoped) | `apitest.vipps.no` | `test.nooracare.no` |
 
 **Promotion flow:** feature branch → PR into `develop` (CI runs) → merge deploys
 migrations to the staging project → PR `develop` → `main` deploys to production.
@@ -44,7 +44,7 @@ Staging/production values are set **per environment** in the Vercel dashboard.
 | `NEXT_PUBLIC_SUPABASE_URL` | staging project URL | prod project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | staging anon key | prod anon key |
 | `SUPABASE_SERVICE_ROLE_KEY` | staging service role | prod service role |
-| `NEXT_PUBLIC_APP_URL` | `https://staging.nooracare.no` | `https://nooracare.no` |
+| `NEXT_PUBLIC_APP_URL` | `https://test.nooracare.no` | `https://nooracare.no` |
 | `VIPPS_API_URL` | `https://apitest.vipps.no` | `https://api.vipps.no` |
 | `VIPPS_CLIENT_ID` / `_SECRET` / `_SUBSCRIPTION_KEY` / `_MERCHANT_SERIAL_NUMBER` | Vipps **test** creds | Vipps **live** creds |
 | `VIPPS_WEBHOOK_SECRET_RECURRING` / `_EPAYMENT` | staging webhook secrets | prod webhook secrets |
@@ -72,7 +72,7 @@ in the dashboard.
    - `PROD_DB_PASSWORD` — production DB password
 5. Push to `develop` → `staging.yaml` applies all migrations to staging.
 6. In staging project **Authentication → URL Configuration**, set Site URL and
-   Redirect URLs to `https://staging.nooracare.no` (the auth callback depends on this).
+   Redirect URLs to `https://test.nooracare.no` (the auth callback depends on this).
 
 ### 2. Vercel staging environment (one-time, manual)
 
@@ -86,7 +86,7 @@ Vercel **Preview**; we give it staging env vars and a stable domain.
    vercel env add NEXT_PUBLIC_SUPABASE_URL preview develop
    vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY preview develop
    vercel env add SUPABASE_SERVICE_ROLE_KEY preview develop
-   vercel env add NEXT_PUBLIC_APP_URL preview develop      # https://staging.nooracare.no
+   vercel env add NEXT_PUBLIC_APP_URL preview develop      # https://test.nooracare.no
    vercel env add VIPPS_API_URL preview develop            # https://apitest.vipps.no
    # ...repeat for the remaining VIPPS_* vars
    ```
@@ -95,17 +95,17 @@ Vercel **Preview**; we give it staging env vars and a stable domain.
    - PR/feature-branch previews use the **generic Preview** vars (not branch-scoped). For an
      MVP it's fine to point those at staging too, or leave them unset if you don't need
      feature previews to boot.
-2. **Domain** — Settings → Domains → add `staging.nooracare.no` and assign it to the
+2. **Domain** — Settings → Domains → add `test.nooracare.no` and assign it to the
    **`develop` git branch** (so it always serves the latest `develop` Preview deployment).
 3. In the **Vipps test** portal, register webhooks pointing at staging:
-   - `https://staging.nooracare.no/api/webhooks/vipps/recurring` — all `recurring.*` events
-   - `https://staging.nooracare.no/api/webhooks/vipps/epayment` — all `epayments.payment.*` events
+   - `https://test.nooracare.no/api/webhooks/vipps/recurring` — all `recurring.*` events
+   - `https://test.nooracare.no/api/webhooks/vipps/epayment` — all `epayments.payment.*` events
 
    using the staging webhook secrets. Keep Production env vars/domain unchanged.
 
 ### 3. Verify
 
 - [ ] Push to `develop` → `staging.yaml` is green; migrations present in the staging DB.
-- [ ] Vercel staging build succeeds; `staging.nooracare.no` serves the app against the staging DB.
+- [ ] Vercel staging build succeeds; `test.nooracare.no` serves the app against the staging DB.
 - [ ] A Vipps **test** checkout completes end-to-end on staging; webhook reaches the staging endpoint.
 - [ ] Merge `develop` → `main` → `production.yaml` runs; production is unaffected by staging data.

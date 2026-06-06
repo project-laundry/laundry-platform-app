@@ -1,6 +1,6 @@
-# Seeding Scripts
+# Scripts
 
-This directory contains utility scripts for seeding test data into the NooraCare database.
+This directory contains utility scripts for the NooraCare platform: seeding test data and managing Vipps webhooks.
 
 ## seed-test-users.ts
 
@@ -289,6 +289,7 @@ All test users have the same password for easy testing:
 scripts/
 ├── README.md                 # This file
 ├── seed-test-users.ts        # Main script
+├── manage-webhooks.ts        # Vipps webhook management
 └── lib/
     ├── admin-client.ts       # Supabase admin client factory
     └── test-user-data.ts     # Random data generators
@@ -310,3 +311,51 @@ npm run seed:test-users -- --count=1
 # If successful, run with larger count
 npm run seed:test-users -- --count=10
 ```
+
+---
+
+## manage-webhooks.ts
+
+Lists, registers, and deletes Vipps webhooks via the [Webhooks API](https://developer.vippsmobilepay.com/docs/APIs/webhooks-api/). Reuses `src/lib/payments/vipps/base-client.ts` for OAuth and required headers, so authentication matches the rest of the app.
+
+### Target environment
+
+The script targets **whichever Vipps environment your `.env.local` points at** — it reads the same `VIPPS_*` vars as the app. It prints the resolved environment (TEST / PRODUCTION), base URL, and MSN before every action so you can confirm before changing anything. To manage production, temporarily put production credentials in `.env.local`.
+
+### Commands
+
+```bash
+# List all registered webhooks
+npm run webhooks -- list
+
+# Register a webhook (use an event preset or a comma-separated list)
+npm run webhooks -- register --url=https://test.nooracare.no/api/webhooks/vipps/recurring --events=recurring
+npm run webhooks -- register --url=https://test.nooracare.no/api/webhooks/vipps/epayment  --events=epayment
+
+# Delete a webhook by ID (get the ID from `list`)
+npm run webhooks -- delete --id=<uuid>
+```
+
+### Event presets
+
+| Preset | Expands to |
+|--------|------------|
+| `recurring` | All `recurring.agreement-*` and `recurring.charge-*` events the recurring handler processes |
+| `epayment`  | All `epayments.payment.*` events the ePayment handler processes |
+
+These mirror the event types in `src/app/api/webhooks/vipps/{recurring,epayment}/route.ts`. You can also pass an explicit list: `--events=epayments.payment.captured.v1,epayments.payment.refunded.v1`.
+
+### After registering
+
+`register` prints a **secret** that Vipps generates once and never shows again. Store it immediately in the matching env var (Vercel for deployed envs, `.env.local` for local runs):
+
+- recurring endpoint → `VIPPS_WEBHOOK_SECRET_RECURRING`
+- epayment endpoint → `VIPPS_WEBHOOK_SECRET_EPAYMENT`
+
+(Or set a single shared `VIPPS_WEBHOOK_SECRET` for both endpoints.) The webhook handlers use this secret for HMAC-SHA256 signature verification.
+
+### Notes
+
+- **HTTPS only**: Vipps requires a world-reachable HTTPS URL. `localhost` is rejected — for local handler testing, point a webhook at a tunnel (e.g. ngrok) URL or test against staging.
+- **Why a local script, not a GitHub Action**: registration returns a secret you must capture and paste into env config — running this in CI would leak that secret into workflow logs. Webhook management is infrequent and interactive, so a local CLI fits best.
+
