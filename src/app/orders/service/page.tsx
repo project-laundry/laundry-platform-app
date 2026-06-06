@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Sparkles, Check, ChevronLeft, MessageSquare } from 'lucide-react';
+import { Check, ChevronLeft, MessageSquare } from 'lucide-react';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { OrderFlowProgress } from '@/components/ui/OrderFlowProgress';
+import { OrderPriceEstimate } from '@/components/pricing-calculator/OrderPriceEstimate';
 
 type Service = 'wash_and_iron' | 'wash_only';
 
@@ -59,10 +60,6 @@ export default function ServicePage() {
 
         {/* Service Selection */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 mb-6">
-          <div className="flex items-center mb-4">
-            <Sparkles className="w-5 h-5 text-teal-600 mr-2" />
-            <h3 className="text-lg font-medium text-slate-900">Velg tjeneste</h3>
-          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Wash & Ironing - Popular */}
             <button
@@ -112,6 +109,9 @@ export default function ServicePage() {
             </button>
           </div>
         </div>
+
+        {/* Price Estimate */}
+        <OrderPriceEstimate service={service} />
 
         {/* Additional Information (Optional) */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 mb-6">
