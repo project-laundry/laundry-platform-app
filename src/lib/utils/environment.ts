@@ -9,7 +9,7 @@ export type AppEnvironment = 'production' | 'staging' | 'development';
  *
  * - localhost / 127.0.0.1            → development
  * - nooracare.no / www.nooracare.no → production
- * - anything else (e.g. staging.nooracare.no, Vercel previews) → staging
+ * - anything else (e.g. test.nooracare.no, Vercel previews) → staging
  */
 export function getAppEnvironment(): AppEnvironment {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
