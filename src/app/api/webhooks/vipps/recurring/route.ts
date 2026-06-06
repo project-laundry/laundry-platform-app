@@ -40,6 +40,7 @@ import {
   failPaymentWithMetadata,
   updatePaymentWithMetadata,
 } from '@/lib/database/payments';
+import { cancelVippsAgreement } from '@/lib/payments/vipps/service';
 import { createOrder } from '@/lib/database/orders';
 import { addDays, toISODateString, getWeekdayFromDate, getNextOccurrenceOfWeekday } from '@/lib/utils/date';
 import { DAYS_PICKUP_TO_DELIVERY } from '@/lib/config/order-timing';
@@ -300,7 +301,28 @@ async function handleChargeCaptured(
 
   console.log(`[Vipps Recurring Webhook] Payment ${payment.id} marked as captured`);
 
-  // That's it! No order generation or next charge creation.
+  // For one-time orders, stop the agreement now that the charge is captured.
+  // A one-time agreement has no linked subscription. It is safe to stop here:
+  // the only charge is already CHARGED, and stopping only cancels PENDING/DUE/RESERVED charges.
+  // (We must NOT stop earlier, e.g. at charge creation, or the still-pending charge would be cancelled.)
+  try {
+    const paymentAgreement = await getPaymentAgreementByProviderId(agreementId);
+
+    if (paymentAgreement && paymentAgreement.status === 'active') {
+      const subscription = await getSubscriptionByPaymentAgreementId(paymentAgreement.id);
+
+      if (!subscription) {
+        console.log(`[Vipps Recurring Webhook] One-time order charged - stopping agreement ${agreementId}`);
+        await cancelVippsAgreement(agreementId);
+        await stopPaymentAgreement(paymentAgreement.id);
+      }
+    }
+  } catch (error) {
+    // Don't fail the captured-payment handler if cleanup fails - the payment is already secured.
+    // The agreement can be stopped manually if needed.
+    console.error('[Vipps Recurring Webhook] Failed to stop one-time agreement after capture:', error);
+  }
+
   // Orders are generated when agreement is activated.
   // Charges are created by cleaners after calculating price per order.
 }
