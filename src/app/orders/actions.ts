@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createSubscription, getActiveSubscriptionByCustomerId, getSubscriptionById } from "@/lib/database/subscriptions";
-import { createPaymentAgreement, getPaymentAgreementByProviderId } from "@/lib/database/payment-agreements";
+import { createPaymentAgreement, getPaymentAgreementByProviderId, getPaymentAgreementsByCustomerId } from "@/lib/database/payment-agreements";
 import { getCustomerByUserId } from "@/lib/database/customers";
 import { validatePromoCode } from "@/lib/database/promo-codes";
 import { oreToNok } from "@/lib/config/pricing";
@@ -192,6 +192,80 @@ export async function createSubscriptionAction(
     redirectUrl: agreementResponse.vippsConfirmationUrl,
     agreementId: agreementResponse.agreementId,
   };
+}
+
+export type CheckoutStatus = 'active' | 'pending' | 'cancelled' | 'unknown';
+
+export interface CheckoutStatusResult {
+  status: CheckoutStatus;
+}
+
+/**
+ * Resolve the real status of the customer's latest Vipps agreement after they
+ * return from the Vipps app.
+ *
+ * Vipps redirects everyone back to the same merchantRedirectUrl regardless of
+ * outcome (approved, cancelled on the landing page, or still activating) and
+ * appends no status param. Per Vipps docs we must poll the agreement instead of
+ * trusting the redirect: ACTIVE = approved, STOPPED/EXPIRED = aborted, PENDING =
+ * activation not finished yet (caller should retry).
+ *
+ * The agreement ID isn't passed back in the URL, so we look up the customer's
+ * most recently created payment agreement — the one they just started checkout
+ * with. Status is queried live from Vipps, falling back to the stored DB status
+ * (kept in sync by the webhook) if Vipps is unreachable.
+ */
+export async function getCheckoutStatusAction(): Promise<CheckoutStatusResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { status: 'unknown' };
+  }
+
+  const customer = await getCustomerByUserId(user.id);
+  if (!customer) {
+    return { status: 'unknown' };
+  }
+
+  const agreements = await getPaymentAgreementsByCustomerId(customer.id);
+  const latest = agreements[0];
+  if (!latest) {
+    return { status: 'unknown' };
+  }
+
+  try {
+    const vipps = createVippsRecurringClient();
+    const agreement = await vipps.getAgreement(latest.provider_agreement_id);
+
+    switch (agreement.status) {
+      case 'ACTIVE':
+        return { status: 'active' };
+      case 'PENDING':
+        return { status: 'pending' };
+      case 'STOPPED':
+      case 'EXPIRED':
+        return { status: 'cancelled' };
+      default:
+        return { status: 'unknown' };
+    }
+  } catch (error) {
+    console.error('Failed to fetch Vipps agreement status:', error);
+    // Fall back to the DB status (kept in sync by the webhook)
+    switch (latest.status) {
+      case 'active':
+        return { status: 'active' };
+      case 'pending':
+        return { status: 'pending' };
+      case 'stopped':
+      case 'expired':
+        return { status: 'cancelled' };
+      default:
+        return { status: 'unknown' };
+    }
+  }
 }
 
 export interface ValidatePromoCodeResult {
