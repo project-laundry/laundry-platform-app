@@ -250,7 +250,7 @@ export function LaundryDetailsForm({
             onChange={(e) => setNotes(e.target.value)}
             disabled={!isEditable}
             placeholder="F.eks. spesielle hensyn, ekstra arbeid..."
-            className="w-full min-h-[80px] p-3 rounded-lg border border-gray-200 bg-white text-sm focus:ring-2 focus:ring-nordic-blue/30 focus:border-nordic-blue disabled:opacity-50 disabled:bg-soft-gray"
+            className="w-full min-h-[80px] p-3 rounded-lg border border-gray-200 bg-white text-base focus:ring-2 focus:ring-nordic-blue/30 focus:border-nordic-blue disabled:opacity-50 disabled:bg-soft-gray"
           />
         </CardContent>
       </Card>

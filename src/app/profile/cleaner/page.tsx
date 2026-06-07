@@ -113,11 +113,11 @@ export default function CleanerProfilePage() {
       {/* Header */}
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
               <Link
                 href="/dashboard/cleaner"
-                className="text-nordic-blue hover:text-blue-600"
+                className="text-nordic-blue hover:text-blue-600 text-sm sm:text-base"
               >
                 ← Tilbake til dashboard
               </Link>
@@ -125,7 +125,7 @@ export default function CleanerProfilePage() {
             </div>
             <button
               onClick={() => isEditing ? handleSave() : setIsEditing(true)}
-              className={`px-6 py-2 rounded-lg font-semibold transition-colors ${
+              className={`w-full sm:w-auto px-6 py-2 rounded-lg font-semibold transition-colors ${
                 isEditing
                   ? 'bg-green-500 text-white hover:bg-green-600'
                   : 'bg-nordic-blue text-white'
@@ -169,10 +169,10 @@ export default function CleanerProfilePage() {
 
         {/* Tab Navigation */}
         <div className="bg-white rounded-t-2xl border-b border-gray-200">
-          <div className="flex">
+          <div className="flex overflow-x-auto">
             <button
               onClick={() => setActiveTab('personal')}
-              className={`flex-1 px-6 py-4 font-semibold text-center transition-colors ${
+              className={`flex-shrink-0 whitespace-nowrap px-4 py-4 sm:flex-1 sm:px-6 font-semibold text-center transition-colors ${
                 activeTab === 'personal'
                   ? 'text-nordic-blue border-b-2 border-nordic-blue'
                   : 'text-medium-gray hover:text-dark-gray'
@@ -182,7 +182,7 @@ export default function CleanerProfilePage() {
             </button>
             <button
               onClick={() => setActiveTab('availability')}
-              className={`flex-1 px-6 py-4 font-semibold text-center transition-colors ${
+              className={`flex-shrink-0 whitespace-nowrap px-4 py-4 sm:flex-1 sm:px-6 font-semibold text-center transition-colors ${
                 activeTab === 'availability'
                   ? 'text-nordic-blue border-b-2 border-nordic-blue'
                   : 'text-medium-gray hover:text-dark-gray'
@@ -192,7 +192,7 @@ export default function CleanerProfilePage() {
             </button>
             <button
               onClick={() => setActiveTab('payment')}
-              className={`flex-1 px-6 py-4 font-semibold text-center transition-colors ${
+              className={`flex-shrink-0 whitespace-nowrap px-4 py-4 sm:flex-1 sm:px-6 font-semibold text-center transition-colors ${
                 activeTab === 'payment'
                   ? 'text-nordic-blue border-b-2 border-nordic-blue'
                   : 'text-medium-gray hover:text-dark-gray'

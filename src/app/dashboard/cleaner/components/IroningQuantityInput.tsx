@@ -78,7 +78,7 @@ export function IroningQuantityInput({
             value={value}
             onChange={handleInputChange}
             disabled={disabled}
-            className="w-12 h-8 text-center bg-white rounded-md border-0 text-sm font-medium focus:ring-2 focus:ring-nordic-blue/30 disabled:opacity-50"
+            className="w-12 h-8 text-center bg-white rounded-md border-0 text-base font-medium focus:ring-2 focus:ring-nordic-blue/30 disabled:opacity-50"
           />
           <Button
             type="button"
