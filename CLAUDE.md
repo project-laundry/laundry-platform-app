@@ -243,13 +243,14 @@ The webhook uses HMAC-SHA256 signature verification with `VIPPS_WEBHOOK_SECRET` 
 - Flow: customer enters code at checkout → validated + snapshot locked into `payment_agreements.provider_metadata.promo` → stamped onto first order + redemption recorded in the agreement-activated webhook → discount applied when cleaner prices the order (`total_cost_ore` = full − discount; **platform-absorbed**, cleaner payout unchanged; charge can fall below the 500 kr minimum, and a 0 total skips the Vipps charge)
 - See `lib/database/promo-codes.ts`, `computeDiscountOre` in `lib/config/pricing.ts`, and [BUSINESS_LOGIC.md](./BUSINESS_LOGIC.md#promo-codes--discounts)
 
-See migrations:
-- `supabase/migrations/20251218000000_redesign_order_flow_flexible_pricing.sql` - Major redesign to FLEXIBLE pricing
-- `supabase/migrations/20251219133224_refactor_subscription_metadata.sql` - Moved fields into order_defaults JSONB
-- `supabase/migrations/20251220120000_remove_recurring_weekday.sql` - Replaced with first_pickup_date
-- `supabase/migrations/20251221135400_remove_bag_deliveries.sql` - Removed unused table
-- `supabase/migrations/20260201120000_create_payment_agreements.sql` - Decoupled PaymentAgreement from Subscription
-- `supabase/migrations/20260606120000_add_promo_codes.sql` - Promo codes, redemptions ledger, and `orders.promo`
+**Migration history:** The migration history was squashed into a single baseline
+before production launch — `supabase/migrations/20260606233033_initial_schema.sql`
+contains the complete current schema (all tables, enums, functions, triggers, RLS
+policies, and grants). The individual incremental migrations (FLEXIBLE pricing
+redesign, `order_defaults` refactor, `payment_agreements` decoupling, promo codes,
+etc.) were folded into this baseline. New schema changes should be added as fresh
+timestamped migrations after it. See [MIGRATION_SQUASH_RUNBOOK.md](./MIGRATION_SQUASH_RUNBOOK.md)
+for the squash/remote-reconciliation procedure.
 
 **Order Generation Architecture (Rolling Window):**
 The platform uses a **rolling window** pattern that maintains 1 upcoming order at all times:
