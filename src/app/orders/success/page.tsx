@@ -8,7 +8,6 @@ import { useOrderFlowStore } from '@/stores/order-flow-store';
 function OrderSuccessPageContent() {
   const searchParams = useSearchParams();
   const subscriptionId = searchParams.get('subscriptionId');
-  const orderId = searchParams.get('orderId');
   const resetOrderData = useOrderFlowStore((state) => state.resetOrderData);
 
   // Reset order flow state when success page loads

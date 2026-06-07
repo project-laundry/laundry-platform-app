@@ -1,7 +1,6 @@
 // Order generation service for subscription-based orders
 
 import type {
-  SubscriptionFrequency,
   SubscriptionOrderDefaults,
 } from '@/types/database';
 import { getNextOccurrenceOfWeekday, addDays, toISODateString, getWeekdayFromDate } from '@/lib/utils/date';

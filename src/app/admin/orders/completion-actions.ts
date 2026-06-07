@@ -2,6 +2,7 @@
 
 import { updateOrderStatus } from '@/lib/database/orders';
 import { checkAndGenerateNextOrders } from '@/lib/services/order-generation';
+import type { OrderStatus } from '@/types/database';
 
 /**
  * Complete an order and trigger next order generation for subscriptions
@@ -60,10 +61,10 @@ export async function completeOrderAction(
  */
 export async function updateOrderStatusAction(
   orderId: string,
-  status: string
+  status: OrderStatus
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const order = await updateOrderStatus(orderId, status as any);
+    const order = await updateOrderStatus(orderId, status);
 
     if (!order) {
       return { success: false, error: 'Failed to update order status' };

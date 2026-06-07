@@ -1,7 +1,7 @@
 // Customer database operations
 
 import { createClient } from '@/lib/supabase/server';
-import type { Customer, User } from '@/types/database';
+import type { User } from '@/types/database';
 
 /**
  * Get a user by user ID

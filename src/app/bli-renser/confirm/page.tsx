@@ -7,6 +7,7 @@ import { useCleanerOnboardingStore } from '@/stores/cleaner-onboarding-store';
 import { CleanerFlowProgress } from '@/components/ui/CleanerFlowProgress';
 import { FormCheckbox } from '@/components/forms/FormCheckbox';
 import { createCleanerProfileAction } from '../actions';
+import type { CleanerOnboardingData } from '@/types/cleaner-flow';
 
 export default function ConfirmPage() {
   const router = useRouter();
@@ -52,7 +53,7 @@ export default function ConfirmPage() {
     updateCleanerData(completeData);
 
     // Call server action to create cleaner profile
-    const result = await createCleanerProfileAction(completeData as any);
+    const result = await createCleanerProfileAction(completeData as CleanerOnboardingData);
 
     if (!result.success) {
       setError(result.error || 'Kunne ikke opprette profil. Vennligst prøv igjen.');

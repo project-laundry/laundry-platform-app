@@ -1,7 +1,7 @@
 // Cleaner database operations and matching logic
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import type { Cleaner, Weekday, Subscription } from '@/types/database';
+import type { Cleaner, Weekday } from '@/types/database';
 import { getWeekdayFromDate, isWeekdayInSchedule } from '@/lib/utils/date';
 
 /**
