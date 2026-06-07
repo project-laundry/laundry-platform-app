@@ -17,6 +17,7 @@ vi.mock('@/lib/database/subscriptions', () => ({
 vi.mock('@/lib/database/payment-agreements', () => ({
   createPaymentAgreement: vi.fn(),
   getPaymentAgreementByProviderId: vi.fn(),
+  getPaymentAgreementsByCustomerId: vi.fn(),
 }));
 vi.mock('@/lib/database/cleaners', () => ({
   findAvailableCleaner: vi.fn(),
@@ -38,12 +39,14 @@ vi.mock('@/app/dashboard/subscription/actions', () => ({ cancelSubscriptionActio
 import { getCustomerByUserId } from '@/lib/database/customers';
 import { validatePromoCode } from '@/lib/database/promo-codes';
 import { createSubscription, getActiveSubscriptionByCustomerId } from '@/lib/database/subscriptions';
-import { createPaymentAgreement } from '@/lib/database/payment-agreements';
+import { createPaymentAgreement, getPaymentAgreementsByCustomerId } from '@/lib/database/payment-agreements';
 import { findAvailableCleaner } from '@/lib/database/cleaners';
 import { createVippsAgreement } from '@/lib/payments/vipps/service';
+import { createVippsRecurringClient } from '@/lib/payments/vipps/recurring-client';
 import {
   createSubscriptionAction,
   validatePromoCodeAction,
+  getCheckoutStatusAction,
   type CreateSubscriptionInput,
 } from './actions';
 
@@ -234,5 +237,90 @@ describe('validatePromoCodeAction', () => {
     });
 
     expect(await validatePromoCodeAction('HUNDRED')).toEqual({ valid: true, discountLabel: '100 kr rabatt' });
+  });
+});
+
+describe('getCheckoutStatusAction', () => {
+  const getAgreement = vi.fn();
+
+  /** Authenticate a customer with one pending agreement; tests set the Vipps status. */
+  function withLatestAgreement(dbStatus = 'pending') {
+    getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
+    m(getPaymentAgreementsByCustomerId).mockResolvedValue([
+      { id: 'pa-1', provider_agreement_id: 'agr-1', status: dbStatus },
+    ]);
+    m(createVippsRecurringClient).mockReturnValue({ getAgreement });
+  }
+
+  it('returns "unknown" for an unauthenticated user', async () => {
+    getUser.mockResolvedValue({ data: { user: null } });
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'unknown' });
+    expect(getPaymentAgreementsByCustomerId).not.toHaveBeenCalled();
+  });
+
+  it('returns "unknown" when no customer record exists', async () => {
+    getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    m(getCustomerByUserId).mockResolvedValue(null);
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'unknown' });
+  });
+
+  it('returns "unknown" when the customer has no agreements', async () => {
+    getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
+    m(getPaymentAgreementsByCustomerId).mockResolvedValue([]);
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'unknown' });
+  });
+
+  it('maps Vipps ACTIVE to "active"', async () => {
+    withLatestAgreement();
+    getAgreement.mockResolvedValue({ status: 'ACTIVE' });
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'active' });
+    expect(getAgreement).toHaveBeenCalledWith('agr-1');
+  });
+
+  it('maps Vipps PENDING to "pending"', async () => {
+    withLatestAgreement();
+    getAgreement.mockResolvedValue({ status: 'PENDING' });
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'pending' });
+  });
+
+  it('maps Vipps STOPPED (user aborted) to "cancelled"', async () => {
+    withLatestAgreement();
+    getAgreement.mockResolvedValue({ status: 'STOPPED' });
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled' });
+  });
+
+  it('maps Vipps EXPIRED to "cancelled"', async () => {
+    withLatestAgreement();
+    getAgreement.mockResolvedValue({ status: 'EXPIRED' });
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled' });
+  });
+
+  it('checks the most recently created agreement', async () => {
+    getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
+    // getPaymentAgreementsByCustomerId returns newest-first; the latest is [0]
+    m(getPaymentAgreementsByCustomerId).mockResolvedValue([
+      { id: 'pa-2', provider_agreement_id: 'agr-2', status: 'pending' },
+      { id: 'pa-1', provider_agreement_id: 'agr-1', status: 'active' },
+    ]);
+    m(createVippsRecurringClient).mockReturnValue({ getAgreement });
+    getAgreement.mockResolvedValue({ status: 'STOPPED' });
+
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled' });
+    expect(getAgreement).toHaveBeenCalledWith('agr-2');
+  });
+
+  it('falls back to the DB status when Vipps is unreachable', async () => {
+    withLatestAgreement('active');
+    getAgreement.mockRejectedValue(new Error('network down'));
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'active' });
+  });
+
+  it('maps a stopped DB status to "cancelled" on the Vipps-error fallback', async () => {
+    withLatestAgreement('stopped');
+    getAgreement.mockRejectedValue(new Error('network down'));
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled' });
   });
 });

@@ -21,6 +21,7 @@ The application supports three user roles:
 - Prefer existing patterns and libraries over custom solutions
 - Keep code readable and maintainable rather than clever
 - **Clean up unused code**: When removing a component, function, or import, always check if it's still used elsewhere. If not, delete the file/function entirely. Don't leave dead code in the codebase.
+- **Testing**: The project uses Vitest. Add unit or integration tests whenever you judge them necessary — especially for business logic, payment/webhook flows, and server actions (follow the existing patterns in `*.test.ts` files). Don't add tests for trivial changes or where setup cost outweighs the value (e.g. presentational components, given there's no component-test infra).
 
 ## Technology Stack
 
@@ -61,6 +62,8 @@ npm run dev        # Start development server (localhost:3000)
 npm run build      # Build for production
 npm run start      # Start production server
 npm run lint       # Run ESLint
+npm test           # Run unit/integration tests (Vitest)
+npm run test:watch # Run tests in watch mode
 ```
 
 ## Project Structure
