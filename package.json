@@ -6,12 +6,16 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint --max-warnings 0",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "seed:test-users": "tsx scripts/seed-test-users.ts",
-    "webhooks": "tsx scripts/manage-webhooks.ts"
+    "webhooks": "tsx scripts/manage-webhooks.ts",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": "eslint --max-warnings 0"
   },
   "dependencies": {
     "@radix-ui/react-separator": "^1.1.8",
@@ -37,6 +41,8 @@
     "dotenv": "^17.2.3",
     "eslint": "^9",
     "eslint-config-next": "15.5.4",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.7",
     "shadcn": "^3.6.0",
     "tailwindcss": "^4",
     "tsx": "^4.20.6",

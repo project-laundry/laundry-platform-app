@@ -1,6 +1,6 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, MapPin, FileText, Clock, Sparkles } from 'lucide-react';
+import { Calendar, MapPin, FileText, Clock } from 'lucide-react';
 import {
   getSubscriptionStatusLabel,
   getSubscriptionStatusVariant,

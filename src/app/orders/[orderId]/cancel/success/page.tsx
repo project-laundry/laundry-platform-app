@@ -10,8 +10,7 @@ interface SuccessPageProps {
   }>;
 }
 
-export default async function CancelSuccessPage({ params, searchParams }: SuccessPageProps) {
-  const { orderId } = await params;
+export default async function CancelSuccessPage({ searchParams }: SuccessPageProps) {
   const { orderNumber, subscriptionCancelled, nextOrderId } = await searchParams;
 
   const isSubscriptionCancelled = subscriptionCancelled === 'true';

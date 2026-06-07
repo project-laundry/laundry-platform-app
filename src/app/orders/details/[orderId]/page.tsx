@@ -13,9 +13,7 @@ import type { OrderStatus } from '@/types/database';
 import {
   Sparkles,
   ArrowLeft,
-  Calendar,
   Truck,
-  MapPin,
   User,
   CheckCircle2,
   Circle,
