@@ -21,7 +21,54 @@ export function UpcomingOrdersList({ orders }: UpcomingOrdersListProps) {
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-      <div className="overflow-x-auto">
+      {/* Mobile: stacked cards */}
+      <ul className="sm:hidden divide-y divide-gray-100">
+        {orders.map((order) => (
+          <li key={order.id}>
+            <Link
+              href={`/orders/details/${order.id}`}
+              className="block px-6 py-4 hover:bg-blue-50/30 transition-all"
+            >
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <span className="font-semibold text-nordic-blue text-sm">
+                  #{order.order_number}
+                </span>
+                <Badge variant={getOrderStatusVariant(order.status)}>
+                  {getOrderStatusLabel(order.status)}
+                </Badge>
+              </div>
+              <dl className="grid grid-cols-3 gap-2 text-xs">
+                <div>
+                  <dt className="text-medium-gray mb-0.5">Henting</dt>
+                  <dd className="font-medium text-dark-gray">
+                    {new Date(order.scheduled_date).toLocaleDateString('no-NO', {
+                      day: 'numeric',
+                      month: 'short',
+                    })}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-medium-gray mb-0.5">Levering</dt>
+                  <dd className="font-medium text-dark-gray">
+                    {new Date(order.delivery_date).toLocaleDateString('no-NO', {
+                      day: 'numeric',
+                      month: 'short',
+                    })}
+                  </dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="text-medium-gray mb-0.5">Renser</dt>
+                  <dd className="text-medium-gray truncate">
+                    {order.cleaner?.display_name || 'Ikke tildelt'}
+                  </dd>
+                </div>
+              </dl>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      {/* Desktop: table */}
+      <div className="hidden sm:block overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50/50 border-b border-gray-200">
             <tr>

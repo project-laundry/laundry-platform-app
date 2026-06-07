@@ -30,7 +30,64 @@ export function OrderHistorySection({ orders }: OrderHistorySectionProps) {
         </svg>
       </summary>
       <div className="border-t border-border/30">
-        <div className="overflow-x-auto">
+        {/* Mobile: stacked cards */}
+        <ul className="sm:hidden divide-y divide-border/20">
+          {orders.map((order) => (
+            <li key={order.id}>
+              <Link
+                href={`/orders/details/${order.id}`}
+                className="block px-6 py-4 hover:bg-cream/30 transition-all"
+              >
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <span className="font-semibold text-nordic-blue text-sm">
+                    #{order.order_number}
+                  </span>
+                  <Badge variant={getOrderStatusVariant(order.status)}>
+                    {getOrderStatusLabel(order.status)}
+                  </Badge>
+                </div>
+                <dl className="grid grid-cols-3 gap-2 text-xs">
+                  <div>
+                    <dt className="text-muted-foreground mb-0.5">Henting</dt>
+                    <dd className="font-medium text-foreground">
+                      {new Date(order.scheduled_date).toLocaleDateString('no-NO', {
+                        day: 'numeric',
+                        month: 'short',
+                      })}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground mb-0.5">Levering</dt>
+                    <dd className="font-medium text-foreground">
+                      {new Date(order.delivery_date).toLocaleDateString('no-NO', {
+                        day: 'numeric',
+                        month: 'short',
+                      })}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground mb-0.5">Fullfort</dt>
+                    <dd className="text-muted-foreground">
+                      {order.completed_at
+                        ? new Date(order.completed_at).toLocaleDateString('no-NO', {
+                            day: 'numeric',
+                            month: 'short',
+                          })
+                        : order.cancelled_at
+                        ? new Date(order.cancelled_at).toLocaleDateString('no-NO', {
+                            day: 'numeric',
+                            month: 'short',
+                          })
+                        : '-'}
+                    </dd>
+                  </div>
+                </dl>
+              </Link>
+            </li>
+          ))}
+        </ul>
+        {/* Desktop: table */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="w-full">
             <thead className="bg-cream/50 border-b border-border/30">
               <tr>

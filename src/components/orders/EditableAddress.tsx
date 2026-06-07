@@ -127,7 +127,7 @@ export function EditableAddress({
               onChange={(e) => setStreet(e.target.value)}
               disabled={isLoading}
               placeholder="Eksempel: Bryggen 15"
-              className="w-full p-3 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[hsl(var(--nordic-blue)/30%)] focus:border-transparent disabled:bg-gray-100 transition-all"
+              className="w-full p-3 text-base text-gray-700 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[hsl(var(--nordic-blue)/30%)] focus:border-transparent disabled:bg-gray-100 transition-all"
             />
             {errors.street && (
               <p className="mt-1 text-sm text-red-600">{errors.street}</p>
@@ -146,7 +146,7 @@ export function EditableAddress({
               disabled={isLoading}
               placeholder="1234"
               maxLength={4}
-              className="w-full p-3 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[hsl(var(--nordic-blue)/30%)] focus:border-transparent disabled:bg-gray-100 transition-all"
+              className="w-full p-3 text-base text-gray-700 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[hsl(var(--nordic-blue)/30%)] focus:border-transparent disabled:bg-gray-100 transition-all"
             />
             {errors.postalCode && (
               <p className="mt-1 text-sm text-red-600">{errors.postalCode}</p>
@@ -162,7 +162,7 @@ export function EditableAddress({
               type="text"
               value={initialAddress.city}
               disabled
-              className="w-full p-3 text-sm text-gray-500 bg-gray-100 border border-gray-200 rounded-xl cursor-not-allowed"
+              className="w-full p-3 text-base text-gray-500 bg-gray-100 border border-gray-200 rounded-xl cursor-not-allowed"
             />
           </div>
 
@@ -176,7 +176,7 @@ export function EditableAddress({
               onChange={(e) => setSpecialInstructionsAddress(e.target.value)}
               disabled={isLoading}
               placeholder="Portkode, parkeringsinfo, hvor nøkkel er, etc."
-              className="w-full min-h-[100px] p-3 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[hsl(var(--nordic-blue)/30%)] focus:border-transparent disabled:bg-gray-100 resize-none transition-all"
+              className="w-full min-h-[100px] p-3 text-base text-gray-700 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[hsl(var(--nordic-blue)/30%)] focus:border-transparent disabled:bg-gray-100 resize-none transition-all"
             />
             {errors.specialInstructionsAddress && (
               <p className="mt-1 text-sm text-red-600">{errors.specialInstructionsAddress}</p>

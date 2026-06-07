@@ -76,7 +76,7 @@ export function EditableSpecialInstructions({
             onChange={(e) => setInstructions(e.target.value)}
             disabled={isLoading}
             placeholder="Legg til instruksjoner for henting..."
-            className="w-full min-h-[120px] p-4 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[hsl(var(--nordic-blue)/30%)] focus:border-transparent disabled:bg-gray-100 resize-none transition-all"
+            className="w-full min-h-[120px] p-4 text-base text-gray-700 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[hsl(var(--nordic-blue)/30%)] focus:border-transparent disabled:bg-gray-100 resize-none transition-all"
           />
           <div className="flex gap-2">
             <button
