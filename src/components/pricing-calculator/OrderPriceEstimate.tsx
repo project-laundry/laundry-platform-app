@@ -35,8 +35,8 @@ export function OrderPriceEstimate({ service }: OrderPriceEstimateProps) {
         en pekepinn.
       </p>
 
-      {/* Example packages (illustrative, not selectable) */}
-      <div className="grid sm:grid-cols-2 gap-3 mb-8">
+      {/* Example scenarios (illustrative reference, not selectable) */}
+      <div className="rounded-xl bg-slate-50 border border-slate-100 divide-y divide-slate-200/70 mb-8">
         {COMMON_PACKAGES.map((pkg) => {
           const breakdown = calculateOrderPrice({
             dark_loads: pkg.dark_loads,
@@ -47,16 +47,15 @@ export function OrderPriceEstimate({ service }: OrderPriceEstimateProps) {
           return (
             <div
               key={pkg.id}
-              className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+              className="flex items-center justify-between gap-4 px-4 py-3"
             >
-              <h4 className="font-semibold text-slate-900">{pkg.name}</h4>
-              <p className="text-sm text-slate-500 mb-3">{pkg.description}</p>
-              <div className="flex items-baseline gap-1">
+              <span className="text-sm text-slate-600">{pkg.description}</span>
+              <span className="flex items-baseline gap-1 whitespace-nowrap">
                 <span className="text-xs text-slate-400">ca.</span>
-                <span className="text-lg font-bold text-teal-600">
+                <span className="text-base font-bold text-teal-600">
                   {formatNokWhole(breakdown.total_ore)} kr
                 </span>
-              </div>
+              </span>
             </div>
           );
         })}
