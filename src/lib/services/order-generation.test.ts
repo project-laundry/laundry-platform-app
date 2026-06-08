@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { Mock } from 'vitest';
+import type { SubscriptionOrderDefaults } from '@/types/database';
 import { addDays, toISODateString, getWeekdayFromDate, getNextOccurrenceOfWeekday } from '@/lib/utils/date';
 
 // The service dynamically imports these — vi.mock applies to dynamic imports too.
@@ -8,7 +9,7 @@ vi.mock('@/lib/database/orders', () => ({ createOrder: vi.fn() }));
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createOrder } from '@/lib/database/orders';
-import { checkAndGenerateNextOrders } from './order-generation';
+import { checkAndGenerateNextOrders, buildOrderData } from './order-generation';
 
 /**
  * Minimal chainable Supabase stand-in. The service issues a fixed, ordered
@@ -38,13 +39,15 @@ const ORDER_DEFAULTS = {
     city: 'Oslo',
     country: 'Norge',
     special_instructions: 'Ring på',
+    latitude: 59.9139,
+    longitude: 10.7522,
   },
   special_instructions: 'Hentes kl 09',
   location_city: 'Oslo',
   default_needs_ironing: true,
   default_cleaner_id: 'cleaner-1',
   first_pickup_date: '2026-06-10',
-};
+} satisfies SubscriptionOrderDefaults;
 
 const SUB_ID = 'sub-1';
 const LAST_PICKUP = '2026-06-10';
@@ -116,6 +119,9 @@ describe('checkAndGenerateNextOrders — next pickup date by frequency', () => {
     expect(arg.total_cost_ore).toBeNull();
     // cleaner default present -> pre-scheduled
     expect(arg.status).toBe('pickup_scheduled');
+    // coordinates from order_defaults must propagate onto the generated order
+    expect(arg.latitude).toBe(ORDER_DEFAULTS.initial_address.latitude);
+    expect(arg.longitude).toBe(ORDER_DEFAULTS.initial_address.longitude);
   }
 
   it('weekly advances the pickup by 7 days', async () => {
@@ -158,5 +164,99 @@ describe('checkAndGenerateNextOrders — next pickup date by frequency', () => {
     const weekday = getWeekdayFromDate(ORDER_DEFAULTS.first_pickup_date);
     const expected = getNextOccurrenceOfWeekday(addDays(new Date(LAST_PICKUP), 30), weekday);
     expectGeneratedOn(expected);
+  });
+});
+
+describe('buildOrderData — shared order_defaults -> order mapping', () => {
+  const pickupDate = new Date('2026-06-10');
+  const deliveryDate = new Date('2026-06-12');
+
+  it('copies all address fields, coordinates, and service prefs from order_defaults', () => {
+    const data = buildOrderData(ORDER_DEFAULTS, {
+      customerId: 'cust-1',
+      subscriptionId: SUB_ID,
+      paymentAgreementId: 'pa-1',
+      pickupDate,
+      deliveryDate,
+    });
+
+    expect(data).toMatchObject({
+      customer_id: 'cust-1',
+      subscription_id: SUB_ID,
+      payment_agreement_id: 'pa-1',
+      cleaner_id: 'cleaner-1',
+      status: 'pickup_scheduled',
+      street: 'Storgata 1',
+      postal_code: '0150',
+      city: 'Oslo',
+      country: 'Norge',
+      special_instructions_address: 'Ring på',
+      special_instructions: 'Hentes kl 09',
+      needs_ironing: true,
+      total_cost_ore: null,
+      // The field that originally drifted between paths:
+      latitude: 59.9139,
+      longitude: 10.7522,
+    });
+    expect(data.scheduled_date).toBe(toISODateString(pickupDate));
+    expect(data.delivery_date).toBe(toISODateString(deliveryDate));
+  });
+
+  it('defaults coordinates to null when order_defaults has none', () => {
+    const { initial_address, ...rest } = ORDER_DEFAULTS;
+    const withoutCoords = {
+      ...rest,
+      initial_address: {
+        street: initial_address.street,
+        postal_code: initial_address.postal_code,
+        city: initial_address.city,
+        country: initial_address.country,
+        special_instructions: initial_address.special_instructions,
+      },
+    };
+
+    const data = buildOrderData(withoutCoords, {
+      customerId: 'cust-1',
+      pickupDate,
+      deliveryDate,
+    });
+
+    expect(data.latitude).toBeNull();
+    expect(data.longitude).toBeNull();
+  });
+
+  it('marks the order pending_assignment when no default cleaner is set', () => {
+    const data = buildOrderData(
+      { ...ORDER_DEFAULTS, default_cleaner_id: null },
+      { customerId: 'cust-1', pickupDate, deliveryDate }
+    );
+
+    expect(data.status).toBe('pending_assignment');
+    expect(data.cleaner_id).toBeNull();
+  });
+
+  it('only stamps a promo when one is provided', () => {
+    const promo = {
+      code: 'WELCOME',
+      promo_code_id: 'promo-1',
+      discount_type: 'percentage' as const,
+      discount_value: 10,
+      max_discount_ore: null,
+    };
+
+    const withPromo = buildOrderData(ORDER_DEFAULTS, {
+      customerId: 'cust-1',
+      pickupDate,
+      deliveryDate,
+      promo,
+    });
+    const withoutPromo = buildOrderData(ORDER_DEFAULTS, {
+      customerId: 'cust-1',
+      pickupDate,
+      deliveryDate,
+    });
+
+    expect(withPromo.promo).toEqual(promo);
+    expect(withoutPromo.promo).toBeNull();
   });
 });

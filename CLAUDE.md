@@ -280,3 +280,5 @@ The platform uses a **rolling window** pattern that maintains 1 upcoming order a
 3. Cleaner sets price → Creates charge → Order completes (no further orders generated)
 
 This eliminates batch order generation - orders are created just-in-time as needed.
+
+**Order payload mapping (single source of truth):** There are two order-creation paths — the first order (in the Vipps webhook's `generateFirstOrder`) and the rolling-window next order (in `checkAndGenerateNextOrders`). Both build their `createOrder` payload via **`buildOrderData(orderDefaults, params)`** in `lib/services/order-generation.ts`. This is the only place `order_defaults` → order fields (address, coordinates, service prefs) is mapped, so the two paths can't drift. When adding a field that flows from `order_defaults` onto orders, add it to `buildOrderData` and its test — never assemble a `createOrder` payload inline.

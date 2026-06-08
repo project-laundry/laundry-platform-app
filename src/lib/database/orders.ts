@@ -42,7 +42,12 @@ export interface CreateOrderData {
 }
 
 /**
- * Create a new order with a unique order number
+ * Create a new order with a unique order number.
+ *
+ * When creating an order from a subscription's `order_defaults`, build the
+ * payload with `buildOrderData` (lib/services/order-generation) rather than
+ * assembling fields inline — that keeps the address/coordinate/service-pref
+ * mapping identical across every order-creation path.
  */
 export async function createOrder(data: CreateOrderData): Promise<Order | null> {
   const supabase = await createAdminClient();
