@@ -40,13 +40,16 @@ interface GeocodeResponse {
 
 /**
  * Format a structured address into a single query string for the Geocoding API.
+ *
+ * The `city` we store is the service area ("Bergen"/"Oslo") used for cleaner
+ * matching, not the real postal place (poststed) — e.g. postal code 5238 is
+ * "Rådal", not "Bergen". Feeding that service-area city to Google contradicts
+ * the postal code and degrades results (wrong coordinates, false partial_match
+ * rejections). For Norwegian addresses, street + postal code + country is
+ * unambiguous, so we deliberately omit the city here.
  */
 function formatAddress(address: AddressInput): string {
-  return [
-    address.street,
-    `${address.postal_code} ${address.city}`.trim(),
-    address.country,
-  ]
+  return [address.street, address.postal_code, address.country]
     .filter(Boolean)
     .join(', ');
 }
