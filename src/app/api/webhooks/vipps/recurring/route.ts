@@ -42,10 +42,11 @@ import {
 } from '@/lib/database/payments';
 import { cancelVippsAgreement } from '@/lib/payments/vipps/service';
 import { createOrder } from '@/lib/database/orders';
+import { buildOrderData } from '@/lib/services/order-generation';
 import { recordPromoRedemption } from '@/lib/database/promo-codes';
 import { addDays, toISODateString, getWeekdayFromDate, getNextOccurrenceOfWeekday } from '@/lib/utils/date';
 import { DAYS_PICKUP_TO_DELIVERY } from '@/lib/config/order-timing';
-import type { OrderStatus, PaymentAgreement, SubscriptionOrderDefaults, OrderPromo } from '@/types/database';
+import type { PaymentAgreement, SubscriptionOrderDefaults, OrderPromo } from '@/types/database';
 
 
 // =============================================================================
@@ -584,10 +585,6 @@ async function generateFirstOrder(
   paymentAgreementId: string,
   promo: OrderPromo | null,
 ): Promise<void> {
-  const address = orderDefaults.initial_address;
-  const defaultCleanerId = orderDefaults.default_cleaner_id;
-  const needsIroning = orderDefaults.default_needs_ironing;
-
   // Calculate first pickup date
   const storedDate = new Date(orderDefaults.first_pickup_date);
   const now = new Date();
@@ -607,28 +604,18 @@ async function generateFirstOrder(
 
   const deliveryDate = addDays(pickupDate, DAYS_PICKUP_TO_DELIVERY);
 
-  const orderStatus: OrderStatus = defaultCleanerId
-    ? 'pickup_scheduled'
-    : 'pending_assignment';
-
-  const order = await createOrder({
-    customer_id: customerId,
-    subscription_id: subscriptionId,
-    payment_agreement_id: paymentAgreementId,
-    cleaner_id: defaultCleanerId,
-    status: orderStatus,
-    street: address.street,
-    postal_code: address.postal_code,
-    city: address.city,
-    country: address.country,
-    special_instructions_address: address.special_instructions,
-    scheduled_date: toISODateString(pickupDate),
-    delivery_date: toISODateString(deliveryDate),
-    special_instructions: orderDefaults.special_instructions,
-    needs_ironing: needsIroning,
-    total_cost_ore: null,
-    promo, // locked discount terms; discount_ore filled in when cleaner prices the order
-  });
+  // Use the shared builder so the first order's field mapping (address,
+  // coordinates, service prefs) stays identical to the rolling-window orders.
+  const order = await createOrder(
+    buildOrderData(orderDefaults, {
+      customerId,
+      subscriptionId,
+      paymentAgreementId,
+      pickupDate,
+      deliveryDate,
+      promo,
+    })
+  );
 
   if (order) {
     // Record the redemption now that a first order exists (committed customer).

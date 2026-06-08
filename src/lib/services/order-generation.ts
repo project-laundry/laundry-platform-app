@@ -2,9 +2,64 @@
 
 import type {
   SubscriptionOrderDefaults,
+  OrderPromo,
 } from '@/types/database';
+import type { CreateOrderData } from '@/lib/database/orders';
 import { getNextOccurrenceOfWeekday, addDays, toISODateString, getWeekdayFromDate } from '@/lib/utils/date';
 import { DAYS_PICKUP_TO_DELIVERY } from '@/lib/config/order-timing';
+
+/**
+ * Per-order parameters that vary between the first order (created on agreement
+ * activation) and the rolling-window orders. Everything derived from
+ * order_defaults is handled by buildOrderData itself.
+ */
+export interface BuildOrderParams {
+  customerId: string;
+  subscriptionId?: string | null;
+  paymentAgreementId?: string | null;
+  pickupDate: Date;
+  deliveryDate: Date;
+  promo?: OrderPromo | null;
+}
+
+/**
+ * Single source of truth for translating order_defaults into a createOrder
+ * payload. ALL order-creation paths (the Vipps webhook's first order and the
+ * rolling-window next order) must go through this so address fields,
+ * coordinates, and service preferences can never drift between paths.
+ */
+export function buildOrderData(
+  orderDefaults: SubscriptionOrderDefaults,
+  params: BuildOrderParams
+): CreateOrderData {
+  const address = orderDefaults.initial_address;
+  const cleanerId = orderDefaults.default_cleaner_id;
+
+  return {
+    customer_id: params.customerId,
+    subscription_id: params.subscriptionId ?? null,
+    payment_agreement_id: params.paymentAgreementId ?? null,
+    cleaner_id: cleanerId,
+    status: cleanerId ? 'pickup_scheduled' : 'pending_assignment',
+    scheduled_date: toISODateString(params.pickupDate),
+    delivery_date: toISODateString(params.deliveryDate),
+    needs_ironing: orderDefaults.default_needs_ironing,
+    total_cost_ore: null, // Cleaner sets price after pickup
+    // Address from order defaults
+    street: address.street,
+    postal_code: address.postal_code,
+    city: address.city,
+    country: address.country,
+    special_instructions_address: address.special_instructions ?? null,
+    // Geocoded coordinates (propagated from checkout; null if geocoding failed)
+    latitude: address.latitude ?? null,
+    longitude: address.longitude ?? null,
+    // Pickup details from order defaults
+    special_instructions: orderDefaults.special_instructions ?? null,
+    // Promo snapshot (first order only; null otherwise)
+    promo: params.promo ?? null,
+  };
+}
 
 /**
  * Check if subscription needs new orders generated and create them
@@ -102,35 +157,19 @@ export async function checkAndGenerateNextOrders(subscriptionId: string): Promis
     return;
   }
 
-  const address = orderDefaults.initial_address;
-  const defaultCleanerId = orderDefaults.default_cleaner_id;
-  const needsIroning = orderDefaults.default_needs_ironing;
-
   // Import createOrder function
   const { createOrder } = await import('@/lib/database/orders');
 
-  // Create next order with defaults from metadata
-  await createOrder({
-    customer_id: subscription.customer_id,
-    subscription_id: subscription.id,
-    cleaner_id: defaultCleanerId,
-    status: defaultCleanerId ? 'pickup_scheduled' : 'pending_assignment',
-    scheduled_date: toISODateString(nextDate),
-    delivery_date: toISODateString(addDays(nextDate, DAYS_PICKUP_TO_DELIVERY)),
-    needs_ironing: needsIroning,
-    total_cost_ore: null, // Cleaner sets price    
-    // Address from order defaults
-    street: address.street,
-    postal_code: address.postal_code,
-    city: address.city,
-    country: address.country,
-    special_instructions_address: address.special_instructions,
-    // Geocoded coordinates (propagated from checkout; null if geocoding failed)
-    latitude: address.latitude ?? null,
-    longitude: address.longitude ?? null,
-    // Pickup details from order defaults
-    special_instructions: orderDefaults.special_instructions,
-  });
+  // Create next order with defaults from metadata (see buildOrderData for the
+  // shared order_defaults -> order field mapping).
+  await createOrder(
+    buildOrderData(orderDefaults, {
+      customerId: subscription.customer_id,
+      subscriptionId: subscription.id,
+      pickupDate: nextDate,
+      deliveryDate: addDays(nextDate, DAYS_PICKUP_TO_DELIVERY),
+    })
+  );
 
   console.log(`[Order Generation] Generated next order for subscription ${subscriptionId} (pickup: ${toISODateString(nextDate)})`);
 }
