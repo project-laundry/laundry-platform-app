@@ -39,6 +39,25 @@ describe('geocodeAddress', () => {
     expect(result).toEqual({ latitude: 60.39299, longitude: 5.32415 });
   });
 
+  it('omits the service-area city from the query (postal code resolves the poststed)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        status: 'OK',
+        results: [{ geometry: { location: { lat: 60.29, lng: 5.34 } } }],
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    // 5238 is "Rådal" but we store the service area "Bergen" — it must not leak into the query.
+    await geocodeAddress({ street: 'Steintrælia 16', postal_code: '5238', city: 'Bergen', country: 'Norway' });
+
+    const requestedUrl = fetchMock.mock.calls[0][0] as string;
+    const query = decodeURIComponent(requestedUrl);
+    expect(query).toContain('Steintrælia 16, 5238, Norway');
+    expect(query).not.toContain('Bergen');
+  });
+
   it('returns null when the API key is not configured', async () => {
     delete process.env.GOOGLE_MAPS_API_KEY;
     const fetchMock = vi.fn();
