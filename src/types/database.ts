@@ -100,6 +100,9 @@ export interface Cleaner {
   base_city: string;
   base_country: string;
   base_special_instructions: string | null;
+  // Geocoded base coordinates (null until geocoded)
+  latitude: number | null;
+  longitude: number | null;
   experience_level: CleanerExperienceLevel;
   languages: string[];
   specializations: CleanerSpecialization[] | null;
@@ -160,6 +163,9 @@ export interface SubscriptionOrderDefaults {
     postal_code: string;
     country: string;
     special_instructions?: string;
+    // Geocoded coordinates, propagated onto each generated order (null if geocoding failed)
+    latitude?: number | null;
+    longitude?: number | null;
   };
   special_instructions?: string;
   location_city: 'Bergen' | 'Oslo';
@@ -196,6 +202,9 @@ export interface Order {
   city: string;
   country: string;
   special_instructions_address: string | null;
+  // Geocoded pickup coordinates (null until geocoded)
+  latitude: number | null;
+  longitude: number | null;
   // Scheduling
   scheduled_date: string;
   delivery_date: string;

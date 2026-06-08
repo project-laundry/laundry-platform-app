@@ -189,3 +189,24 @@ export async function createCleaner(
 
   return { data, error: null };
 }
+
+/**
+ * Persist geocoded coordinates onto a cleaner's base location.
+ * Used as a lazy fallback for cleaners created before they had coordinates.
+ */
+export async function saveCleanerCoords(
+  cleanerId: string,
+  latitude: number,
+  longitude: number
+): Promise<void> {
+  const supabase = createAdminClient();
+
+  const { error } = await supabase
+    .from('cleaners')
+    .update({ latitude, longitude })
+    .eq('id', cleanerId);
+
+  if (error) {
+    console.error('Error saving cleaner coordinates:', error);
+  }
+}

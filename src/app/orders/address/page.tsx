@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { MapPin, ChevronLeft, AlertCircle } from 'lucide-react';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
+import { validatePickupAddressAction } from '@/app/orders/actions';
 import { OrderFlowProgress } from '@/components/ui/OrderFlowProgress';
 import {
   getCityFromPostalCode,
@@ -26,6 +27,10 @@ export default function AddressPage() {
   // Postal code validation state
   const [derivedCity, setDerivedCity] = useState<SupportedCity | null>(null);
   const [outOfAreaError, setOutOfAreaError] = useState(false);
+
+  // Server-side address validation (geocoding) state
+  const [validating, setValidating] = useState(false);
+  const [addressError, setAddressError] = useState<string | null>(null);
 
   // Redirect if service not selected (only after hydration)
   useEffect(() => {
@@ -52,6 +57,7 @@ export default function AddressPage() {
 
   // Handle postal code change with city derivation
   const handlePostalCodeChange = (value: string) => {
+    setAddressError(null);
     // Only allow digits
     const digitsOnly = value.replace(/\D/g, '').slice(0, 4);
     setPostalCode(digitsOnly);
@@ -69,14 +75,38 @@ export default function AddressPage() {
 
   const canContinue = street.trim() && postalCode.length === 4 && derivedCity && !outOfAreaError;
 
-  const handleContinue = () => {
-    if (!canContinue || !derivedCity) return;
+  const handleContinue = async () => {
+    if (!canContinue || !derivedCity || validating) return;
+
+    setAddressError(null);
+    setValidating(true);
+
+    try {
+      const result = await validatePickupAddressAction({
+        street: street.trim(),
+        postalCode,
+        city: derivedCity,
+      });
+
+      if (!result.valid) {
+        setAddressError(
+          result.reason === 'not_found'
+            ? 'Vi fant ikke denne adressen. Sjekk gateadresse og postnummer.'
+            : 'Vi klarte ikke å finne nøyaktig denne adressen. Dobbeltsjekk gateadressen.'
+        );
+        return;
+      }
+    } catch {
+      // Fail open: don't block the customer if validation itself errors.
+    } finally {
+      setValidating(false);
+    }
 
     // Update store with address data
     updateOrderData({
       city: derivedCity,
       address: {
-        street,
+        street: street.trim(),
         postalCode,
         specialInstructions: pickupInstructions,
       },
@@ -124,7 +154,10 @@ export default function AddressPage() {
               <input
                 type="text"
                 value={street}
-                onChange={(e) => setStreet(e.target.value)}
+                onChange={(e) => {
+                  setStreet(e.target.value);
+                  setAddressError(null);
+                }}
                 className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
                 placeholder="F.eks. Strandgaten 15"
                 required
@@ -191,6 +224,14 @@ export default function AddressPage() {
           </div>
         </div>
 
+        {/* Address validation error */}
+        {addressError && (
+          <div className="flex items-start gap-3 p-4 mb-6 bg-red-50 border border-red-200 rounded-lg">
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <p className="text-red-800">{addressError}</p>
+          </div>
+        )}
+
         {/* Navigation */}
         <div className="flex justify-between items-center pt-6 border-t border-slate-100">
           <Link
@@ -203,14 +244,14 @@ export default function AddressPage() {
 
           <button
             onClick={handleContinue}
-            disabled={!canContinue}
+            disabled={!canContinue || validating}
             className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm ${
-              canContinue
+              canContinue && !validating
                 ? 'bg-teal-600 text-white hover:bg-teal-700'
                 : 'bg-slate-300 text-slate-500 cursor-not-allowed'
             }`}
           >
-            Neste
+            {validating ? 'Sjekker adresse…' : 'Neste'}
           </button>
         </div>
 

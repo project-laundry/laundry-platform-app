@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createCleaner } from "@/lib/database/cleaners";
+import { geocodeAddress } from "@/lib/maps/geocoding";
 import type { CleanerOnboardingData } from "@/types/cleaner-flow";
 
 export interface CreateCleanerProfileResult {
@@ -53,7 +54,16 @@ export async function createCleanerProfileAction(
       };
     }
 
-    // 3. Create cleaner record
+    // 3. Geocode the base address so the cleaner has coordinates for route
+    //    optimization. Null on failure — the profile still saves.
+    const baseCoords = await geocodeAddress({
+      street: data.baseStreet,
+      postal_code: data.basePostalCode,
+      city: data.baseCity,
+      country: data.baseCountry,
+    });
+
+    // 4. Create cleaner record
     const { data: cleaner, error: createError } = await createCleaner(user.id, {
       display_name: data.displayName,
       profile_image_url: null, // File uploads skipped per requirements
@@ -69,6 +79,8 @@ export async function createCleanerProfileAction(
       base_city: data.baseCity,
       base_country: data.baseCountry,
       base_special_instructions: data.baseSpecialInstructions || null,
+      latitude: baseCoords?.latitude ?? null,
+      longitude: baseCoords?.longitude ?? null,
       experience_level: data.experienceLevel,
       languages: data.languages,
       specializations: data.specializations || null,

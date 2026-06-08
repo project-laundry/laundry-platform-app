@@ -125,6 +125,9 @@ export async function checkAndGenerateNextOrders(subscriptionId: string): Promis
     city: address.city,
     country: address.country,
     special_instructions_address: address.special_instructions,
+    // Geocoded coordinates (propagated from checkout; null if geocoding failed)
+    latitude: address.latitude ?? null,
+    longitude: address.longitude ?? null,
     // Pickup details from order defaults
     special_instructions: orderDefaults.special_instructions,
   });

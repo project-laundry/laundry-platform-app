@@ -177,6 +177,15 @@ All database operations use dedicated functions in `lib/database/`:
 
 `src/middleware.ts` refreshes Supabase auth sessions on every request.
 
+## Maps & Geocoding
+
+Addresses are geocoded into `latitude`/`longitude` so the cleaner dashboard can build an optimized pickup route.
+
+- **Service**: `lib/maps/geocoding.ts` (`geocodeAddress` → `{ latitude, longitude } | null`, never throws) and `lib/maps/config.ts` (`GOOGLE_MAPS_API_KEY`).
+- **Geocode at the source, propagate by copy**: addresses are geocoded once where they enter the system — checkout and address edit (`app/orders/actions.ts`) and cleaner onboarding (`app/bli-renser/actions.ts`). Customer coords are stored in `subscriptions.order_defaults.initial_address` and copied onto every generated order by `lib/services/order-generation.ts`. Cleaner coords live on the `cleaners` row.
+- **Graceful degradation**: geocoding failures return `null`; the address still saves with `latitude`/`longitude` as `NULL`. `saveOrderCoords` / `saveCleanerCoords` exist for lazily backfilling rows that are missing coordinates.
+- **Env**: `GOOGLE_MAPS_API_KEY` (enable the **Geocoding API**; Routes API will be added for route optimization).
+
 ## Payment Processing
 
 ### Vipps Integration
