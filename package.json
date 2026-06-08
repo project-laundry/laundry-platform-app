@@ -15,6 +15,7 @@
     "test:coverage": "vitest run --coverage",
     "seed:test-users": "tsx scripts/seed-test-users.ts",
     "webhooks": "tsx scripts/manage-webhooks.ts",
+    "test:geocode": "tsx scripts/test-geocode.ts",
     "prepare": "husky"
   },
   "lint-staged": {

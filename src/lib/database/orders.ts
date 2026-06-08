@@ -23,6 +23,9 @@ export interface CreateOrderData {
   city: string;
   country: string;
   special_instructions_address?: string | null;
+  // Geocoded pickup coordinates (null/undefined if geocoding unavailable)
+  latitude?: number | null;
+  longitude?: number | null;
   // Scheduling
   scheduled_date: string; // ISO date string
   delivery_date: string; // ISO date string
@@ -84,6 +87,9 @@ export async function createOrder(data: CreateOrderData): Promise<Order | null> 
       city: data.city,
       country: data.country,
       special_instructions_address: data.special_instructions_address || null,
+      // Geocoded pickup coordinates
+      latitude: data.latitude ?? null,
+      longitude: data.longitude ?? null,
       // Scheduling
       scheduled_date: data.scheduled_date,
       delivery_date: data.delivery_date,
@@ -107,6 +113,27 @@ export async function createOrder(data: CreateOrderData): Promise<Order | null> 
   }
 
   return order;
+}
+
+/**
+ * Persist geocoded coordinates onto an order.
+ * Used as a lazy fallback for orders created before they had coordinates.
+ */
+export async function saveOrderCoords(
+  orderId: string,
+  latitude: number,
+  longitude: number
+): Promise<void> {
+  const supabase = await createAdminClient();
+
+  const { error } = await supabase
+    .from('orders')
+    .update({ latitude, longitude })
+    .eq('id', orderId);
+
+  if (error) {
+    console.error('Error saving order coordinates:', error);
+  }
 }
 
 /**

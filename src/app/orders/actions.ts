@@ -18,6 +18,7 @@ import { getWeekdayFromDate, isWeekdayInSchedule, addDays, toISODateString } fro
 import { DAYS_PICKUP_TO_DELIVERY, MIN_DAYS_NOTICE } from "@/lib/config/order-timing";
 import { translateFrequency } from "@/lib/utils/i18n";
 import { getOrderWithDetailsByIdAndCustomerId, updateOrderStatus } from "@/lib/database/orders";
+import { geocodeAddress, validateAddress, type AddressValidationReason } from "@/lib/maps/geocoding";
 import { checkAndGenerateNextOrders } from "@/lib/services/order-generation";
 import { cancelSubscriptionAction } from "@/app/dashboard/subscription/actions";
 import { validatePostalCode } from "@/lib/validation/cleaner";
@@ -137,6 +138,15 @@ export async function createSubscriptionAction(
   });
 
   // Build complete order defaults object
+  // Geocode the pickup address once here so the coordinates propagate onto every
+  // generated order (the generator copies initial_address). Null on failure.
+  const pickupCoords = await geocodeAddress({
+    street: input.pickupAddress.street,
+    postal_code: input.pickupAddress.postalCode,
+    city: input.pickupAddress.city,
+    country: input.pickupAddress.country,
+  });
+
   const orderDefaults: SubscriptionOrderDefaults = {
     initial_address: {
       street: input.pickupAddress.street,
@@ -144,6 +154,8 @@ export async function createSubscriptionAction(
       city: input.pickupAddress.city,
       country: input.pickupAddress.country,
       special_instructions: input.pickupAddress.specialInstructions,
+      latitude: pickupCoords?.latitude ?? null,
+      longitude: pickupCoords?.longitude ?? null,
     },
     special_instructions: input.specialInstructions,
     location_city: input.location,
@@ -552,6 +564,38 @@ export interface UpdateOrderAddressInput {
   specialInstructionsAddress?: string | null;
 }
 
+export interface ValidatePickupAddressInput {
+  street: string;
+  postalCode: string;
+  city: string;
+}
+
+export interface ValidatePickupAddressResult {
+  valid: boolean;
+  reason?: AddressValidationReason;
+}
+
+/**
+ * Validate a customer-typed pickup address at the address step.
+ *
+ * Confirms the street actually resolves to a precise location (postal code and
+ * service area are already validated client-side). Fails open: if geocoding is
+ * unavailable, the address is allowed through so customers are never blocked by
+ * a missing key or a transient outage.
+ */
+export async function validatePickupAddressAction(
+  input: ValidatePickupAddressInput
+): Promise<ValidatePickupAddressResult> {
+  const result = await validateAddress({
+    street: input.street,
+    postal_code: input.postalCode,
+    city: input.city,
+    country: 'Norway',
+  });
+
+  return { valid: result.valid, reason: result.reason };
+}
+
 /**
  * Update address and address-specific instructions for an order
  * Customer can only update before pickup (pending_assignment, pickup_scheduled)
@@ -610,6 +654,26 @@ export async function updateOrderAddressAction(
       return { success: false, error: 'Adresseinstruksjoner kan ikke være mer enn 500 tegn' };
     }
 
+    // Validate that the address resolves to a precise location (blocks typo'd /
+    // non-existent streets). Reuse the coordinates from validation so the order's
+    // coordinates stay in sync without a second geocoding call.
+    const validation = await validateAddress({
+      street: trimmedStreet,
+      postal_code: addressData.postalCode,
+      city: addressData.city,
+      country: order.country,
+    });
+
+    if (!validation.valid) {
+      return {
+        success: false,
+        error:
+          validation.reason === 'not_found'
+            ? 'Vi fant ikke denne adressen. Sjekk gateadresse og postnummer.'
+            : 'Vi klarte ikke å finne nøyaktig denne adressen. Dobbeltsjekk gateadressen.',
+      };
+    }
+
     const adminClient = createAdminClient();
     const { error } = await adminClient
       .from('orders')
@@ -618,6 +682,8 @@ export async function updateOrderAddressAction(
         postal_code: addressData.postalCode,
         city: addressData.city,
         special_instructions_address: addressData.specialInstructionsAddress || null,
+        latitude: validation.coordinates?.latitude ?? null,
+        longitude: validation.coordinates?.longitude ?? null,
       })
       .eq('id', orderId);
 
