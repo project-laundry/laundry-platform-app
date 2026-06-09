@@ -27,7 +27,7 @@ const PROTOTYPES = [
     href: '/prototype/vaskerom',
     Icon: WashingMachine,
     title: 'Vaskerom',
-    description: 'Vaskeflyt med parallelle steg og maskintimere.',
+    description: 'Vaskeflyt med parallelle steg, justerbart antall maskiner og vasketimer.',
     primary: false,
   },
 ];

@@ -1,14 +1,16 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // PROTOTYPE / MOCK DATA ONLY — backs /prototype/vaskerom.
 //
-// A realistic mid-shift snapshot, chosen to demo the parallel workflow:
-//   • Both washers busy (one finishing in ~15s → triggers the "needs action" flow)
-//   • One dryer running, one free
-//   • A load waiting in queue, one being folded
+// A realistic mid-shift snapshot for a cleaner with ONE washing machine:
+//   • The washer is busy (cycle finishing in ~15s → triggers the "needs action"
+//     flow), so queued loads can't start until it's free — shows the constraint.
+//   • One load hanging to dry, one being folded, one ready.
 // No server, no auth, no DB. Field names echo `Order`. Delete the folder to remove.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { DRY_SEC, WASH_SEC, type LaundryLoad } from './washroom';
+import { type LaundryLoad } from './washroom';
+
+export const DEFAULT_WASHER_COUNT = 1;
 
 export const INITIAL_LOADS: LaundryLoad[] = [
   {
@@ -43,33 +45,33 @@ export const INITIAL_LOADS: LaundryLoad[] = [
     needs_ironing: false,
     notes: null,
     stage: 'vask',
-    machineLabel: 'Vaskemaskin 1',
+    machineLabel: 'Vaskemaskin',
     remainingSec: 15, // about to finish — shows the alert flow live during a test
-    totalSec: WASH_SEC,
+    totalSec: 60 * 60, // started on a 60-min program
   },
   {
     id: '4',
+    order_number: 'NC-2009',
+    customer_name: 'Lars Olsen',
+    bags: 4,
+    needs_ironing: true,
+    notes: 'Henges luftig – tar tid å tørke.',
+    stage: 'tork',
+    machineLabel: null,
+    remainingSec: null,
+    totalSec: null,
+  },
+  {
+    id: '5',
     order_number: 'NC-2048',
     customer_name: 'Ingrid Berg',
     bags: 2,
     needs_ironing: false,
     notes: null,
-    stage: 'vask',
-    machineLabel: 'Vaskemaskin 2',
-    remainingSec: 25 * 60,
-    totalSec: WASH_SEC,
-  },
-  {
-    id: '5',
-    order_number: 'NC-2009',
-    customer_name: 'Lars Olsen',
-    bags: 4,
-    needs_ironing: true,
-    notes: 'Stryk skjortene på medium varme.',
-    stage: 'tork',
-    machineLabel: 'Tørketrommel 1',
-    remainingSec: 12 * 60,
-    totalSec: DRY_SEC,
+    stage: 'bretting',
+    machineLabel: null,
+    remainingSec: null,
+    totalSec: null,
   },
   {
     id: '6',
@@ -78,7 +80,7 @@ export const INITIAL_LOADS: LaundryLoad[] = [
     bags: 2,
     needs_ironing: true,
     notes: null,
-    stage: 'bretting',
+    stage: 'klar',
     machineLabel: null,
     remainingSec: null,
     totalSec: null,
