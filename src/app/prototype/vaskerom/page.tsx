@@ -1,18 +1,18 @@
 'use client';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PROTOTYPE — "Dagens kjøreplan" (cleaner daily route), standalone.
+// PROTOTYPE — "Vaskerom" (cleaning workflow board), standalone.
 //
-// Mock-only UX prototype. Page chrome only; the flow lives in <KjoreplanView />
+// Mock-only UX prototype. Page chrome only; the flow lives in <VaskeromView />
 // (shared with the dashboard tabs). No server, no auth, no DB.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import Link from 'next/link';
-import { KjoreplanView } from './KjoreplanView';
+import { VaskeromView } from './VaskeromView';
 
-export default function KjoreplanPrototypePage() {
+export default function VaskeromPrototypePage() {
   return (
-    <div className="min-h-screen bg-soft-gray pb-28">
+    <div className="min-h-screen bg-soft-gray pb-12">
       <div className="bg-yellow-100 px-4 py-2 text-center text-xs font-medium text-yellow-800">
         Prototype – testdata, ingen ekte ordrer
       </div>
@@ -26,7 +26,7 @@ export default function KjoreplanPrototypePage() {
       </header>
 
       <main className="mx-auto max-w-2xl px-4 py-5">
-        <KjoreplanView />
+        <VaskeromView />
       </main>
     </div>
   );
