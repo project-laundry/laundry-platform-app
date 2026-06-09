@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import {
   ArrowRight,
   Check,
@@ -7,6 +8,7 @@ import {
   Shirt,
   Timer,
   WashingMachine,
+  Wind,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,6 +16,7 @@ import {
   formatCountdown,
   isFinished,
   isRunning,
+  WASH_PRESETS_MIN,
   type LaundryLoad,
 } from '../washroom';
 
@@ -21,7 +24,8 @@ interface LoadCardProps {
   load: LaundryLoad;
   canAdvance: boolean;
   blockedReason: string | null;
-  onAdvance: (id: string) => void;
+  // For 'mottatt' → 'vask', durationSec carries the chosen wash-program length.
+  onAdvance: (id: string, durationSec?: number) => void;
   onForceFinish: (id: string) => void;
 }
 
@@ -36,9 +40,13 @@ export function LoadCard({
   onAdvance,
   onForceFinish,
 }: LoadCardProps) {
+  const [picking, setPicking] = useState(false);
+  const [customMin, setCustomMin] = useState<number | ''>('');
+
   const running = isRunning(load);
   const finished = isFinished(load);
-  const inMachine = load.stage === 'vask' || load.stage === 'tork';
+  const inMachine = load.stage === 'vask';
+  const drying = load.stage === 'tork';
 
   // State → left accent + container styling
   const accent = finished
@@ -49,12 +57,20 @@ export function LoadCard({
         ? 'border-l-success-green bg-white'
         : load.stage === 'bretting'
           ? 'border-l-nordic-blue bg-white'
-          : 'border-l-slate-300 bg-white';
+          : drying
+            ? 'border-l-sky-400 bg-white'
+            : 'border-l-slate-300 bg-white';
 
   const progressPct =
     load.totalSec && load.remainingSec !== null
       ? Math.min(100, Math.max(0, (1 - load.remainingSec / load.totalSec) * 100))
       : 0;
+
+  const startWash = (min: number) => {
+    if (min > 0) onAdvance(load.id, min * 60);
+    setPicking(false);
+    setCustomMin('');
+  };
 
   return (
     <div
@@ -84,14 +100,22 @@ export function LoadCard({
         </div>
       </div>
 
-      {/* Notes (queue + manual stages, where the cleaner acts on them) */}
+      {/* Notes (everywhere except while washing) */}
       {load.notes && !inMachine && (
         <p className="mt-2 rounded-md bg-gray-50 px-2.5 py-1.5 text-xs text-dark-gray">
           {load.notes}
         </p>
       )}
 
-      {/* Machine countdown */}
+      {/* Drying indicator (air-dry, no timer) */}
+      {drying && (
+        <p className="mt-2 flex items-center gap-1.5 text-xs text-sky-600">
+          <Wind className="size-3.5" />
+          Henger til lufttørk
+        </p>
+      )}
+
+      {/* Wash countdown */}
       {inMachine && (
         <div className="mt-3">
           <div className="mb-1 flex items-center justify-between">
@@ -107,7 +131,7 @@ export function LoadCard({
             ) : (
               <span className="flex items-center gap-1 text-xs text-sea-green">
                 <span className="size-2 animate-pulse rounded-full bg-sea-green" />
-                Pågår
+                Vasker
               </span>
             )}
           </div>
@@ -143,7 +167,7 @@ export function LoadCard({
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-1 text-xs text-medium-gray">
               <Timer className="size-3.5" />
-              Du kan gjøre andre oppgaver mens den går
+              Du kan gjøre andre oppgaver mens den vasker
             </span>
             <button
               onClick={() => onForceFinish(load.id)}
@@ -151,6 +175,50 @@ export function LoadCard({
             >
               Ferdig nå
             </button>
+          </div>
+        ) : load.stage === 'mottatt' && picking ? (
+          // Wash-program picker — duration depends on the machine's program
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-medium-gray">
+              Velg vaskeprogram
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {WASH_PRESETS_MIN.map((min) => (
+                <button
+                  key={min}
+                  onClick={() => startWash(min)}
+                  className="rounded-full border border-gray-300 px-3 py-1.5 text-sm font-medium text-dark-gray transition-colors hover:border-nordic-blue hover:text-nordic-blue"
+                >
+                  {min} min
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                value={customMin}
+                onChange={(e) =>
+                  setCustomMin(e.target.value === '' ? '' : Number(e.target.value))
+                }
+                placeholder="Egendefinert"
+                className="h-10 w-32 rounded-md border border-gray-300 px-3 text-sm outline-none focus:border-nordic-blue"
+              />
+              <Button
+                className="h-10"
+                disabled={!customMin || customMin <= 0}
+                onClick={() => typeof customMin === 'number' && startWash(customMin)}
+              >
+                Start
+              </Button>
+              <button
+                onClick={() => setPicking(false)}
+                className="ml-auto text-sm font-medium text-medium-gray hover:text-dark-gray"
+              >
+                Avbryt
+              </button>
+            </div>
           </div>
         ) : (
           <>
@@ -163,7 +231,9 @@ export function LoadCard({
                     : ''
               }`}
               disabled={!canAdvance}
-              onClick={() => onAdvance(load.id)}
+              onClick={() =>
+                load.stage === 'mottatt' ? setPicking(true) : onAdvance(load.id)
+              }
             >
               {load.stage === 'bretting' ? (
                 <Check className="size-4" />
