@@ -23,7 +23,7 @@ const CLEANER_NAME = 'Sofie';
 export default function DashboardPrototypePage() {
   const [tab, setTab] = useState<Tab>('kjoreplan');
   const [stopsLeft, setStopsLeft] = useState(0);
-  const [washAlerts, setWashAlerts] = useState(0);
+  const [washLoads, setWashLoads] = useState(0);
 
   return (
     <div className="min-h-screen bg-soft-gray pb-28">
@@ -64,8 +64,7 @@ export default function DashboardPrototypePage() {
             onClick={() => setTab('vaskerom')}
             Icon={WashingMachine}
             label="Vaskerom"
-            badge={washAlerts}
-            urgent={washAlerts > 0}
+            badge={washLoads}
           />
         </div>
       </nav>
@@ -76,7 +75,7 @@ export default function DashboardPrototypePage() {
           <KjoreplanView onRemainingChange={setStopsLeft} />
         </div>
         <div className={tab === 'vaskerom' ? '' : 'hidden'}>
-          <VaskeromView onNeedsActionChange={setWashAlerts} />
+          <VaskeromView onActiveChange={setWashLoads} />
         </div>
       </main>
     </div>
@@ -89,10 +88,9 @@ interface TabButtonProps {
   Icon: typeof Route;
   label: string;
   badge: number;
-  urgent?: boolean;
 }
 
-function TabButton({ active, onClick, Icon, label, badge, urgent }: TabButtonProps) {
+function TabButton({ active, onClick, Icon, label, badge }: TabButtonProps) {
   return (
     <button
       onClick={onClick}
@@ -106,17 +104,12 @@ function TabButton({ active, onClick, Icon, label, badge, urgent }: TabButtonPro
       {label}
       {badge > 0 && (
         <span
-          className={`inline-flex min-w-5 items-center justify-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-semibold ${
-            urgent
-              ? 'bg-amber-500 text-white'
-              : active
-                ? 'bg-nordic-blue/10 text-nordic-blue'
-                : 'bg-gray-100 text-medium-gray'
+          className={`inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-semibold ${
+            active
+              ? 'bg-nordic-blue/10 text-nordic-blue'
+              : 'bg-gray-100 text-medium-gray'
           }`}
         >
-          {urgent && (
-            <span className="size-1.5 animate-pulse rounded-full bg-white" />
-          )}
           {badge}
         </span>
       )}
