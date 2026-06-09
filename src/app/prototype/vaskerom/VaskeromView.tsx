@@ -16,13 +16,14 @@ import {
 } from 'lucide-react';
 import { INITIAL_LOADS } from './mockData';
 import {
+  groupByOrder,
   loadsInStage,
   NEXT_STAGE,
   STAGES,
-  type LaundryLoad,
   type Stage,
+  type WashLoad,
 } from './washroom';
-import { LoadCard } from './components/LoadCard';
+import { OrderGroupCard } from './components/OrderGroupCard';
 
 const STAGE_ICON: Record<Stage, LucideIcon> = {
   mottatt: Inbox,
@@ -37,7 +38,7 @@ interface VaskeromViewProps {
 }
 
 export function VaskeromView({ onActiveChange }: VaskeromViewProps) {
-  const [loads, setLoads] = useState<LaundryLoad[]>(INITIAL_LOADS);
+  const [loads, setLoads] = useState<WashLoad[]>(INITIAL_LOADS);
 
   const advance = (id: string) => {
     setLoads((prev) =>
@@ -49,7 +50,9 @@ export function VaskeromView({ onActiveChange }: VaskeromViewProps) {
     );
   };
 
-  const inProgress = loads.filter((l) => l.stage !== 'klar').length;
+  const activeLoads = loads.filter((l) => l.stage !== 'klar');
+  const inProgress = activeLoads.length;
+  const orderCount = new Set(activeLoads.map((l) => l.orderId)).size;
 
   useEffect(() => {
     onActiveChange?.(inProgress);
@@ -64,7 +67,7 @@ export function VaskeromView({ onActiveChange }: VaskeromViewProps) {
         </p>
         <h2 className="font-serif text-2xl font-semibold">Vaskerom</h2>
         <p className="mt-0.5 text-sm text-white/70">
-          {inProgress} plagg under arbeid
+          {inProgress} vaskelaster fra {orderCount} {orderCount === 1 ? 'ordre' : 'ordrer'}
         </p>
         <p className="mt-3 flex items-center gap-1.5 text-xs text-white/50">
           <Wind className="size-3.5" />
@@ -75,6 +78,7 @@ export function VaskeromView({ onActiveChange }: VaskeromViewProps) {
       {/* Stage sections */}
       {STAGES.map((cfg, i) => {
         const items = loadsInStage(loads, cfg.key);
+        const groups = groupByOrder(items);
         const Icon = STAGE_ICON[cfg.key];
 
         return (
@@ -91,14 +95,18 @@ export function VaskeromView({ onActiveChange }: VaskeromViewProps) {
               <span className="text-xs text-medium-gray">({items.length})</span>
             </div>
 
-            {items.length === 0 ? (
+            {groups.length === 0 ? (
               <p className="rounded-xl border border-dashed border-gray-200 px-3 py-4 text-center text-xs text-medium-gray">
                 Ingen plagg her
               </p>
             ) : (
               <div className="space-y-2">
-                {items.map((load) => (
-                  <LoadCard key={load.id} load={load} onAdvance={advance} />
+                {groups.map((group) => (
+                  <OrderGroupCard
+                    key={group.orderId}
+                    group={group}
+                    onAdvance={advance}
+                  />
                 ))}
               </div>
             )}
