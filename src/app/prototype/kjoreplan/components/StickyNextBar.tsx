@@ -16,8 +16,8 @@ interface StickyNextBarProps {
  */
 export function StickyNextBar({ nextStop, remaining }: StickyNextBarProps) {
   return (
-    <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
-      <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+    <div className="fixed inset-x-0 bottom-0 z-20 border-t border-cream-dark/70 bg-warm-white/90 backdrop-blur supports-[backdrop-filter]:bg-warm-white/75">
+      <div className="mx-auto flex max-w-2xl items-center gap-3 px-5 py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))]">
         {nextStop ? (
           <>
             <div className="min-w-0 flex-1">
@@ -34,7 +34,7 @@ export function StickyNextBar({ nextStop, remaining }: StickyNextBarProps) {
               rel="noopener noreferrer"
               className="shrink-0"
             >
-              <Button variant="hero" size="lg">
+              <Button variant="hero" size="lg" className="rounded-full">
                 <Navigation className="size-4" />
                 Naviger
               </Button>

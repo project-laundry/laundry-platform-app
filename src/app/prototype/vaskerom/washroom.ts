@@ -2,16 +2,20 @@
 // Washroom helpers — PURE (no React, no I/O).
 //
 // The unit of work is a WASH LOAD, not an order: one order can have several
-// loads (e.g. a Hvitt bag and a Farge bag) that are washed separately and move
-// through the stages independently. Each load advances manually — no machine
-// limits, no timers.
+// loads (e.g. a clothes load and a bedding load) that are washed separately and
+// move through the stages independently. Each load advances manually — no
+// machine limits, no timers.
+//
+// Loads mirror what the customer actually orders — clothes ("Klær") and bedding
+// ("Sengetøy", always its own wash). We do NOT track colour (whites vs darks):
+// the order flow never asks, so sorting is the cleaner's own call at the machine.
 //   Mottatt → Vask → Henger til tørk (air-dry) → Bretting/Stryk → Klar
 // In the real version, an order maps to `orders` and its loads to a child table.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type Stage = 'mottatt' | 'vask' | 'tork' | 'bretting' | 'klar';
 
-export type LoadType = 'Hvitt' | 'Farge' | 'Finvask' | 'Mørkt';
+export type LoadType = 'Klær' | 'Sengetøy';
 
 export interface WashLoad {
   id: string; // unique per wash load
@@ -19,7 +23,6 @@ export interface WashLoad {
   order_number: string;
   customer_name: string;
   loadType: LoadType;
-  needs_ironing: boolean;
   notes: string | null;
   stage: Stage;
 }
@@ -36,14 +39,6 @@ export interface OrderGroup {
   customer_name: string;
   loads: WashLoad[];
 }
-
-/** Colour dot for each wash-load type (Tailwind classes). */
-export const LOAD_TYPE_DOT: Record<LoadType, string> = {
-  Hvitt: 'bg-white border border-gray-300',
-  Farge: 'bg-gradient-to-br from-pink-400 via-amber-400 to-sky-400',
-  Finvask: 'bg-sky-400',
-  Mørkt: 'bg-slate-600',
-};
 
 export const STAGES: StageConfig[] = [
   { key: 'mottatt', label: 'Mottatt' },

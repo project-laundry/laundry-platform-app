@@ -35,9 +35,12 @@ const STAGE_ICON: Record<Stage, LucideIcon> = {
 
 interface VaskeromViewProps {
   onActiveChange?: (count: number) => void;
+  // When rendered inside the dashboard tabs the tab already says "Vaskerom",
+  // so we drop the big standalone hero title and keep just the status line.
+  embedded?: boolean;
 }
 
-export function VaskeromView({ onActiveChange }: VaskeromViewProps) {
+export function VaskeromView({ onActiveChange, embedded = false }: VaskeromViewProps) {
   const [loads, setLoads] = useState<WashLoad[]>(INITIAL_LOADS);
 
   const advance = (id: string) => {
@@ -59,20 +62,29 @@ export function VaskeromView({ onActiveChange }: VaskeromViewProps) {
   }, [inProgress, onActiveChange]);
 
   return (
-    <div className="space-y-4">
-      {/* Console summary */}
-      <section className="animate-fade-in rounded-2xl bg-dark-gray p-5 text-white shadow-card">
-        <p className="text-xs font-medium uppercase tracking-wider text-white/50">
-          I dag
+    <div className="space-y-6">
+      {/* Hero — mirrors the onboarding flow: sea-green eyebrow + serif title.
+          Suppressed when embedded in the dashboard (the tab is the title). */}
+      <section className="animate-in fade-in slide-in-from-bottom-3 duration-700">
+        {!embedded && (
+          <>
+            <p className="text-sm font-medium uppercase tracking-[0.18em] text-sea-green">
+              I dag
+            </p>
+            <h1 className="mt-2 font-serif text-4xl font-semibold leading-tight text-dark-gray sm:text-5xl">
+              Vaskerom
+            </h1>
+          </>
+        )}
+        <p className={`text-medium-gray ${embedded ? '' : 'mt-3'}`}>
+          {inProgress} vaskelaster fra {orderCount}{' '}
+          {orderCount === 1 ? 'ordre' : 'ordrer'} underveis.
         </p>
-        <h2 className="font-serif text-2xl font-semibold">Vaskerom</h2>
-        <p className="mt-0.5 text-sm text-white/70">
-          {inProgress} vaskelaster fra {orderCount} {orderCount === 1 ? 'ordre' : 'ordrer'}
-        </p>
-        <p className="mt-3 flex items-center gap-1.5 text-xs text-white/50">
-          <Wind className="size-3.5" />
-          Tørk: klærne henges til lufttørk
-        </p>
+
+        <div className="mt-4 flex items-start gap-2 rounded-2xl bg-cream/70 px-3.5 py-2.5 text-sm text-medium-gray">
+          <Wind className="mt-0.5 size-4 shrink-0 text-sea-green" />
+          <p>Klærne henges til lufttørk — derfor tar tørk litt tid.</p>
+        </div>
       </section>
 
       {/* Stage sections */}
@@ -84,23 +96,27 @@ export function VaskeromView({ onActiveChange }: VaskeromViewProps) {
         return (
           <section
             key={cfg.key}
-            className="animate-fade-in"
-            style={{ animationDelay: `${0.05 * (i + 1)}s` }}
+            className="animate-in fade-in slide-in-from-bottom-3 duration-700"
+            style={{ animationDelay: `${80 * (i + 1)}ms` }}
           >
-            <div className="mb-2 flex items-center gap-2 px-1">
-              <Icon className="size-4 text-medium-gray" />
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-medium-gray">
+            <div className="mb-3 flex items-center gap-3 px-1">
+              <span className="flex size-9 items-center justify-center rounded-full bg-sea-green/12 text-sea-green">
+                <Icon className="size-5" />
+              </span>
+              <h2 className="font-serif text-lg font-semibold leading-none text-dark-gray">
                 {cfg.label}
-              </h3>
-              <span className="text-xs text-medium-gray">({items.length})</span>
+              </h2>
+              <span className="ml-auto inline-flex min-w-6 items-center justify-center rounded-full bg-cream-dark/60 px-2 py-0.5 text-xs font-medium text-medium-gray">
+                {items.length}
+              </span>
             </div>
 
             {groups.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-gray-200 px-3 py-4 text-center text-xs text-medium-gray">
+              <p className="rounded-2xl border border-dashed border-cream-dark px-3 py-5 text-center text-xs text-medium-gray">
                 Ingen plagg her
               </p>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 {groups.map((group) => (
                   <OrderGroupCard
                     key={group.orderId}
