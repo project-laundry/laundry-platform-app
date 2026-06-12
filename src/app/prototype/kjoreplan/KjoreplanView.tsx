@@ -7,16 +7,11 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { MapPin } from 'lucide-react';
-import {
-  MOCK_CLEANER_START,
-  MOCK_ROUTE_START_MINUTES,
-  MOCK_STOPS,
-} from './mockData';
+import { MOCK_CLEANER_START, MOCK_STOPS } from './mockData';
 import {
   buildGoogleMapsUrl,
   computeSchedule,
   estimateRoute,
-  formatTime,
   optimizeRoute,
 } from './routeUtils';
 import { RouteSummary } from './components/RouteSummary';
@@ -25,17 +20,18 @@ import { StickyNextBar } from './components/StickyNextBar';
 
 interface KjoreplanViewProps {
   onRemainingChange?: (remaining: number) => void;
+  // Suppresses the big standalone hero title when rendered in the dashboard tabs.
+  embedded?: boolean;
 }
 
-export function KjoreplanView({ onRemainingChange }: KjoreplanViewProps) {
+export function KjoreplanView({ onRemainingChange, embedded = false }: KjoreplanViewProps) {
   // Nearest-neighbour route from the cleaner's start point. Stable across renders.
   const orderedStops = useMemo(
     () => optimizeRoute(MOCK_CLEANER_START, MOCK_STOPS),
     []
   );
   const schedule = useMemo(
-    () =>
-      computeSchedule(MOCK_CLEANER_START, orderedStops, MOCK_ROUTE_START_MINUTES),
+    () => computeSchedule(MOCK_CLEANER_START, orderedStops),
     [orderedStops]
   );
   const estimate = useMemo(
@@ -86,21 +82,20 @@ export function KjoreplanView({ onRemainingChange }: KjoreplanViewProps) {
           estimate={estimate}
           startLabel={MOCK_CLEANER_START.label}
           googleMapsUrl={googleMapsUrl}
+          embedded={embedded}
         />
 
         <ol className="list-none">
           {/* Start node */}
           <li className="relative flex gap-3 pb-3">
             <div className="relative flex w-9 shrink-0 justify-center">
-              <span className="absolute left-1/2 top-9 -bottom-3 w-px -translate-x-1/2 bg-gray-200" />
+              <span className="absolute left-1/2 top-9 -bottom-3 w-px -translate-x-1/2 bg-cream-dark" />
               <span className="relative z-10 flex h-9 w-9 items-center justify-center rounded-full bg-dark-gray text-white">
                 <MapPin className="size-4" />
               </span>
             </div>
             <div className="flex-1 pt-1.5">
-              <p className="text-sm font-medium text-dark-gray">
-                Start · {formatTime(MOCK_ROUTE_START_MINUTES)}
-              </p>
+              <p className="text-sm font-medium text-dark-gray">Start</p>
               <p className="text-sm text-medium-gray">{MOCK_CLEANER_START.label}</p>
             </div>
           </li>
