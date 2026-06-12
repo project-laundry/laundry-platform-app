@@ -7,6 +7,9 @@ import { Check, Info, Minus, Plus, ShoppingBag } from 'lucide-react';
 import { formatKr, PROTO_PRICING, type PriceResult } from './pricing';
 
 export const MAX = 12;
+/** Garment counts can run higher than bag/bedding counts (e.g. a seeded estimate
+ *  of several bags' worth), so per-piece rows get their own ceiling. */
+export const MAX_PIECES = 120;
 
 export function clamp(n: number): number {
   return Math.max(0, Math.min(MAX, n));
@@ -187,6 +190,98 @@ export function IroningToggle({
           {checked && <Check className="size-3 text-sea-green" />}
         </span>
       </span>
+    </button>
+  );
+}
+
+/** Per-piece counter for ironing (everyday garments, shirts/dresses). Same row
+ *  shape as the IroningToggle, but a counter instead of a switch — that's the
+ *  signal these are priced by piece. An optional `action` renders a small inline
+ *  link after the hint (e.g. a one-tap "use the estimate"). */
+export function PieceRow({
+  label,
+  hint,
+  value,
+  max = MAX,
+  onChange,
+  action,
+}: {
+  label: string;
+  hint: string;
+  value: number;
+  max?: number;
+  onChange: (n: number) => void;
+  action?: { label: string; onClick: () => void };
+}) {
+  const active = value > 0;
+  return (
+    <div
+      className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 transition-all ${
+        active ? 'border-sea-green bg-sea-green/8' : 'border-cream-dark bg-white'
+      }`}
+    >
+      <div className="min-w-0">
+        <p className="font-medium text-dark-gray">{label}</p>
+        <p className="text-sm text-medium-gray">
+          {hint}
+          {action && (
+            <>
+              {' · '}
+              <button
+                type="button"
+                onClick={action.onClick}
+                className="font-medium text-sea-green underline-offset-2 hover:underline"
+              >
+                {action.label}
+              </button>
+            </>
+          )}
+        </p>
+      </div>
+
+      <div className="flex shrink-0 items-center gap-1.5">
+        <MiniStep
+          ariaLabel="Færre"
+          disabled={value === 0}
+          onClick={() => onChange(value - 1)}
+        >
+          <Minus className="size-4" />
+        </MiniStep>
+        <span className="min-w-[1.75rem] text-center font-serif text-xl font-semibold tabular-nums text-dark-gray">
+          {value}
+        </span>
+        <MiniStep
+          ariaLabel="Flere"
+          disabled={value >= max}
+          onClick={() => onChange(value + 1)}
+        >
+          <Plus className="size-4" />
+        </MiniStep>
+      </div>
+    </div>
+  );
+}
+
+function MiniStep({
+  children,
+  onClick,
+  disabled,
+  ariaLabel,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  ariaLabel: string;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={ariaLabel}
+      onClick={onClick}
+      disabled={disabled}
+      className="flex size-9 items-center justify-center rounded-full border border-cream-dark bg-white text-nordic-blue transition-all hover:border-sea-green hover:text-sea-green active:scale-90 disabled:cursor-not-allowed disabled:border-cream-dark disabled:text-cream-dark disabled:active:scale-100"
+    >
+      {children}
     </button>
   );
 }

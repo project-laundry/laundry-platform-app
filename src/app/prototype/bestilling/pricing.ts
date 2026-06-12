@@ -19,6 +19,9 @@ export const PROTO_PRICING = {
   // of garments in a bag and price from that.
   garments_per_bag: 10, // rough count for a standard grocery bag
   iron_per_garment_ore: 2990, // 29.90 kr — everyday-garment average
+  // Formal wear (shirts/dresses) is pressed individually with more care, so it's
+  // counted and priced per piece rather than estimated from the bag count.
+  iron_formal_per_item_ore: 4900, // 49 kr / plagg
   iron_bedding_per_set_ore: 8500, // 85 kr / sett
   // Flat fees, matched to the production model.
   pickup_delivery_ore: 10400, // 104 kr
@@ -30,7 +33,8 @@ export const PROTO_PRICING = {
 export interface Selection {
   bags: number;
   beddingSets: number;
-  ironClothes: boolean;
+  everydayItems: number; // everyday clothes to iron — seeded from a per-bag estimate, adjustable
+  formalItems: number; // shirts/dresses, ironed per piece
   ironBedding: boolean;
 }
 
@@ -56,14 +60,10 @@ export function formatKr(ore: number): string {
   return `${Math.round(ore / 100).toLocaleString('nb-NO')} kr`;
 }
 
-/** Estimated number of garments to iron for a given number of bags. */
+/** Estimated number of garments to iron for a given number of bags. Used to
+ *  seed the everyday-clothes count so the customer rarely has to count by hand. */
 export function estimatedGarments(bags: number): number {
   return bags * PROTO_PRICING.garments_per_bag;
-}
-
-/** Estimated ironing cost (øre) for a bag of clothes. */
-export function ironClothesPerBagOre(): number {
-  return PROTO_PRICING.garments_per_bag * PROTO_PRICING.iron_per_garment_ore;
 }
 
 export function calculatePrice(sel: Selection): PriceResult {
@@ -87,13 +87,21 @@ export function calculatePrice(sel: Selection): PriceResult {
     });
   }
 
-  if (sel.bags > 0 && sel.ironClothes) {
-    const garments = estimatedGarments(sel.bags);
+  if (sel.everydayItems > 0) {
     lines.push({
-      key: 'iron-clothes',
-      label: 'Stryking av klær',
-      detail: `ca. ${garments} plagg`,
-      amountOre: garments * PROTO_PRICING.iron_per_garment_ore,
+      key: 'iron-everyday',
+      label: 'Stryking av vanlige plagg',
+      detail: `${sel.everydayItems} plagg`,
+      amountOre: sel.everydayItems * PROTO_PRICING.iron_per_garment_ore,
+    });
+  }
+
+  if (sel.formalItems > 0) {
+    lines.push({
+      key: 'iron-formal',
+      label: 'Stryking av skjorter & kjoler',
+      detail: `${sel.formalItems} plagg · per stykk`,
+      amountOre: sel.formalItems * PROTO_PRICING.iron_formal_per_item_ore,
     });
   }
 

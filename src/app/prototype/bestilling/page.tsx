@@ -56,7 +56,8 @@ export default function BestillingPrototypePage() {
   const [sel, setSel] = useState<Selection>({
     bags: 1,
     beddingSets: 0,
-    ironClothes: false,
+    everydayItems: 0,
+    formalItems: 0,
     ironBedding: false,
   });
   const [address, setAddress] = useState<Address>({
