@@ -7,10 +7,9 @@ import {
   Navigation,
   Package,
   Phone,
-  Shirt,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { buildSingleDestinationUrl, formatTime } from '../routeUtils';
+import { buildSingleDestinationUrl } from '../routeUtils';
 import type { StopSchedule } from '../routeUtils';
 import type { RouteStop } from '../mockData';
 
@@ -47,7 +46,6 @@ export function TimelineStop({
   onToggleComplete,
 }: TimelineStopProps) {
   const { label, Icon, chip } = TYPE_META[stop.type];
-  const eta = formatTime(schedule.arrivalMinutes);
 
   return (
     <li className="relative flex gap-3 pb-3 last:pb-0">
@@ -57,7 +55,7 @@ export function TimelineStop({
           <span
             aria-hidden
             className={`absolute left-1/2 top-9 -bottom-3 w-px -translate-x-1/2 ${
-              state === 'completed' ? 'bg-sea-green/40' : 'bg-gray-200'
+              state === 'completed' ? 'bg-sea-green/40' : 'bg-cream-dark'
             }`}
           />
         )}
@@ -67,7 +65,7 @@ export function TimelineStop({
               ? 'bg-sea-green text-white'
               : state === 'next'
                 ? 'bg-nordic-blue text-white ring-4 ring-nordic-blue/15'
-                : 'border-2 border-gray-300 bg-white text-medium-gray'
+                : 'border-2 border-cream-dark bg-warm-white text-medium-gray'
           }`}
         >
           {state === 'completed' ? <Check className="size-4" /> : position}
@@ -77,7 +75,7 @@ export function TimelineStop({
       {/* Content */}
       <div className="min-w-0 flex-1">
         {state === 'next' && (
-          <div className="rounded-2xl border-2 border-nordic-blue bg-white p-4 shadow-soft">
+          <div className="rounded-3xl border-2 border-nordic-blue bg-warm-white/80 p-4 shadow-[var(--shadow-card)] backdrop-blur">
             <div className="mb-2 flex items-center justify-between gap-2">
               <span
                 className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${chip}`}
@@ -86,7 +84,7 @@ export function TimelineStop({
                 {label}
               </span>
               <span className="text-right text-xs text-medium-gray">
-                ca. {eta} · {schedule.legKm.toFixed(1)} km
+                {schedule.legKm.toFixed(1)} km
               </span>
             </div>
 
@@ -100,15 +98,8 @@ export function TimelineStop({
               </span>
             </p>
 
-            {stop.needs_ironing && (
-              <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-dark-gray">
-                <Shirt className="size-3" />
-                Stryking
-              </span>
-            )}
-
             {stop.special_instructions && (
-              <p className="mt-3 rounded-lg bg-nordic-blue/5 px-3 py-2 text-sm text-dark-gray">
+              <p className="mt-3 rounded-2xl bg-cream/70 px-3 py-2 text-sm text-dark-gray">
                 {stop.special_instructions}
               </p>
             )}
@@ -120,20 +111,23 @@ export function TimelineStop({
               rel="noopener noreferrer"
               className="mt-4 block"
             >
-              <Button variant="hero" size="lg" className="w-full">
+              <Button
+                size="lg"
+                className="w-full rounded-full bg-nordic-blue text-white shadow-soft hover:bg-nordic-blue"
+              >
                 <Navigation className="size-4" />
                 Naviger hit
               </Button>
             </a>
             <div className="mt-2 flex gap-2">
               <a href={`tel:${stop.phone.replace(/\s/g, '')}`} className="flex-1">
-                <Button variant="outline" className="h-11 w-full">
+                <Button variant="outline" className="h-11 w-full rounded-full">
                   <Phone className="size-4" />
                   Ring
                 </Button>
               </a>
               <Button
-                className="h-11 flex-1 bg-sea-green text-white hover:bg-sea-green"
+                className="h-11 flex-1 rounded-full bg-sea-green text-white hover:bg-sea-green"
                 onClick={() => onToggleComplete(stop.id)}
               >
                 <Check className="size-4" />
@@ -144,7 +138,7 @@ export function TimelineStop({
         )}
 
         {state === 'upcoming' && (
-          <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-3">
+          <div className="flex items-center gap-3 rounded-2xl border border-cream-dark/80 bg-warm-white/70 p-3">
             <div className="min-w-0 flex-1">
               <div className="mb-0.5 flex items-center gap-1.5">
                 <Icon
@@ -153,7 +147,7 @@ export function TimelineStop({
                   }`}
                 />
                 <span className="text-xs font-medium text-medium-gray">
-                  {label} · ca. {eta}
+                  {label}
                 </span>
               </div>
               <p className="truncate font-medium text-dark-gray">
@@ -167,7 +161,7 @@ export function TimelineStop({
               rel="noopener noreferrer"
               aria-label={`Naviger til ${stop.customer_name}`}
             >
-              <Button variant="outline" size="icon" className="size-11">
+              <Button variant="outline" size="icon" className="size-11 rounded-full">
                 <Navigation className="size-4" />
               </Button>
             </a>

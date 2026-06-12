@@ -8,6 +8,11 @@
 //   - deliveries: orders where status = 'ready_for_delivery'  and delivery_date  = today
 // for the logged-in cleaner. Field names mirror `Order` in types/database.ts so
 // the UI and route helpers carry over unchanged.
+//
+// Consistent with the Vaskerom board (../vaskerom/mockData.ts): today's delivery
+// stops (Ola, Lars, Per) are exactly the orders sitting in its "Klar til
+// levering" column. Today's pickups aren't on the board yet — they're collected
+// on this route.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { Coord } from './routeUtils';
@@ -24,7 +29,6 @@ export interface RouteStop extends Coord {
   street: string;
   postal_code: string;
   city: string;
-  needs_ironing: boolean;
   special_instructions: string | null;
 }
 
@@ -37,9 +41,6 @@ export const MOCK_CLEANER_START: Coord & { label: string } = {
   latitude: 60.394,
   longitude: 5.317,
 };
-
-/** When the cleaner sets off — used to compute estimated arrival times. */
-export const MOCK_ROUTE_START_MINUTES = 9 * 60; // 09:00
 
 /**
  * Mock stops for one day's route — real Bergen addresses with real coordinates
@@ -55,7 +56,6 @@ export const MOCK_STOPS: RouteStop[] = [
     street: 'Fjøsangerveien 12',
     postal_code: '5054',
     city: 'Bergen',
-    needs_ironing: true,
     special_instructions: 'Ring på når du kommer – posene står i gangen.',
     latitude: 60.3686,
     longitude: 5.338,
@@ -69,7 +69,6 @@ export const MOCK_STOPS: RouteStop[] = [
     street: 'Møllendalsveien 4',
     postal_code: '5009',
     city: 'Bergen',
-    needs_ironing: false,
     special_instructions: null,
     latitude: 60.3766,
     longitude: 5.349,
@@ -83,7 +82,6 @@ export const MOCK_STOPS: RouteStop[] = [
     street: 'Nygårdsgaten 30',
     postal_code: '5008',
     city: 'Bergen',
-    needs_ironing: false,
     special_instructions: null,
     latitude: 60.385,
     longitude: 5.327,
@@ -97,7 +95,6 @@ export const MOCK_STOPS: RouteStop[] = [
     street: 'Sandviksveien 26',
     postal_code: '5035',
     city: 'Bergen',
-    needs_ironing: true,
     special_instructions: 'Leveres til naboen i 2. etasje hvis ikke hjemme.',
     latitude: 60.408,
     longitude: 5.322,
@@ -111,7 +108,6 @@ export const MOCK_STOPS: RouteStop[] = [
     street: 'Landåsveien 15',
     postal_code: '5097',
     city: 'Bergen',
-    needs_ironing: false,
     special_instructions: 'Kode på porten: 1934.',
     latitude: 60.359,
     longitude: 5.365,
@@ -125,7 +121,6 @@ export const MOCK_STOPS: RouteStop[] = [
     street: 'Kong Oscars gate 45',
     postal_code: '5017',
     city: 'Bergen',
-    needs_ironing: true,
     special_instructions: null,
     latitude: 60.3935,
     longitude: 5.33,

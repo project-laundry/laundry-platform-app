@@ -58,13 +58,11 @@ export function optimizeRoute<T extends Coord>(start: Coord, stops: T[]): T[] {
 
 export interface RouteEstimate {
   km: number;
-  minutes: number;
 }
 
 /**
- * Rough total distance + drive time for the ordered route. Assumes ~28 km/h
- * average urban speed plus ~4 min dwell per stop. Mock-grade — replaced by the
- * Routes API's real duration/distance in production.
+ * Rough total distance for the ordered route. Mock-grade — replaced by the
+ * Routes API's real distance in production.
  */
 export function estimateRoute(start: Coord, ordered: Coord[]): RouteEstimate {
   let km = 0;
@@ -73,48 +71,26 @@ export function estimateRoute(start: Coord, ordered: Coord[]): RouteEstimate {
     km += haversineKm(prev, stop);
     prev = stop;
   }
-  const driveMinutes = (km / 28) * 60;
-  const dwellMinutes = ordered.length * 4;
-  return { km, minutes: Math.round(driveMinutes + dwellMinutes) };
+  return { km };
 }
-
-const AVG_SPEED_KMH = 28; // rough urban average
-const DWELL_MINUTES = 4; // time spent at each stop
 
 export interface StopSchedule {
   legKm: number; // distance from the previous point (start or prior stop)
-  arrivalMinutes: number; // estimated arrival as minutes-of-day
 }
 
 /**
- * Planned arrival time + leg distance for each stop, in route order. This is the
- * day's plan based on the optimized order — a realistic schedule, not a live ETA.
+ * Per-stop leg distance, in route order, based on the optimized order.
  */
-export function computeSchedule(
-  start: Coord,
-  ordered: Coord[],
-  startMinutes: number
-): StopSchedule[] {
+export function computeSchedule(start: Coord, ordered: Coord[]): StopSchedule[] {
   const schedule: StopSchedule[] = [];
   let prev: Coord = start;
-  let clock = startMinutes;
 
   for (const stop of ordered) {
-    const legKm = haversineKm(prev, stop);
-    clock += (legKm / AVG_SPEED_KMH) * 60;
-    schedule.push({ legKm, arrivalMinutes: Math.round(clock) });
-    clock += DWELL_MINUTES;
+    schedule.push({ legKm: haversineKm(prev, stop) });
     prev = stop;
   }
 
   return schedule;
-}
-
-/** Format minutes-of-day as HH:MM (24h, Norwegian style). */
-export function formatTime(minutes: number): string {
-  const h = Math.floor(minutes / 60) % 24;
-  const m = Math.round(minutes % 60);
-  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 }
 
 const coordParam = (c: Coord) => `${c.latitude},${c.longitude}`;
