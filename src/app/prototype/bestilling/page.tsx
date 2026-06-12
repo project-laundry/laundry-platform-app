@@ -34,7 +34,7 @@ const STEP_META: Record<Step, { eyebrow: string; title: string; subtitle: string
     eyebrow: 'Steg 1 av 3',
     title: 'Hva skal vi vaske?',
     subtitle:
-      'Velg hva du sender inn, så regner vi ut prisen med en gang. Du ser nøyaktig hva du betaler for.',
+      'Velg hva du sender inn, så får du et prisanslag med en gang. Endelig pris settes etter henting.',
   },
   2: {
     eyebrow: 'Steg 2 av 3',
