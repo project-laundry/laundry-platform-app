@@ -24,7 +24,8 @@ function selectionSummary(sel: Selection): string {
     [
       sel.bags > 0 && `${sel.bags} ${sel.bags === 1 ? 'pose' : 'poser'} klær`,
       sel.beddingSets > 0 && `${sel.beddingSets} sett sengetøy`,
-      sel.ironClothes && 'stryking av klær',
+      sel.everydayItems > 0 && `${sel.everydayItems} vanlige plagg strøket`,
+      sel.formalItems > 0 && `${sel.formalItems} skjorter/kjoler strøket`,
       sel.ironBedding && 'stryking av sengetøy',
     ]
       .filter(Boolean)

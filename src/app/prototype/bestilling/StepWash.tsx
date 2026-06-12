@@ -6,7 +6,6 @@ import { BedDouble, ShoppingBag, Sparkles } from 'lucide-react';
 import {
   estimatedGarments,
   formatKr,
-  ironClothesPerBagOre,
   PROTO_PRICING,
   type Selection,
 } from './pricing';
@@ -16,11 +15,15 @@ import {
   clamp,
   Explainer,
   IroningToggle,
+  MAX_PIECES,
+  PieceRow,
   PriceDisclaimer,
   Section,
   Stepper,
 } from './components';
 import type { PriceResult } from './pricing';
+
+const clampPieces = (n: number) => Math.max(0, Math.min(MAX_PIECES, n));
 
 export function StepWash({
   sel,
@@ -32,10 +35,7 @@ export function StepWash({
   price: PriceResult;
 }) {
   const setBags = (n: number) =>
-    setSel((s) => {
-      const bags = clamp(n);
-      return { ...s, bags, ironClothes: bags === 0 ? false : s.ironClothes };
-    });
+    setSel((s) => ({ ...s, bags: clamp(n) }));
   const setBedding = (n: number) =>
     setSel((s) => {
       const beddingSets = clamp(n);
@@ -45,6 +45,27 @@ export function StepWash({
         ironBedding: beddingSets === 0 ? false : s.ironBedding,
       };
     });
+  const setEveryday = (n: number) =>
+    setSel((s) => ({ ...s, everydayItems: clampPieces(n) }));
+  const setFormal = (n: number) =>
+    setSel((s) => ({ ...s, formalItems: clampPieces(n) }));
+
+  // Everyday ironing stays off by default — most people don't iron everyday
+  // clothes. For those who do, one tap fills a per-bag estimate so they never
+  // have to count by hand.
+  const estimate = clampPieces(estimatedGarments(sel.bags));
+  const everydayHint =
+    sel.everydayItems > 0
+      ? `${sel.everydayItems} plagg · + ${formatKr(sel.everydayItems * PROTO_PRICING.iron_per_garment_ore)}`
+      : `${formatKr(PROTO_PRICING.iron_per_garment_ore)} per plagg`;
+  const everydayAction =
+    sel.everydayItems === 0 && estimate > 0
+      ? { label: `Bruk anslag (~${estimate})`, onClick: () => setEveryday(estimate) }
+      : undefined;
+  const formalHint =
+    sel.formalItems > 0
+      ? `${sel.formalItems} plagg · + ${formatKr(sel.formalItems * PROTO_PRICING.iron_formal_per_item_ore)}`
+      : `${formatKr(PROTO_PRICING.iron_formal_per_item_ore)} per plagg`;
 
   return (
     <>
@@ -95,26 +116,21 @@ export function StepWash({
         title="Stryking"
         subtitle="Vil du ha noe strøket? (valgfritt)"
       >
-        <Explainer>
-          Klær strykes per plagg. Vi anslår{' '}
-          <span className="font-medium text-dark-gray">
-            ca. {PROTO_PRICING.garments_per_bag} plagg per pose
-          </span>{' '}
-          à {formatKr(PROTO_PRICING.iron_per_garment_ore)}.
-        </Explainer>
-
         <div className="space-y-3">
-          <IroningToggle
-            label="Stryk klærne mine"
-            hint={
-              sel.bags > 0
-                ? `+ ca. ${formatKr(ironClothesPerBagOre() * sel.bags)} (${estimatedGarments(sel.bags)} plagg)`
-                : `+ ca. ${formatKr(ironClothesPerBagOre())} per pose`
-            }
-            checked={sel.ironClothes}
-            disabled={sel.bags === 0}
-            disabledHint="Legg til klær først"
-            onChange={(v) => setSel((s) => ({ ...s, ironClothes: v }))}
+          <PieceRow
+            label="Vanlige plagg"
+            hint={everydayHint}
+            value={sel.everydayItems}
+            max={MAX_PIECES}
+            onChange={setEveryday}
+            action={everydayAction}
+          />
+          <PieceRow
+            label="Skjorter & kjoler"
+            hint={formalHint}
+            value={sel.formalItems}
+            max={MAX_PIECES}
+            onChange={setFormal}
           />
           <IroningToggle
             label="Stryk sengetøyet"
