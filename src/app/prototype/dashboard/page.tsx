@@ -3,11 +3,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // PROTOTYPE — Cleaner dashboard shell wiring the two flows into tabs:
 //   • Kjøreplan  → <KjoreplanView />  (daily pickup/delivery route)
-//   • Vaskerom   → <VaskeromView />   (parallel cleaning workflow)
+//   • Vaskerom   → <VaskeromView />   (order-centric cleaning + registration)
 //
 // Both views stay mounted (hidden, not unmounted) so each keeps its own state
-// and the tab badges stay live — advancing a wash load on Vaskerom keeps its
-// count current even while you're looking at Kjøreplan. Mock-only: no server.
+// and the tab badges stay live — advancing an order on Vaskerom keeps its count
+// current even while you're looking at Kjøreplan. Mock-only: no server.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState } from 'react';
@@ -23,7 +23,7 @@ const CLEANER_NAME = 'Sofie';
 export default function DashboardPrototypePage() {
   const [tab, setTab] = useState<Tab>('kjoreplan');
   const [stopsLeft, setStopsLeft] = useState(0);
-  const [washLoads, setWashLoads] = useState(0);
+  const [activeOrders, setActiveOrders] = useState(0);
 
   return (
     <div className="min-h-screen bg-cream text-dark-gray">
@@ -74,20 +74,20 @@ export default function DashboardPrototypePage() {
             onClick={() => setTab('vaskerom')}
             Icon={WashingMachine}
             label="Vaskerom"
-            badge={washLoads}
+            badge={activeOrders}
           />
         </div>
       </nav>
 
-      {/* Tab panels — both mounted; inactive one hidden so its timers keep
-          running. The pb-28 lives on the Kjøreplan panel only: it clears the
-          fixed StickyNextBar, which the Vaskerom tab doesn't render. */}
+      {/* Tab panels — both mounted; inactive one hidden so its state persists.
+          The pb-28 lives on the Kjøreplan panel only: it clears the fixed
+          StickyNextBar, which the Vaskerom tab doesn't render. */}
       <main className="mx-auto max-w-2xl px-5 py-6">
         <div className={tab === 'kjoreplan' ? 'pb-28' : 'hidden'}>
           <KjoreplanView onRemainingChange={setStopsLeft} embedded />
         </div>
         <div className={tab === 'vaskerom' ? '' : 'hidden'}>
-          <VaskeromView onActiveChange={setWashLoads} embedded />
+          <VaskeromView onActiveChange={setActiveOrders} embedded />
         </div>
       </main>
     </div>

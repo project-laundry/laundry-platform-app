@@ -1,37 +1,34 @@
 'use client';
 
-// Body of the "Vaskerom" cleaning flow — no page chrome, so it renders both
-// standalone (vaskerom/page.tsx) and inside the dashboard tabs. A manual stage
-// board: each load advances one tap at a time, no machine limits, no timers.
-// Reports the active (not-yet-Klar) count up via onActiveChange for the tab badge.
+// Body of the "Vaskerom" flow — no page chrome, so it renders both standalone
+// (vaskerom/page.tsx) and inside the dashboard tabs. Order-centric: orders move
+// Mottatt → I arbeid → Klar, and each order's contents are registered (edited
+// from the customer's prefill) and confirmed on the way to Klar — which is what
+// triggers the Vipps charge in the real system. Reports the active (not-yet-Klar)
+// order count up via onActiveChange for the tab badge. Mock-only: no server.
 
 import { useEffect, useState } from 'react';
+import { Inbox, PackageCheck, WashingMachine, Wind, type LucideIcon } from 'lucide-react';
+import { INITIAL_ORDERS } from './mockData';
 import {
-  Inbox,
-  PackageCheck,
-  Shirt,
-  WashingMachine,
-  Wind,
-  type LucideIcon,
-} from 'lucide-react';
-import { INITIAL_LOADS } from './mockData';
-import {
-  groupByOrder,
-  loadsInStage,
-  NEXT_STAGE,
-  STAGES,
-  type Stage,
-  type WashLoad,
+  NEXT_STATUS,
+  ordersByStatus,
+  STATUSES,
+  type ContentField,
+  type OrderStatus,
+  type WashOrder,
 } from './washroom';
-import { OrderGroupCard } from './components/OrderGroupCard';
+import { OrderCard } from './components/OrderCard';
 
-const STAGE_ICON: Record<Stage, LucideIcon> = {
+const STATUS_ICON: Record<OrderStatus, LucideIcon> = {
   mottatt: Inbox,
-  vask: WashingMachine,
-  tork: Wind,
-  bretting: Shirt,
+  arbeid: WashingMachine,
   klar: PackageCheck,
 };
+
+function nowLabel(): string {
+  return new Date().toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' });
+}
 
 interface VaskeromViewProps {
   onActiveChange?: (count: number) => void;
@@ -41,30 +38,47 @@ interface VaskeromViewProps {
 }
 
 export function VaskeromView({ onActiveChange, embedded = false }: VaskeromViewProps) {
-  const [loads, setLoads] = useState<WashLoad[]>(INITIAL_LOADS);
+  const [orders, setOrders] = useState<WashOrder[]>(INITIAL_ORDERS);
+  const [openId, setOpenId] = useState<string | null>(null);
 
-  const advance = (id: string) => {
-    setLoads((prev) =>
-      prev.map((l) => {
-        if (l.id !== id) return l;
-        const next = NEXT_STAGE[l.stage];
-        return next ? { ...l, stage: next } : l;
+  const bump = (id: string, field: ContentField, delta: number) =>
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === id
+          ? {
+              ...o,
+              registered: {
+                ...o.registered,
+                [field]: Math.max(0, o.registered[field] + delta),
+              },
+            }
+          : o
+      )
+    );
+
+  const advance = (id: string) =>
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (o.id !== id) return o;
+        const next = NEXT_STATUS[o.status];
+        if (!next) return o;
+        // Confirming the work (→ klar) is what charges the customer in Vipps.
+        return { ...o, status: next, charged_at: next === 'klar' ? nowLabel() : o.charged_at };
       })
     );
-  };
 
-  const activeLoads = loads.filter((l) => l.stage !== 'klar');
-  const inProgress = activeLoads.length;
-  const orderCount = new Set(activeLoads.map((l) => l.orderId)).size;
+  const toggle = (id: string) => setOpenId((cur) => (cur === id ? null : id));
+
+  const active = orders.filter((o) => o.status !== 'klar').length;
+  const ready = orders.length - active;
 
   useEffect(() => {
-    onActiveChange?.(inProgress);
-  }, [inProgress, onActiveChange]);
+    onActiveChange?.(active);
+  }, [active, onActiveChange]);
 
   return (
     <div className="space-y-6">
-      {/* Hero — mirrors the onboarding flow: sea-green eyebrow + serif title.
-          Suppressed when embedded in the dashboard (the tab is the title). */}
+      {/* Hero — mirrors the onboarding flow; suppressed when embedded. */}
       <section className="animate-in fade-in slide-in-from-bottom-3 duration-700">
         {!embedded && (
           <>
@@ -77,21 +91,19 @@ export function VaskeromView({ onActiveChange, embedded = false }: VaskeromViewP
           </>
         )}
         <p className={`text-medium-gray ${embedded ? '' : 'mt-3'}`}>
-          {inProgress} vaskelaster fra {orderCount}{' '}
-          {orderCount === 1 ? 'ordre' : 'ordrer'} underveis.
+          {active} {active === 1 ? 'ordre' : 'ordrer'} underveis · {ready} klar til henting.
         </p>
 
         <div className="mt-4 flex items-start gap-2 rounded-2xl bg-cream/70 px-3.5 py-2.5 text-sm text-medium-gray">
           <Wind className="mt-0.5 size-4 shrink-0 text-sea-green" />
-          <p>Klærne henges til lufttørk — derfor tar tørk litt tid.</p>
+          <p>Klærne henges til lufttørk — sett av tid før du fullfører ordren.</p>
         </div>
       </section>
 
-      {/* Stage sections */}
-      {STAGES.map((cfg, i) => {
-        const items = loadsInStage(loads, cfg.key);
-        const groups = groupByOrder(items);
-        const Icon = STAGE_ICON[cfg.key];
+      {/* One section per status */}
+      {STATUSES.map((cfg, i) => {
+        const items = ordersByStatus(orders, cfg.key);
+        const Icon = STATUS_ICON[cfg.key];
 
         return (
           <section
@@ -111,17 +123,20 @@ export function VaskeromView({ onActiveChange, embedded = false }: VaskeromViewP
               </span>
             </div>
 
-            {groups.length === 0 ? (
+            {items.length === 0 ? (
               <p className="rounded-2xl border border-dashed border-cream-dark px-3 py-5 text-center text-xs text-medium-gray">
-                Ingen plagg her
+                Ingen ordrer her
               </p>
             ) : (
               <div className="space-y-2.5">
-                {groups.map((group) => (
-                  <OrderGroupCard
-                    key={group.orderId}
-                    group={group}
-                    onAdvance={advance}
+                {items.map((order) => (
+                  <OrderCard
+                    key={order.id}
+                    order={order}
+                    isOpen={openId === order.id}
+                    onToggle={() => toggle(order.id)}
+                    onBump={(field, delta) => bump(order.id, field, delta)}
+                    onAdvance={() => advance(order.id)}
                   />
                 ))}
               </div>
