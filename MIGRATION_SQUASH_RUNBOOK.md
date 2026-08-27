@@ -18,7 +18,7 @@ the migration history into a single baseline (`20260606233033_initial_schema.sql
 
 - [ ] Squash is done locally and verified (one file in `supabase/migrations/`). **Do not commit/push yet** — reconcile the remotes first.
 - [ ] Supabase CLI installed and logged in (`supabase login`).
-- [ ] Credentials handy: staging project ref + DB password, prod ref (`mdglaondbvwsmsdtygmj`) + DB password.
+- [ ] Credentials handy: staging project ref + DB password, prod ref (`aalxmczclyunlyziqdqn`) + DB password.
 - [ ] Dashboard access to **both** projects (for auth-user steps and URL config).
 - [ ] Decided what happens to existing auth users (keep via backfill, or discard) — see step 4.
 
@@ -32,7 +32,7 @@ the migration history into a single baseline (`20260606233033_initial_schema.sql
 ### 1. Link and confirm the target
 
 ```bash
-supabase link --project-ref <REF>      # staging ref first; later: mdglaondbvwsmsdtygmj
+supabase link --project-ref <REF>      # staging ref first; later: aalxmczclyunlyziqdqn
 supabase projects list                  # ✅ CONFIRM the ● is on the project you intend
 ```
 
@@ -87,7 +87,7 @@ do the **same choice on both environments** so the rehearsal stays faithful:
 (signup creates a `public.users` row; login works) before moving on. If anything here
 surprised you, you just saved yourself from discovering it in production.
 
-**→ Then repeat steps 1–6 for production** (`--project-ref mdglaondbvwsmsdtygmj`).
+**→ Then repeat steps 1–6 for production** (`--project-ref aalxmczclyunlyziqdqn`).
 
 ---
 

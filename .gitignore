@@ -42,3 +42,6 @@ yarn-error.log*
 next-env.d.ts
 
 example-landing/*
+
+# claude code local settings (per-user permissions)
+.claude/settings.local.json
