@@ -10,25 +10,16 @@ import {
   ChevronRight,
   LayoutDashboard,
   Route,
-  ShoppingBag,
   WashingMachine,
 } from 'lucide-react';
 
 const PROTOTYPES = [
   {
-    href: '/prototype/bestilling',
-    Icon: ShoppingBag,
-    title: 'Ny bestilling',
-    description:
-      'Kundeflyt – velg poser, sengetøy og stryking, se prisen live.',
-    primary: true,
-  },
-  {
     href: '/prototype/dashboard',
     Icon: LayoutDashboard,
     title: 'Renser-dashboard',
     description: 'Full prototype – Kjøreplan og Vaskerom samlet i faner.',
-    primary: false,
+    primary: true,
   },
   {
     href: '/prototype/kjoreplan',

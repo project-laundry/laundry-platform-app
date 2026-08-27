@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LaundryDetailsForm } from '../components/LaundryDetailsForm';
 import { OrderActions } from './OrderActions';
+import { formatKr } from '@/lib/config/pricing';
 import type { OrderStatus } from '@/types/database';
 
 interface OrderDetailsPageProps {
@@ -189,6 +190,42 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
             )}
           </CardContent>
         </Card>
+
+        {/* Customer's own estimate from checkout (informational) */}
+        {order.customer_estimate && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Kundens anslag</CardTitle>
+              <p className="text-sm text-medium-gray">
+                Hva kunden oppga ved bestilling. Du setter den endelige prisen
+                under.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-1 text-dark-gray">
+                {order.customer_estimate.bags > 0 && (
+                  <li>{order.customer_estimate.bags} {order.customer_estimate.bags === 1 ? 'pose' : 'poser'} klær</li>
+                )}
+                {order.customer_estimate.bedding_sets > 0 && (
+                  <li>{order.customer_estimate.bedding_sets} sett sengetøy</li>
+                )}
+                {order.customer_estimate.iron_everyday_items > 0 && (
+                  <li>{order.customer_estimate.iron_everyday_items} vanlige plagg til stryking</li>
+                )}
+                {order.customer_estimate.iron_formal_items > 0 && (
+                  <li>{order.customer_estimate.iron_formal_items} skjorter/kjoler til stryking</li>
+                )}
+                {order.customer_estimate.iron_bedding && <li>Stryking av sengetøy</li>}
+              </ul>
+              <p className="mt-3 text-sm text-medium-gray">
+                Estimert pris vist til kunden:{' '}
+                <span className="font-medium text-dark-gray">
+                  ca. {formatKr(order.customer_estimate.estimated_total_ore)}
+                </span>
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Laundry Details Form */}
         <LaundryDetailsForm

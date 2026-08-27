@@ -14,6 +14,8 @@
 // the cleaner prices (total_cost_ore) before the Recurring API charge is created.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import type { OrderPromo } from '@/types/database';
+
 export type OrderStatus = 'mottatt' | 'arbeid' | 'klar';
 
 // What was washed / pressed. Wash counts are machine loads; iron counts are

@@ -91,16 +91,14 @@ src/
 │   │   └── success/        # Onboarding success
 │   ├── dashboard/          # User dashboards
 │   │   └── cleaner/        # Cleaner dashboard & missions
-│   ├── orders/             # Customer order flow
-│   │   ├── [orderId]/      # Dynamic order details
-│   │   ├── additional-services/  # Extra services selection
-│   │   ├── confirm/        # Order confirmation
-│   │   ├── instructions/   # Special instructions
-│   │   ├── plans/          # Subscription plan selection
-│   │   ├── schedule/       # Pickup scheduling
-│   │   ├── services/       # Service type selection
-│   │   ├── success/        # Order success
-│   │   ├── upload-photo/   # Photo upload
+│   ├── orders/             # Customer order flow (3 steps)
+│   │   ├── [orderId]/      # Order cancel/reschedule
+│   │   ├── details/        # Customer order details
+│   │   ├── wash/           # Step 1: what to wash (bags, bedding, ironing)
+│   │   ├── pickup/         # Step 2: address + pickup date + frequency
+│   │   ├── confirm/        # Step 3: review + promo code + Vipps handoff
+│   │   ├── success/        # Order success (polls agreement status)
+│   │   ├── layout.tsx      # Step route guards (redirects to /orders/wash)
 │   │   └── actions.ts      # Server actions
 │   └── profile/            # User profile pages
 │       └── cleaner/        # Cleaner profile view
@@ -115,7 +113,7 @@ src/
 ├── lib/                    # Core utilities and business logic
 │   ├── auth/               # Auth utilities (empty - using Supabase directly)
 │   ├── config/
-│   │   └── pricing.ts      # Pricing constants and helpers (oreToNok, nokToOre, computeDiscountOre)
+│   │   └── pricing.ts      # Pricing constants and both calculators: calculateOrderPrice (cleaner-binding: per 5kg load + 3 ironing groups) and calculateCustomerEstimate (customer estimate: per bag/set/piece)
 │   ├── database/           # Database CRUD operations
 │   │   ├── cleaners.ts     # Cleaner queries & matching
 │   │   ├── customers.ts    # Customer queries
@@ -238,10 +236,12 @@ The webhook uses HMAC-SHA256 signature verification with `VIPPS_WEBHOOK_SECRET` 
   - `initial_address` - Pickup/delivery address
   - `special_instructions` - Pickup details
   - `location_city` - Service area (Bergen/Oslo) - used for cleaner matching
-  - `default_needs_ironing` - Default ironing preference for orders
+  - `default_needs_ironing` - Ironing preference, derived server-side from the customer's selection at checkout
   - `default_cleaner_id` - Default cleaner assignment (orders can be reassigned)
   - `first_pickup_date` - ISO date for first order pickup (replaces recurring_weekday)
+  - `customer_estimate` - Customer's checkout selection + estimate total (stamped onto every generated order)
 - `orders.payment_agreement_id` - FK to `payment_agreements` (for one-time orders without subscription)
+- `orders.customer_estimate` - (JSONB, nullable) Customer's self-reported selection from checkout: `{bags, bedding_sets, iron_everyday_items, iron_formal_items, iron_bedding, estimated_total_ore}`. Informational — the binding price is set by the cleaner
 - `orders.total_cost_ore` - **NULLABLE** (NULL until cleaner sets price)
 - `orders.actual_weight_kg` - Actual weight after pickup
 - `orders.pricing_notes` - Cleaner's pricing explanation

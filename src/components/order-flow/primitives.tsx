@@ -1,10 +1,10 @@
 'use client';
 
-// Shared UI primitives for the bestilling prototype. Kept in one file so the
-// whole flow lives under /prototype/bestilling and deletes in one folder.
+// Shared UI primitives for the customer order flow (and the public price
+// calculator): steppers, per-piece rows, itemised price breakdown.
 
 import { Check, Info, Minus, Plus, ShoppingBag } from 'lucide-react';
-import { formatKr, PROTO_PRICING, type PriceResult } from './pricing';
+import { formatKr, PRICING, type PriceResult } from '@/lib/config/pricing';
 
 export const MAX = 12;
 /** Garment counts can run higher than bag/bedding counts (e.g. a seeded estimate
@@ -13,6 +13,10 @@ export const MAX_PIECES = 120;
 
 export function clamp(n: number): number {
   return Math.max(0, Math.min(MAX, n));
+}
+
+export function clampPieces(n: number): number {
+  return Math.max(0, Math.min(MAX_PIECES, n));
 }
 
 export function Section({
@@ -286,7 +290,7 @@ function MiniStep({
   );
 }
 
-/** Itemised price breakdown — used live on step 1 and as review on step 3. */
+/** Itemised price breakdown — live on step 1 and as review on the confirm step. */
 export function Breakdown({ price }: { price: PriceResult }) {
   return (
     <div className="overflow-hidden rounded-3xl border border-cream-dark/80 bg-warm-white/80 shadow-[var(--shadow-card)] backdrop-blur">
@@ -313,7 +317,7 @@ export function Breakdown({ price }: { price: PriceResult }) {
             <div className="flex items-start gap-2 bg-cream/60 px-5 py-3 text-sm text-medium-gray">
               <Info className="mt-0.5 size-4 shrink-0 text-sea-green" />
               <span>
-                Minste bestilling er {formatKr(PROTO_PRICING.minimum_ore)}.
+                Minste bestilling er {formatKr(PRICING.minimum_order_ore)}.
                 Beløpet er justert opp til dette.
               </span>
             </div>

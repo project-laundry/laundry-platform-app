@@ -2,14 +2,14 @@
 
 import { Button } from '@/components/ui/button';
 import {
-  type IroningCategory,
+  type IroningGroup,
   IRONING_LABELS,
   PRICING,
   formatNok,
 } from '@/lib/config/pricing';
 
 interface IroningQuantityInputProps {
-  category: IroningCategory;
+  category: IroningGroup;
   value: number;
   onChange: (value: number) => void;
   disabled?: boolean;

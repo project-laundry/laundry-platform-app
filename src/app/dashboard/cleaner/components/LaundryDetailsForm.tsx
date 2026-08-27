@@ -10,7 +10,7 @@ import {
   type IroningDetails,
   type LaundryDetails,
   type PriceBreakdown,
-  type IroningCategory,
+  type IroningGroup,
   getEmptyIroningDetails,
   calculateOrderPrice,
   computeDiscountOre,
@@ -30,14 +30,10 @@ interface LaundryDetailsFormProps {
   promo?: OrderPromo | null;
 }
 
-const IRONING_CATEGORIES: IroningCategory[] = [
-  'kids_pillow',
-  'tshirts_shorts',
-  'business_shirts',
-  'single_bedding',
-  'complex_dresses',
-  'double_bedding',
-  'king_bedding',
+const IRONING_CATEGORIES: IroningGroup[] = [
+  'everyday',
+  'shirts_dresses',
+  'bedding',
 ];
 
 export function LaundryDetailsForm({
@@ -76,7 +72,7 @@ export function LaundryDetailsForm({
     setPriceBreakdown(calculateOrderPrice(getLaundryDetails()));
   }, [getLaundryDetails]);
 
-  const handleIroningChange = (category: IroningCategory, value: number) => {
+  const handleIroningChange = (category: IroningGroup, value: number) => {
     setIroningDetails((prev) => ({
       ...prev,
       [category]: value,

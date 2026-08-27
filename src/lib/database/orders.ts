@@ -1,7 +1,7 @@
 // Order database operations
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import type { Order, OrderStatus, OrderWithRelations, Customer, User, Subscription, OrderIroningDetails, OrderPromo } from '@/types/database';
+import type { Order, OrderStatus, OrderWithRelations, Customer, User, Subscription, OrderIroningDetails, OrderPromo, CustomerEstimate } from '@/types/database';
 
 /**
  * Order with customer and subscription details for cleaner dashboard
@@ -33,6 +33,8 @@ export interface CreateOrderData {
   special_instructions?: string | null;
   // Service preferences
   needs_ironing?: boolean;
+  // Customer's checkout selection + estimate (null for pre-estimate orders)
+  customer_estimate?: CustomerEstimate | null;
   // Pricing (nullable - set by cleaner after pickup)
   total_cost_ore?: number | null;
   // Promo code locked snapshot (first order only); null if none
@@ -102,6 +104,8 @@ export async function createOrder(data: CreateOrderData): Promise<Order | null> 
       special_instructions: data.special_instructions || null,
       // Service preferences
       needs_ironing: data.needs_ironing || false,
+      // Customer's checkout selection + estimate
+      customer_estimate: data.customer_estimate ?? null,
       // Pricing (nullable - set by cleaner after pickup)
       total_cost_ore: data.total_cost_ore || null,
       // Promo code locked snapshot (first order only)

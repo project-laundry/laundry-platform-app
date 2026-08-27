@@ -8,12 +8,11 @@ interface OrderFlowStore {
   setHasHydrated: (state: boolean) => void;
   updateOrderData: (data: Partial<OrderData>) => void;
   resetOrderData: () => void;
-  hasRequiredData: () => boolean;
 }
 
 export const useOrderFlowStore = create<OrderFlowStore>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       orderData: null,
       _hasHydrated: false,
 
@@ -25,17 +24,15 @@ export const useOrderFlowStore = create<OrderFlowStore>()(
         })),
 
       resetOrderData: () => set({ orderData: null }),
-
-      hasRequiredData: () => {
-        const { orderData } = get();
-        return orderData !== null && orderData.city !== undefined && orderData.firstPickupDate !== undefined;
-      }
     }),
     {
       name: 'nooracare-order-flow',
+      // v1: selection-based flow. Persisted pre-redesign state (needsIroning,
+      // no selection) is incompatible — drop it and start fresh.
+      version: 1,
+      migrate: () => ({ orderData: null }),
       storage: createJSONStorage(() => localStorage),
       onRehydrateStorage: () => (state) => {
-        console.log('[Store] Rehydrated from localStorage:', state?.orderData);
         state?.setHasHydrated(true);
       },
     }

@@ -172,20 +172,34 @@ export interface SubscriptionOrderDefaults {
   default_needs_ironing: boolean;
   default_cleaner_id: string | null;
   first_pickup_date: string; // ISO date string (YYYY-MM-DD) - replaces recurring_weekday
+  // Customer's checkout selection, stamped onto every generated order.
+  // Optional: subscriptions created before the estimate flow lack it.
+  customer_estimate?: CustomerEstimate | null;
   [key: string]: unknown; // Allow additional fields from Vipps metadata
 }
 
 /**
- * Ironing quantities per category (stored in orders.ironing_details JSONB)
+ * Customer's self-reported selection from checkout plus the estimate total they
+ * were shown (stored in orders.customer_estimate and order_defaults JSONB).
+ * Informational — the binding price is set by the cleaner after pickup.
+ */
+export interface CustomerEstimate {
+  bags: number;
+  bedding_sets: number;
+  iron_everyday_items: number;
+  iron_formal_items: number;
+  iron_bedding: boolean;
+  estimated_total_ore: number;
+}
+
+/**
+ * Ironing quantities per group (stored in orders.ironing_details JSONB).
+ * Bedding is counted in sets.
  */
 export interface OrderIroningDetails {
-  kids_pillow: number;
-  tshirts_shorts: number;
-  business_shirts: number;
-  single_bedding: number;
-  complex_dresses: number;
-  double_bedding: number;
-  king_bedding: number;
+  everyday: number;
+  shirts_dresses: number;
+  bedding: number;
 }
 
 export interface Order {
@@ -212,6 +226,8 @@ export interface Order {
   special_instructions: string | null;
   // Service preferences
   needs_ironing: boolean;
+  // Customer's checkout selection + estimate (null for pre-estimate orders)
+  customer_estimate: CustomerEstimate | null;
   // Laundry details (cleaner input)
   dark_loads: number;
   white_loads: number;

@@ -47,6 +47,14 @@ const ORDER_DEFAULTS = {
   default_needs_ironing: true,
   default_cleaner_id: 'cleaner-1',
   first_pickup_date: '2026-06-10',
+  customer_estimate: {
+    bags: 2,
+    bedding_sets: 1,
+    iron_everyday_items: 0,
+    iron_formal_items: 3,
+    iron_bedding: false,
+    estimated_total_ore: 73530,
+  },
 } satisfies SubscriptionOrderDefaults;
 
 const SUB_ID = 'sub-1';
@@ -193,6 +201,7 @@ describe('buildOrderData — shared order_defaults -> order mapping', () => {
       special_instructions_address: 'Ring på',
       special_instructions: 'Hentes kl 09',
       needs_ironing: true,
+      customer_estimate: ORDER_DEFAULTS.customer_estimate,
       total_cost_ore: null,
       // The field that originally drifted between paths:
       latitude: 59.9139,
@@ -223,6 +232,19 @@ describe('buildOrderData — shared order_defaults -> order mapping', () => {
 
     expect(data.latitude).toBeNull();
     expect(data.longitude).toBeNull();
+  });
+
+  it('defaults customer_estimate to null for legacy subscriptions without one', () => {
+    const { customer_estimate, ...legacyDefaults } = ORDER_DEFAULTS;
+    void customer_estimate;
+
+    const data = buildOrderData(legacyDefaults, {
+      customerId: 'cust-1',
+      pickupDate,
+      deliveryDate,
+    });
+
+    expect(data.customer_estimate).toBeNull();
   });
 
   it('marks the order pending_assignment when no default cleaner is set', () => {

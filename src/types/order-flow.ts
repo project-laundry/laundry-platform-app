@@ -1,5 +1,18 @@
+// What the customer says they'll send — drives the price estimate and is
+// persisted as the order's customer_estimate.
+export interface OrderSelection {
+  bags: number; // 0–12
+  beddingSets: number; // 0–12
+  everydayItems: number; // 0–120, ironing count
+  formalItems: number; // 0–120, ironing count
+  ironBedding: boolean;
+}
+
 export interface OrderData {
-  // City - derived from postal code (replaces location)
+  // What the customer wants washed (step 1)
+  selection: OrderSelection;
+
+  // City - derived from postal code
   city: 'Bergen' | 'Oslo' | null;
 
   // Frequency
@@ -9,18 +22,12 @@ export interface OrderData {
   // Date
   firstPickupDate: string; // ISO date
 
-  // Ironing preference (default for all orders)
-  needsIroning: boolean;
-
   // Address (city is derived from postalCode, not stored here)
   address: {
     street: string;
     postalCode: string;
     specialInstructions: string;
   };
-
-  // Instructions
-  specialInstructions?: string;
 
   // Promo code (validated at checkout, applied to the first order)
   promoCode?: string;

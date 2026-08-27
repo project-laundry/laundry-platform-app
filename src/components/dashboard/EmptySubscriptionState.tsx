@@ -27,7 +27,7 @@ export function EmptySubscriptionState() {
           Velg en plan som passer best for deg og la oss ta oss av klesvasken.
         </p>
       </div>
-      <Link href="/orders/service">
+      <Link href="/orders/wash">
         <Button
           variant="hero"
           size="xl"
