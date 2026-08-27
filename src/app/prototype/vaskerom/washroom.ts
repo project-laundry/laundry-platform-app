@@ -1,90 +1,124 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Washroom helpers — PURE (no React, no I/O).
+// Washroom model — PURE (no React, no I/O).
 //
-// The unit of work is a WASH LOAD, not an order: one order can have several
-// loads (e.g. a clothes load and a bedding load) that are washed separately and
-// move through the stages independently. Each load advances manually — no
-// machine limits, no timers.
+// Order-centric flow. The unit of work is an ORDER, not a floating wash load:
+//   Mottatt  → cleaner has the bag; contents are prefilled from what the
+//              customer ordered, and the cleaner edits them to match reality.
+//   I arbeid → cleaner has started; still editable.
+//   Klar     → cleaner confirmed the work, which triggers the Vipps charge;
+//              the order is now ready to be picked up.
 //
-// Loads mirror what the customer actually orders — clothes ("Klær") and bedding
-// ("Sengetøy", always its own wash). We do NOT track colour (whites vs darks):
-// the order flow never asks, so sorting is the cleaner's own call at the machine.
-//   Mottatt → Vask → Henger til tørk (air-dry) → Bretting/Stryk → Klar
-// In the real version, an order maps to `orders` and its loads to a child table.
+// "Registering" is no longer a separate screen — it's the editable `registered`
+// contents on each order, confirmed at the Mottatt/I arbeid → Klar transition.
+// In the real version an order maps to `orders`; `registered` is the line items
+// the cleaner prices (total_cost_ore) before the Recurring API charge is created.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type Stage = 'mottatt' | 'vask' | 'tork' | 'bretting' | 'klar';
+export type OrderStatus = 'mottatt' | 'arbeid' | 'klar';
 
-export type LoadType = 'Klær' | 'Sengetøy';
-
-export interface WashLoad {
-  id: string; // unique per wash load
-  orderId: string; // groups loads belonging to the same order
-  order_number: string;
-  customer_name: string;
-  loadType: LoadType;
-  notes: string | null;
-  stage: Stage;
+// What was washed / pressed. Wash counts are machine loads; iron counts are
+// pieces (everyday vs formal mirror the customer order flow, which prices them
+// apart) plus bedding sets.
+export interface OrderContents {
+  washClothes: number;
+  washBedding: number;
+  ironEveryday: number;
+  ironFormal: number;
+  ironBedding: number;
 }
 
-export interface StageConfig {
-  key: Stage;
+export type ContentField = keyof OrderContents;
+
+export interface WashOrder {
+  id: string;
+  order_number: string;
+  customer_name: string;
+  notes: string | null;
+  requested: OrderContents; // what the customer prefilled (the seed + reference)
+  registered: OrderContents; // what the cleaner confirms — seeded from `requested`, editable
+  status: OrderStatus;
+  charged_at: string | null; // HH:MM stamped when confirmed → charged (status klar)
+  promo?: OrderPromo | null; // first-order discount, if any (platform-absorbed)
+}
+
+export interface FieldCfg {
+  id: ContentField;
+  label: string;
+  hint: string;
+}
+
+// Editor fields, split into the two things the cleaner registers. Hints describe
+// the unit (not a price) — the kr total is intentionally kept off this screen.
+export const WASH_FIELDS: FieldCfg[] = [
+  { id: 'washClothes', label: 'Klesvask', hint: 'Per maskin' },
+  { id: 'washBedding', label: 'Sengetøy', hint: 'Egen vask' },
+];
+
+export const IRON_FIELDS: FieldCfg[] = [
+  { id: 'ironEveryday', label: 'Vanlige plagg', hint: 'T-skjorter, bukser o.l.' },
+  { id: 'ironFormal', label: 'Skjorter & kjoler', hint: 'Dresser, finkjoler o.l.' },
+  { id: 'ironBedding', label: 'Sengetøy', hint: 'Laken & dynetrekk' },
+];
+
+export const ALL_FIELDS: FieldCfg[] = [...WASH_FIELDS, ...IRON_FIELDS];
+
+export interface StatusCfg {
+  key: OrderStatus;
   label: string;
 }
 
-/** Loads of one order that currently sit in the same stage. */
-export interface OrderGroup {
-  orderId: string;
-  order_number: string;
-  customer_name: string;
-  loads: WashLoad[];
-}
-
-export const STAGES: StageConfig[] = [
+export const STATUSES: StatusCfg[] = [
   { key: 'mottatt', label: 'Mottatt' },
-  { key: 'vask', label: 'Vask' },
-  { key: 'tork', label: 'Henger til tørk' },
-  { key: 'bretting', label: 'Bretting / Stryk' },
-  { key: 'klar', label: 'Klar til levering' },
+  { key: 'arbeid', label: 'I arbeid' },
+  { key: 'klar', label: 'Klar til henting' },
 ];
 
-/** Forward transition for each stage (null = terminal). */
-export const NEXT_STAGE: Record<Stage, Stage | null> = {
-  mottatt: 'vask',
-  vask: 'tork',
-  tork: 'bretting',
-  bretting: 'klar',
+/** Forward transition for each status (null = terminal). */
+export const NEXT_STATUS: Record<OrderStatus, OrderStatus | null> = {
+  mottatt: 'arbeid',
+  arbeid: 'klar',
   klar: null,
 };
 
-/** Label for the button that advances a load out of its current stage. */
-export const ADVANCE_LABEL: Record<Stage, string> = {
-  mottatt: 'Start vask',
-  vask: 'Heng til tørk',
-  tork: 'Til bretting',
-  bretting: 'Marker klar',
+/** Label for the button that advances an order out of its current status. */
+export const ADVANCE_LABEL: Record<OrderStatus, string> = {
+  mottatt: 'Start arbeid',
+  arbeid: 'Fullfør og belast',
   klar: '',
 };
 
-export function loadsInStage(loads: WashLoad[], stage: Stage): WashLoad[] {
-  return loads.filter((l) => l.stage === stage);
+export function washLoadCount(c: OrderContents): number {
+  return c.washClothes + c.washBedding;
 }
 
-/** Group loads by order, preserving first-seen order. */
-export function groupByOrder(loads: WashLoad[]): OrderGroup[] {
-  const groups = new Map<string, OrderGroup>();
-  for (const load of loads) {
-    let group = groups.get(load.orderId);
-    if (!group) {
-      group = {
-        orderId: load.orderId,
-        order_number: load.order_number,
-        customer_name: load.customer_name,
-        loads: [],
-      };
-      groups.set(load.orderId, group);
-    }
-    group.loads.push(load);
-  }
-  return [...groups.values()];
+export function ironPieceCount(c: OrderContents): number {
+  return c.ironEveryday + c.ironFormal + c.ironBedding;
+}
+
+export function contentTotal(c: OrderContents): number {
+  return washLoadCount(c) + ironPieceCount(c);
+}
+
+/** Short one-liner for the collapsed order card, e.g. "2 vaskelaster · 5 stryk". */
+export function contentSummary(c: OrderContents): string {
+  const parts: string[] = [];
+  const wash = washLoadCount(c);
+  const iron = ironPieceCount(c);
+  if (wash > 0) parts.push(`${wash} ${wash === 1 ? 'vaskelast' : 'vaskelaster'}`);
+  if (iron > 0) parts.push(`${iron} stryk`);
+  return parts.length ? parts.join(' · ') : 'Ingen registrering ennå';
+}
+
+export function contentsEqual(a: OrderContents, b: OrderContents): boolean {
+  return (
+    a.washClothes === b.washClothes &&
+    a.washBedding === b.washBedding &&
+    a.ironEveryday === b.ironEveryday &&
+    a.ironFormal === b.ironFormal &&
+    a.ironBedding === b.ironBedding
+  );
+}
+
+export function ordersByStatus(orders: WashOrder[], status: OrderStatus): WashOrder[] {
+  return orders.filter((o) => o.status === status);
 }

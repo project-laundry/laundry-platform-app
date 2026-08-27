@@ -41,7 +41,7 @@ const PROTOTYPES = [
     href: '/prototype/vaskerom',
     Icon: WashingMachine,
     title: 'Vaskerom',
-    description: 'Vaskeflyt med parallelle steg – flytt plagg fra mottak til klar.',
+    description: 'Ordreflyt – registrer vask og stryk per ordre, fullfør og belast.',
     primary: false,
   },
 ];

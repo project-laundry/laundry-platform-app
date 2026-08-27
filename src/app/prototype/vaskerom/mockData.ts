@@ -1,104 +1,117 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // PROTOTYPE / MOCK DATA ONLY — backs /prototype/vaskerom.
 //
-// The board models the cleaner's WIP at the start of the day, and it lines up
-// with today's route (../kjoreplan/mockData.ts) instead of contradicting it:
-//   • Today's PICKUPS (Kari, Ingrid, Mette) aren't here yet — they enter the
-//     board as "Mottatt" only once collected, so they're absent for now.
-//   • Today's DELIVERIES (Ola, Lars, Per) are finished, so they sit in the
-//     "Klar til levering" column — that column IS the delivery queue.
-//   • The in-process loads (Mottatt→Bretting) belong to EARLIER pickups that
-//     aren't on today's route (Nora, Jonas, Selma).
+// The cleaner's order list at the start of the day, lined up with today's route
+// (../kjoreplan/mockData.ts):
+//   • Today's PICKUPS (Kari, Nora) have just been collected → "Mottatt",
+//     prefilled from what each customer ordered, awaiting the cleaner.
+//   • Two earlier pickups (Jonas, Selma) are "I arbeid" — Jonas shows the
+//     edit case: the customer guessed one clothes load, the cleaner found two.
+//   • Today's DELIVERIES (Ola, Lars, Per) are done & charged → "Klar til henting"
+//     — that section IS the delivery queue on the route.
 //
-// Jonas (NC-2037) is the parallel-stage example: his bedding load is washing
-// while his clothes load already hangs to dry — one order, two loads, two stages.
 // No server, no auth, no DB. Delete the prototype folder to remove.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { type WashLoad } from './washroom';
+import { type OrderContents, type OrderStatus, type WashOrder } from './washroom';
 
-export const INITIAL_LOADS: WashLoad[] = [
-  // ── In-process: earlier pickups, not on today's route ──────────────────────
+// Positional helper: (klesvask, sengetøy, vanlige plagg, skjorter/kjoler, sengetøy-stryk)
+const contents = (
+  washClothes = 0,
+  washBedding = 0,
+  ironEveryday = 0,
+  ironFormal = 0,
+  ironBedding = 0
+): OrderContents => ({ washClothes, washBedding, ironEveryday, ironFormal, ironBedding });
 
-  // NC-2031 Nora — clothes + bedding, both just received
-  {
-    id: '2031-c',
-    orderId: '2031',
+interface OrderSeed {
+  id: string;
+  order_number: string;
+  customer_name: string;
+  notes: string | null;
+  requested: OrderContents;
+  status: OrderStatus;
+  adjust?: Partial<OrderContents>; // cleaner's edits away from the customer's order
+  charged_at?: string | null;
+}
+
+function makeOrder(s: OrderSeed): WashOrder {
+  return {
+    id: s.id,
+    order_number: s.order_number,
+    customer_name: s.customer_name,
+    notes: s.notes,
+    requested: s.requested,
+    registered: { ...s.requested, ...(s.adjust ?? {}) },
+    status: s.status,
+    charged_at: s.charged_at ?? null,
+  };
+}
+
+export const INITIAL_ORDERS: WashOrder[] = [
+  // ── Mottatt: just picked up, prefilled from the customer order ──────────────
+  makeOrder({
+    id: '2052',
+    order_number: 'NC-2052',
+    customer_name: 'Kari Nilsen',
+    notes: 'Ringeklokka virker ikke – ring på mobil.',
+    requested: contents(2, 0, 5, 2, 0),
+    status: 'mottatt',
+  }),
+  makeOrder({
+    id: '2031',
     order_number: 'NC-2031',
     customer_name: 'Nora Wold',
-    loadType: 'Klær',
     notes: 'Ull-plagg vaskes kaldt.',
-    stage: 'mottatt',
-  },
-  {
-    id: '2031-s',
-    orderId: '2031',
-    order_number: 'NC-2031',
-    customer_name: 'Nora Wold',
-    loadType: 'Sengetøy',
-    notes: null,
-    stage: 'mottatt',
-  },
-  // NC-2037 Jonas — bedding washing, clothes already hanging to dry
-  {
-    id: '2037-s',
-    orderId: '2037',
+    requested: contents(1, 1, 0, 0, 0),
+    status: 'mottatt',
+  }),
+
+  // ── I arbeid: started; Jonas adjusted up from what the customer guessed ─────
+  makeOrder({
+    id: '2037',
     order_number: 'NC-2037',
     customer_name: 'Jonas Lie',
-    loadType: 'Sengetøy',
     notes: null,
-    stage: 'vask',
-  },
-  {
-    id: '2037-c',
-    orderId: '2037',
-    order_number: 'NC-2037',
-    customer_name: 'Jonas Lie',
-    loadType: 'Klær',
-    notes: 'Henges luftig – tar tid å tørke.',
-    stage: 'tork',
-  },
-  // NC-2044 Selma — single clothes load, being folded/ironed
-  {
-    id: '2044-c',
-    orderId: '2044',
+    requested: contents(1, 1, 0, 0, 1),
+    adjust: { washClothes: 2 },
+    status: 'arbeid',
+  }),
+  makeOrder({
+    id: '2044',
     order_number: 'NC-2044',
     customer_name: 'Selma Berg',
-    loadType: 'Klær',
     notes: null,
-    stage: 'bretting',
-  },
+    requested: contents(1, 0, 8, 0, 0),
+    status: 'arbeid',
+  }),
 
-  // ── Klar til levering: these ARE today's delivery stops on the route ────────
-
-  // NC-2017 Ola — delivery today (matches Kjøreplan stop)
-  {
-    id: '2017-c',
-    orderId: '2017',
+  // ── Klar til henting: done & charged — these are today's delivery stops ─────
+  makeOrder({
+    id: '2017',
     order_number: 'NC-2017',
     customer_name: 'Ola Hansen',
-    loadType: 'Klær',
     notes: null,
-    stage: 'klar',
-  },
-  // NC-2009 Lars — delivery today (matches Kjøreplan stop)
-  {
-    id: '2009-c',
-    orderId: '2009',
+    requested: contents(1, 0, 0, 0, 0),
+    status: 'klar',
+    charged_at: '08:20',
+  }),
+  makeOrder({
+    id: '2009',
     order_number: 'NC-2009',
     customer_name: 'Lars Olsen',
-    loadType: 'Klær',
     notes: null,
-    stage: 'klar',
-  },
-  // NC-2023 Per — delivery today (matches Kjøreplan stop)
-  {
-    id: '2023-c',
-    orderId: '2023',
+    requested: contents(2, 1, 0, 0, 0),
+    status: 'klar',
+    charged_at: '08:35',
+  }),
+  makeOrder({
+    id: '2023',
     order_number: 'NC-2023',
     customer_name: 'Per Johansen',
-    loadType: 'Klær',
     notes: null,
-    stage: 'klar',
-  },
+    requested: contents(1, 0, 3, 0, 0),
+    status: 'klar',
+    charged_at: '09:05',
+  }),
 ];
