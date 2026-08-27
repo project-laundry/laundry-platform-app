@@ -11,7 +11,7 @@ projects** (one staging, one production).
 
 | Branch    | Supabase project                | Vercel environment   | Vipps            | Domain                  |
 |-----------|---------------------------------|----------------------|------------------|-------------------------|
-| `main`    | production (`mdglaondbvwsmsdtygmj`) | Production        | `api.vipps.no`   | `nooracare.no`          |
+| `main`    | production (`aalxmczclyunlyziqdqn`) | Production        | `api.vipps.no`   | `nooracare.no`          |
 | `develop` | **separate staging project**    | Preview (branch-scoped) | `apitest.vipps.no` | `test.nooracare.no` |
 
 **Promotion flow:** feature branch → PR into `develop` (CI runs) → merge deploys
@@ -69,7 +69,7 @@ in the dashboard.
    - `SUPABASE_ACCESS_TOKEN` — the access token (shared by both workflows)
    - `STAGING_PROJECT_ID` — staging project ref
    - `STAGING_DB_PASSWORD` — staging DB password
-   - `PROD_PROJECT_ID` — `mdglaondbvwsmsdtygmj`
+   - `PROD_PROJECT_ID` — `aalxmczclyunlyziqdqn`
    - `PROD_DB_PASSWORD` — production DB password
 5. Push to `develop` → `staging.yaml` applies all migrations to staging.
 6. In staging project **Authentication → URL Configuration**, set Site URL and
