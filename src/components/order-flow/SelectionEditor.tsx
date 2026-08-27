@@ -1,54 +1,48 @@
 'use client';
 
-// Step 1 — what the customer wants washed.
+// "What do you want washed?" editor — bags, bedding sets and ironing counts.
+// Store-agnostic: used by the order flow's first step and the public price
+// calculator.
 
 import { BedDouble, ShoppingBag, Sparkles } from 'lucide-react';
 import {
   estimatedGarments,
   formatKr,
-  PROTO_PRICING,
-  type Selection,
-} from './pricing';
+  PRICING,
+} from '@/lib/config/pricing';
+import type { OrderSelection } from '@/types/order-flow';
 import {
   BagVisual,
-  Breakdown,
   clamp,
+  clampPieces,
   Explainer,
   IroningToggle,
   MAX_PIECES,
   PieceRow,
-  PriceDisclaimer,
   Section,
   Stepper,
-} from './components';
-import type { PriceResult } from './pricing';
+} from './primitives';
 
-const clampPieces = (n: number) => Math.max(0, Math.min(MAX_PIECES, n));
-
-export function StepWash({
-  sel,
-  setSel,
-  price,
+export function SelectionEditor({
+  selection: sel,
+  onChange,
 }: {
-  sel: Selection;
-  setSel: React.Dispatch<React.SetStateAction<Selection>>;
-  price: PriceResult;
+  selection: OrderSelection;
+  onChange: (next: OrderSelection) => void;
 }) {
-  const setBags = (n: number) =>
-    setSel((s) => ({ ...s, bags: clamp(n) }));
-  const setBedding = (n: number) =>
-    setSel((s) => {
-      const beddingSets = clamp(n);
-      return {
-        ...s,
-        beddingSets,
-        ironBedding: beddingSets === 0 ? false : s.ironBedding,
-      };
+  const setBags = (n: number) => onChange({ ...sel, bags: clamp(n) });
+  const setBedding = (n: number) => {
+    const beddingSets = clamp(n);
+    onChange({
+      ...sel,
+      beddingSets,
+      ironBedding: beddingSets === 0 ? false : sel.ironBedding,
     });
+  };
   const setEveryday = (n: number) =>
-    setSel((s) => ({ ...s, everydayItems: clampPieces(n) }));
+    onChange({ ...sel, everydayItems: clampPieces(n) });
   const setFormal = (n: number) =>
-    setSel((s) => ({ ...s, formalItems: clampPieces(n) }));
+    onChange({ ...sel, formalItems: clampPieces(n) });
 
   // Everyday ironing stays off by default — most people don't iron everyday
   // clothes. For those who do, one tap fills a per-bag estimate so they never
@@ -56,16 +50,16 @@ export function StepWash({
   const estimate = clampPieces(estimatedGarments(sel.bags));
   const everydayHint =
     sel.everydayItems > 0
-      ? `${sel.everydayItems} plagg · + ${formatKr(sel.everydayItems * PROTO_PRICING.iron_per_garment_ore)}`
-      : `${formatKr(PROTO_PRICING.iron_per_garment_ore)} per plagg`;
+      ? `${sel.everydayItems} plagg · + ${formatKr(sel.everydayItems * PRICING.ironing.everyday)}`
+      : `${formatKr(PRICING.ironing.everyday)} per plagg`;
   const everydayAction =
     sel.everydayItems === 0 && estimate > 0
       ? { label: `Bruk anslag (~${estimate})`, onClick: () => setEveryday(estimate) }
       : undefined;
   const formalHint =
     sel.formalItems > 0
-      ? `${sel.formalItems} plagg · + ${formatKr(sel.formalItems * PROTO_PRICING.iron_formal_per_item_ore)}`
-      : `${formatKr(PROTO_PRICING.iron_formal_per_item_ore)} per plagg`;
+      ? `${sel.formalItems} plagg · + ${formatKr(sel.formalItems * PRICING.ironing.shirts_dresses)}`
+      : `${formatKr(PRICING.ironing.shirts_dresses)} per plagg`;
 
   return (
     <>
@@ -84,7 +78,7 @@ export function StepWash({
           value={sel.bags}
           onChange={setBags}
           unit={sel.bags === 1 ? 'pose' : 'poser'}
-          perUnit={`${formatKr(PROTO_PRICING.per_bag_ore)} / pose`}
+          perUnit={`${formatKr(PRICING.per_bag_ore)} / pose`}
         />
 
         {sel.bags > 0 && <BagVisual count={sel.bags} />}
@@ -106,7 +100,7 @@ export function StepWash({
           value={sel.beddingSets}
           onChange={setBedding}
           unit="sett"
-          perUnit={`${formatKr(PROTO_PRICING.per_bedding_set_ore)} / sett`}
+          perUnit={`${formatKr(PRICING.per_bedding_set_ore)} / sett`}
         />
       </Section>
 
@@ -134,24 +128,14 @@ export function StepWash({
           />
           <IroningToggle
             label="Stryk sengetøyet"
-            hint={`+ ${formatKr(PROTO_PRICING.iron_bedding_per_set_ore)} per sett`}
+            hint={`+ ${formatKr(PRICING.ironing.bedding)} per sett`}
             checked={sel.ironBedding}
             disabled={sel.beddingSets === 0}
             disabledHint="Legg til sengetøy først"
-            onChange={(v) => setSel((s) => ({ ...s, ironBedding: v }))}
+            onChange={(v) => onChange({ ...sel, ironBedding: v })}
           />
         </div>
       </Section>
-
-      <section className="mt-8 animate-in fade-in slide-in-from-bottom-3 duration-700 [animation-delay:260ms]">
-        <h2 className="font-serif text-xl font-semibold text-dark-gray">
-          Din bestilling
-        </h2>
-        <div className="mt-3">
-          <Breakdown price={price} />
-        </div>
-        <PriceDisclaimer />
-      </section>
     </>
   );
 }

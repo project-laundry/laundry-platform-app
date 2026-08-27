@@ -44,6 +44,7 @@ export function buildOrderData(
     scheduled_date: toISODateString(params.pickupDate),
     delivery_date: toISODateString(params.deliveryDate),
     needs_ironing: orderDefaults.default_needs_ironing,
+    customer_estimate: orderDefaults.customer_estimate ?? null,
     total_cost_ore: null, // Cleaner sets price after pickup
     // Address from order defaults
     street: address.street,

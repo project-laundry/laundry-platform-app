@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
-import { PriceCalculator } from "@/components/pricing-calculator/PriceCalculator";
+import { EstimateCalculator } from "@/components/order-flow/EstimateCalculator";
 
 export const metadata: Metadata = {
   title: "Priskalkulator | NooraCare",
@@ -21,13 +21,13 @@ export default function PrisKalkulatorPage() {
               Beregn din <span className="text-gradient">vaskepris</span>
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Bruk vår kalkulator for å estimere hva din klesvask vil koste.
-              Velg antall vask og eventuell stryking.
+              Velg hva du vil sende inn, så ser du med en gang omtrent hva det
+              koster. Endelig pris settes etter henting.
             </p>
           </div>
 
           {/* Calculator */}
-          <PriceCalculator />
+          <EstimateCalculator />
         </div>
       </main>
       <Footer />

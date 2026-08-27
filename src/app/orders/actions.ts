@@ -6,7 +6,7 @@ import { createSubscription, getActiveSubscriptionByCustomerId, getSubscriptionB
 import { createPaymentAgreement, getPaymentAgreementByProviderId, getPaymentAgreementsByCustomerId } from "@/lib/database/payment-agreements";
 import { getCustomerByUserId } from "@/lib/database/customers";
 import { validatePromoCode } from "@/lib/database/promo-codes";
-import { oreToNok } from "@/lib/config/pricing";
+import { calculateCustomerEstimate, oreToNok } from "@/lib/config/pricing";
 import {
   findAvailableCleaner,
   getAvailableWeekdaysForCity,
@@ -26,13 +26,15 @@ import type {
   Weekday,
   SubscriptionFrequency,
   SubscriptionOrderDefaults,
+  CustomerEstimate,
   OrderStatus,
   OrderPromo,
 } from "@/types/database";
+import type { OrderSelection } from "@/types/order-flow";
 
 export interface CreateSubscriptionInput {
   location: 'Bergen' | 'Oslo';
-  needsIroning: boolean; // Default preference for all orders
+  selection: OrderSelection; // What the customer plans to send each pickup
   isRecurring: boolean;
   frequency?: SubscriptionFrequency;
   firstPickupDate: string; // ISO date
@@ -43,8 +45,24 @@ export interface CreateSubscriptionInput {
     country: string;
     specialInstructions?: string;
   };
-  specialInstructions?: string;
   promoCode?: string;
+}
+
+/** Clamp a count to a sane integer range — never trust client input. */
+function sanitizeCount(value: number, max: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(max, Math.floor(value)));
+}
+
+function sanitizeSelection(sel: OrderSelection): OrderSelection {
+  const beddingSets = sanitizeCount(sel.beddingSets, 12);
+  return {
+    bags: sanitizeCount(sel.bags, 12),
+    beddingSets,
+    everydayItems: sanitizeCount(sel.everydayItems, 120),
+    formalItems: sanitizeCount(sel.formalItems, 120),
+    ironBedding: beddingSets > 0 && sel.ironBedding === true,
+  };
 }
 
 export interface CreateSubscriptionResult {
@@ -85,6 +103,29 @@ export async function createSubscriptionAction(
   if (!customer) {
     return { error: "Customer not found" };
   }
+
+  // Sanitize the customer's selection and recompute the estimate server-side —
+  // never trust a client-supplied total.
+  const selection = sanitizeSelection(input.selection);
+  const estimate = calculateCustomerEstimate(selection);
+  if (!estimate.hasItems) {
+    return { displayError: "Velg noe å vaske først", error: "Empty selection" };
+  }
+
+  // Ironing preference is implied by the selection
+  const needsIroning =
+    selection.everydayItems > 0 ||
+    selection.formalItems > 0 ||
+    (selection.ironBedding && selection.beddingSets > 0);
+
+  const customerEstimate: CustomerEstimate = {
+    bags: selection.bags,
+    bedding_sets: selection.beddingSets,
+    iron_everyday_items: selection.everydayItems,
+    iron_formal_items: selection.formalItems,
+    iron_bedding: selection.ironBedding,
+    estimated_total_ore: estimate.totalOre,
+  };
 
   // Validate promo code (if provided) and lock its discount terms.
   // Re-validated server-side here even though the UI validates inline — never trust the client.
@@ -157,11 +198,11 @@ export async function createSubscriptionAction(
       latitude: pickupCoords?.latitude ?? null,
       longitude: pickupCoords?.longitude ?? null,
     },
-    special_instructions: input.specialInstructions,
     location_city: input.location,
-    default_needs_ironing: input.needsIroning,
+    default_needs_ironing: needsIroning,
     default_cleaner_id: cleaner?.id || null,
     first_pickup_date: input.firstPickupDate,
+    customer_estimate: customerEstimate,
   };
 
   // Build payment agreement metadata.

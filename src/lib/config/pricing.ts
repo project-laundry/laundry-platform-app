@@ -1,25 +1,16 @@
 // NooraCare Pricing Configuration
 // All prices are stored in øre (1 NOK = 100 øre)
 
-// Ironing category keys
-export type IroningCategory =
-  | 'kids_pillow'
-  | 'tshirts_shorts'
-  | 'business_shirts'
-  | 'single_bedding'
-  | 'complex_dresses'
-  | 'double_bedding'
-  | 'king_bedding';
+import type { OrderSelection } from '@/types/order-flow';
 
-// Ironing quantities per category
+// Ironing groups (cleaner-binding pricing and customer estimate share these)
+export type IroningGroup = 'everyday' | 'shirts_dresses' | 'bedding';
+
+// Ironing quantities per group (bedding is counted in sets)
 export interface IroningDetails {
-  kids_pillow: number;
-  tshirts_shorts: number;
-  business_shirts: number;
-  single_bedding: number;
-  complex_dresses: number;
-  double_bedding: number;
-  king_bedding: number;
+  everyday: number;
+  shirts_dresses: number;
+  bedding: number;
 }
 
 // Complete laundry details for an order
@@ -43,19 +34,20 @@ export interface PriceBreakdown {
 }
 
 export const PRICING = {
-  // Per-load pricing (5kg load)
+  // Cleaner-binding pricing: per-load (5kg load)
   price_per_load_ore: 22900, // 229.00 NOK per 5kg load
 
-  // Ironing prices by category (in øre)
+  // Ironing prices by group (in øre) — shared by cleaner pricing and estimate
   ironing: {
-    kids_pillow: 2290, // 22.90 NOK - Kids clothes, pillow cases
-    tshirts_shorts: 2840, // 28.40 NOK - T-shirts, shorts, skirts, jeans, trousers
-    business_shirts: 3470, // 34.70 NOK - Business shirts, blouses, dresses
-    single_bedding: 5680, // 56.80 NOK - Single bedding, tablecloths ≤1.5m x 1.5m
-    complex_dresses: 6960, // 69.60 NOK - Complex dresses (maxi, puff sleeves, pleating)
-    double_bedding: 8510, // 85.10 NOK - Double/queen bedding, tablecloths ≤1.8m x 1.8m
-    king_bedding: 10260, // 102.60 NOK - King bedding, tablecloths ≤2.2m x 2.2m
+    everyday: 2900, // 29 NOK - Vanlige plagg, per piece
+    shirts_dresses: 4900, // 49 NOK - Skjorter & kjoler, per piece
+    bedding: 8500, // 85 NOK - Sengetøy, per set
   } as const,
+
+  // Customer-estimate pricing (order flow / price calculator)
+  per_bag_ore: 11900, // 119 NOK - a grocery bag of clothes ≈ half a load
+  per_bedding_set_ore: 22900, // one bedding set is washed on its own ≈ one full load
+  garments_per_bag: 10, // rough garment count used to seed the ironing estimate
 
   // Additional fees
   pickup_delivery_fee_ore: 10400, // 104.00 NOK (combined pickup + delivery)
@@ -69,38 +61,22 @@ export const PRICING = {
   vat_rate_percent: 25, // Norwegian MVA
 } as const;
 
-// Ironing category labels (Norwegian)
+// Ironing group labels (Norwegian)
 export const IRONING_LABELS: Record<
-  IroningCategory,
+  IroningGroup,
   { label: string; description: string }
 > = {
-  kids_pillow: {
-    label: 'Barneklær, putevar',
-    description: 'Små plagg og tekstiler',
+  everyday: {
+    label: 'Vanlige plagg',
+    description: 'T-skjorter, bukser, gensere og lignende',
   },
-  tshirts_shorts: {
-    label: 'T-skjorter, shorts, skjørt, jeans, bukser',
-    description: 'Standard hverdagsplagg',
+  shirts_dresses: {
+    label: 'Skjorter & kjoler',
+    description: 'Presses enkeltvis',
   },
-  business_shirts: {
-    label: 'Skjorter, bluser, kjoler',
-    description: 'Formelle plagg',
-  },
-  single_bedding: {
-    label: 'Enkelt sengetøy, duker (≤1.5m x 1.5m)',
-    description: 'Laken, små duker',
-  },
-  complex_dresses: {
-    label: 'Komplekse kjoler',
-    description: 'Puffermer, plissé, volanger, sari',
-  },
-  double_bedding: {
-    label: 'Dobbelt/queen sengetøy, duker (≤1.8m x 1.8m)',
-    description: 'Mellomstore tekstiler',
-  },
-  king_bedding: {
-    label: 'King sengetøy, duker (≤2.2m x 2.2m)',
-    description: 'Store tekstiler',
+  bedding: {
+    label: 'Sengetøy (per sett)',
+    description: 'Dynetrekk, laken og putevar',
   },
 };
 
@@ -124,24 +100,24 @@ export function formatNokWhole(ore: number): string {
   return Math.round(oreToNok(ore)).toString();
 }
 
+/** Whole-krone formatting with unit — estimates read cleaner without decimals. */
+export function formatKr(ore: number): string {
+  return `${Math.round(ore / 100).toLocaleString('nb-NO')} kr`;
+}
+
 /**
- * Get empty ironing details object with all categories set to 0
+ * Get empty ironing details object with all groups set to 0
  */
 export function getEmptyIroningDetails(): IroningDetails {
   return {
-    kids_pillow: 0,
-    tshirts_shorts: 0,
-    business_shirts: 0,
-    single_bedding: 0,
-    complex_dresses: 0,
-    double_bedding: 0,
-    king_bedding: 0,
+    everyday: 0,
+    shirts_dresses: 0,
+    bedding: 0,
   };
 }
 
 /**
- * Calculate order price based on laundry details
- * Reusable for both cleaner pricing and customer price estimator
+ * Calculate order price based on laundry details (cleaner-binding pricing)
  *
  * @param details - Laundry details (loads and ironing)
  * @returns Complete price breakdown including cleaner payout
@@ -151,13 +127,14 @@ export function calculateOrderPrice(details: LaundryDetails): PriceBreakdown {
   const totalLoads = details.dark_loads + details.white_loads;
   const loads_subtotal_ore = totalLoads * PRICING.price_per_load_ore;
 
-  // Calculate ironing subtotal
+  // Calculate ironing subtotal. Iterate the configured groups (not the stored
+  // keys) so legacy ironing_details blobs with unknown keys price as 0, not NaN.
   let ironing_subtotal_ore = 0;
   if (details.ironing_details) {
-    for (const [category, count] of Object.entries(details.ironing_details)) {
-      if (count > 0) {
-        ironing_subtotal_ore +=
-          count * PRICING.ironing[category as IroningCategory];
+    for (const group of Object.keys(PRICING.ironing) as IroningGroup[]) {
+      const count = details.ironing_details[group];
+      if (typeof count === 'number' && count > 0) {
+        ironing_subtotal_ore += count * PRICING.ironing[group];
       }
     }
   }
@@ -193,11 +170,124 @@ export function calculateOrderPrice(details: LaundryDetails): PriceBreakdown {
   };
 }
 
-/**
- * Get price for a specific ironing category in øre
- */
-export function getIroningPriceOre(category: IroningCategory): number {
-  return PRICING.ironing[category];
+// ─── Customer price estimate (order flow / price calculator) ─────────────────
+// The customer picks bags/sets/pieces; the cleaner still sets the binding price
+// after pickup. These lines only set expectations.
+
+export interface PriceLine {
+  key: string;
+  label: string;
+  detail: string;
+  amountOre: number;
+}
+
+export interface PriceResult {
+  lines: PriceLine[];
+  hasItems: boolean;
+  itemsSubtotalOre: number; // washing + ironing, before flat fees
+  feesOre: number; // pickup/delivery + service fee
+  subtotalOre: number; // everything before the minimum kicks in
+  minimumApplied: boolean;
+  totalOre: number;
+}
+
+/** Estimated number of garments to iron for a given number of bags. Used to
+ *  seed the everyday-clothes count so the customer rarely has to count by hand. */
+export function estimatedGarments(bags: number): number {
+  return bags * PRICING.garments_per_bag;
+}
+
+export function calculateCustomerEstimate(sel: OrderSelection): PriceResult {
+  const lines: PriceLine[] = [];
+
+  if (sel.bags > 0) {
+    lines.push({
+      key: 'wash',
+      label: 'Vask av klær',
+      detail: `${sel.bags} ${sel.bags === 1 ? 'pose' : 'poser'}`,
+      amountOre: sel.bags * PRICING.per_bag_ore,
+    });
+  }
+
+  if (sel.beddingSets > 0) {
+    lines.push({
+      key: 'bedding',
+      label: 'Sengetøy',
+      detail: `${sel.beddingSets} sett · egen vask`,
+      amountOre: sel.beddingSets * PRICING.per_bedding_set_ore,
+    });
+  }
+
+  if (sel.everydayItems > 0) {
+    lines.push({
+      key: 'iron-everyday',
+      label: 'Stryking av vanlige plagg',
+      detail: `${sel.everydayItems} plagg`,
+      amountOre: sel.everydayItems * PRICING.ironing.everyday,
+    });
+  }
+
+  if (sel.formalItems > 0) {
+    lines.push({
+      key: 'iron-formal',
+      label: 'Stryking av skjorter & kjoler',
+      detail: `${sel.formalItems} plagg · per stykk`,
+      amountOre: sel.formalItems * PRICING.ironing.shirts_dresses,
+    });
+  }
+
+  if (sel.beddingSets > 0 && sel.ironBedding) {
+    lines.push({
+      key: 'iron-bedding',
+      label: 'Stryking av sengetøy',
+      detail: `${sel.beddingSets} sett`,
+      amountOre: sel.beddingSets * PRICING.ironing.bedding,
+    });
+  }
+
+  const hasItems = lines.length > 0;
+  const itemsSubtotalOre = lines.reduce((sum, l) => sum + l.amountOre, 0);
+
+  if (!hasItems) {
+    return {
+      lines,
+      hasItems: false,
+      itemsSubtotalOre: 0,
+      feesOre: 0,
+      subtotalOre: 0,
+      minimumApplied: false,
+      totalOre: 0,
+    };
+  }
+
+  // Flat fees only appear once there's something to pick up.
+  lines.push({
+    key: 'pickup',
+    label: 'Henting & levering',
+    detail: 'Til døren',
+    amountOre: PRICING.pickup_delivery_fee_ore,
+  });
+  lines.push({
+    key: 'service',
+    label: 'Servicegebyr',
+    detail: '',
+    amountOre: PRICING.service_fee_ore,
+  });
+
+  const feesOre = PRICING.pickup_delivery_fee_ore + PRICING.service_fee_ore;
+  const subtotalOre = itemsSubtotalOre + feesOre;
+  const minimumApplied = subtotalOre < PRICING.minimum_order_ore;
+  const totalOre = minimumApplied ? PRICING.minimum_order_ore : subtotalOre;
+
+  return {
+    lines,
+    hasItems,
+    itemsSubtotalOre,
+    feesOre,
+    subtotalOre,
+    minimumApplied,
+    totalOre,
+  };
 }
 
 /**
@@ -230,26 +320,4 @@ export function computeDiscountOre(
   }
 
   return Math.max(0, Math.min(discount, totalOre));
-}
-
-/**
- * Validate ironing details structure
- */
-export function isValidIroningDetails(details: unknown): details is IroningDetails {
-  if (!details || typeof details !== 'object') return false;
-  const requiredKeys: IroningCategory[] = [
-    'kids_pillow',
-    'tshirts_shorts',
-    'business_shirts',
-    'single_bedding',
-    'complex_dresses',
-    'double_bedding',
-    'king_bedding',
-  ];
-  return requiredKeys.every(
-    (key) =>
-      key in details &&
-      typeof (details as Record<string, unknown>)[key] === 'number' &&
-      (details as Record<string, number>)[key] >= 0
-  );
 }

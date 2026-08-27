@@ -71,6 +71,14 @@ const ORDER_DEFAULTS = {
   default_needs_ironing: true,
   default_cleaner_id: 'cleaner-1',
   first_pickup_date: '2030-01-04', // future, so the chosen date is used directly
+  customer_estimate: {
+    bags: 2,
+    bedding_sets: 1,
+    iron_everyday_items: 0,
+    iron_formal_items: 3,
+    iron_bedding: false,
+    estimated_total_ore: 73530,
+  },
 };
 
 const PROMO = {
@@ -208,7 +216,13 @@ describe('agreement-activated', () => {
     expect(activateSubscriptionOnAgreementActivation).toHaveBeenCalledWith('sub-1');
     expect(createOrder).toHaveBeenCalledOnce();
     const orderArg = m(createOrder).mock.calls[0][0];
-    expect(orderArg).toMatchObject({ subscription_id: 'sub-1', customer_id: 'cust-1', total_cost_ore: null, scheduled_date: '2030-01-04' });
+    expect(orderArg).toMatchObject({
+      subscription_id: 'sub-1',
+      customer_id: 'cust-1',
+      total_cost_ore: null,
+      scheduled_date: '2030-01-04',
+      customer_estimate: ORDER_DEFAULTS.customer_estimate,
+    });
     expect(recordPromoRedemption).toHaveBeenCalledWith(expect.objectContaining({ promoCodeId: 'promo-1', orderId: 'ord-1' }));
   });
 

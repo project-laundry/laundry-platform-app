@@ -62,7 +62,13 @@ const PROMO = {
 
 const baseInput: CreateSubscriptionInput = {
   location: 'Oslo',
-  needsIroning: true,
+  selection: {
+    bags: 2,
+    beddingSets: 1,
+    everydayItems: 0,
+    formalItems: 3,
+    ironBedding: false,
+  },
   isRecurring: true,
   frequency: 'weekly',
   firstPickupDate: '2030-01-04',
@@ -73,7 +79,6 @@ const baseInput: CreateSubscriptionInput = {
     country: 'Norge',
     specialInstructions: 'Ring på',
   },
-  specialInstructions: 'Hentes kl 09',
 };
 
 /** Wire the common happy-path return values; individual tests override as needed. */
@@ -159,10 +164,50 @@ describe('createSubscriptionAction — recurring orders', () => {
         customer_id: 'cust-1',
         frequency: 'weekly',
         payment_agreement_id: 'pa-1',
-        order_defaults: expect.objectContaining({ first_pickup_date: '2030-01-04', default_cleaner_id: 'cleaner-1' }),
+        order_defaults: expect.objectContaining({
+          first_pickup_date: '2030-01-04',
+          default_cleaner_id: 'cleaner-1',
+          // Ironing is implied by the selection (3 formal items)
+          default_needs_ironing: true,
+          customer_estimate: expect.objectContaining({
+            bags: 2,
+            bedding_sets: 1,
+            iron_formal_items: 3,
+            // 2*11900 + 1*22900 + 3*4900 + 10400 + 1830 = 73630
+            estimated_total_ore: 73630,
+          }),
+        }),
       })
     );
     expect(result).toEqual({ redirectUrl: 'https://vipps.example/redirect', agreementId: 'agr-1' });
+  });
+
+  it('rejects an empty selection before touching Vipps', async () => {
+    happyPathMocks();
+
+    const result = await createSubscriptionAction({
+      ...baseInput,
+      selection: { bags: 0, beddingSets: 0, everydayItems: 0, formalItems: 0, ironBedding: false },
+    });
+
+    expect(result.displayError).toBe('Velg noe å vaske først');
+    expect(createVippsAgreement).not.toHaveBeenCalled();
+    expect(createPaymentAgreement).not.toHaveBeenCalled();
+  });
+
+  it('derives default_needs_ironing: false for a wash-only selection', async () => {
+    happyPathMocks();
+
+    await createSubscriptionAction({
+      ...baseInput,
+      selection: { bags: 2, beddingSets: 0, everydayItems: 0, formalItems: 0, ironBedding: false },
+    });
+
+    expect(createSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({
+        order_defaults: expect.objectContaining({ default_needs_ironing: false }),
+      })
+    );
   });
 
   it('surfaces a failure to create the subscription', async () => {
@@ -189,7 +234,10 @@ describe('createSubscriptionAction — one-time orders', () => {
     expect(createPaymentAgreement).toHaveBeenCalledWith(
       expect.objectContaining({
         provider_metadata: expect.objectContaining({
-          order_defaults: expect.objectContaining({ location_city: 'Oslo' }),
+          order_defaults: expect.objectContaining({
+            location_city: 'Oslo',
+            customer_estimate: expect.objectContaining({ bags: 2 }),
+          }),
         }),
       })
     );

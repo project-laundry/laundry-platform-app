@@ -70,7 +70,7 @@ export function DashboardTabs({ subscription, nextOrder, completedOrders, upcomi
                     <p className="font-serif text-2xl text-foreground mb-2">Ingen kommende ordrer</p>
                     <p className="text-muted-foreground">Bestill en ny vask for å komme i gang</p>
                   </div>
-                  <Link href="/orders/service">
+                  <Link href="/orders/wash">
                     <Button
                       variant="hero"
                       size="lg"
