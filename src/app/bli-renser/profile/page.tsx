@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCleanerOnboardingStore } from '@/stores/cleaner-onboarding-store';
@@ -10,25 +10,29 @@ import { FormSelect } from '@/components/forms/FormSelect';
 import type { CleanerExperienceLevel, CleanerSpecialization } from '@/types/database';
 
 export default function ProfilePage() {
+  // Mount the form only after the store has rehydrated, so its initial state
+  // can be seeded from persisted data.
+  const hasHydrated = useCleanerOnboardingStore((state) => state._hasHydrated);
+  if (!hasHydrated) return null;
+  return <ProfileForm />;
+}
+
+function ProfileForm() {
   const router = useRouter();
   const { cleanerData, updateCleanerData } = useCleanerOnboardingStore();
 
-  const [displayName, setDisplayName] = useState('');
-  const [experienceLevel, setExperienceLevel] = useState<CleanerExperienceLevel>('beginner');
-  const [specializations, setSpecializations] = useState<CleanerSpecialization[]>([]);
-  const [languages, setLanguages] = useState<string[]>(['no']); // Norwegian by default
+  const [displayName, setDisplayName] = useState(cleanerData?.displayName || '');
+  const [experienceLevel, setExperienceLevel] = useState<CleanerExperienceLevel>(
+    cleanerData?.experienceLevel || 'beginner'
+  );
+  const [specializations, setSpecializations] = useState<CleanerSpecialization[]>(
+    cleanerData?.specializations || []
+  );
+  const [languages, setLanguages] = useState<string[]>(
+    cleanerData?.languages || ['no'] // Norwegian by default
+  );
 
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  // Load data from store on mount
-  useEffect(() => {
-    if (cleanerData) {
-      setDisplayName(cleanerData.displayName || '');
-      setExperienceLevel(cleanerData.experienceLevel || 'beginner');
-      setSpecializations(cleanerData.specializations || []);
-      setLanguages(cleanerData.languages || ['no']);
-    }
-  }, [cleanerData]);
 
   const toggleSpecialization = (spec: CleanerSpecialization) => {
     setSpecializations(prev =>

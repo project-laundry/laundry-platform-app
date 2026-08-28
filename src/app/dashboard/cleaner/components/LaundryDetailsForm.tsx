@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { IroningQuantityInput } from './IroningQuantityInput';
@@ -63,14 +63,10 @@ export function LaundryDetailsForm({
     ironing_details: needsIroning ? ironingDetails : null,
   }), [darkLoads, whiteLoads, needsIroning, ironingDetails]);
 
-  const [priceBreakdown, setPriceBreakdown] = useState<PriceBreakdown>(() =>
-    calculateOrderPrice(getLaundryDetails())
+  const priceBreakdown = useMemo<PriceBreakdown>(
+    () => calculateOrderPrice(getLaundryDetails()),
+    [getLaundryDetails]
   );
-
-  // Update price when inputs change
-  useEffect(() => {
-    setPriceBreakdown(calculateOrderPrice(getLaundryDetails()));
-  }, [getLaundryDetails]);
 
   const handleIroningChange = (category: IroningGroup, value: number) => {
     setIroningDetails((prev) => ({

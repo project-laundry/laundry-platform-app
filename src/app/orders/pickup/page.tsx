@@ -30,34 +30,34 @@ const FREQUENCY_LABELS: Record<Frequency, string> = {
 };
 
 export default function PickupPage() {
+  // Mount the form only after the store has rehydrated, so its initial state
+  // can be seeded from persisted data.
+  const hasHydrated = useOrderFlowStore((state) => state._hasHydrated);
+  if (!hasHydrated) return null;
+  return <PickupForm />;
+}
+
+function PickupForm() {
   const router = useRouter();
   const orderData = useOrderFlowStore((state) => state.orderData);
   const updateOrderData = useOrderFlowStore((state) => state.updateOrderData);
-  const hasHydrated = useOrderFlowStore((state) => state._hasHydrated);
 
-  const [street, setStreet] = useState('');
-  const [postalCode, setPostalCode] = useState('');
-  const [instructions, setInstructions] = useState('');
-  const [pickupDate, setPickupDate] = useState('');
-  const [isRecurring, setIsRecurring] = useState(false);
-  const [frequency, setFrequency] = useState<Frequency>('weekly');
-  const [availableWeekdays, setAvailableWeekdays] = useState<Weekday[] | null>(null);
+  const [street, setStreet] = useState(orderData?.address?.street ?? '');
+  const [postalCode, setPostalCode] = useState(orderData?.address?.postalCode ?? '');
+  const [instructions, setInstructions] = useState(
+    orderData?.address?.specialInstructions ?? ''
+  );
+  const [pickupDateChoice, setPickupDateChoice] = useState(
+    orderData?.firstPickupDate ?? ''
+  );
+  const [isRecurring, setIsRecurring] = useState(orderData?.isRecurring ?? false);
+  const [frequency, setFrequency] = useState<Frequency>(orderData?.frequency ?? 'weekly');
+  const [weekdaysFetch, setWeekdaysFetch] = useState<{
+    city: SupportedCity;
+    weekdays: Weekday[];
+  } | null>(null);
   const [validating, setValidating] = useState(false);
   const [addressError, setAddressError] = useState<string | null>(null);
-
-  // Initialize form state from the store once hydrated.
-  useEffect(() => {
-    if (!hasHydrated || !orderData) return;
-    if (orderData.address) {
-      setStreet(orderData.address.street);
-      setPostalCode(orderData.address.postalCode);
-      setInstructions(orderData.address.specialInstructions);
-    }
-    if (orderData.firstPickupDate) setPickupDate(orderData.firstPickupDate);
-    setIsRecurring(orderData.isRecurring ?? false);
-    if (orderData.frequency) setFrequency(orderData.frequency);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasHydrated]);
 
   const derivedCity: SupportedCity | null = isValidPostalCodeFormat(postalCode)
     ? getCityFromPostalCode(postalCode)
@@ -66,35 +66,34 @@ export default function PickupPage() {
 
   // Fetch which weekdays cleaners in this city work.
   useEffect(() => {
-    if (!derivedCity) {
-      setAvailableWeekdays(null);
-      return;
-    }
+    if (!derivedCity) return;
     let cancelled = false;
-    setAvailableWeekdays(null);
     getAvailableWeekdaysAction(derivedCity)
       .then((weekdays) => {
-        if (!cancelled) setAvailableWeekdays(weekdays);
+        if (!cancelled) setWeekdaysFetch({ city: derivedCity, weekdays });
       })
       .catch(() => {
-        if (!cancelled) setAvailableWeekdays([]);
+        if (!cancelled) setWeekdaysFetch({ city: derivedCity, weekdays: [] });
       });
     return () => {
       cancelled = true;
     };
   }, [derivedCity]);
 
+  // Only trust a fetch result for the current city (null = loading).
+  const availableWeekdays =
+    derivedCity && weekdaysFetch?.city === derivedCity ? weekdaysFetch.weekdays : null;
+
   const dateChips = useMemo(
     () => (availableWeekdays ? buildDateChips(availableWeekdays) : []),
     [availableWeekdays]
   );
 
-  // Clear a selected date that's no longer offered (e.g. after a city change).
-  useEffect(() => {
-    if (pickupDate && availableWeekdays && !dateChips.some((c) => c.iso === pickupDate)) {
-      setPickupDate('');
-    }
-  }, [pickupDate, availableWeekdays, dateChips]);
+  // Ignore a selected date that's no longer offered (e.g. after a city change).
+  const pickupDate =
+    availableWeekdays && !dateChips.some((c) => c.iso === pickupDateChoice)
+      ? ''
+      : pickupDateChoice;
 
   const price = useMemo(
     () =>
@@ -271,7 +270,7 @@ export default function PickupPage() {
                 <button
                   key={d.iso}
                   type="button"
-                  onClick={() => setPickupDate(d.iso)}
+                  onClick={() => setPickupDateChoice(d.iso)}
                   className={`flex w-16 shrink-0 flex-col items-center gap-0.5 rounded-2xl border px-2 py-3 transition-all ${
                     active
                       ? 'border-sea-green bg-sea-green/10 text-sea-green'

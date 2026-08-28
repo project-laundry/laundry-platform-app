@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCleanerOnboardingStore } from '@/stores/cleaner-onboarding-store';
@@ -12,27 +12,26 @@ import { validateTaxId, validateBankAccount } from '@/lib/validation/cleaner';
 import type { CleanerBusinessType } from '@/types/database';
 
 export default function BusinessInfoPage() {
+  // Mount the form only after the store has rehydrated, so its initial state
+  // can be seeded from persisted data.
+  const hasHydrated = useCleanerOnboardingStore((state) => state._hasHydrated);
+  if (!hasHydrated) return null;
+  return <BusinessInfoForm />;
+}
+
+function BusinessInfoForm() {
   const router = useRouter();
   const { cleanerData, updateCleanerData } = useCleanerOnboardingStore();
 
-  const [businessType, setBusinessType] = useState<CleanerBusinessType>('individual');
-  const [taxId, setTaxId] = useState('');
-  const [businessName, setBusinessName] = useState('');
-  const [businessAddress, setBusinessAddress] = useState('');
-  const [bankAccount, setBankAccount] = useState('');
+  const [businessType, setBusinessType] = useState<CleanerBusinessType>(
+    cleanerData?.businessType || 'individual'
+  );
+  const [taxId, setTaxId] = useState(cleanerData?.taxId || '');
+  const [businessName, setBusinessName] = useState(cleanerData?.businessName || '');
+  const [businessAddress, setBusinessAddress] = useState(cleanerData?.businessAddress || '');
+  const [bankAccount, setBankAccount] = useState(cleanerData?.bankAccount || '');
 
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  // Load data from store on mount
-  useEffect(() => {
-    if (cleanerData) {
-      setBusinessType(cleanerData.businessType || 'individual');
-      setTaxId(cleanerData.taxId || '');
-      setBusinessName(cleanerData.businessName || '');
-      setBusinessAddress(cleanerData.businessAddress || '');
-      setBankAccount(cleanerData.bankAccount || '');
-    }
-  }, [cleanerData]);
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
