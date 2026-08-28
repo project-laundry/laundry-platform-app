@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   getPendingAssignmentOrders,
   getCleanersForCity,
@@ -16,16 +16,10 @@ export default function AdminOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadOrders();
-  }, []);
-
-  async function loadOrders() {
-    setLoading(true);
+  // Fetch pending orders and the cleaner options for each of their cities.
+  const fetchPendingData = useCallback(async () => {
     const pendingOrders = await getPendingAssignmentOrders();
-    setOrders(pendingOrders);
 
-    // Load cleaners for each unique city
     const cities = [...new Set(pendingOrders.map((o) => o.city))];
     const cleanersMap: Record<string, CleanerOption[]> = {};
 
@@ -33,9 +27,27 @@ export default function AdminOrdersPage() {
       cleanersMap[city] = await getCleanersForCity(city);
     }
 
-    setCleanersByCity(cleanersMap);
-    setLoading(false);
-  }
+    return { pendingOrders, cleanersMap };
+  }, []);
+
+  const applyPendingData = useCallback(
+    ({
+      pendingOrders,
+      cleanersMap,
+    }: {
+      pendingOrders: OrderWithDetails[];
+      cleanersMap: Record<string, CleanerOption[]>;
+    }) => {
+      setOrders(pendingOrders);
+      setCleanersByCity(cleanersMap);
+      setLoading(false);
+    },
+    []
+  );
+
+  useEffect(() => {
+    fetchPendingData().then(applyPendingData);
+  }, [fetchPendingData, applyPendingData]);
 
   async function handleAssign(orderId: string, cleanerId: string) {
     setAssigning(orderId);
@@ -43,7 +55,7 @@ export default function AdminOrdersPage() {
 
     if (result.success) {
       // Reload orders after assignment
-      await loadOrders();
+      applyPendingData(await fetchPendingData());
     } else {
       alert(result.error || 'Failed to assign cleaner');
     }

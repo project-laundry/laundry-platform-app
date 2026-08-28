@@ -16,9 +16,7 @@ function OrderSuccessPageContent() {
   const [viewState, setViewState] = useState<ViewState>('loading');
   const resetOrderData = useOrderFlowStore((state) => state.resetOrderData);
 
-  const checkStatus = useCallback(async () => {
-    setViewState('loading');
-
+  const pollStatus = useCallback(async (): Promise<ViewState> => {
     for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
       let status: CheckoutStatus;
       try {
@@ -31,13 +29,11 @@ function OrderSuccessPageContent() {
         // Only clear the order flow once the agreement is confirmed, so an
         // aborted checkout can be retried with the same details.
         resetOrderData();
-        setViewState('active');
-        return;
+        return 'active';
       }
 
       if (status === 'cancelled') {
-        setViewState('cancelled');
-        return;
+        return 'cancelled';
       }
 
       // pending / unknown — wait and retry (unless this was the last attempt)
@@ -47,12 +43,17 @@ function OrderSuccessPageContent() {
     }
 
     // Still not confirmed after polling — likely awaiting confirmation in app
-    setViewState('pending');
+    return 'pending';
   }, [resetOrderData]);
 
   useEffect(() => {
-    checkStatus();
-  }, [checkStatus]);
+    pollStatus().then(setViewState);
+  }, [pollStatus]);
+
+  const retryCheck = () => {
+    setViewState('loading');
+    pollStatus().then(setViewState);
+  };
 
   return (
     <div className="min-h-screen bg-soft-gray">
@@ -69,7 +70,7 @@ function OrderSuccessPageContent() {
         {viewState === 'loading' && <LoadingView />}
         {viewState === 'active' && <SuccessView />}
         {viewState === 'cancelled' && <CancelledView />}
-        {viewState === 'pending' && <PendingView onRetry={checkStatus} />}
+        {viewState === 'pending' && <PendingView onRetry={retryCheck} />}
       </div>
     </div>
   );

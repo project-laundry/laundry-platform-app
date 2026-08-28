@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCleanerOnboardingStore } from '@/stores/cleaner-onboarding-store';
@@ -10,25 +10,23 @@ import { FormSelect } from '@/components/forms/FormSelect';
 import { validateYear } from '@/lib/validation/cleaner';
 
 export default function EquipmentPage() {
+  // Mount the form only after the store has rehydrated, so its initial state
+  // can be seeded from persisted data.
+  const hasHydrated = useCleanerOnboardingStore((state) => state._hasHydrated);
+  if (!hasHydrated) return null;
+  return <EquipmentForm />;
+}
+
+function EquipmentForm() {
   const router = useRouter();
   const { cleanerData, updateCleanerData } = useCleanerOnboardingStore();
 
-  const [machineBrand, setMachineBrand] = useState('');
-  const [machineCapacityKg, setMachineCapacityKg] = useState('');
-  const [machineYear, setMachineYear] = useState('');
-  const [machineCondition, setMachineCondition] = useState('');
+  const [machineBrand, setMachineBrand] = useState(cleanerData?.machineBrand || '');
+  const [machineCapacityKg, setMachineCapacityKg] = useState(cleanerData?.machineCapacityKg || '');
+  const [machineYear, setMachineYear] = useState(cleanerData?.machineYear || '');
+  const [machineCondition, setMachineCondition] = useState(cleanerData?.machineCondition || '');
 
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  // Load data from store on mount
-  useEffect(() => {
-    if (cleanerData) {
-      setMachineBrand(cleanerData.machineBrand || '');
-      setMachineCapacityKg(cleanerData.machineCapacityKg || '');
-      setMachineYear(cleanerData.machineYear || '');
-      setMachineCondition(cleanerData.machineCondition || '');
-    }
-  }, [cleanerData]);
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};

@@ -5,14 +5,6 @@ const eslintConfig = [
   ...coreWebVitals,
   ...typescript,
   {
-    // New react-hooks v7 rules; existing code predates them. Re-enable when
-    // the flagged setState-in-effect patterns are refactored.
-    rules: {
-      "react-hooks/set-state-in-effect": "off",
-      "react-hooks/immutability": "off",
-    },
-  },
-  {
     ignores: [
       "node_modules/**",
       ".next/**",

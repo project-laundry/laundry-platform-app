@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCleanerOnboardingStore } from '@/stores/cleaner-onboarding-store';
@@ -9,23 +9,22 @@ import { FormInput } from '@/components/forms/FormInput';
 import { validatePostalCode } from '@/lib/validation/cleaner';
 
 export default function ServicesPage() {
+  // Mount the form only after the store has rehydrated, so its initial state
+  // can be seeded from persisted data.
+  const hasHydrated = useCleanerOnboardingStore((state) => state._hasHydrated);
+  if (!hasHydrated) return null;
+  return <ServicesForm />;
+}
+
+function ServicesForm() {
   const router = useRouter();
   const { cleanerData, updateCleanerData } = useCleanerOnboardingStore();
 
-  const [baseStreet, setBaseStreet] = useState('');
-  const [basePostalCode, setBasePostalCode] = useState('');
-  const [baseCity, setBaseCity] = useState('');
+  const [baseStreet, setBaseStreet] = useState(cleanerData?.baseStreet || '');
+  const [basePostalCode, setBasePostalCode] = useState(cleanerData?.basePostalCode || '');
+  const [baseCity, setBaseCity] = useState(cleanerData?.baseCity || '');
 
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  // Load data from store on mount
-  useEffect(() => {
-    if (cleanerData) {
-      setBaseStreet(cleanerData.baseStreet || '');
-      setBasePostalCode(cleanerData.basePostalCode || '');
-      setBaseCity(cleanerData.baseCity || '');
-    }
-  }, [cleanerData]);
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
