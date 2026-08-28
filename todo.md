@@ -1,5 +1,0 @@
-- I think we can remove payment_type from Payment. All payments should be tracked. And also we can just see the subscription_id if the payment is a subscription or not.
-- Subscription status is payment_pending. After creation. THis is wrong
-- Abort Vipps lead to SUCCESS
-- When chosing simple order, the DB is storing Monthly
-- frequency should be enum in DB
