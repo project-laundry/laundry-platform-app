@@ -25,9 +25,9 @@ The application supports three user roles:
 
 ## Technology Stack
 
-- **Framework**: Next.js 15.5.4 with TypeScript and App Router
+- **Framework**: Next.js 16 with TypeScript and App Router
 - **UI**: Tailwind CSS v4
-- **Runtime**: React 19.1.0
+- **Runtime**: React 19.2
 - **Path Aliases**: `@/*` maps to `./src/*`
 - **Language**: Norwegian (locale `no`)
 
