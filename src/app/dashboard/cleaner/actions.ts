@@ -20,7 +20,7 @@ import {
   type LaundryDetails,
   type PriceBreakdown,
 } from '@/lib/config/pricing';
-import { createChargeForCompletedOrder } from '@/lib/payments/vipps/service';
+import { createChargeForCompletedOrder, stopVippsAgreementForCancelledSubscription } from '@/lib/payments/vipps/service';
 import type { OrderStatus } from '@/types/database';
 
 export type { OrderWithCustomer };
@@ -265,6 +265,9 @@ export async function finishOrderAction(
     }
   } else {
     console.log(`Order ${order.order_number} total is 0 after discount — skipping Vipps charge`);
+    if (order.subscription_id) {
+      await stopVippsAgreementForCancelledSubscription(order.subscription_id);
+    }
   }
 
   revalidatePath('/dashboard/cleaner');

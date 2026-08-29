@@ -27,7 +27,10 @@ vi.mock('@/lib/database/payments', () => ({
   failPaymentWithMetadata: vi.fn(),
   updatePaymentWithMetadata: vi.fn(),
 }));
-vi.mock('@/lib/payments/vipps/service', () => ({ cancelVippsAgreement: vi.fn() }));
+vi.mock('@/lib/payments/vipps/service', () => ({
+  cancelVippsAgreement: vi.fn(),
+  stopVippsAgreementForCancelledSubscription: vi.fn(),
+}));
 vi.mock('@/lib/database/orders', () => ({ createOrder: vi.fn() }));
 vi.mock('@/lib/database/promo-codes', () => ({ recordPromoRedemption: vi.fn() }));
 
@@ -50,7 +53,7 @@ import {
   failPaymentWithMetadata,
   updatePaymentWithMetadata,
 } from '@/lib/database/payments';
-import { cancelVippsAgreement } from '@/lib/payments/vipps/service';
+import { cancelVippsAgreement, stopVippsAgreementForCancelledSubscription } from '@/lib/payments/vipps/service';
 import { createOrder } from '@/lib/database/orders';
 import { recordPromoRedemption } from '@/lib/database/promo-codes';
 import { POST } from './route';
@@ -156,11 +159,24 @@ describe('charge events', () => {
   it('does NOT stop the agreement for a recurring (subscription) order', async () => {
     m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', status: 'active', customer_id: 'cust-1' });
     m(getPaymentByReference).mockResolvedValue({ id: 'pay-1' });
-    m(getSubscriptionByPaymentAgreementId).mockResolvedValue({ id: 'sub-1' }); // recurring
+    m(getSubscriptionByPaymentAgreementId).mockResolvedValue({ id: 'sub-1' }); // recurring, still active
 
     await post(chargePayload({ eventType: 'recurring.charge-captured.v1' }));
 
     expect(capturePaymentWithMetadata).toHaveBeenCalledOnce();
+    expect(cancelVippsAgreement).not.toHaveBeenCalled();
+    expect(stopPaymentAgreement).not.toHaveBeenCalled();
+    expect(stopVippsAgreementForCancelledSubscription).not.toHaveBeenCalled();
+  });
+
+  it('triggers the deferred agreement stop after capture when the linked subscription is cancelled', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', status: 'active', customer_id: 'cust-1' });
+    m(getPaymentByReference).mockResolvedValue({ id: 'pay-1' });
+    m(getSubscriptionByPaymentAgreementId).mockResolvedValue({ id: 'sub-1', status: 'cancelled' });
+
+    await post(chargePayload({ eventType: 'recurring.charge-captured.v1' }));
+
+    expect(stopVippsAgreementForCancelledSubscription).toHaveBeenCalledWith('sub-1');
     expect(cancelVippsAgreement).not.toHaveBeenCalled();
     expect(stopPaymentAgreement).not.toHaveBeenCalled();
   });
