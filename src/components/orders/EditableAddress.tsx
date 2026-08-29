@@ -100,24 +100,40 @@ export function EditableAddress({
     setIsEditing(false);
   };
 
-  return (
-    <div className="rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="font-serif text-lg font-semibold text-dark-gray">Adresse</h3>
-        {isEditable && !isEditing && (
+  if (!isEditing) {
+    return (
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <MapPin className="mt-0.5 size-4 shrink-0 text-sea-green" />
+          <div>
+            <p className="font-medium text-dark-gray">
+              {initialAddress.street}, {initialAddress.postalCode} {initialAddress.city}
+            </p>
+            {initialAddress.specialInstructionsAddress && (
+              <p className="text-sm italic text-medium-gray">
+                {initialAddress.specialInstructionsAddress}
+              </p>
+            )}
+          </div>
+        </div>
+        {isEditable && (
           <button
             type="button"
             onClick={() => setIsEditing(true)}
-            className="flex items-center gap-1.5 text-sm font-medium text-nordic-blue transition-colors hover:text-sea-green"
+            className="flex shrink-0 items-center gap-1.5 text-sm font-medium text-nordic-blue transition-colors hover:text-sea-green"
           >
             <Pencil className="size-3.5" />
             <span>Rediger</span>
           </button>
         )}
       </div>
+    );
+  }
 
-      {isEditing ? (
-        <div className="mt-4 space-y-4">
+  return (
+    <div className="animate-in fade-in slide-in-from-top-1 duration-300">
+      <p className="text-sm font-medium text-dark-gray">Adresse</p>
+      <div className="mt-3 space-y-4">
           {/* Street Input */}
           <label className="block">
             <span className="mb-1.5 block text-sm font-medium text-dark-gray">
@@ -206,24 +222,6 @@ export function EditableAddress({
             </button>
           </div>
         </div>
-      ) : (
-        <div className="mt-4 flex items-start gap-3">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sea-green/12 text-sea-green">
-            <MapPin className="size-5" />
-          </span>
-          <div className="pt-1.5">
-            <p className="text-dark-gray">{initialAddress.street}</p>
-            <p className="text-dark-gray">
-              {initialAddress.postalCode} {initialAddress.city}
-            </p>
-            {initialAddress.specialInstructionsAddress && (
-              <p className="mt-2 text-sm italic text-medium-gray">
-                {initialAddress.specialInstructionsAddress}
-              </p>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
