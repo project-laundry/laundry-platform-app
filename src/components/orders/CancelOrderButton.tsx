@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { OrderStatus } from '@/types/database';
-import { XCircle, ArrowRight, Clock } from 'lucide-react';
+import { XCircle, Clock } from 'lucide-react';
 
 interface CancelOrderButtonProps {
   orderId: string;
@@ -27,46 +27,22 @@ export function CancelOrderButton({
 
   if (!canCancel) {
     return (
-      <div className="rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur">
-        <div className="flex items-start gap-3">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-cream-dark/60 text-medium-gray">
-            <Clock className="size-5" />
-          </span>
-          <div className="flex-1">
-            <h3 className="font-serif text-lg font-semibold text-dark-gray">
-              Kansellering ikke mulig
-            </h3>
-            <p className="mt-1 text-sm text-medium-gray">
-              Bestillinger kan kun kanselleres mer enn 24 timer før henting.
-            </p>
-          </div>
-        </div>
+      <div className="flex items-start gap-2 rounded-2xl bg-cream/70 px-3.5 py-2.5 text-sm text-medium-gray">
+        <Clock className="mt-0.5 size-4 shrink-0 text-sea-green" />
+        <p>Kansellering er kun mulig mer enn 24 timer før henting.</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur">
-      <div className="flex items-start gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600">
-          <XCircle className="size-5" />
-        </span>
-        <div className="flex-1">
-          <h3 className="font-serif text-lg font-semibold text-dark-gray">
-            Kanseller bestilling
-          </h3>
-          <p className="mt-1 text-sm text-medium-gray">
-            Du kan kansellere denne bestillingen før den er hentet.
-          </p>
-          <Link
-            href={`/orders/${orderId}/cancel`}
-            className="mt-4 inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-600 transition-all hover:border-red-400 active:scale-[0.98]"
-          >
-            <span>Kanseller bestilling</span>
-            <ArrowRight className="size-4" />
-          </Link>
-        </div>
-      </div>
+    <div className="text-center">
+      <Link
+        href={`/orders/${orderId}/cancel`}
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-red-600 underline-offset-2 transition-colors hover:underline"
+      >
+        <XCircle className="size-4" />
+        <span>Kanseller bestilling</span>
+      </Link>
     </div>
   );
 }

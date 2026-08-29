@@ -43,6 +43,27 @@ export function getOrderStatusVariant(status: OrderStatus): 'default' | 'seconda
 }
 
 /**
+ * The order lifecycle in sequence (cancelled excluded — it is a terminal
+ * side-exit, not a step).
+ */
+export const ORDER_STATUS_SEQUENCE: OrderStatus[] = [
+  'pending_assignment',
+  'pickup_scheduled',
+  'picked_up',
+  'in_cleaning',
+  'ready_for_delivery',
+  'out_for_delivery',
+  'completed',
+];
+
+/**
+ * Get the 0-based step index of a status in the lifecycle (-1 for cancelled)
+ */
+export function getOrderStatusStep(status: OrderStatus): number {
+  return ORDER_STATUS_SEQUENCE.indexOf(status);
+}
+
+/**
  * Check if order is completed (completed or cancelled)
  */
 export function isOrderCompleted(status: OrderStatus): boolean {

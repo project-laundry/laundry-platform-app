@@ -110,10 +110,8 @@ export function EditableIroning({
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="flex items-center gap-3">
-        <span className="flex size-9 items-center justify-center rounded-full bg-sea-green/12 text-sea-green">
-          <Shirt className="size-5" />
-        </span>
-        <span className="text-dark-gray">Stryking</span>
+        <Shirt className="size-4 shrink-0 text-sea-green" />
+        <span className="text-sm text-dark-gray">Stryking</span>
       </div>
       <div className="flex items-center gap-2">
         <span

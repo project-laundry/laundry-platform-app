@@ -53,7 +53,7 @@ export function EditableSpecialInstructions({
   }
 
   return (
-    <div className="rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur">
+    <div className="rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-4 shadow-[var(--shadow-card)] backdrop-blur sm:p-5">
       <div className="flex items-center justify-between gap-3">
         <h3 className="font-serif text-lg font-semibold text-dark-gray">
           Vaskeinstruksjoner
@@ -102,11 +102,9 @@ export function EditableSpecialInstructions({
           </div>
         </div>
       ) : (
-        <div className="mt-4 flex items-start gap-3">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sea-green/12 text-sea-green">
-            <MessageSquare className="size-5" />
-          </span>
-          <p className="pt-1.5 text-dark-gray">
+        <div className="mt-3 flex items-start gap-3">
+          <MessageSquare className="mt-0.5 size-4 shrink-0 text-sea-green" />
+          <p className="text-dark-gray">
             {initialInstructions || (
               <span className="italic text-medium-gray">Ingen instruksjoner lagt til</span>
             )}
