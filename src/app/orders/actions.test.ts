@@ -30,6 +30,7 @@ vi.mock('@/lib/payments/vipps/service', () => ({
 vi.mock('@/lib/payments/vipps/config', () => ({ isVippsTestEnvironment: vi.fn() }));
 vi.mock('@/lib/payments/vipps/recurring-client', () => ({ createVippsRecurringClient: vi.fn() }));
 vi.mock('@/lib/database/orders', () => ({
+  getMostRecentOrderAddressByCustomerId: vi.fn(),
   getOrderWithDetailsByIdAndCustomerId: vi.fn(),
   updateOrderStatus: vi.fn(),
 }));
@@ -38,7 +39,7 @@ vi.mock('@/app/dashboard/subscription/actions', () => ({ cancelSubscriptionActio
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getCustomerByUserId } from '@/lib/database/customers';
-import { getOrderWithDetailsByIdAndCustomerId } from '@/lib/database/orders';
+import { getMostRecentOrderAddressByCustomerId, getOrderWithDetailsByIdAndCustomerId } from '@/lib/database/orders';
 import { calculateCustomerEstimate } from '@/lib/config/pricing';
 import type { OrderSelection } from '@/types/order-flow';
 import { validatePromoCode } from '@/lib/database/promo-codes';
@@ -51,6 +52,7 @@ import {
   createSubscriptionAction,
   validatePromoCodeAction,
   getCheckoutStatusAction,
+  getPickupPrefillAction,
   updateOrderSelectionAction,
   type CreateSubscriptionInput,
 } from './actions';
@@ -375,6 +377,55 @@ describe('getCheckoutStatusAction', () => {
     withLatestAgreement('stopped');
     getAgreement.mockRejectedValue(new Error('network down'));
     expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled' });
+  });
+});
+
+describe('getPickupPrefillAction', () => {
+  it('returns null when not authenticated', async () => {
+    getUser.mockResolvedValue({ data: { user: null } });
+    expect(await getPickupPrefillAction()).toBeNull();
+    expect(getMostRecentOrderAddressByCustomerId).not.toHaveBeenCalled();
+  });
+
+  it('returns null when the user has no customer record', async () => {
+    getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    m(getCustomerByUserId).mockResolvedValue(null);
+    expect(await getPickupPrefillAction()).toBeNull();
+  });
+
+  it('returns null when the customer has no previous orders', async () => {
+    getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
+    m(getMostRecentOrderAddressByCustomerId).mockResolvedValue(null);
+    expect(await getPickupPrefillAction()).toBeNull();
+  });
+
+  it('maps the most recent order address to prefill fields', async () => {
+    getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
+    m(getMostRecentOrderAddressByCustomerId).mockResolvedValue({
+      street: 'Storgata 1',
+      postal_code: '0150',
+      special_instructions_address: 'Ring på',
+    });
+    expect(await getPickupPrefillAction()).toEqual({
+      street: 'Storgata 1',
+      postalCode: '0150',
+      specialInstructions: 'Ring på',
+    });
+    expect(getMostRecentOrderAddressByCustomerId).toHaveBeenCalledWith('cust-1');
+  });
+
+  it('maps a null instructions field to an empty string', async () => {
+    getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
+    m(getMostRecentOrderAddressByCustomerId).mockResolvedValue({
+      street: 'Storgata 1',
+      postal_code: '0150',
+      special_instructions_address: null,
+    });
+    const result = await getPickupPrefillAction();
+    expect(result?.specialInstructions).toBe('');
   });
 });
 
