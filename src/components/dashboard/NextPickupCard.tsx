@@ -1,7 +1,7 @@
 import Link from 'next/link';
-import { ChevronRight, MapPin, Truck, User } from 'lucide-react';
+import { ChevronRight, MapPin, PackageCheck, Truck, User } from 'lucide-react';
 import { StatusBadge } from '@/components/dashboard/StatusBadge';
-import { getOrderStatusLabel, getOrderStatusVariant } from '@/lib/utils/order-status';
+import { getOrderStatusLabel, getOrderStatusStep, getOrderStatusVariant } from '@/lib/utils/order-status';
 import { getCompactDateLabel, getRelativeDateDisplay } from '@/lib/utils/date-format';
 import { getPickupTimeRangeLabel } from '@/lib/config/pickup-times';
 import { formatKr } from '@/lib/config/pricing';
@@ -16,6 +16,11 @@ export function NextPickupCard({ order }: { order: OrderWithRelations }) {
         ? `ca. ${formatKr(order.customer_estimate.estimated_total_ore)}`
         : 'Pris etter henting';
 
+  // Once the laundry is picked up, the pickup date is history — the delivery is
+  // what the customer is waiting for, so the card leads with that instead.
+  const isPickedUp =
+    getOrderStatusStep(order.status) >= getOrderStatusStep('picked_up');
+
   return (
     <Link
       href={`/orders/details/${order.id}`}
@@ -23,7 +28,7 @@ export function NextPickupCard({ order }: { order: OrderWithRelations }) {
     >
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-medium uppercase tracking-[0.18em] text-sea-green">
-          Neste henting
+          {isPickedUp ? 'Forventet levering' : 'Neste henting'}
         </p>
         <StatusBadge variant={getOrderStatusVariant(order.status)}>
           {getOrderStatusLabel(order.status)}
@@ -31,7 +36,7 @@ export function NextPickupCard({ order }: { order: OrderWithRelations }) {
       </div>
 
       <p className="mt-2 font-serif text-2xl font-semibold leading-tight tabular-nums text-dark-gray sm:text-3xl">
-        {getRelativeDateDisplay(order.scheduled_date)}
+        {getRelativeDateDisplay(isPickedUp ? order.delivery_date : order.scheduled_date)}
       </p>
       <p className="mt-0.5 text-sm tabular-nums text-medium-gray">
         kl. {getPickupTimeRangeLabel()}
@@ -45,9 +50,15 @@ export function NextPickupCard({ order }: { order: OrderWithRelations }) {
           </span>
         </p>
         <p className="flex items-center gap-2">
-          <Truck className="size-4 shrink-0 text-sea-green" />
+          {isPickedUp ? (
+            <PackageCheck className="size-4 shrink-0 text-sea-green" />
+          ) : (
+            <Truck className="size-4 shrink-0 text-sea-green" />
+          )}
           <span className="tabular-nums">
-            Levering {getCompactDateLabel(order.delivery_date)}
+            {isPickedUp
+              ? `Hentet ${getCompactDateLabel(order.scheduled_date)}`
+              : `Levering ${getCompactDateLabel(order.delivery_date)}`}
           </span>
         </p>
         {order.cleaner && (
