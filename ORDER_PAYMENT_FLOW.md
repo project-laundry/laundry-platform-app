@@ -71,18 +71,19 @@ Handler: `POST src/app/api/webhooks/vipps/recurring/route.ts`. HMAC-SHA256 verif
 
 ---
 
-## 5. Execution — cleaner runs the job
+## 5. Execution — driver moves the laundry, cleaner washes and prices
 
-Cleaner actions: `src/app/dashboard/cleaner/actions.ts`.
+Driver actions: `src/app/dashboard/driver/actions.ts`. Cleaner actions: `src/app/dashboard/cleaner/actions.ts`.
 
-1. Order moves through statuses (`pickup_scheduled → picked_up → in_cleaning → ready_for_delivery → out_for_delivery`) via `updateOrderStatus` (`lib/database/orders.ts`), which stamps the matching timestamp column.
-2. **Set price:** `saveLaundryDetails(orderId, details, notes)` (`actions.ts`) — cleaner enters `dark_loads`, `white_loads`, `ironing_details`; `calculateOrderPrice()` computes the total; persisted via `updateOrderLaundryDetails` → sets `total_cost_ore`.
-3. **Finish + charge:** `finishOrderAction(orderId)` (`actions.ts`):
-   - Requires status `out_for_delivery`.
-   - `completeOrderAction()` → status `completed`, then triggers `checkAndGenerateNextOrders()` (rolling window).
-   - On completion: `createChargeForCompletedOrder(orderId, total_cost_ore, "NooraCare vask #<order_number>")` (`service.ts`) → creates a Vipps charge (due +2 days, retryDays 3, **DIRECT_CAPTURE**) and a `Payment` (status `pending`) with `provider_reference` + charge metadata. Runs for **both** recurring and one-time orders — `createChargeForCompletedOrder` resolves the agreement from the subscription (recurring) or directly from `order.payment_agreement_id` (one-time).
+1. **Driver legs** (`completeDriverStopAction`, status-guarded via `updateOrderStatusGuarded` in `lib/database/orders.ts`, each stamping its timestamp column): `pickup_scheduled → picked_up` (pickup at customer) → `picked_up → in_cleaning` (drop-off at cleaner) → `ready_for_delivery → out_for_delivery` (collect at cleaner — available the moment the cleaner marks ready; `delivery_date` is an estimate, never a gate) → `out_for_delivery → completed` (delivery at customer). All but the final leg can be reversed with `undoDriverStopAction`.
+2. **Set price (cleaner):** `saveLaundryDetails(orderId, details, notes)` — cleaner enters `wash_loads`, `ironing_details`; `calculateOrderPrice()` computes the total; persisted via `updateOrderLaundryDetails` → sets `total_cost_ore`. Only allowed while the order is `in_cleaning` — marking it ready charges the customer at the saved total, so the price is locked from then on.
+3. **Ready + CHARGE (cleaner):** `markOrderReadyForDelivery(orderId)` — the cleaner's only status transition (`in_cleaning → ready_for_delivery`); rejected until `wash_loads > 0` and `total_cost_ore` is set. After the guarded transition it calls `createChargeForCompletedOrder(orderId, total_cost_ore, "NooraCare vask #<order_number>")` (`service.ts` — name is historical) → creates a Vipps charge (due **+1 day**, retryDays 3, **DIRECT_CAPTURE**) and a `Payment` (status `pending`) with `provider_reference` + charge metadata. Runs for **both** recurring and one-time orders. A 0-total order (100% promo) skips the charge. The from-status guard means a double-tap can never charge twice; a charge failure is logged, not fatal (manual retry). Price edits are locked from this point (`saveLaundryDetails` requires `in_cleaning`). *(Note: the doc's current §5 says the charge is due "+2 days" — that was already wrong; `service.ts` sets due to +1 day. Correct it in this rewrite.)*
+4. **Delivery completion (driver):** the `customer_delivery` branch of `completeDriverStopAction` calls `completeDeliveredOrder(orderId)` (`lib/services/complete-order.ts`) — no money involved:
+   - Guarded update `out_for_delivery → completed`, stamping the **actual** `delivery_date` in the same write.
+   - Triggers `checkAndGenerateNextOrders()` (rolling window).
+   - Runs `stopVippsAgreementForCancelledSubscription` unconditionally (safe no-op). The function refuses while any Vipps charge for the subscription is still pending/authorized — stopping would cancel it — so on a same-day delivery it defers and the charge-captured webhook re-triggers it once the charge settles; when the charge captured before delivery (webhook no-op'd on the active order), completion performs the stop; a 0-total promo order (no charge event ever) stops here too.
 
-`declineCleanerOrder(orderId)` (`actions.ts`) resets the order to `pending_assignment` and appends the cleaner to `declined_by_cleaner_ids` so they aren't reassigned.
+`declineCleanerOrder(orderId)` (`cleaner/actions.ts`) resets the order to `pending_assignment` and appends the cleaner to `declined_by_cleaner_ids` so they aren't reassigned.
 
 ---
 
@@ -141,8 +142,8 @@ Cleaner actions: `src/app/dashboard/cleaner/actions.ts`.
 ```
 createSubscriptionAction → PaymentAgreement(pending) + Subscription(pending_payment) → Vipps checkout
   → [webhook] agreement-activated → activate both + generateFirstOrder (total_cost_ore = NULL)
-  → cleaner: saveLaundryDetails (sets price) → finishOrderAction
-      → order completed → checkAndGenerateNextOrders (next order) → createChargeForCompletedOrder
+  → cleaner: saveLaundryDetails (sets price) + markOrderReadyForDelivery (creates charge) → driver delivers (completeDeliveredOrder)
+      → order completed → checkAndGenerateNextOrders (next order)
   → [webhook] charge-captured → Payment captured
   → repeats until paused/cancelled
 ```
@@ -151,7 +152,7 @@ createSubscriptionAction → PaymentAgreement(pending) + Subscription(pending_pa
 ```
 createSubscriptionAction(isRecurring=false) → PaymentAgreement(pending, order_defaults in metadata) → Vipps checkout
   → [webhook] agreement-activated → activate agreement + handleOneTimeOrderCreation (single order)
-  → cleaner prices & finishes → createChargeForCompletedOrder (via order.payment_agreement_id) → charge captured. No further orders.
+  → cleaner prices & marks ready → createChargeForCompletedOrder (via order.payment_agreement_id) → charge captured → driver delivers (completeDeliveredOrder). No further orders.
 ```
 
 ---

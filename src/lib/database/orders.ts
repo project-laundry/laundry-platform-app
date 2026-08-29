@@ -1,7 +1,7 @@
 // Order database operations
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import type { Order, OrderStatus, OrderWithRelations, Customer, User, Subscription, OrderIroningDetails, OrderPromo, CustomerEstimate } from '@/types/database';
+import type { Order, OrderStatus, OrderWithRelations, Customer, User, Subscription, OrderIroningDetails, OrderPromo, CustomerEstimate, Cleaner } from '@/types/database';
 
 /**
  * Order with customer and subscription details for cleaner dashboard
@@ -236,6 +236,53 @@ export async function updateOrderStatus(
 }
 
 /**
+ * Update order status only if the order is currently in `fromStatus`.
+ * Returns null when the order was in a different status (e.g. a concurrent
+ * update already moved it) — callers treat that as "skipped", which makes
+ * double-taps and two-driver races safe (a completion can never run twice).
+ * `extraFields` is merged into the same write (used by delivery completion to
+ * stamp the actual delivery_date atomically with the transition).
+ */
+export async function updateOrderStatusGuarded(
+  orderId: string,
+  fromStatus: OrderStatus,
+  toStatus: OrderStatus,
+  extraFields: Record<string, unknown> = {}
+): Promise<Order | null> {
+  const supabase = createAdminClient();
+
+  const timestampField: Partial<Record<OrderStatus, string>> = {
+    picked_up: 'picked_up_at',
+    in_cleaning: 'in_cleaning_at',
+    ready_for_delivery: 'ready_for_delivery_at',
+    out_for_delivery: 'out_for_delivery_at',
+    completed: 'completed_at',
+    cancelled: 'cancelled_at',
+  };
+
+  const updateData: Record<string, unknown> = { ...extraFields, status: toStatus };
+  const field = timestampField[toStatus];
+  if (field) {
+    updateData[field] = new Date().toISOString();
+  }
+
+  const { data, error } = await supabase
+    .from('orders')
+    .update(updateData)
+    .eq('id', orderId)
+    .eq('status', fromStatus)
+    .select()
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error updating order status (guarded):', error);
+    return null;
+  }
+
+  return data;
+}
+
+/**
  * Get upcoming orders for a customer
  * Returns orders that are not yet completed or cancelled
  */
@@ -455,8 +502,7 @@ export async function declineOrder(
  * Data for updating laundry details
  */
 export interface UpdateLaundryDetailsData {
-  dark_loads: number;
-  white_loads: number;
+  wash_loads: number;
   ironing_details: OrderIroningDetails | null;
   total_cost_ore: number;
   pricing_notes?: string;
@@ -495,8 +541,7 @@ export async function updateOrderLaundryDetails(
   }
 
   const updateData: Record<string, unknown> = {
-    dark_loads: data.dark_loads,
-    white_loads: data.white_loads,
+    wash_loads: data.wash_loads,
     ironing_details: data.ironing_details,
     total_cost_ore: data.total_cost_ore,
     pricing_notes: data.pricing_notes || null,
@@ -685,4 +730,51 @@ export async function cancelOrdersBySubscriptionId(
   const count = data?.length || 0;
   console.log(`[cancelOrdersBySubscriptionId] Cancelled ${count} orders`);
   return count;
+}
+
+/**
+ * Order with customer and cleaner details for the driver route.
+ */
+export interface DriverRouteOrder extends Order {
+  customer: Customer & { user: User };
+  cleaner: (Cleaner & { user: User }) | null;
+}
+
+/**
+ * All orders a driver can act on "today", across every city:
+ *  - pickups due:        pickup_scheduled with scheduled_date <= today (overdue included)
+ *  - bags in the van:    picked_up (no date filter — they must reach a cleaner)
+ *  - ready at a cleaner: ready_for_delivery — included the moment the cleaner
+ *    marks it ready. delivery_date is an ESTIMATE, never a gate; collecting
+ *    and delivering before the estimated date is desirable.
+ *  - out for delivery:   out_for_delivery (no date filter)
+ * The driver dashboard groups by city client-side.
+ */
+export async function getDriverRouteOrders(todayISO: string): Promise<DriverRouteOrder[]> {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select(`
+      *,
+      customer:customers!customer_id(
+        *,
+        user:users!user_id(*)
+      ),
+      cleaner:cleaners!orders_cleaner_id_fkey(
+        *,
+        user:users(*)
+      )
+    `)
+    .or(
+      `and(status.eq.pickup_scheduled,scheduled_date.lte.${todayISO}),status.eq.picked_up,status.eq.ready_for_delivery,status.eq.out_for_delivery`
+    )
+    .order('scheduled_date', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching driver route orders:', error);
+    return [];
+  }
+
+  return data as DriverRouteOrder[];
 }

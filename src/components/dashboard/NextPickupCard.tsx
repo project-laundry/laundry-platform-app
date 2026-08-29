@@ -28,7 +28,7 @@ export function NextPickupCard({ order }: { order: OrderWithRelations }) {
     >
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-medium uppercase tracking-[0.18em] text-sea-green">
-          {isPickedUp ? 'Forventet levering' : 'Neste henting'}
+          {isPickedUp ? 'Estimert levering' : 'Neste henting'}
         </p>
         <StatusBadge variant={getOrderStatusVariant(order.status)}>
           {getOrderStatusLabel(order.status)}
@@ -58,7 +58,7 @@ export function NextPickupCard({ order }: { order: OrderWithRelations }) {
           <span className="tabular-nums">
             {isPickedUp
               ? `Hentet ${getCompactDateLabel(order.scheduled_date)}`
-              : `Levering ${getCompactDateLabel(order.delivery_date)}`}
+              : `Estimert levering ${getCompactDateLabel(order.delivery_date)}`}
           </span>
         </p>
         {order.cleaner && (

@@ -21,8 +21,7 @@ import type { OrderPromo } from '@/types/database';
 interface LaundryDetailsFormProps {
   orderId: string;
   needsIroning: boolean;
-  initialDarkLoads: number;
-  initialWhiteLoads: number;
+  initialWashLoads: number;
   initialIroningDetails: IroningDetails | null;
   initialNotes: string | null;
   isEditable: boolean;
@@ -74,7 +73,7 @@ function LoadRow({
   disabled,
 }: {
   label: string;
-  hint: string;
+  hint?: string;
   value: number;
   onChange: (n: number) => void;
   disabled: boolean;
@@ -83,7 +82,7 @@ function LoadRow({
     <div className="flex items-center justify-between gap-4">
       <div className="min-w-0">
         <p className="font-medium text-dark-gray">{label}</p>
-        <p className="text-sm text-medium-gray">{hint}</p>
+        {hint && <p className="text-sm text-medium-gray">{hint}</p>}
         <p className="mt-1 text-xs tabular-nums text-nordic-blue">
           {formatNok(PRICING.price_per_load_ore)} kr/vask
         </p>
@@ -127,15 +126,13 @@ function LoadRow({
 export function LaundryDetailsForm({
   orderId,
   needsIroning,
-  initialDarkLoads,
-  initialWhiteLoads,
+  initialWashLoads,
   initialIroningDetails,
   initialNotes,
   isEditable,
   promo = null,
 }: LaundryDetailsFormProps) {
-  const [darkLoads, setDarkLoads] = useState(initialDarkLoads);
-  const [whiteLoads, setWhiteLoads] = useState(initialWhiteLoads);
+  const [washLoads, setWashLoads] = useState(initialWashLoads);
   const [ironingDetails, setIroningDetails] = useState<IroningDetails>(
     initialIroningDetails || getEmptyIroningDetails()
   );
@@ -146,10 +143,9 @@ export function LaundryDetailsForm({
 
   // Calculate price breakdown
   const getLaundryDetails = useCallback((): LaundryDetails => ({
-    dark_loads: darkLoads,
-    white_loads: whiteLoads,
+    wash_loads: washLoads,
     ironing_details: needsIroning ? ironingDetails : null,
-  }), [darkLoads, whiteLoads, needsIroning, ironingDetails]);
+  }), [washLoads, needsIroning, ironingDetails]);
 
   const priceBreakdown = useMemo<PriceBreakdown>(
     () => calculateOrderPrice(getLaundryDetails()),
@@ -187,8 +183,7 @@ export function LaundryDetailsForm({
 
   // Check if there are changes to save
   const hasChanges =
-    darkLoads !== initialDarkLoads ||
-    whiteLoads !== initialWhiteLoads ||
+    washLoads !== initialWashLoads ||
     notes !== (initialNotes || '') ||
     (needsIroning && JSON.stringify(ironingDetails) !== JSON.stringify(initialIroningDetails || getEmptyIroningDetails()));
 
@@ -198,24 +193,14 @@ export function LaundryDetailsForm({
       <SectionCard
         icon={<WashingMachine className="size-5" />}
         title="Vaskemengde"
-        subtitle="Mørke og hvite klær vaskes separat. Prisen gjelder per vask (inntil 5 kg)."
+        subtitle="Prisen gjelder per vask (inntil 5 kg). Sengetøy vaskes for seg og teller som egen vask."
       >
-        <div className="space-y-4">
-          <LoadRow
-            label="Mørk vask"
-            hint="Mørke og fargede klær"
-            value={darkLoads}
-            onChange={setDarkLoads}
-            disabled={!isEditable}
-          />
-          <LoadRow
-            label="Hvit vask"
-            hint="Hvite og lyse klær"
-            value={whiteLoads}
-            onChange={setWhiteLoads}
-            disabled={!isEditable}
-          />
-        </div>
+        <LoadRow
+          label="Antall vask"
+          value={washLoads}
+          onChange={setWashLoads}
+          disabled={!isEditable}
+        />
       </SectionCard>
 
       {/* Ironing Section (only if ironing is included) */}
@@ -282,7 +267,7 @@ export function LaundryDetailsForm({
         <button
           type="button"
           onClick={handleSave}
-          disabled={isSaving || (darkLoads === 0 && whiteLoads === 0)}
+          disabled={isSaving || washLoads === 0}
           className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-nordic-blue px-6 py-3.5 font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-cream-dark disabled:text-medium-gray disabled:shadow-none"
         >
           {isSaving ? 'Lagrer...' : hasChanges ? 'Lagre vaskdetaljer' : 'Lagret'}

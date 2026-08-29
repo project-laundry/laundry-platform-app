@@ -4,6 +4,7 @@ import { Plus, CalendarPlus } from 'lucide-react';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { createClient } from '@/lib/supabase/server';
 import { getCustomerByUserId } from '@/lib/database/customers';
+import { getUsersById } from '@/lib/database/users';
 import { getActiveSubscriptionByCustomerId } from '@/lib/database/subscriptions';
 import { getUpcomingOrdersByCustomerId, getCompletedOrdersByCustomerId } from '@/lib/database/orders';
 import { LogoutButton } from '@/components/ui/LogoutButton';
@@ -20,6 +21,18 @@ export default async function DashboardPage() {
 
   if (!user) {
     redirect('/auth/login');
+  }
+
+  // Non-customer roles have their own dashboards
+  const dbUser = await getUsersById(user.id);
+  if (dbUser?.role === 'cleaner') {
+    redirect('/dashboard/cleaner');
+  }
+  if (dbUser?.role === 'driver') {
+    redirect('/dashboard/driver');
+  }
+  if (dbUser?.role === 'admin') {
+    redirect('/admin/orders');
   }
 
   // Get customer

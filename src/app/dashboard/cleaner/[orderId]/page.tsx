@@ -17,10 +17,10 @@ interface OrderDetailsPageProps {
 // Status display configuration — badge tints per brandbook §4.
 const STATUS_CONFIG: Record<OrderStatus, { label: string; className: string }> = {
   pending_assignment: { label: 'Venter på tildeling', className: 'bg-amber-50 text-amber-800' },
-  pickup_scheduled: { label: 'Henting planlagt', className: 'bg-nordic-blue/10 text-nordic-blue' },
-  picked_up: { label: 'Under arbeid', className: 'bg-nordic-blue/10 text-nordic-blue' },
+  pickup_scheduled: { label: 'Venter på henting', className: 'bg-nordic-blue/10 text-nordic-blue' },
+  picked_up: { label: 'På vei til deg', className: 'bg-nordic-blue/10 text-nordic-blue' },
   in_cleaning: { label: 'Vaskes', className: 'bg-nordic-blue/10 text-nordic-blue' },
-  ready_for_delivery: { label: 'Klar for levering', className: 'bg-sea-green/10 text-sea-green' },
+  ready_for_delivery: { label: 'Klar for henting', className: 'bg-sea-green/10 text-sea-green' },
   out_for_delivery: { label: 'Ut for levering', className: 'bg-sea-green/10 text-sea-green' },
   completed: { label: 'Fullfort', className: 'bg-cream-dark/60 text-medium-gray' },
   cancelled: { label: 'Kansellert', className: 'bg-red-50 text-red-700' },
@@ -99,8 +99,9 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
   const statusConfig = STATUS_CONFIG[order.status];
   const customerName = order.customer.user.full_name;
 
-  // Determine if order is editable (not completed or cancelled)
-  const isEditable = order.status !== 'completed' && order.status !== 'cancelled';
+  // Editable only while washing — marking the order ready charges the customer
+  // at the saved price, so the price is locked from ready_for_delivery on
+  const isEditable = order.status === 'in_cleaning';
 
   return (
     <div className="min-h-screen bg-cream text-dark-gray">
@@ -154,24 +155,11 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
                 </div>
               </div>
               <div>
-                <div className="text-sm text-medium-gray">Leveringsdato</div>
+                <div className="text-sm text-medium-gray">Estimert levering</div>
                 <div className="font-medium tabular-nums text-dark-gray">
                   {formatDate(order.delivery_date)}
                 </div>
               </div>
-            </div>
-
-            {/* Address */}
-            <div>
-              <div className="text-sm text-medium-gray">Adresse</div>
-              <div className="font-medium text-dark-gray">
-                {order.street}, {order.postal_code} {order.city}
-              </div>
-              {order.special_instructions_address && (
-                <div className="mt-1 text-sm text-medium-gray">
-                  {order.special_instructions_address}
-                </div>
-              )}
             </div>
           </div>
         </SectionCard>
@@ -247,8 +235,7 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
         <LaundryDetailsForm
           orderId={order.id}
           needsIroning={order.needs_ironing}
-          initialDarkLoads={order.dark_loads || 0}
-          initialWhiteLoads={order.white_loads || 0}
+          initialWashLoads={order.wash_loads || 0}
           initialIroningDetails={order.ironing_details}
           initialNotes={order.pricing_notes}
           isEditable={isEditable}
@@ -261,8 +248,9 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
           orderNumber={order.order_number}
           currentStatus={order.status}
           needsIroning={order.needs_ironing}
-          hasLaundryDetails={order.dark_loads > 0 || order.white_loads > 0}
+          hasLaundryDetails={order.wash_loads > 0}
           hasPrice={order.total_cost_ore !== null}
+          totalCostOre={order.total_cost_ore}
         />
       </main>
     </div>

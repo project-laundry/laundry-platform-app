@@ -15,8 +15,7 @@ export interface IroningDetails {
 
 // Complete laundry details for an order
 export interface LaundryDetails {
-  dark_loads: number;
-  white_loads: number;
+  wash_loads: number;
   ironing_details: IroningDetails | null;
 }
 
@@ -124,8 +123,7 @@ export function getEmptyIroningDetails(): IroningDetails {
  */
 export function calculateOrderPrice(details: LaundryDetails): PriceBreakdown {
   // Calculate loads subtotal
-  const totalLoads = details.dark_loads + details.white_loads;
-  const loads_subtotal_ore = totalLoads * PRICING.price_per_load_ore;
+  const loads_subtotal_ore = details.wash_loads * PRICING.price_per_load_ore;
 
   // Calculate ironing subtotal. Iterate the configured groups (not the stored
   // keys) so legacy ironing_details blobs with unknown keys price as 0, not NaN.

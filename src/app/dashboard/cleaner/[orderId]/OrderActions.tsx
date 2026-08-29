@@ -2,12 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, ArrowRight, PackageCheck } from 'lucide-react';
-import {
-  updateCleanerOrderStatus,
-  declineCleanerOrder,
-  finishOrderAction,
-} from '../actions';
+import { AlertCircle, ArrowRight, Info } from 'lucide-react';
+import { markOrderReadyForDelivery, declineCleanerOrder } from '../actions';
+import { formatKr } from '@/lib/config/pricing';
 import type { OrderStatus } from '@/types/database';
 
 interface OrderActionsProps {
@@ -17,43 +14,17 @@ interface OrderActionsProps {
   needsIroning: boolean;
   hasLaundryDetails: boolean;
   hasPrice: boolean;
+  totalCostOre: number | null;
 }
 
-// Status progression configuration
-const STATUS_TRANSITIONS: Partial<
-  Record<
-    OrderStatus,
-    {
-      nextStatus: OrderStatus;
-      label: string;
-      confirmText: string;
-      descriptionWithIroning?: string;
-      descriptionWithoutIroning?: string;
-    }
-  >
-> = {
-  pickup_scheduled: {
-    nextStatus: 'picked_up',
-    label: 'Marker som hentet',
-    confirmText: 'Bekreft at du har hentet vasken fra kunden.',
-  },
-  picked_up: {
-    nextStatus: 'in_cleaning',
-    label: 'Start vask',
-    confirmText: 'Bekreft at vasken er satt i maskinen.',
-  },
-  in_cleaning: {
-    nextStatus: 'ready_for_delivery',
-    label: 'Neste steg',
-    confirmText: 'Bekreft at vasken er ferdig og klar for levering.',
-    descriptionWithIroning: 'Bekreft at vasken er ferdig vasket og strøket, og klar for levering.',
-    descriptionWithoutIroning: 'Bekreft at vasken er ferdig vasket og klar for levering.',
-  },
-  ready_for_delivery: {
-    nextStatus: 'out_for_delivery',
-    label: 'Ut for levering',
-    confirmText: 'Bekreft at du er på vei til kunden.',
-  },
+// What the driver handles — shown as info so the cleaner knows nothing is
+// expected from them in these statuses.
+const DRIVER_INFO: Partial<Record<OrderStatus, string>> = {
+  pending_assignment: 'Ordren venter på tildeling.',
+  pickup_scheduled: 'Sjåføren henter vasken hos kunden på hentedatoen og leverer den til deg.',
+  picked_up: 'Sjåføren er på vei til deg med vasken.',
+  ready_for_delivery: 'Vasken er klar og kunden er belastet — sjåføren henter den hos deg og leverer til kunden.',
+  out_for_delivery: 'Sjåføren leverer vasken til kunden. Kunden er allerede belastet.',
 };
 
 const PRIMARY_BUTTON =
@@ -98,34 +69,29 @@ export function OrderActions({
   needsIroning,
   hasLaundryDetails,
   hasPrice,
+  totalCostOre,
 }: OrderActionsProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Confirmation dialogs
-  const [showStatusConfirm, setShowStatusConfirm] = useState(false);
+  const [showReadyConfirm, setShowReadyConfirm] = useState(false);
   const [showDeclineConfirm, setShowDeclineConfirm] = useState(false);
-  const [showFinishConfirm, setShowFinishConfirm] = useState(false);
-  const [finishConfirmChecked, setFinishConfirmChecked] = useState(false);
 
-  const transition = STATUS_TRANSITIONS[currentStatus];
+  const canMarkReady = currentStatus === 'in_cleaning';
   const canDecline = currentStatus === 'pickup_scheduled';
-  const canFinish = currentStatus === 'out_for_delivery';
+  const driverInfo = DRIVER_INFO[currentStatus];
 
-  const handleStatusChange = async () => {
-    if (!transition) return;
-
+  const handleMarkReady = async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const result = await updateCleanerOrderStatus(orderId, transition.nextStatus);
+      const result = await markOrderReadyForDelivery(orderId);
       if (!result.success) {
         setError(result.error || 'Kunne ikke oppdatere status');
         return;
       }
-      setShowStatusConfirm(false);
+      setShowReadyConfirm(false);
       router.refresh();
     } catch {
       setError('En feil oppstod');
@@ -152,29 +118,11 @@ export function OrderActions({
     }
   };
 
-  const handleFinish = async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const result = await finishOrderAction(orderId);
-      if (!result.success) {
-        setError(result.error || 'Kunne ikke fullføre ordren');
-        return;
-      }
-      router.push('/dashboard/cleaner');
-    } catch {
-      setError('En feil oppstod');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   // If order is completed or cancelled, don't show actions
   if (currentStatus === 'completed' || currentStatus === 'cancelled') {
     return (
       <div className="rounded-3xl border border-cream-dark/80 bg-cream/70 px-5 py-6 text-center text-medium-gray">
-        Denne ordren er {currentStatus === 'completed' ? 'fullfort' : 'kansellert'}.
+        Denne ordren er {currentStatus === 'completed' ? 'fullført' : 'kansellert'}.
       </div>
     );
   }
@@ -189,39 +137,57 @@ export function OrderActions({
         </div>
       )}
 
-      {/* Status Change Card */}
-      {transition && !canFinish && (
+      {/* Mark ready for driver collection */}
+      {canMarkReady && (
         <ActionCard
           icon={<ArrowRight className="size-5" />}
           iconClassName="bg-sea-green/12 text-sea-green"
-          title="Neste steg"
+          title="Klar for henting"
         >
-          {!showStatusConfirm ? (
+          {!showReadyConfirm ? (
             <div className="space-y-3">
-              {/* Show description for in_cleaning status */}
-              {currentStatus === 'in_cleaning' &&
-                (transition.descriptionWithIroning || transition.descriptionWithoutIroning) && (
-                  <p className="text-medium-gray">
-                    {needsIroning
-                      ? transition.descriptionWithIroning
-                      : transition.descriptionWithoutIroning}
-                  </p>
-                )}
+              <p className="text-medium-gray">
+                {needsIroning
+                  ? 'Når vasken er ferdig vasket og strøket, gjør du den klar — sjåføren henter den hos deg.'
+                  : 'Når vasken er ferdig vasket, gjør du den klar — sjåføren henter den hos deg.'}
+              </p>
+              {!hasLaundryDetails && (
+                <div className="flex items-start gap-2 rounded-2xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
+                  <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                  <p>Du må registrere vaskdetaljer før ordren kan gjøres klar.</p>
+                </div>
+              )}
+              {!hasPrice && (
+                <div className="flex items-start gap-2 rounded-2xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
+                  <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                  <p>Pris må beregnes før ordren kan gjøres klar.</p>
+                </div>
+              )}
               <button
                 type="button"
-                onClick={() => setShowStatusConfirm(true)}
+                onClick={() => setShowReadyConfirm(true)}
+                disabled={!hasLaundryDetails || !hasPrice}
                 className={PRIMARY_BUTTON}
               >
-                {transition.label}
+                Marker som klar for henting
               </button>
             </div>
           ) : (
             <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-300">
-              <p className="text-medium-gray">{transition.confirmText}</p>
+              <p className="text-medium-gray">
+                Bekreft at vasken er ferdig og pakket, klar til at sjåføren henter den.
+              </p>
+              {totalCostOre !== null && (
+                <p className="rounded-2xl bg-cream/70 px-4 py-3 text-sm text-dark-gray">
+                  Kunden belastes{' '}
+                  <span className="font-semibold tabular-nums">{formatKr(totalCostOre)}</span> via
+                  Vipps når du bekrefter.
+                </p>
+              )}
               <div className="flex gap-3">
                 <button
                   type="button"
-                  onClick={() => setShowStatusConfirm(false)}
+                  onClick={() => setShowReadyConfirm(false)}
                   disabled={isLoading}
                   className={`${SECONDARY_BUTTON} flex-1`}
                 >
@@ -229,11 +195,11 @@ export function OrderActions({
                 </button>
                 <button
                   type="button"
-                  onClick={handleStatusChange}
+                  onClick={handleMarkReady}
                   disabled={isLoading}
                   className={`${PRIMARY_BUTTON} flex-1`}
                 >
-                  {isLoading ? 'Oppdaterer...' : 'Bekreft'}
+                  {isLoading ? 'Oppdaterer...' : 'Bekreft og belast'}
                 </button>
               </div>
             </div>
@@ -241,80 +207,12 @@ export function OrderActions({
         </ActionCard>
       )}
 
-      {/* Finish Order Card */}
-      {canFinish && (
-        <ActionCard
-          icon={<PackageCheck className="size-5" />}
-          iconClassName="bg-nordic-blue/10 text-nordic-blue"
-          title="Fullfør ordre"
-        >
-          {!showFinishConfirm ? (
-            <div className="space-y-4">
-              {/* Validation messages */}
-              {!hasLaundryDetails && (
-                <div className="flex items-start gap-2 rounded-2xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
-                  <AlertCircle className="mt-0.5 size-4 shrink-0" />
-                  <p>Du ma registrere vaskdetaljer før du kan fullføre ordren.</p>
-                </div>
-              )}
-              {!hasPrice && (
-                <div className="flex items-start gap-2 rounded-2xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
-                  <AlertCircle className="mt-0.5 size-4 shrink-0" />
-                  <p>Pris ma beregnes før ordren kan fullføres.</p>
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={() => setShowFinishConfirm(true)}
-                disabled={!hasLaundryDetails || !hasPrice}
-                className={PRIMARY_BUTTON}
-              >
-                Fullfør ordre
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-300">
-              <p className="font-medium text-dark-gray">
-                Bekreft at vasken er levert til kunden
-              </p>
-              <p className="text-sm text-medium-gray">
-                Når du fullfører ordren vil kunden bli belastet for vasken, og ordren markeres som fullfort.
-              </p>
-              <label className="flex cursor-pointer items-start gap-3 rounded-2xl bg-cream/70 px-4 py-3">
-                <input
-                  type="checkbox"
-                  checked={finishConfirmChecked}
-                  onChange={(e) => setFinishConfirmChecked(e.target.checked)}
-                  className="mt-0.5 size-5 shrink-0 rounded accent-sea-green"
-                />
-                <span className="text-sm text-dark-gray">
-                  Jeg bekrefter at vasken er levert til kunden og at ordren kan fullføres.
-                </span>
-              </label>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowFinishConfirm(false);
-                    setFinishConfirmChecked(false);
-                  }}
-                  disabled={isLoading}
-                  className={`${SECONDARY_BUTTON} flex-1`}
-                >
-                  Avbryt
-                </button>
-                <button
-                  type="button"
-                  onClick={handleFinish}
-                  disabled={isLoading || !finishConfirmChecked}
-                  className={`${PRIMARY_BUTTON} flex-1`}
-                >
-                  {isLoading ? 'Fullfører...' : 'Fullfør ordre'}
-                </button>
-              </div>
-            </div>
-          )}
-        </ActionCard>
+      {/* Driver-handled status info */}
+      {driverInfo && (
+        <div className="flex items-start gap-2 rounded-2xl bg-cream/70 px-4 py-3 text-sm text-medium-gray">
+          <Info className="mt-0.5 size-4 shrink-0 text-sea-green" />
+          <p>{driverInfo}</p>
+        </div>
       )}
 
       {/* Decline Card */}
@@ -340,7 +238,7 @@ export function OrderActions({
           ) : (
             <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-300">
               <p className="text-medium-gray">
-                Er du sikker pa at du vil avsla ordre #{orderNumber}? Ordren vil bli tildelt en annen renser.
+                Er du sikker på at du vil avslå ordre #{orderNumber}? Ordren vil bli tildelt en annen renser.
               </p>
               <div className="flex flex-col gap-3">
                 <button
