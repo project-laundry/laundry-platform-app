@@ -17,7 +17,7 @@ import { createVippsRecurringClient } from "@/lib/payments/vipps/recurring-clien
 import { getWeekdayFromDate, isWeekdayInSchedule, addDays, toISODateString } from "@/lib/utils/date";
 import { DAYS_PICKUP_TO_DELIVERY, MIN_DAYS_NOTICE } from "@/lib/config/order-timing";
 import { translateFrequency } from "@/lib/utils/i18n";
-import { getOrderWithDetailsByIdAndCustomerId, updateOrderStatus } from "@/lib/database/orders";
+import { getMostRecentOrderAddressByCustomerId, getOrderWithDetailsByIdAndCustomerId, updateOrderStatus } from "@/lib/database/orders";
 import { geocodeAddress, validateAddress, type AddressValidationReason } from "@/lib/maps/geocoding";
 import { checkAndGenerateNextOrders } from "@/lib/services/order-generation";
 import { cancelSubscriptionAction } from "@/app/dashboard/subscription/actions";
@@ -481,6 +481,43 @@ export async function getAvailableWeekdaysAction(
   city: string,
 ): Promise<Weekday[]> {
   return getAvailableWeekdaysForCity(city);
+}
+
+export interface PickupPrefill {
+  street: string;
+  postalCode: string;
+  specialInstructions: string;
+}
+
+/**
+ * Best-effort prefill for the pickup step: the address of the logged-in
+ * customer's most recent order. Returns null (never throws) when the user is
+ * logged out, has no customer record, or has never ordered — the pickup form
+ * simply starts empty in those cases.
+ */
+export async function getPickupPrefillAction(): Promise<PickupPrefill | null> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const customer = await getCustomerByUserId(user.id);
+    if (!customer) return null;
+
+    const address = await getMostRecentOrderAddressByCustomerId(customer.id);
+    if (!address) return null;
+
+    return {
+      street: address.street,
+      postalCode: address.postal_code,
+      specialInstructions: address.special_instructions_address ?? '',
+    };
+  } catch (error) {
+    console.error('Error building pickup prefill:', error);
+    return null;
+  }
 }
 
 export interface ActionResult {

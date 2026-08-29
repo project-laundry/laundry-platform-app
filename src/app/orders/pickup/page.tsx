@@ -16,6 +16,7 @@ import type { Weekday } from '@/types/database';
 import { buildDateChips } from './date-chips';
 import {
   getAvailableWeekdaysAction,
+  getPickupPrefillAction,
   validatePickupAddressAction,
 } from '@/app/orders/actions';
 import { OrderFlowShell } from '@/components/order-flow/OrderFlowShell';
@@ -63,6 +64,34 @@ function PickupForm() {
     ? getCityFromPostalCode(postalCode)
     : null;
   const outOfArea = isValidPostalCodeFormat(postalCode) && derivedCity === null;
+
+  // Prefill address fields from the customer's most recent order (DB), but
+  // only when nothing is stored locally — in-progress local data always wins.
+  const hadStoredAddress = !!orderData?.address;
+  useEffect(() => {
+    if (hadStoredAddress) return;
+    let cancelled = false;
+    getPickupPrefillAction()
+      .then((prefill) => {
+        if (cancelled || !prefill) return;
+        // Fill only fields still empty, so we never clobber what the
+        // customer typed while the request was in flight.
+        setStreet((prev) => (prev === '' ? prefill.street : prev));
+        setPostalCode((prev) =>
+          prev === '' ? prefill.postalCode.replace(/\D/g, '').slice(0, 4) : prev
+        );
+        setInstructions((prev) => (prev === '' ? prefill.specialInstructions : prev));
+      })
+      .catch(() => {
+        // Best-effort: an empty form is fine.
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Run once on mount; hadStoredAddress is stable for the component's lifetime
+    // because PickupForm only mounts after store hydration.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Fetch which weekdays cleaners in this city work.
   useEffect(() => {

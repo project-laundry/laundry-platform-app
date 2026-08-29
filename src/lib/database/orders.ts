@@ -617,6 +617,38 @@ export async function getActiveOrdersBySubscriptionId(
   return (data as Order[]) || [];
 }
 
+export interface RecentOrderAddress {
+  street: string;
+  postal_code: string;
+  special_instructions_address: string | null;
+}
+
+/**
+ * Get the address of a customer's most recently created order.
+ * Used to prefill the checkout pickup step for returning customers.
+ * Returns null if the customer has no orders.
+ */
+export async function getMostRecentOrderAddressByCustomerId(
+  customerId: string
+): Promise<RecentOrderAddress | null> {
+  const supabase = await createAdminClient();
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select('street, postal_code, special_instructions_address')
+    .eq('customer_id', customerId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching most recent order address:', error);
+    return null;
+  }
+
+  return data;
+}
+
 /**
  * Cancel all not-yet-picked-up orders for a subscription
  *
