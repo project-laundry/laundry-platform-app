@@ -547,12 +547,13 @@ export async function updateOrderSpecialInstructionsAction(
 }
 
 /**
- * Update ironing preference for an order
- * Customer can only update before pickup (pending_assignment, pickup_scheduled)
+ * Update the order selection (bags, bedding sets, ironing) for a single order.
+ * Customer can only update before pickup (pending_assignment, pickup_scheduled).
+ * Applies to this order only — subscription order_defaults are untouched.
  */
-export async function updateOrderIroningAction(
+export async function updateOrderSelectionAction(
   orderId: string,
-  needsIroning: boolean
+  selection: OrderSelection
 ): Promise<ActionResult> {
   try {
     const supabase = await createClient();
@@ -576,24 +577,46 @@ export async function updateOrderIroningAction(
     if (!editableStatuses.includes(order.status)) {
       return {
         success: false,
-        error: 'Kan ikke endre stryking etter henting'
+        error: 'Kan ikke endre bestillingen etter henting'
       };
     }
+
+    const sanitized = sanitizeSelection(selection);
+    const estimate = calculateCustomerEstimate(sanitized);
+    if (!estimate.hasItems) {
+      return { success: false, error: 'Velg noe å vaske først' };
+    }
+
+    // Ironing preference is implied by the selection, same as at checkout —
+    // written together with the estimate so the two can't drift.
+    const needsIroning =
+      sanitized.everydayItems > 0 ||
+      sanitized.formalItems > 0 ||
+      (sanitized.ironBedding && sanitized.beddingSets > 0);
+
+    const customerEstimate: CustomerEstimate = {
+      bags: sanitized.bags,
+      bedding_sets: sanitized.beddingSets,
+      iron_everyday_items: sanitized.everydayItems,
+      iron_formal_items: sanitized.formalItems,
+      iron_bedding: sanitized.ironBedding,
+      estimated_total_ore: estimate.totalOre,
+    };
 
     const adminClient = createAdminClient();
     const { error } = await adminClient
       .from('orders')
-      .update({ needs_ironing: needsIroning })
+      .update({ needs_ironing: needsIroning, customer_estimate: customerEstimate })
       .eq('id', orderId);
 
     if (error) {
-      console.error('Error updating ironing preference:', error);
-      return { success: false, error: 'Failed to update ironing preference' };
+      console.error('Error updating order selection:', error);
+      return { success: false, error: 'Failed to update order selection' };
     }
 
     return { success: true };
   } catch (error) {
-    console.error('Error updating ironing preference:', error);
+    console.error('Error updating order selection:', error);
     return { success: false, error: 'An error occurred' };
   }
 }

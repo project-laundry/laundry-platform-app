@@ -7,19 +7,10 @@ import { OrderProgress } from '@/components/orders/OrderProgress';
 import { CancelOrderButton } from '@/components/orders/CancelOrderButton';
 import { RescheduleButton } from '@/components/orders/RescheduleButton';
 import { EditableSpecialInstructions } from '@/components/orders/EditableSpecialInstructions';
-import { EditableIroning } from '@/components/orders/EditableIroning';
+import { EditableOrderSelection } from '@/components/orders/EditableOrderSelection';
 import { EditableAddress } from '@/components/orders/EditableAddress';
-import type { CustomerEstimate, OrderStatus, OrderWithRelations } from '@/types/database';
-import {
-  Truck,
-  User,
-  Package,
-  AlertCircle,
-  Info,
-  ShoppingBag,
-  BedDouble,
-  Shirt,
-} from 'lucide-react';
+import type { OrderStatus, OrderWithRelations } from '@/types/database';
+import { Truck, User, Package, AlertCircle, Info } from 'lucide-react';
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString('no-NO', {
@@ -36,42 +27,6 @@ function formatDateTime(dateString: string): string {
     hour: '2-digit',
     minute: '2-digit',
   });
-}
-
-// The customer's checkout selection as compact row labels (zeros omitted).
-function getEstimateRows(estimate: CustomerEstimate) {
-  const rows: { icon: typeof ShoppingBag; label: string }[] = [];
-  if (estimate.bags > 0) {
-    rows.push({
-      icon: ShoppingBag,
-      label: estimate.bags === 1 ? '1 pose klesvask' : `${estimate.bags} poser klesvask`,
-    });
-  }
-  if (estimate.bedding_sets > 0) {
-    rows.push({ icon: BedDouble, label: `${estimate.bedding_sets} sengesett` });
-  }
-  if (estimate.iron_everyday_items > 0) {
-    rows.push({
-      icon: Shirt,
-      label:
-        estimate.iron_everyday_items === 1
-          ? '1 vanlig plagg strykes'
-          : `${estimate.iron_everyday_items} vanlige plagg strykes`,
-    });
-  }
-  if (estimate.iron_formal_items > 0) {
-    rows.push({
-      icon: Shirt,
-      label:
-        estimate.iron_formal_items === 1
-          ? '1 skjorte eller finplagg strykes'
-          : `${estimate.iron_formal_items} skjorter og finklær strykes`,
-    });
-  }
-  if (estimate.iron_bedding) {
-    rows.push({ icon: BedDouble, label: 'Sengetøy strykes' });
-  }
-  return rows;
 }
 
 // Timestamp column matching the order's current status
@@ -109,7 +64,6 @@ function timestampForStatus(status: OrderStatus, order: {
 export function OrderDetailsView({ order }: { order: OrderWithRelations }) {
   const isEditable = order.status === 'pending_assignment' || order.status === 'pickup_scheduled';
   const isCancelled = order.status === 'cancelled';
-  const estimateRows = order.customer_estimate ? getEstimateRows(order.customer_estimate) : [];
 
   return (
     <div className="min-h-screen bg-cream text-dark-gray">
@@ -232,20 +186,10 @@ export function OrderDetailsView({ order }: { order: OrderWithRelations }) {
             <h2 className="font-serif text-lg font-semibold text-dark-gray">Din bestilling</h2>
 
             <div className="mt-3 divide-y divide-cream-dark/60">
-              {estimateRows.length > 0 && (
-                <div className="space-y-1.5 pb-3 text-sm text-dark-gray">
-                  {estimateRows.map((row) => (
-                    <p key={row.label} className="flex items-center gap-2 tabular-nums">
-                      <row.icon className="size-4 shrink-0 text-sea-green" />
-                      {row.label}
-                    </p>
-                  ))}
-                </div>
-              )}
-
-              <div className="py-3">
-                <EditableIroning
+              <div className="pb-3">
+                <EditableOrderSelection
                   orderId={order.id}
+                  initialEstimate={order.customer_estimate}
                   initialNeedsIroning={order.needs_ironing}
                   isEditable={isEditable}
                 />
