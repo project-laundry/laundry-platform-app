@@ -36,7 +36,11 @@ vi.mock('@/lib/database/orders', () => ({
 vi.mock('@/lib/services/order-generation', () => ({ checkAndGenerateNextOrders: vi.fn() }));
 vi.mock('@/app/dashboard/subscription/actions', () => ({ cancelSubscriptionAction: vi.fn() }));
 
+import { createAdminClient } from '@/lib/supabase/admin';
 import { getCustomerByUserId } from '@/lib/database/customers';
+import { getOrderWithDetailsByIdAndCustomerId } from '@/lib/database/orders';
+import { calculateCustomerEstimate } from '@/lib/config/pricing';
+import type { OrderSelection } from '@/types/order-flow';
 import { validatePromoCode } from '@/lib/database/promo-codes';
 import { createSubscription, getActiveSubscriptionByCustomerId } from '@/lib/database/subscriptions';
 import { createPaymentAgreement, getPaymentAgreementsByCustomerId } from '@/lib/database/payment-agreements';
@@ -47,6 +51,7 @@ import {
   createSubscriptionAction,
   validatePromoCodeAction,
   getCheckoutStatusAction,
+  updateOrderSelectionAction,
   type CreateSubscriptionInput,
 } from './actions';
 
@@ -370,5 +375,135 @@ describe('getCheckoutStatusAction', () => {
     withLatestAgreement('stopped');
     getAgreement.mockRejectedValue(new Error('network down'));
     expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled' });
+  });
+});
+
+describe('updateOrderSelectionAction', () => {
+  const eqMock = vi.fn();
+  const updateMock = vi.fn(() => ({ eq: eqMock }));
+
+  const selection: OrderSelection = {
+    bags: 2,
+    beddingSets: 1,
+    everydayItems: 0,
+    formalItems: 3,
+    ironBedding: false,
+  };
+
+  /** Authenticated customer owning an editable order; tests override as needed. */
+  function withEditableOrder(status = 'pickup_scheduled') {
+    getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
+    m(getOrderWithDetailsByIdAndCustomerId).mockResolvedValue({ id: 'order-1', status });
+    eqMock.mockResolvedValue({ error: null });
+    m(createAdminClient).mockReturnValue({ from: vi.fn(() => ({ update: updateMock })) });
+  }
+
+  it('rejects an unauthenticated user', async () => {
+    getUser.mockResolvedValue({ data: { user: null } });
+    const result = await updateOrderSelectionAction('order-1', selection);
+    expect(result).toEqual({ success: false, error: 'Not authenticated' });
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects when no customer record exists', async () => {
+    getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    m(getCustomerByUserId).mockResolvedValue(null);
+    const result = await updateOrderSelectionAction('order-1', selection);
+    expect(result).toEqual({ success: false, error: 'Customer not found' });
+  });
+
+  it("rejects an order that isn't the customer's", async () => {
+    getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
+    m(getOrderWithDetailsByIdAndCustomerId).mockResolvedValue(null);
+    const result = await updateOrderSelectionAction('order-1', selection);
+    expect(result).toEqual({ success: false, error: 'Order not found' });
+  });
+
+  it('rejects editing after pickup', async () => {
+    withEditableOrder('picked_up');
+    const result = await updateOrderSelectionAction('order-1', selection);
+    expect(result).toEqual({ success: false, error: 'Kan ikke endre bestillingen etter henting' });
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects an empty selection', async () => {
+    withEditableOrder();
+    const result = await updateOrderSelectionAction('order-1', {
+      bags: 0,
+      beddingSets: 0,
+      everydayItems: 0,
+      formalItems: 0,
+      ironBedding: false,
+    });
+    expect(result).toEqual({ success: false, error: 'Velg noe å vaske først' });
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it('writes needs_ironing and the recomputed estimate together', async () => {
+    withEditableOrder();
+
+    const result = await updateOrderSelectionAction('order-1', selection);
+
+    expect(result).toEqual({ success: true });
+    expect(updateMock).toHaveBeenCalledWith({
+      // Ironing is implied by the selection (3 formal items)
+      needs_ironing: true,
+      customer_estimate: {
+        bags: 2,
+        bedding_sets: 1,
+        iron_everyday_items: 0,
+        iron_formal_items: 3,
+        iron_bedding: false,
+        estimated_total_ore: calculateCustomerEstimate(selection).totalOre,
+      },
+    });
+    expect(eqMock).toHaveBeenCalledWith('id', 'order-1');
+  });
+
+  it('sanitizes ironBedding without bedding sets and derives needs_ironing: false', async () => {
+    withEditableOrder();
+
+    await updateOrderSelectionAction('order-1', {
+      bags: 1,
+      beddingSets: 0,
+      everydayItems: 0,
+      formalItems: 0,
+      ironBedding: true,
+    });
+
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        needs_ironing: false,
+        customer_estimate: expect.objectContaining({ iron_bedding: false }),
+      })
+    );
+  });
+
+  it('clamps out-of-range counts before persisting', async () => {
+    withEditableOrder();
+
+    await updateOrderSelectionAction('order-1', {
+      bags: -3,
+      beddingSets: 1,
+      everydayItems: 999,
+      formalItems: 0,
+      ironBedding: false,
+    });
+
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customer_estimate: expect.objectContaining({ bags: 0, iron_everyday_items: 120 }),
+      })
+    );
+  });
+
+  it('surfaces a database failure', async () => {
+    withEditableOrder();
+    eqMock.mockResolvedValue({ error: { message: 'boom' } });
+
+    const result = await updateOrderSelectionAction('order-1', selection);
+    expect(result).toEqual({ success: false, error: 'Failed to update order selection' });
   });
 });
