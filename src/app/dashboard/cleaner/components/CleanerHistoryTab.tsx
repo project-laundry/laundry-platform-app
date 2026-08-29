@@ -1,8 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { ClipboardList } from 'lucide-react';
 import { formatNok } from '@/lib/config/pricing';
 import type { OrderWithCustomer } from '../actions';
 
@@ -13,61 +12,64 @@ interface CleanerHistoryTabProps {
 export function CleanerHistoryTab({ orders }: CleanerHistoryTabProps) {
   if (orders.length === 0) {
     return (
-      <div className="text-center py-8">
+      <div className="flex flex-col items-center gap-2 rounded-3xl border border-cream-dark/80 bg-warm-white/80 px-5 py-10 text-center shadow-[var(--shadow-card)] backdrop-blur">
+        <ClipboardList className="size-8 text-cream-dark" />
         <p className="text-medium-gray">Du har ingen fullførte oppdrag enna.</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {orders.map((order) => (
-        <Link key={order.id} href={`/dashboard/cleaner/${order.id}`}>
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <CardContent className="py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-1">
-                    <span className="font-semibold text-dark-gray">
-                      #{order.order_number}
-                    </span>
-                    <Badge
-                      variant={order.status === 'completed' ? 'success' : 'destructive'}
-                    >
-                      {order.status === 'completed' ? 'Fullfort' : 'Kansellert'}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-medium-gray">
-                    {order.customer.user.full_name}
-                  </p>
-                  <p className="text-xs text-medium-gray">
-                    {order.completed_at
-                      ? new Date(order.completed_at).toLocaleDateString('no-NO', {
-                          day: 'numeric',
-                          month: 'long',
-                          year: 'numeric',
-                        })
-                      : order.cancelled_at
-                        ? new Date(order.cancelled_at).toLocaleDateString('no-NO', {
-                            day: 'numeric',
-                            month: 'long',
-                            year: 'numeric',
-                          })
-                        : ''}
-                  </p>
-                </div>
-                {order.total_cost_ore && (
-                  <div className="text-right">
-                    <p className="font-semibold text-dark-gray">
-                      {formatNok(order.total_cost_ore)} kr
-                    </p>
-                  </div>
-                )}
+    <div className="overflow-hidden rounded-3xl border border-cream-dark/80 bg-warm-white/80 shadow-[var(--shadow-card)] backdrop-blur">
+      <div className="divide-y divide-cream-dark/60">
+        {orders.map((order) => (
+          <Link
+            key={order.id}
+            href={`/dashboard/cleaner/${order.id}`}
+            className="flex items-center justify-between gap-4 px-5 py-3.5 transition-colors hover:bg-cream/50"
+          >
+            <div className="min-w-0 flex-1">
+              <div className="mb-1 flex items-center gap-3">
+                <span className="font-medium text-dark-gray">
+                  #{order.order_number}
+                </span>
+                <span
+                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                    order.status === 'completed'
+                      ? 'bg-sea-green/10 text-sea-green'
+                      : 'bg-red-50 text-red-700'
+                  }`}
+                >
+                  {order.status === 'completed' ? 'Fullfort' : 'Kansellert'}
+                </span>
               </div>
-            </CardContent>
-          </Card>
-        </Link>
-      ))}
+              <p className="text-sm text-medium-gray">
+                {order.customer.user.full_name}
+              </p>
+              <p className="text-xs tabular-nums text-medium-gray">
+                {order.completed_at
+                  ? new Date(order.completed_at).toLocaleDateString('no-NO', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    })
+                  : order.cancelled_at
+                    ? new Date(order.cancelled_at).toLocaleDateString('no-NO', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                      })
+                    : ''}
+              </p>
+            </div>
+            {order.total_cost_ore && (
+              <p className="shrink-0 font-serif text-lg font-semibold tabular-nums text-dark-gray">
+                {formatNok(order.total_cost_ore)} kr
+              </p>
+            )}
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

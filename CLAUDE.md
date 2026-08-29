@@ -54,6 +54,8 @@ Key implications:
   - See `BUSINESS_LOGIC.md` for application workflows, operational rules, and business process definitions
   - See `DASHBOARDS.md` for role-based UI specifications (Admin, Cleaner, Customer dashboards)
   - See `ENVIRONMENTS.md` for staging/production setup, branch→environment mapping, and the env var matrix
+- **Design System**:
+  - See `BRANDBOOK.md` for the visual design system (colors, typography, component recipes). All UI must follow it — copy its recipes instead of inventing new styles
 
 ## Development Commands
 
@@ -107,8 +109,7 @@ src/
 │   ├── forms/              # Form components (empty)
 │   ├── layout/             # Layout components (empty)
 │   └── ui/                 # UI elements
-│       ├── LogoutButton.tsx
-│       └── NotificationCenter.tsx
+│       └── LogoutButton.tsx
 ├── hooks/                  # Custom React hooks (empty)
 ├── lib/                    # Core utilities and business logic
 │   ├── auth/               # Auth utilities (empty - using Supabase directly)

@@ -11,16 +11,28 @@ export const metadata: Metadata = {
 
 export default function PrisKalkulatorPage() {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-cream text-dark-gray">
+      {/* Atmospheric backdrop — soft sea-green wash over warm cream. */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10"
+        style={{
+          background:
+            'radial-gradient(120% 80% at 50% -10%, hsl(var(--sea-green) / 0.16), transparent 60%), radial-gradient(90% 60% at 110% 10%, hsl(var(--nordic-blue) / 0.10), transparent 55%)',
+        }}
+      />
       <Navbar />
-      <main className="pt-24 pb-16 bg-aurora min-h-screen">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+      <main className="pb-16 pt-28">
+        <div className="mx-auto max-w-2xl px-5">
           {/* Header */}
-          <div className="text-center mb-12">
-            <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl font-light text-foreground mb-4">
-              Beregn din <span className="text-gradient">vaskepris</span>
+          <div className="mb-12 text-center animate-in fade-in slide-in-from-bottom-3 duration-500">
+            <p className="text-sm font-medium uppercase tracking-[0.18em] text-sea-green">
+              Priser
+            </p>
+            <h1 className="mt-2 font-serif text-4xl font-semibold leading-tight text-dark-gray sm:text-5xl">
+              Beregn din vaskepris
             </h1>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            <p className="mx-auto mt-3 max-w-md text-medium-gray">
               Velg hva du vil sende inn, så ser du med en gang omtrent hva det
               koster. Endelig pris settes etter henting.
             </p>

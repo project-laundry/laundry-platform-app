@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AlertCircle, Check, Minus, NotebookPen, Plus, Shirt, WashingMachine } from 'lucide-react';
 import { IroningQuantityInput } from './IroningQuantityInput';
 import { PriceSummary } from './PriceSummary';
 import { saveLaundryDetails } from '../actions';
@@ -35,6 +34,95 @@ const IRONING_CATEGORIES: IroningGroup[] = [
   'shirts_dresses',
   'bedding',
 ];
+
+function SectionCard({
+  icon,
+  title,
+  subtitle,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur">
+      <div className="flex items-center gap-3">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sea-green/12 text-sea-green">
+          {icon}
+        </span>
+        <div>
+          <h2 className="font-serif text-lg font-semibold leading-none text-dark-gray">
+            {title}
+          </h2>
+          {subtitle && <p className="mt-1 text-sm text-medium-gray">{subtitle}</p>}
+        </div>
+      </div>
+      <div className="mt-4">{children}</div>
+    </section>
+  );
+}
+
+/** Load counter row — mirrors the order-flow Stepper look, but keeps a typed
+ *  number input in the middle so the cleaner can enter counts directly. */
+function LoadRow({
+  label,
+  hint,
+  value,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  hint: string;
+  value: number;
+  onChange: (n: number) => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div className="min-w-0">
+        <p className="font-medium text-dark-gray">{label}</p>
+        <p className="text-sm text-medium-gray">{hint}</p>
+        <p className="mt-1 text-xs tabular-nums text-nordic-blue">
+          {formatNok(PRICING.price_per_load_ore)} kr/vask
+        </p>
+      </div>
+
+      <div className="flex shrink-0 items-center gap-1.5">
+        <button
+          type="button"
+          aria-label="Færre"
+          onClick={() => onChange(Math.max(0, value - 1))}
+          disabled={disabled || value === 0}
+          className="flex size-11 items-center justify-center rounded-full border border-cream-dark bg-white text-nordic-blue shadow-sm transition-all hover:border-sea-green hover:text-sea-green active:scale-90 disabled:cursor-not-allowed disabled:border-cream-dark disabled:text-cream-dark disabled:active:scale-100"
+        >
+          <Minus className="size-5" />
+        </button>
+        <input
+          type="number"
+          min="0"
+          value={value}
+          onChange={(e) => {
+            const val = parseInt(e.target.value, 10);
+            if (!isNaN(val) && val >= 0) onChange(val);
+          }}
+          disabled={disabled}
+          className="h-11 w-14 rounded-2xl border border-cream-dark bg-white text-center font-serif text-xl font-semibold tabular-nums text-dark-gray outline-none transition-colors focus:border-sea-green focus:ring-2 focus:ring-sea-green/20 disabled:bg-cream/50 disabled:text-medium-gray"
+        />
+        <button
+          type="button"
+          aria-label="Flere"
+          onClick={() => onChange(value + 1)}
+          disabled={disabled}
+          className="flex size-11 items-center justify-center rounded-full border border-cream-dark bg-white text-nordic-blue shadow-sm transition-all hover:border-sea-green hover:text-sea-green active:scale-90 disabled:cursor-not-allowed disabled:border-cream-dark disabled:text-cream-dark disabled:active:scale-100"
+        >
+          <Plus className="size-5" />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export function LaundryDetailsForm({
   orderId,
@@ -107,114 +195,37 @@ export function LaundryDetailsForm({
   return (
     <div className="space-y-6">
       {/* Loads Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Vaskemengde</CardTitle>
-          <p className="text-sm text-medium-gray">
-            Mørke og hvite klær vaskes separat. Prisen gjelder per vask (inntil 5 kg).
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Dark loads */}
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-medium text-dark-gray">Mørk vask</div>
-              <div className="text-sm text-medium-gray">Mørke og fargede klær</div>
-              <div className="text-xs text-nordic-blue mt-1">
-                {formatNok(PRICING.price_per_load_ore)} kr/vask
-              </div>
-            </div>
-            <div className="flex items-center gap-1 bg-soft-gray rounded-lg p-1">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-10 w-10 rounded-md"
-                onClick={() => setDarkLoads(Math.max(0, darkLoads - 1))}
-                disabled={!isEditable || darkLoads === 0}
-              >
-                <span className="text-xl">-</span>
-              </Button>
-              <input
-                type="number"
-                min="0"
-                value={darkLoads}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value, 10);
-                  if (!isNaN(val) && val >= 0) setDarkLoads(val);
-                }}
-                disabled={!isEditable}
-                className="w-16 h-10 text-center bg-white rounded-md border-0 text-lg font-medium focus:ring-2 focus:ring-nordic-blue/30 disabled:opacity-50"
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-10 w-10 rounded-md"
-                onClick={() => setDarkLoads(darkLoads + 1)}
-                disabled={!isEditable}
-              >
-                <span className="text-xl">+</span>
-              </Button>
-            </div>
-          </div>
-
-          {/* White loads */}
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-medium text-dark-gray">Hvit vask</div>
-              <div className="text-sm text-medium-gray">Hvite og lyse klær</div>
-              <div className="text-xs text-nordic-blue mt-1">
-                {formatNok(PRICING.price_per_load_ore)} kr/vask
-              </div>
-            </div>
-            <div className="flex items-center gap-1 bg-soft-gray rounded-lg p-1">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-10 w-10 rounded-md"
-                onClick={() => setWhiteLoads(Math.max(0, whiteLoads - 1))}
-                disabled={!isEditable || whiteLoads === 0}
-              >
-                <span className="text-xl">-</span>
-              </Button>
-              <input
-                type="number"
-                min="0"
-                value={whiteLoads}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value, 10);
-                  if (!isNaN(val) && val >= 0) setWhiteLoads(val);
-                }}
-                disabled={!isEditable}
-                className="w-16 h-10 text-center bg-white rounded-md border-0 text-lg font-medium focus:ring-2 focus:ring-nordic-blue/30 disabled:opacity-50"
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-10 w-10 rounded-md"
-                onClick={() => setWhiteLoads(whiteLoads + 1)}
-                disabled={!isEditable}
-              >
-                <span className="text-xl">+</span>
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <SectionCard
+        icon={<WashingMachine className="size-5" />}
+        title="Vaskemengde"
+        subtitle="Mørke og hvite klær vaskes separat. Prisen gjelder per vask (inntil 5 kg)."
+      >
+        <div className="space-y-4">
+          <LoadRow
+            label="Mørk vask"
+            hint="Mørke og fargede klær"
+            value={darkLoads}
+            onChange={setDarkLoads}
+            disabled={!isEditable}
+          />
+          <LoadRow
+            label="Hvit vask"
+            hint="Hvite og lyse klær"
+            value={whiteLoads}
+            onChange={setWhiteLoads}
+            disabled={!isEditable}
+          />
+        </div>
+      </SectionCard>
 
       {/* Ironing Section (only if ironing is included) */}
       {needsIroning && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Stryking</CardTitle>
-            <p className="text-sm text-medium-gray">
-              Registrer antall plagg som skal strykes.
-            </p>
-          </CardHeader>
-          <CardContent>
+        <SectionCard
+          icon={<Shirt className="size-5" />}
+          title="Stryking"
+          subtitle="Registrer antall plagg som skal strykes."
+        >
+          <div className="divide-y divide-cream-dark/60">
             {IRONING_CATEGORIES.map((category) => (
               <IroningQuantityInput
                 key={category}
@@ -224,28 +235,25 @@ export function LaundryDetailsForm({
                 disabled={!isEditable}
               />
             ))}
-          </CardContent>
-        </Card>
+          </div>
+        </SectionCard>
       )}
 
       {/* Notes */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Prisnotat</CardTitle>
-          <p className="text-sm text-medium-gray">
-            Valgfritt notat om prissettingen
-          </p>
-        </CardHeader>
-        <CardContent>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            disabled={!isEditable}
-            placeholder="F.eks. spesielle hensyn, ekstra arbeid..."
-            className="w-full min-h-[80px] p-3 rounded-lg border border-gray-200 bg-white text-base focus:ring-2 focus:ring-nordic-blue/30 focus:border-nordic-blue disabled:opacity-50 disabled:bg-soft-gray"
-          />
-        </CardContent>
-      </Card>
+      <SectionCard
+        icon={<NotebookPen className="size-5" />}
+        title="Prisnotat"
+        subtitle="Valgfritt notat om prissettingen"
+      >
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          disabled={!isEditable}
+          rows={3}
+          placeholder="F.eks. spesielle hensyn, ekstra arbeid..."
+          className="w-full resize-none rounded-2xl border border-cream-dark bg-white px-4 py-3 text-dark-gray outline-none transition-colors placeholder:text-medium-gray/60 focus:border-sea-green focus:ring-2 focus:ring-sea-green/20 disabled:bg-cream/50 disabled:text-medium-gray"
+        />
+      </SectionCard>
 
       {/* Price Summary */}
       <PriceSummary
@@ -257,26 +265,28 @@ export function LaundryDetailsForm({
 
       {/* Error/Success messages */}
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-          {error}
+        <div className="flex items-start gap-2 rounded-2xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
+          <AlertCircle className="mt-0.5 size-4 shrink-0" />
+          <p>{error}</p>
         </div>
       )}
       {successMessage && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
-          {successMessage}
+        <div className="flex items-start gap-2 rounded-2xl bg-sea-green/10 px-3.5 py-2.5 text-sm text-sea-green">
+          <Check className="mt-0.5 size-4 shrink-0" />
+          <p>{successMessage}</p>
         </div>
       )}
 
       {/* Save button */}
       {isEditable && (
-        <Button
+        <button
+          type="button"
           onClick={handleSave}
           disabled={isSaving || (darkLoads === 0 && whiteLoads === 0)}
-          className="w-full"
-          size="lg"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-nordic-blue px-6 py-3.5 font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-cream-dark disabled:text-medium-gray disabled:shadow-none"
         >
           {isSaving ? 'Lagrer...' : hasChanges ? 'Lagre vaskdetaljer' : 'Lagret'}
-        </Button>
+        </button>
       )}
     </div>
   );

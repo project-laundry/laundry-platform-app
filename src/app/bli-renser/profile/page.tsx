@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import { AppHeader, BackLink } from '@/components/layout/AppHeader';
 import { useRouter } from 'next/navigation';
+import { ArrowRight, Languages, Sparkles, UserRound } from 'lucide-react';
 import { useCleanerOnboardingStore } from '@/stores/cleaner-onboarding-store';
 import { CleanerFlowProgress } from '@/components/ui/CleanerFlowProgress';
 import { FormInput } from '@/components/forms/FormInput';
@@ -16,6 +17,21 @@ export default function ProfilePage() {
   if (!hasHydrated) return null;
   return <ProfileForm />;
 }
+
+const SPECIALIZATION_OPTIONS: { value: CleanerSpecialization; label: string }[] = [
+  { value: 'delicate', label: 'Delikate stoffer (silke, ull, etc.)' },
+  { value: 'formal', label: 'Forretningsklær (skjorter, dresser, etc.)' },
+  { value: 'sportswear', label: 'Sportsklær og aktivitetstøy' },
+  { value: 'outerwear', label: 'Ytterklær (jakker, frakker, etc.)' },
+  { value: 'down', label: 'Dunjakker og duntøy' },
+  { value: 'leather', label: 'Lær og skinn' },
+];
+
+const LANGUAGE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'no', label: 'Norsk' },
+  { value: 'en', label: 'Engelsk' },
+  { value: 'other', label: 'Annet språk' },
+];
 
 function ProfileForm() {
   const router = useRouter();
@@ -93,39 +109,52 @@ function ProfileForm() {
   const isFormValid = displayName && experienceLevel && languages.length > 0;
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex justify-between items-center">
-            <Link href="/" className="text-2xl font-bold text-nordic-blue">NooraCare</Link>
-            <div className="text-sm text-slate-600">
-              Steg 4 av 5
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-cream text-dark-gray">
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10"
+        style={{
+          background:
+            'radial-gradient(120% 80% at 50% -10%, hsl(var(--sea-green) / 0.16), transparent 60%), radial-gradient(90% 60% at 110% 10%, hsl(var(--nordic-blue) / 0.10), transparent 55%)',
+        }}
+      />
 
-      <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Progress Indicator */}
+      <AppHeader />
+
+      <main className="mx-auto max-w-2xl px-5 pb-40 pt-6">
+        <div className="mb-4">
+          <BackLink href="/bli-renser/equipment" />
+        </div>
+
         <CleanerFlowProgress currentStep={4} />
 
-        {/* Form Section */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
-          <div className="mb-8">
-            <h1 className="text-3xl font-light text-slate-900 mb-4">
-              Fullfør profilen din
-            </h1>
-            <p className="text-slate-600">
-              Fortell litt om deg selv for å bygge tillit med kundene.
-            </p>
-          </div>
+        <div className="mt-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
+          <p className="text-sm font-medium uppercase tracking-[0.18em] text-sea-green">
+            Steg 4 av 5
+          </p>
+          <h1 className="mt-2 font-serif text-4xl font-semibold leading-tight text-dark-gray sm:text-5xl">
+            Fullfør profilen din
+          </h1>
+          <p className="mt-3 max-w-md text-medium-gray">
+            Fortell litt om deg selv for å bygge tillit med kundene.
+          </p>
+        </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Display Name */}
-            <div>
-              <h3 className="text-lg font-medium text-slate-900 mb-4">Om deg</h3>
+        <form id="profile-form" onSubmit={handleSubmit}>
+          <section
+            className="mt-6 rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur animate-in fade-in slide-in-from-bottom-3 duration-700"
+            style={{ animationDelay: '60ms' }}
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex size-9 items-center justify-center rounded-full bg-sea-green/12 text-sea-green">
+                <UserRound className="size-5" />
+              </span>
+              <h2 className="font-serif text-lg font-semibold text-dark-gray">
+                Om deg
+              </h2>
+            </div>
 
+            <div className="mt-4">
               <FormInput
                 label="Visningsnavn"
                 value={displayName}
@@ -134,155 +163,132 @@ function ProfileForm() {
                 required
                 error={errors.displayName}
               />
-              <p className="text-sm text-slate-600 mt-1">
+              <p className="mt-1.5 text-sm text-medium-gray">
                 Dette navnet vises til kunder når de ser profilen din
               </p>
             </div>
+          </section>
 
-            {/* Experience */}
-            <div>
-              <h3 className="text-lg font-medium text-slate-900 mb-4">Erfaring</h3>
+          <section
+            className="mt-6 rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur animate-in fade-in slide-in-from-bottom-3 duration-700"
+            style={{ animationDelay: '120ms' }}
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex size-9 items-center justify-center rounded-full bg-sea-green/12 text-sea-green">
+                <Sparkles className="size-5" />
+              </span>
+              <h2 className="font-serif text-lg font-semibold text-dark-gray">
+                Erfaring
+              </h2>
+            </div>
 
-              <div className="space-y-4">
-                <FormSelect
-                  label="Hvor lang erfaring har du med rengjøring?"
-                  value={experienceLevel}
-                  onChange={(value) => setExperienceLevel(value as CleanerExperienceLevel)}
-                  placeholder="Velg erfaringsnivå"
-                  options={[
-                    { value: 'beginner', label: 'Nybegynner - Jeg lærer fortsatt' },
-                    { value: 'some', label: 'Noe erfaring - 1-2 år' },
-                    { value: 'experienced', label: 'Erfaren - 3-5 år' },
-                    { value: 'expert', label: 'Ekspert - 5+ år' },
-                    { value: 'professional', label: 'Profesjonell - Jeg driver eget rengjøringsfirma' }
-                  ]}
-                  required
-                  error={errors.experienceLevel}
-                />
+            <div className="mt-4 space-y-5">
+              <FormSelect
+                label="Hvor lang erfaring har du med rengjøring?"
+                value={experienceLevel}
+                onChange={(value) => setExperienceLevel(value as CleanerExperienceLevel)}
+                placeholder="Velg erfaringsnivå"
+                options={[
+                  { value: 'beginner', label: 'Nybegynner - Jeg lærer fortsatt' },
+                  { value: 'some', label: 'Noe erfaring - 1-2 år' },
+                  { value: 'experienced', label: 'Erfaren - 3-5 år' },
+                  { value: 'expert', label: 'Ekspert - 5+ år' },
+                  { value: 'professional', label: 'Profesjonell - Jeg driver eget rengjøringsfirma' }
+                ]}
+                required
+                error={errors.experienceLevel}
+              />
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-900 mb-3">
-                    Hvilke typer klær har du mest erfaring med? (valgfritt)
-                  </label>
-                  <div className="space-y-2">
-                    <label className="flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-600"
-                        checked={specializations.includes('delicate')}
-                        onChange={() => toggleSpecialization('delicate')}
-                      />
-                      <span className="ml-3 text-slate-700">Delikate stoffer (silke, ull, etc.)</span>
-                    </label>
-                    <label className="flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-600"
-                        checked={specializations.includes('formal')}
-                        onChange={() => toggleSpecialization('formal')}
-                      />
-                      <span className="ml-3 text-slate-700">Forretningsklær (skjorter, dresser, etc.)</span>
-                    </label>
-                    <label className="flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-600"
-                        checked={specializations.includes('sportswear')}
-                        onChange={() => toggleSpecialization('sportswear')}
-                      />
-                      <span className="ml-3 text-slate-700">Sportsklær og aktivitetstøy</span>
-                    </label>
-                    <label className="flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-600"
-                        checked={specializations.includes('outerwear')}
-                        onChange={() => toggleSpecialization('outerwear')}
-                      />
-                      <span className="ml-3 text-slate-700">Ytterklær (jakker, frakker, etc.)</span>
-                    </label>
-                    <label className="flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-600"
-                        checked={specializations.includes('down')}
-                        onChange={() => toggleSpecialization('down')}
-                      />
-                      <span className="ml-3 text-slate-700">Dunjakker og duntøy</span>
-                    </label>
-                    <label className="flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-600"
-                        checked={specializations.includes('leather')}
-                        onChange={() => toggleSpecialization('leather')}
-                      />
-                      <span className="ml-3 text-slate-700">Lær og skinn</span>
-                    </label>
-                  </div>
+              <div>
+                <span className="mb-2 block text-sm font-medium text-dark-gray">
+                  Hvilke typer klær har du mest erfaring med? (valgfritt)
+                </span>
+                <div className="space-y-2">
+                  {SPECIALIZATION_OPTIONS.map((option) => (
+                    <CheckRow
+                      key={option.value}
+                      label={option.label}
+                      checked={specializations.includes(option.value)}
+                      onToggle={() => toggleSpecialization(option.value)}
+                    />
+                  ))}
                 </div>
               </div>
             </div>
+          </section>
 
-            {/* Languages */}
-            <div>
-              <label className="block text-sm font-medium text-slate-900 mb-3">
+          <section
+            className="mt-6 rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur animate-in fade-in slide-in-from-bottom-3 duration-700"
+            style={{ animationDelay: '180ms' }}
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex size-9 items-center justify-center rounded-full bg-sea-green/12 text-sea-green">
+                <Languages className="size-5" />
+              </span>
+              <h2 className="font-serif text-lg font-semibold text-dark-gray">
                 Hvilke språk snakker du?
-                <span className="text-red-600 ml-1">*</span>
-              </label>
-              <div className="space-y-2">
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-600"
-                    checked={languages.includes('no')}
-                    onChange={() => toggleLanguage('no')}
-                  />
-                  <span className="ml-3 text-slate-700">Norsk</span>
-                </label>
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-600"
-                    checked={languages.includes('en')}
-                    onChange={() => toggleLanguage('en')}
-                  />
-                  <span className="ml-3 text-slate-700">Engelsk</span>
-                </label>
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-600"
-                    checked={languages.includes('other')}
-                    onChange={() => toggleLanguage('other')}
-                  />
-                  <span className="ml-3 text-slate-700">Annet språk</span>
-                </label>
-              </div>
-              {errors.languages && (
-                <p className="mt-1 text-sm text-red-600">{errors.languages}</p>
-              )}
+                <span className="ml-1 text-red-600">*</span>
+              </h2>
             </div>
 
-            {/* Navigation Buttons */}
-            <div className="flex justify-between pt-6">
-              <Link
-                href="/bli-renser/equipment"
-                className="px-6 py-3 border border-slate-300 text-slate-600 font-medium rounded-lg hover:bg-slate-50"
-              >
-                Tilbake
-              </Link>
-              <button
-                type="submit"
-                disabled={!isFormValid}
-                className="px-6 py-3 bg-teal-600 text-white font-medium rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Fortsett til bekreftelse
-              </button>
+            <div className="mt-4 space-y-2">
+              {LANGUAGE_OPTIONS.map((option) => (
+                <CheckRow
+                  key={option.value}
+                  label={option.label}
+                  checked={languages.includes(option.value)}
+                  onToggle={() => toggleLanguage(option.value)}
+                />
+              ))}
             </div>
-          </form>
-        </div>
+            {errors.languages && (
+              <p className="mt-1.5 text-sm text-red-600">{errors.languages}</p>
+            )}
+          </section>
+        </form>
       </main>
+
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-cream-dark/70 bg-warm-white/90 backdrop-blur supports-[backdrop-filter]:bg-warm-white/75">
+        <div className="mx-auto max-w-2xl px-5 py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))]">
+          <button
+            type="submit"
+            form="profile-form"
+            disabled={!isFormValid}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-nordic-blue px-6 py-3.5 font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-cream-dark disabled:text-medium-gray disabled:shadow-none"
+          >
+            Fortsett til bekreftelse
+            <ArrowRight className="size-4" />
+          </button>
+        </div>
+      </div>
     </div>
+  );
+}
+
+function CheckRow({
+  label,
+  checked,
+  onToggle,
+}: {
+  label: string;
+  checked: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <label
+      className={`flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 transition-all ${
+        checked
+          ? 'border-sea-green bg-sea-green/8'
+          : 'border-cream-dark bg-white hover:border-sea-green/50'
+      }`}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onToggle}
+        className="size-4 shrink-0 accent-sea-green"
+      />
+      <span className="text-sm text-dark-gray">{label}</span>
+    </label>
   );
 }

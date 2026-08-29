@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { AppHeader } from '@/components/layout/AppHeader';
+import { ClipboardList, Inbox } from 'lucide-react';
 import {
   getPendingAssignmentOrders,
   getCleanersForCity,
@@ -63,55 +65,76 @@ export default function AdminOrdersPage() {
     setAssigning(null);
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 p-4 sm:p-8">
-        <div className="max-w-6xl mx-auto">
-          <h1 className="text-2xl font-bold mb-6">Ordre som venter tildeling</h1>
-          <p>Laster...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6">Ordre som venter tildeling</h1>
+    <div className="min-h-screen bg-cream text-dark-gray">
+      {/* Atmospheric backdrop — soft sea-green wash over warm cream. */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10"
+        style={{
+          background:
+            'radial-gradient(120% 80% at 50% -10%, hsl(var(--sea-green) / 0.16), transparent 60%), radial-gradient(90% 60% at 110% 10%, hsl(var(--nordic-blue) / 0.10), transparent 55%)',
+        }}
+      />
 
-        {orders.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-6">
-            <p className="text-gray-500">Ingen ordre venter på tildeling</p>
+      <AppHeader maxWidth="max-w-5xl" />
+
+      <main className="mx-auto max-w-5xl px-5 pb-16 pt-8">
+        <div className="animate-in fade-in slide-in-from-bottom-3 duration-500">
+          <p className="text-sm font-medium uppercase tracking-[0.18em] text-sea-green">
+            Admin
+          </p>
+          <h1 className="mt-2 font-serif text-4xl font-semibold leading-tight text-dark-gray">
+            Ordre som venter tildeling
+          </h1>
+        </div>
+
+        {loading ? (
+          <div className="mt-6 space-y-4">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <div key={i} className="h-48 animate-pulse rounded-2xl bg-cream-dark/50" />
+            ))}
+          </div>
+        ) : orders.length === 0 ? (
+          <div className="mt-6 flex flex-col items-center gap-2 rounded-3xl border border-cream-dark/80 bg-warm-white/80 px-5 py-10 text-center shadow-[var(--shadow-card)] backdrop-blur">
+            <Inbox className="size-8 text-cream-dark" />
+            <p className="text-medium-gray">Ingen ordre venter på tildeling</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {orders.map((order) => {
+          <div className="mt-6 space-y-4">
+            {orders.map((order, index) => {
               const city = order.city;
               const availableCleaners = cleanersByCity[city] || [];
 
               return (
                 <div
                   key={order.id}
-                  className="bg-white rounded-lg shadow p-6"
+                  className="rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur animate-in fade-in slide-in-from-bottom-3 duration-500"
+                  style={{ animationDelay: `${Math.min(index, 5) * 60}ms` }}
                 >
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-lg font-semibold">
-                        Ordre #{order.order_number}
-                      </h3>
-                      <p className="text-sm text-gray-500">
-                        {order.customer.user.full_name}
-                      </p>
+                  <div className="mb-4 flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sea-green/12 text-sea-green">
+                        <ClipboardList className="size-5" />
+                      </span>
+                      <div>
+                        <h3 className="font-serif text-lg font-semibold leading-none text-dark-gray">
+                          Ordre #{order.order_number}
+                        </h3>
+                        <p className="mt-1 text-sm text-medium-gray">
+                          {order.customer.user.full_name}
+                        </p>
+                      </div>
                     </div>
-                    <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm">
+                    <span className="inline-flex shrink-0 items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800">
                       Venter tildeling
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 text-sm">
+                  <div className="mb-4 grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
                     <div>
-                      <p className="text-gray-500">Hentedato</p>
-                      <p className="font-medium">
+                      <p className="text-medium-gray">Hentedato</p>
+                      <p className="font-medium tabular-nums text-dark-gray">
                         {new Date(order.scheduled_date).toLocaleDateString('no-NO', {
                           weekday: 'long',
                           day: 'numeric',
@@ -120,8 +143,8 @@ export default function AdminOrdersPage() {
                       </p>
                     </div>
                     <div>
-                      <p className="text-gray-500">Leveringsdato</p>
-                      <p className="font-medium">
+                      <p className="text-medium-gray">Leveringsdato</p>
+                      <p className="font-medium tabular-nums text-dark-gray">
                         {new Date(order.delivery_date).toLocaleDateString('no-NO', {
                           weekday: 'long',
                           day: 'numeric',
@@ -130,14 +153,14 @@ export default function AdminOrdersPage() {
                       </p>
                     </div>
                     <div>
-                      <p className="text-gray-500">Adresse</p>
-                      <p className="font-medium">
+                      <p className="text-medium-gray">Adresse</p>
+                      <p className="font-medium text-dark-gray">
                         {order.street}, {order.postal_code} {city}
                       </p>
                     </div>
                     <div>
-                      <p className="text-gray-500">Beløp</p>
-                      <p className="font-medium">
+                      <p className="text-medium-gray">Beløp</p>
+                      <p className="font-medium tabular-nums text-dark-gray">
                         {order.total_cost_ore ? `${oreToNok(order.total_cost_ore)} NOK` : 'Ikke beregnet'}
                       </p>
                     </div>
@@ -146,9 +169,9 @@ export default function AdminOrdersPage() {
                   {/* Add-ons */}
                   {order.needs_ironing && (
                     <div className="mb-4 text-sm">
-                      <p className="text-gray-500 mb-1">Tillegg:</p>
+                      <p className="mb-1 text-medium-gray">Tillegg:</p>
                       <div className="flex gap-2">
-                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                        <span className="inline-flex items-center rounded-full bg-nordic-blue/10 px-2.5 py-0.5 text-xs font-medium text-nordic-blue">
                           Stryking
                         </span>
                       </div>
@@ -156,19 +179,22 @@ export default function AdminOrdersPage() {
                   )}
 
                   {/* Cleaner assignment */}
-                  <div className="border-t pt-4">
-                    <label className="block text-sm text-gray-500 mb-2">
+                  <div className="border-t border-cream-dark/60 pt-4">
+                    <label
+                      htmlFor={`cleaner-${order.id}`}
+                      className="mb-1.5 block text-sm font-medium text-dark-gray"
+                    >
                       Tildel renser i {city}:
                     </label>
                     {availableCleaners.length === 0 ? (
-                      <p className="text-red-600 text-sm">
+                      <p className="text-sm text-red-700">
                         Ingen tilgjengelige rensere i {city}
                       </p>
                     ) : (
                       <div className="flex gap-2">
                         <select
                           id={`cleaner-${order.id}`}
-                          className="flex-1 border rounded-lg px-3 py-2"
+                          className="flex-1 rounded-2xl border border-cream-dark bg-white px-4 py-3 text-dark-gray outline-none transition-colors focus:border-sea-green focus:ring-2 focus:ring-sea-green/20"
                           defaultValue=""
                         >
                           <option value="" disabled>
@@ -190,7 +216,7 @@ export default function AdminOrdersPage() {
                             }
                           }}
                           disabled={assigning === order.id}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                          className="inline-flex shrink-0 items-center gap-2 rounded-full bg-nordic-blue px-6 py-3 font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-cream-dark disabled:text-medium-gray disabled:shadow-none"
                         >
                           {assigning === order.id ? 'Tildeler...' : 'Tildel'}
                         </button>
@@ -202,7 +228,7 @@ export default function AdminOrdersPage() {
             })}
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }

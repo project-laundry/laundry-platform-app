@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
+import { TriangleAlert } from 'lucide-react';
 import { cancelOrderAction } from '@/app/orders/actions';
 
 interface CancelConfirmationFormProps {
@@ -52,53 +52,55 @@ export function CancelConfirmationForm({
     }
   };
 
+  const confirmButton = (
+    <button
+      type="button"
+      onClick={handleCancel}
+      disabled={isLoading}
+      className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-red-600 px-6 py-3.5 font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-cream-dark disabled:text-medium-gray disabled:shadow-none"
+    >
+      {isLoading ? 'Kansellerer...' : 'Bekreft kansellering'}
+    </button>
+  );
+
   // For one-time orders, just show the cancel button
   if (!hasSubscription) {
-    return (
-      <div className="space-y-4">
-        <Button
-          onClick={handleCancel}
-          disabled={isLoading}
-          variant="destructive"
-          className="w-full py-6 text-base"
-        >
-          {isLoading ? 'Kansellerer...' : 'Bekreft kansellering'}
-        </Button>
-      </div>
-    );
+    return <div className="space-y-4">{confirmButton}</div>;
   }
 
   // For subscription orders, show options
   return (
     <div className="space-y-4">
-      <h3 className="font-semibold text-dark-gray">Velg kanselleringstype</h3>
+      <h3 className="font-serif text-lg font-semibold text-dark-gray">
+        Velg kanselleringstype
+      </h3>
 
       {/* Option 1: Cancel order only */}
       <button
         type="button"
         onClick={() => setSelectedOption('order-only')}
         disabled={isLoading}
-        className={`w-full text-left p-6 rounded-xl border-2 transition-all ${
+        className={`w-full rounded-2xl border px-4 py-3 text-left transition-all ${
           selectedOption === 'order-only'
-            ? 'border-nordic-blue bg-nordic-blue/5'
-            : 'border-gray-200 bg-white hover:border-gray-300'
+            ? 'border-sea-green bg-sea-green/8'
+            : 'border-cream-dark bg-white hover:border-sea-green/50'
         }`}
       >
-        <div className="flex items-start">
-          <div className={`w-5 h-5 rounded-full border-2 mr-4 mt-0.5 flex items-center justify-center flex-shrink-0 ${
-            selectedOption === 'order-only'
-              ? 'border-nordic-blue'
-              : 'border-gray-300'
-          }`}>
+        <div className="flex items-start gap-3">
+          <span
+            className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border-2 ${
+              selectedOption === 'order-only' ? 'border-sea-green' : 'border-cream-dark'
+            }`}
+          >
             {selectedOption === 'order-only' && (
-              <div className="w-2.5 h-2.5 rounded-full bg-nordic-blue" />
+              <span className="size-2.5 rounded-full bg-sea-green" />
             )}
-          </div>
+          </span>
           <div>
-            <h4 className="font-semibold text-dark-gray mb-1">
+            <h4 className="font-medium text-dark-gray">
               Kanseller kun denne bestillingen
             </h4>
-            <p className="text-sm text-medium-gray">
+            <p className="mt-1 text-sm text-medium-gray">
               En ny ordre vil automatisk bli opprettet for neste periode. Abonnementet fortsetter som normalt.
             </p>
           </div>
@@ -110,27 +112,27 @@ export function CancelConfirmationForm({
         type="button"
         onClick={() => setSelectedOption('subscription')}
         disabled={isLoading}
-        className={`w-full text-left p-6 rounded-xl border-2 transition-all ${
+        className={`w-full rounded-2xl border px-4 py-3 text-left transition-all ${
           selectedOption === 'subscription'
-            ? 'border-red-500 bg-red-50'
-            : 'border-gray-200 bg-white hover:border-gray-300'
+            ? 'border-red-400 bg-red-50'
+            : 'border-cream-dark bg-white hover:border-red-200'
         }`}
       >
-        <div className="flex items-start">
-          <div className={`w-5 h-5 rounded-full border-2 mr-4 mt-0.5 flex items-center justify-center flex-shrink-0 ${
-            selectedOption === 'subscription'
-              ? 'border-red-500'
-              : 'border-gray-300'
-          }`}>
+        <div className="flex items-start gap-3">
+          <span
+            className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border-2 ${
+              selectedOption === 'subscription' ? 'border-red-500' : 'border-cream-dark'
+            }`}
+          >
             {selectedOption === 'subscription' && (
-              <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+              <span className="size-2.5 rounded-full bg-red-500" />
             )}
-          </div>
+          </span>
           <div>
-            <h4 className="font-semibold text-dark-gray mb-1">
+            <h4 className="font-medium text-dark-gray">
               Kanseller abonnementet
             </h4>
-            <p className="text-sm text-medium-gray">
+            <p className="mt-1 text-sm text-medium-gray">
               Alle fremtidige ordrer vil bli stoppet og Vipps-avtalen avsluttes. Dette kan ikke angres.
             </p>
           </div>
@@ -139,27 +141,16 @@ export function CancelConfirmationForm({
 
       {/* Warning for subscription cancellation */}
       {selectedOption === 'subscription' && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-start">
-            <svg className="w-5 h-5 text-red-600 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <p className="text-sm text-red-800">
-              Ved å kansellere abonnementet vil du ikke motta flere hentinger. Du kan opprette et nytt abonnement når som helst.
-            </p>
-          </div>
+        <div className="flex items-start gap-2 rounded-2xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700 animate-in fade-in slide-in-from-top-1 duration-300">
+          <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+          <p>
+            Ved å kansellere abonnementet vil du ikke motta flere hentinger. Du kan opprette et nytt abonnement når som helst.
+          </p>
         </div>
       )}
 
       {/* Confirm Button */}
-      <Button
-        onClick={handleCancel}
-        disabled={isLoading}
-        variant="destructive"
-        className="w-full py-6 text-base mt-6"
-      >
-        {isLoading ? 'Kansellerer...' : 'Bekreft kansellering'}
-      </Button>
+      <div className="pt-2">{confirmButton}</div>
     </div>
   );
 }

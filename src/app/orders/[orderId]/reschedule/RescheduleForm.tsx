@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar as CalendarIcon } from 'lucide-react';
+import { AlertCircle, Calendar as CalendarIcon, Check, Loader2 } from 'lucide-react';
 import { PickupCalendar } from '@/components/ui/PickupCalendar';
 import { updateOrderPickupDateAction } from '@/app/orders/actions';
 import { addDays, toISODateString } from '@/lib/utils/date';
@@ -83,30 +83,40 @@ export function RescheduleForm({
   return (
     <div className="space-y-6">
       {/* Calendar Section */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-        <div className="flex items-center mb-4">
-          <CalendarIcon className="w-5 h-5 text-teal-600 mr-2" />
-          <h3 className="text-lg font-medium text-slate-900">Velg ny hentedato</h3>
+      <div className="rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur">
+        <div className="flex items-center gap-3">
+          <span className="flex size-9 items-center justify-center rounded-full bg-sea-green/12 text-sea-green">
+            <CalendarIcon className="size-5" />
+          </span>
+          <h3 className="font-serif text-lg font-semibold text-dark-gray">
+            Velg ny hentedato
+          </h3>
         </div>
 
-        <PickupCalendar
-          availableWeekdays={availableWeekdays}
-          selectedDate={selectedDate}
-          onDateSelect={setSelectedDate}
-        />
+        <div className="mt-4">
+          <PickupCalendar
+            availableWeekdays={availableWeekdays}
+            selectedDate={selectedDate}
+            onDateSelect={setSelectedDate}
+          />
+        </div>
 
         {/* New dates preview */}
         {hasDateChanged && newDeliveryDate && (
-          <div className="mt-4 p-4 bg-teal-50 rounded-lg border border-teal-200">
-            <h4 className="text-sm font-medium text-teal-800 mb-2">Nye datoer</h4>
-            <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="mt-4 rounded-2xl border border-dashed border-sea-green/40 bg-sea-green/5 px-4 py-3 animate-in fade-in slide-in-from-top-1 duration-300">
+            <h4 className="text-sm font-medium text-dark-gray">Nye datoer</h4>
+            <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
               <div>
-                <p className="text-teal-600">Henting</p>
-                <p className="font-medium text-teal-900 capitalize">{formatDate(selectedDate)}</p>
+                <p className="text-medium-gray">Henting</p>
+                <p className="font-medium capitalize text-dark-gray">
+                  {formatDate(selectedDate)}
+                </p>
               </div>
               <div>
-                <p className="text-teal-600">Levering</p>
-                <p className="font-medium text-teal-900 capitalize">{formatDate(newDeliveryDate)}</p>
+                <p className="text-medium-gray">Levering</p>
+                <p className="font-medium capitalize text-dark-gray">
+                  {formatDate(newDeliveryDate)}
+                </p>
               </div>
             </div>
           </div>
@@ -115,43 +125,39 @@ export function RescheduleForm({
 
       {/* Error Message */}
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
-          <p className="text-red-700 text-sm">{error}</p>
+        <div className="flex items-start gap-2 rounded-2xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
+          <AlertCircle className="mt-0.5 size-4 shrink-0" />
+          <p>{error}</p>
         </div>
       )}
 
       {/* Success Message */}
       {successMessage && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
-          <p className="text-green-700 text-sm">{successMessage}</p>
+        <div className="flex items-start gap-2 rounded-2xl bg-sea-green/10 px-3.5 py-2.5 text-sm text-sea-green">
+          <Check className="mt-0.5 size-4 shrink-0" />
+          <p>{successMessage}</p>
         </div>
       )}
 
       {/* Submit Button */}
       <button
+        type="button"
         onClick={handleSubmit}
         disabled={!hasDateChanged || isSubmitting}
-        className={`w-full py-4 rounded-xl font-medium transition-all duration-200 ${
-          hasDateChanged && !isSubmitting
-            ? 'bg-teal-600 text-white hover:bg-teal-700 shadow-sm'
-            : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-        }`}
+        className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-nordic-blue px-6 py-3.5 font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-cream-dark disabled:text-medium-gray disabled:shadow-none"
       >
         {isSubmitting ? (
-          <span className="flex items-center justify-center">
-            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-            </svg>
+          <>
+            <Loader2 className="size-4 animate-spin" />
             Oppdaterer...
-          </span>
+          </>
         ) : (
           'Bekreft ny dato'
         )}
       </button>
 
       {/* Info text */}
-      <p className="text-center text-xs text-slate-400">
+      <p className="text-center text-xs text-medium-gray">
         Levering skjer 2 dager etter henting. Ved endring kan renser bli byttet ut hvis nåværende renser ikke er tilgjengelig.
       </p>
     </div>

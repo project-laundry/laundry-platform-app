@@ -5,7 +5,7 @@ export function Benefits() {
     {
       icon: Clock,
       title: "Spar verdifull tid",
-    description: "Bruk timene på familie, hobbyer eller bare avslapning.",
+      description: "Bruk timene på familie, hobbyer eller bare avslapning.",
     },
     {
       icon: Leaf,
@@ -16,17 +16,17 @@ export function Benefits() {
     {
       icon: ShieldCheck,
       title: "Trygg behandling",
-    description: "Dine plagg håndteres med største forsiktighet og respekt.",
+      description: "Dine plagg håndteres med største forsiktighet og respekt.",
     },
     {
       icon: Heart,
       title: "Personlig service",
-    description: "Tilpasset dine preferanser og behov, hver eneste gang.",
+      description: "Tilpasset dine preferanser og behov, hver eneste gang.",
     },
     {
       icon: Award,
       title: "Profesjonell finish",
-    description: "Strøket, brettet og pakket – klar til bruk.",
+      description: "Strøket, brettet og pakket – klar til bruk.",
     },
     {
       icon: BadgeCheck,
@@ -37,40 +37,40 @@ export function Benefits() {
   ];
 
   return (
-    <section className="py-24 md:py-32 bg-aurora">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="border-t border-cream-dark/60 py-24 md:py-32">
+      <div className="mx-auto max-w-6xl px-5">
         {/* Section Header */}
-        <div className="max-w-2xl mx-auto text-center mb-16 md:mb-20">
-          <span className="text-sm font-medium text-sea-green uppercase tracking-widest mb-4 block">
+        <div className="mx-auto mb-16 max-w-2xl text-center md:mb-20">
+          <span className="mb-4 block text-sm font-medium uppercase tracking-[0.18em] text-sea-green">
             Hvorfor velge Noora
           </span>
-          <h2 className="font-serif text-4xl md:text-5xl lg:text-6xl font-light text-foreground mb-6">
+          <h2 className="mb-6 font-serif text-4xl font-semibold leading-tight text-dark-gray sm:text-5xl">
             For travle hverdager,
             <br />
-            <span className="text-gradient font-medium">med et snev av luksus</span>
+            med et snev av luksus
           </h2>
         </div>
 
         {/* Benefits Grid */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 max-w-6xl mx-auto">
+        <div className="grid gap-6 sm:grid-cols-2 md:gap-8 lg:grid-cols-3">
           {benefits.map((benefit, index) => {
             const Icon = benefit.icon;
             return (
               <div
                 key={benefit.title}
-                className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl p-8 hover:border-[hsl(var(--nordic-blue))]/30 hover:shadow-card transition-all duration-300 animate-fade-in group"
-                style={{ animationDelay: `${index * 0.1}s` }}
+                className="rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-8 shadow-[var(--shadow-card)] backdrop-blur animate-in fade-in slide-in-from-bottom-3 duration-500"
+                style={{ animationDelay: `${index * 60}ms` }}
               >
                 {/* Icon */}
-                <div className="w-12 h-12 rounded-xl bg-cream group-hover:bg-[hsl(var(--nordic-blue))]/10 flex items-center justify-center mb-6 transition-colors">
-                  <Icon className="w-6 h-6 text-nordic-blue" />
+                <div className="mb-6 flex size-11 items-center justify-center rounded-full bg-sea-green/12 text-sea-green">
+                  <Icon className="size-5" />
                 </div>
 
                 {/* Content */}
-                <h3 className="text-xl font-semibold text-foreground mb-3">
+                <h3 className="mb-3 font-serif text-xl font-semibold text-dark-gray">
                   {benefit.title}
                 </h3>
-                <p className="text-foreground/70 leading-relaxed">
+                <p className="leading-relaxed text-medium-gray">
                   {benefit.description}
                 </p>
               </div>

@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback, Suspense } from 'react';
+import { AppHeader } from '@/components/layout/AppHeader';
 import Link from 'next/link';
+import { Check, ChevronLeft, Clock, Info, Loader2, X } from 'lucide-react';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { getCheckoutStatusAction, type CheckoutStatus } from '../actions';
 
@@ -56,149 +58,167 @@ function OrderSuccessPageContent() {
   };
 
   return (
-    <div className="min-h-screen bg-soft-gray">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <Link href="/dashboard" className="inline-block">
-            <h1 className="text-2xl font-bold text-nordic-blue">NooraCare</h1>
-          </Link>
-        </div>
-      </header>
+    <PageShell>
+      {viewState === 'loading' && <LoadingView />}
+      {viewState === 'active' && <SuccessView />}
+      {viewState === 'cancelled' && <CancelledView />}
+      {viewState === 'pending' && <PendingView onRetry={retryCheck} />}
+    </PageShell>
+  );
+}
 
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {viewState === 'loading' && <LoadingView />}
-        {viewState === 'active' && <SuccessView />}
-        {viewState === 'cancelled' && <CancelledView />}
-        {viewState === 'pending' && <PendingView onRetry={retryCheck} />}
-      </div>
+function PageShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen bg-cream text-dark-gray">
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10"
+        style={{
+          background:
+            'radial-gradient(120% 80% at 50% -10%, hsl(var(--sea-green) / 0.16), transparent 60%), radial-gradient(90% 60% at 110% 10%, hsl(var(--nordic-blue) / 0.10), transparent 55%)',
+        }}
+      />
+
+      <AppHeader />
+
+      <main className="mx-auto max-w-2xl px-5 py-12">{children}</main>
     </div>
   );
 }
 
 function LoadingView() {
   return (
-    <div className="text-center py-12">
-      <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-nordic-blue"></div>
+    <div className="py-12 text-center">
+      <Loader2 className="mx-auto size-10 animate-spin text-nordic-blue" />
       <p className="mt-4 text-medium-gray">Bekrefter betalingen din...</p>
     </div>
   );
 }
 
+function StatusIcon({
+  tone,
+  children,
+}: {
+  tone: 'success' | 'error' | 'pending';
+  children: React.ReactNode;
+}) {
+  const tones = {
+    success: 'bg-sea-green/10 text-sea-green',
+    error: 'bg-red-50 text-red-600',
+    pending: 'bg-amber-50 text-amber-500',
+  } as const;
+  return (
+    <div
+      className={`mx-auto mb-8 flex size-20 items-center justify-center rounded-full ${tones[tone]}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+function BackToDashboard() {
+  return (
+    <Link
+      href="/dashboard"
+      className="inline-flex items-center gap-1 text-sm font-medium text-medium-gray transition-colors hover:text-nordic-blue"
+    >
+      <ChevronLeft className="size-4" />
+      Tilbake til dashbord
+    </Link>
+  );
+}
+
 function SuccessView() {
   return (
-    <div className="text-center">
-      {/* Success Icon */}
-      <div className="w-24 h-24 bg-success-green/10 rounded-full flex items-center justify-center mx-auto mb-8">
-        <svg className="w-12 h-12 text-success-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-        </svg>
-      </div>
+    <div className="text-center animate-in fade-in slide-in-from-bottom-3 duration-500">
+      <StatusIcon tone="success">
+        <Check className="size-10" strokeWidth={3} />
+      </StatusIcon>
 
-      {/* Success Message */}
-      <h1 className="text-3xl font-bold text-dark-gray mb-4">
+      <h1 className="font-serif text-4xl font-semibold leading-tight text-dark-gray">
         Din avtale er opprettet!
       </h1>
-      <p className="text-xl text-medium-gray mb-8">
+      <p className="mx-auto mt-3 max-w-md text-medium-gray">
         Abonnementet er aktivt. Vi henter tøyet ditt på avtalt dato.
       </p>
 
       {/* What happens next */}
-      <div className="bg-white rounded-2xl p-8 mb-8 text-left">
-        <h3 className="font-semibold text-dark-gray mb-4">Hva skjer nå?</h3>
-        <ul className="space-y-2 text-sm text-medium-gray">
+      <div className="mt-8 rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-6 text-left shadow-[var(--shadow-card)] backdrop-blur">
+        <h3 className="font-serif text-lg font-semibold text-dark-gray">
+          Hva skjer nå?
+        </h3>
+        <ul className="mt-3 space-y-2.5 text-sm text-medium-gray">
           <li className="flex items-start">
-            <span className="text-nordic-blue mr-2 mt-0.5">1.</span>
+            <span className="mr-2 font-serif font-semibold text-sea-green">1.</span>
             Gjør klar vasken: Bruk NooraCare-posene du har fått utdelt. Har du ikke mottatt poser ennå, går det fint å bruke egne poser inntil videre.
           </li>
           <li className="flex items-start">
-            <span className="text-nordic-blue mr-2 mt-0.5">2.</span>
+            <span className="mr-2 font-serif font-semibold text-sea-green">2.</span>
             Henting: Vi kommer innom og henter tøyet på datoen du har valgt.
           </li>
           <li className="flex items-start">
-            <span className="text-nordic-blue mr-2 mt-0.5">3.</span>
+            <span className="mr-2 font-serif font-semibold text-sea-green">3.</span>
             Levering og betaling: Når klærne leveres ferdig renset tilbake, belastes du automatisk via Vipps.
           </li>
         </ul>
       </div>
 
       {/* Pricing Notice */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
-        <div className="flex items-start">
-          <div className="text-blue-600 mr-3 mt-0.5">💰</div>
-          <div className="text-left">
-            <h3 className="font-semibold text-blue-900 mb-2">Betaling og pris</h3>
-            <p className="text-sm text-blue-800 mb-3">
-              Prisen baseres på valgt tjeneste og tøyets vekt, som vi veier ved henting. Du belastes automatisk via Vipps først når klærne dine er levert ferdig renset tilbake til deg.
-            </p>
-            <a
-              target='_blank'
-              href="/pris-kalkulator"
-              rel="noopener noreferrer"
-              className="text-sm text-blue-700 hover:text-blue-900 hover:underline font-medium underline"
-            >
-              Se prisliste og kalkulator
-            </a>
-          </div>
+      <div className="mt-4 flex items-start gap-2.5 rounded-2xl border border-dashed border-sea-green/40 bg-sea-green/5 px-4 py-3 text-left">
+        <Info className="mt-0.5 size-4 shrink-0 text-sea-green" />
+        <div>
+          <p className="text-sm leading-relaxed text-medium-gray">
+            <span className="font-medium text-dark-gray">Betaling og pris:</span>{' '}
+            Prisen baseres på valgt tjeneste og tøyets vekt, som vi veier ved henting. Du belastes automatisk via Vipps først når klærne dine er levert ferdig renset tilbake til deg.
+          </p>
+          <a
+            target="_blank"
+            href="/pris-kalkulator"
+            rel="noopener noreferrer"
+            className="mt-1 inline-block text-sm font-medium text-sea-green underline-offset-2 hover:underline"
+          >
+            Se prisliste og kalkulator
+          </a>
         </div>
       </div>
 
-      {/* Back to Dashboard */}
-      <Link
-        href="/dashboard"
-        className="inline-flex items-center text-medium-gray hover:text-dark-gray transition-colors"
-      >
-        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-        </svg>
-        Tilbake til dashbord
-      </Link>
+      <div className="mt-8">
+        <BackToDashboard />
+      </div>
     </div>
   );
 }
 
 function CancelledView() {
   return (
-    <div className="text-center">
-      {/* Cancelled Icon */}
-      <div className="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-8">
-        <svg className="w-12 h-12 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </div>
+    <div className="text-center animate-in fade-in slide-in-from-bottom-3 duration-500">
+      <StatusIcon tone="error">
+        <X className="size-10" strokeWidth={3} />
+      </StatusIcon>
 
-      <h1 className="text-3xl font-bold text-dark-gray mb-4">
+      <h1 className="font-serif text-4xl font-semibold leading-tight text-dark-gray">
         Betalingen ble avbrutt
       </h1>
-      <p className="text-xl text-medium-gray mb-8">
+      <p className="mx-auto mt-3 max-w-md text-medium-gray">
         Avtalen ble ikke fullført, og du har ikke blitt belastet. Ingen
         bestilling er opprettet.
       </p>
 
-      <div className="bg-white rounded-2xl p-8 mb-8 text-left">
+      <div className="mt-8 rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-6 text-left shadow-[var(--shadow-card)] backdrop-blur">
         <p className="text-sm text-medium-gray">
           Vil du prøve igjen? Bestillingsdetaljene dine er fortsatt lagret, så du
           kan fullføre der du slapp.
         </p>
       </div>
 
-      {/* Actions */}
-      <div className="flex flex-col items-center gap-4">
+      <div className="mt-8 flex flex-col items-center gap-4">
         <Link
           href="/orders/confirm"
-          className="inline-flex items-center justify-center w-full sm:w-auto px-8 py-3 rounded-lg font-medium text-white bg-nordic-blue hover:opacity-90 transition-opacity"
+          className="inline-flex items-center gap-2 rounded-full bg-nordic-blue px-6 py-3.5 font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98]"
         >
           Prøv igjen
         </Link>
-        <Link
-          href="/dashboard"
-          className="inline-flex items-center text-medium-gray hover:text-dark-gray transition-colors"
-        >
-          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          Tilbake til dashbord
-        </Link>
+        <BackToDashboard />
       </div>
     </div>
   );
@@ -206,40 +226,28 @@ function CancelledView() {
 
 function PendingView({ onRetry }: { onRetry: () => void }) {
   return (
-    <div className="text-center">
-      {/* Pending Icon */}
-      <div className="w-24 h-24 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-8">
-        <svg className="w-12 h-12 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      </div>
+    <div className="text-center animate-in fade-in slide-in-from-bottom-3 duration-500">
+      <StatusIcon tone="pending">
+        <Clock className="size-10" />
+      </StatusIcon>
 
-      <h1 className="text-3xl font-bold text-dark-gray mb-4">
+      <h1 className="font-serif text-4xl font-semibold leading-tight text-dark-gray">
         Venter på bekreftelse
       </h1>
-      <p className="text-xl text-medium-gray mb-8">
+      <p className="mx-auto mt-3 max-w-md text-medium-gray">
         Vi har ikke mottatt bekreftelse fra Vipps ennå. Fullfør avtalen i
         Vipps-appen hvis du ikke har gjort det.
       </p>
 
-      {/* Actions */}
-      <div className="flex flex-col items-center gap-4">
+      <div className="mt-8 flex flex-col items-center gap-4">
         <button
           type="button"
           onClick={onRetry}
-          className="inline-flex items-center justify-center w-full sm:w-auto px-8 py-3 rounded-lg font-medium text-white bg-nordic-blue hover:opacity-90 transition-opacity"
+          className="inline-flex items-center gap-2 rounded-full bg-nordic-blue px-6 py-3.5 font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98]"
         >
           Sjekk på nytt
         </button>
-        <Link
-          href="/dashboard"
-          className="inline-flex items-center text-medium-gray hover:text-dark-gray transition-colors"
-        >
-          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          Tilbake til dashbord
-        </Link>
+        <BackToDashboard />
       </div>
     </div>
   );
@@ -247,14 +255,13 @@ function PendingView({ onRetry }: { onRetry: () => void }) {
 
 export default function OrderSuccessPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-soft-gray flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-nordic-blue"></div>
-          <p className="mt-4 text-medium-gray">Laster...</p>
-        </div>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <PageShell>
+          <LoadingView />
+        </PageShell>
+      }
+    >
       <OrderSuccessPageContent />
     </Suspense>
   );

@@ -20,11 +20,11 @@ export function RescheduleButton({
   return (
     <Link
       href={`/orders/${orderId}/reschedule`}
-      className="inline-flex items-center gap-2 text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors group"
+      className="inline-flex items-center gap-2 text-sm font-medium text-nordic-blue transition-colors hover:text-sea-green"
     >
-      <Calendar className="w-4 h-4" />
+      <Calendar className="size-4" />
       <span>Endre dato</span>
-      <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+      <ArrowRight className="size-3" />
     </Link>
   );
 }

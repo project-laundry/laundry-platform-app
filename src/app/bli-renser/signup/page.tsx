@@ -1,10 +1,15 @@
 'use client';
 
 import { useState } from 'react';
+import { AppHeader, BackLink } from '@/components/layout/AppHeader';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { AlertCircle, ChevronLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useCleanerOnboardingStore } from '@/stores/cleaner-onboarding-store';
+
+const inputClass =
+  'w-full rounded-2xl border border-cream-dark bg-white px-4 py-3 text-dark-gray outline-none transition-colors placeholder:text-medium-gray/60 focus:border-sea-green focus:ring-2 focus:ring-sea-green/20';
 
 export default function CleanerSignupPage() {
   const router = useRouter();
@@ -80,68 +85,86 @@ export default function CleanerSignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-soft-gray flex items-center justify-center px-4 py-8">
-      <div className="max-w-md w-full">
+    <div className="min-h-screen bg-cream text-dark-gray">
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10"
+        style={{
+          background:
+            'radial-gradient(120% 80% at 50% -10%, hsl(var(--sea-green) / 0.16), transparent 60%), radial-gradient(90% 60% at 110% 10%, hsl(var(--nordic-blue) / 0.10), transparent 55%)',
+        }}
+      />
+
+      <AppHeader />
+
+      <div className="mx-auto w-full max-w-md px-5 py-10">
+        <div className="mb-4">
+          <BackLink href="/bli-renser" />
+        </div>
+
         {/* Header */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-block">
-            <h1 className="text-3xl font-bold text-nordic-blue mb-2">NooraCare</h1>
-          </Link>
-          <h2 className="text-2xl font-bold text-dark-gray mb-2">Bli renser</h2>
-          <p className="text-medium-gray">Opprett konto og start onboarding</p>
+        <div className="text-center animate-in fade-in slide-in-from-bottom-3 duration-500">
+          <h1 className="font-serif text-4xl font-semibold leading-tight text-dark-gray">
+            Bli renser
+          </h1>
+          <p className="mt-3 text-medium-gray">Opprett konto og start onboarding</p>
         </div>
 
         {/* Signup Form */}
-        <div className="bg-white rounded-2xl shadow-sm p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
+        <div
+          className="mt-6 rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur animate-in fade-in slide-in-from-bottom-3 duration-700 sm:p-8"
+          style={{ animationDelay: '60ms' }}
+        >
+          <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
-                {error}
+              <div className="flex items-start gap-2 rounded-2xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
+                <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                <span>{error}</span>
               </div>
             )}
 
-            <div>
-              <label htmlFor="name" className="block text-sm font-semibold text-dark-gray mb-2">
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-dark-gray">
                 Fullt navn
-              </label>
+              </span>
               <input
                 type="text"
                 id="name"
                 name="name"
                 value={formData.name}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue"
+                className={inputClass}
                 placeholder="Ola Nordmann"
                 required
               />
-            </div>
+            </label>
 
-            <div>
-              <label htmlFor="email" className="block text-sm font-semibold text-dark-gray mb-2">
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-dark-gray">
                 E-post
-              </label>
+              </span>
               <input
                 type="email"
                 id="email"
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue"
+                className={inputClass}
                 placeholder="ola@example.com"
                 required
               />
-            </div>
+            </label>
 
-            <div>
-              <label htmlFor="phone" className="block text-sm font-semibold text-dark-gray mb-2">
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-dark-gray">
                 Telefonnummer
-              </label>
+              </span>
               <div className="flex gap-2">
                 <input
                   type="text"
                   value="+47"
                   disabled
-                  className="w-16 px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 text-dark-gray"
+                  className="w-16 rounded-2xl border border-cream-dark bg-cream/50 px-3 py-3 text-center text-dark-gray"
                 />
                 <input
                   type="tel"
@@ -149,107 +172,115 @@ export default function CleanerSignupPage() {
                   name="phone"
                   value={formData.phone}
                   onChange={handleInputChange}
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue"
+                  className={`flex-1 ${inputClass}`}
                   placeholder="123 45 678"
                   required
                 />
               </div>
-            </div>
+            </label>
 
-            <div>
-              <label htmlFor="city" className="block text-sm font-semibold text-dark-gray mb-2">
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-dark-gray">
                 By
-              </label>
+              </span>
               <select
                 id="city"
                 name="city"
                 value={formData.city}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue"
+                className={inputClass}
                 required
               >
                 <option value="Bergen">Bergen</option>
                 <option value="Oslo">Oslo</option>
               </select>
-            </div>
+            </label>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-semibold text-dark-gray mb-2">
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-dark-gray">
                 Passord
-              </label>
+              </span>
               <input
                 type="password"
                 id="password"
                 name="password"
                 value={formData.password}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue"
+                className={inputClass}
                 placeholder="••••••••"
                 required
               />
-            </div>
+            </label>
 
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-semibold text-dark-gray mb-2">
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-dark-gray">
                 Bekreft passord
-              </label>
+              </span>
               <input
                 type="password"
                 id="confirmPassword"
                 name="confirmPassword"
                 value={formData.confirmPassword}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue"
+                className={inputClass}
                 placeholder="••••••••"
                 required
               />
-            </div>
+            </label>
 
-            <div className="flex items-start">
+            <label
+              className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 transition-all ${
+                formData.acceptTerms
+                  ? 'border-sea-green bg-sea-green/8'
+                  : 'border-cream-dark bg-white hover:border-sea-green/50'
+              }`}
+            >
               <input
                 type="checkbox"
                 id="acceptTerms"
                 name="acceptTerms"
                 checked={formData.acceptTerms}
                 onChange={handleInputChange}
-                className="w-4 h-4 text-nordic-blue border-gray-300 rounded focus:ring-nordic-blue mt-1"
+                className="mt-0.5 size-4 shrink-0 accent-sea-green"
                 required
               />
-              <label htmlFor="acceptTerms" className="ml-2 text-sm text-medium-gray">
+              <span className="text-sm text-medium-gray">
                 Jeg aksepterer{' '}
-                <a href="#" className="text-nordic-blue hover:underline">
+                <a href="#" className="font-medium text-sea-green underline-offset-2 hover:underline">
                   vilkårene for bruk
                 </a>{' '}
                 og{' '}
-                <a href="#" className="text-nordic-blue hover:underline">
+                <a href="#" className="font-medium text-sea-green underline-offset-2 hover:underline">
                   personvernerklæringen
                 </a>
-              </label>
-            </div>
+              </span>
+            </label>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-nordic-blue text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:bg-nordic-blue/90"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-nordic-blue px-6 py-3.5 font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-cream-dark disabled:text-medium-gray disabled:shadow-none"
             >
               {loading ? 'Oppretter konto...' : 'Opprett konto og fortsett'}
             </button>
           </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-medium-gray">
-              Har du allerede konto?{' '}
-              <Link href="/auth/login" className="text-nordic-blue font-semibold hover:underline">
-                Logg inn
-              </Link>
-            </p>
-          </div>
+          <p className="mt-6 text-center text-sm text-medium-gray">
+            Har du allerede konto?{' '}
+            <Link href="/auth/login" className="font-medium text-nordic-blue underline-offset-2 hover:underline">
+              Logg inn
+            </Link>
+          </p>
         </div>
 
         {/* Back to Landing */}
-        <div className="text-center mt-8">
-          <Link href="/bli-renser" className="text-medium-gray hover:text-dark-gray">
-            ← Tilbake til bli renser
+        <div className="mt-8 flex justify-center">
+          <Link
+            href="/bli-renser"
+            className="flex items-center gap-1 text-sm font-medium text-medium-gray transition-colors hover:text-nordic-blue"
+          >
+            <ChevronLeft className="size-4" />
+            Tilbake til bli renser
           </Link>
         </div>
       </div>

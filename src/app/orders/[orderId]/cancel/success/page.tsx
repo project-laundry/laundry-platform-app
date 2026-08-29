@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { AppHeader } from '@/components/layout/AppHeader';
+import { CalendarDays, Check, ChevronLeft } from 'lucide-react';
 import { getOrderById } from '@/lib/database/orders';
 
 interface SuccessPageProps {
@@ -31,68 +33,74 @@ export default async function CancelSuccessPage({ searchParams }: SuccessPagePro
     : null;
 
   return (
-    <div className="min-h-screen bg-soft-gray">
+    <div className="min-h-screen bg-cream text-dark-gray">
+      {/* Atmospheric backdrop — soft sea-green wash over warm cream. */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10"
+        style={{
+          background:
+            'radial-gradient(120% 80% at 50% -10%, hsl(var(--sea-green) / 0.16), transparent 60%), radial-gradient(90% 60% at 110% 10%, hsl(var(--nordic-blue) / 0.10), transparent 55%)',
+        }}
+      />
+
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <Link href="/dashboard" className="inline-block">
-            <h1 className="text-2xl font-bold text-nordic-blue">NooraCare</h1>
-          </Link>
-        </div>
-      </header>
+      <AppHeader />
 
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="text-center">
+      <main className="mx-auto max-w-2xl px-5 pb-16 pt-10">
+        <div className="animate-in fade-in slide-in-from-bottom-3 duration-500">
           {/* Success Icon */}
-          <div className="w-24 h-24 bg-success-green/10 rounded-full flex items-center justify-center mx-auto mb-8">
-            <svg className="w-12 h-12 text-success-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
+          <div className="text-center">
+            <span className="mx-auto flex size-16 items-center justify-center rounded-full bg-sea-green/10 text-sea-green">
+              <Check className="size-8" />
+            </span>
 
-          {/* Success Message */}
-          <h1 className="text-3xl font-bold text-dark-gray mb-4">
-            {isSubscriptionCancelled
-              ? 'Abonnementet er kansellert'
-              : 'Bestillingen er kansellert'}
-          </h1>
-          <p className="text-xl text-medium-gray mb-8">
-            {isSubscriptionCancelled
-              ? 'Ditt abonnement er nå stoppet. Du vil ikke motta flere hentinger.'
-              : `Bestilling #${orderNumber} er nå kansellert.`}
-          </p>
+            {/* Success Message */}
+            <h1 className="mt-6 font-serif text-3xl font-semibold leading-tight text-dark-gray">
+              {isSubscriptionCancelled
+                ? 'Abonnementet er kansellert'
+                : 'Bestillingen er kansellert'}
+            </h1>
+            <p className="mt-3 text-medium-gray">
+              {isSubscriptionCancelled
+                ? 'Ditt abonnement er nå stoppet. Du vil ikke motta flere hentinger.'
+                : `Bestilling #${orderNumber} er nå kansellert.`}
+            </p>
+          </div>
 
           {/* Next Order Card (only if order was cancelled, not subscription) */}
           {!isSubscriptionCancelled && nextOrder && (
-            <div className="bg-white rounded-2xl p-8 mb-8 text-left">
-              <div className="flex items-start mb-4">
-                <div className="w-10 h-10 bg-nordic-blue/10 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
-                  <svg className="w-5 h-5 text-nordic-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
+            <div className="mt-8 rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 text-left shadow-[var(--shadow-card)] backdrop-blur">
+              <div className="flex items-start gap-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sea-green/12 text-sea-green">
+                  <CalendarDays className="size-5" />
+                </span>
                 <div>
-                  <h3 className="font-semibold text-dark-gray mb-1">Ny bestilling opprettet</h3>
-                  <p className="text-sm text-medium-gray">
+                  <h3 className="font-serif text-lg font-semibold text-dark-gray">
+                    Ny bestilling opprettet
+                  </h3>
+                  <p className="mt-1 text-sm text-medium-gray">
                     En ny bestilling er automatisk opprettet for din neste henting.
                   </p>
                 </div>
               </div>
 
-              <div className="bg-soft-gray rounded-xl p-4">
+              <div className="mt-4 rounded-2xl bg-cream/70 p-4">
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
+                  <div className="flex justify-between gap-4">
                     <span className="text-medium-gray">Bestillingsnummer</span>
-                    <span className="font-medium text-dark-gray">#{nextOrder.order_number}</span>
+                    <span className="font-medium tabular-nums text-dark-gray">
+                      #{nextOrder.order_number}
+                    </span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between gap-4">
                     <span className="text-medium-gray">Hentedato</span>
-                    <span className="font-medium text-dark-gray capitalize">{nextPickupDate}</span>
+                    <span className="font-medium capitalize text-dark-gray">{nextPickupDate}</span>
                   </div>
                 </div>
                 <Link
                   href={`/orders/details/${nextOrderId}`}
-                  className="block mt-4 text-center text-nordic-blue font-medium hover:underline"
+                  className="mt-4 block text-center font-medium text-nordic-blue underline-offset-2 hover:underline"
                 >
                   Se bestilling
                 </Link>
@@ -101,43 +109,43 @@ export default async function CancelSuccessPage({ searchParams }: SuccessPagePro
           )}
 
           {/* What happens next */}
-          <div className="bg-white rounded-2xl p-8 mb-8 text-left">
-            <h3 className="font-semibold text-dark-gray mb-4">Hva skjer nå?</h3>
-            <ul className="space-y-2 text-sm text-medium-gray">
+          <div className="mt-6 rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 text-left shadow-[var(--shadow-card)] backdrop-blur">
+            <h3 className="font-serif text-lg font-semibold text-dark-gray">Hva skjer nå?</h3>
+            <ul className="mt-4 space-y-2 text-sm text-medium-gray">
               {isSubscriptionCancelled ? (
                 <>
                   <li className="flex items-start">
-                    <span className="text-nordic-blue mr-2 mt-0.5">1.</span>
+                    <span className="mr-2 mt-0.5 font-medium tabular-nums text-nordic-blue">1.</span>
                     Vipps-avtalen din er stoppet og du vil ikke bli belastet i fremtiden.
                   </li>
                   <li className="flex items-start">
-                    <span className="text-nordic-blue mr-2 mt-0.5">2.</span>
+                    <span className="mr-2 mt-0.5 font-medium tabular-nums text-nordic-blue">2.</span>
                     Du kan opprette et nytt abonnement når som helst fra dashbordet.
                   </li>
                   <li className="flex items-start">
-                    <span className="text-nordic-blue mr-2 mt-0.5">3.</span>
+                    <span className="mr-2 mt-0.5 font-medium tabular-nums text-nordic-blue">3.</span>
                     Takk for at du brukte NooraCare!
                   </li>
                 </>
               ) : (
                 <>
                   <li className="flex items-start">
-                    <span className="text-nordic-blue mr-2 mt-0.5">1.</span>
+                    <span className="mr-2 mt-0.5 font-medium tabular-nums text-nordic-blue">1.</span>
                     Den kansellerte bestillingen vil ikke bli hentet.
                   </li>
                   {nextOrder ? (
                     <li className="flex items-start">
-                      <span className="text-nordic-blue mr-2 mt-0.5">2.</span>
+                      <span className="mr-2 mt-0.5 font-medium tabular-nums text-nordic-blue">2.</span>
                       Neste henting er planlagt til {nextPickupDate}.
                     </li>
                   ) : (
                     <li className="flex items-start">
-                      <span className="text-nordic-blue mr-2 mt-0.5">2.</span>
+                      <span className="mr-2 mt-0.5 font-medium tabular-nums text-nordic-blue">2.</span>
                       Abonnementet ditt fortsetter som normalt.
                     </li>
                   )}
                   <li className="flex items-start">
-                    <span className="text-nordic-blue mr-2 mt-0.5">3.</span>
+                    <span className="mr-2 mt-0.5 font-medium tabular-nums text-nordic-blue">3.</span>
                     Du kan se og administrere bestillinger fra dashbordet.
                   </li>
                 </>
@@ -146,17 +154,17 @@ export default async function CancelSuccessPage({ searchParams }: SuccessPagePro
           </div>
 
           {/* Back to Dashboard */}
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center text-medium-gray hover:text-dark-gray transition-colors"
-          >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Tilbake til dashbord
-          </Link>
+          <div className="mt-8 text-center">
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-1 text-sm font-medium text-medium-gray transition-colors hover:text-nordic-blue"
+            >
+              <ChevronLeft className="size-4" />
+              Tilbake til dashbord
+            </Link>
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

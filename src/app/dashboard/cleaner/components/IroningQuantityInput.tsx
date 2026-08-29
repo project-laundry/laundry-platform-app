@@ -1,6 +1,6 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
+import { Minus, Plus } from 'lucide-react';
 import {
   type IroningGroup,
   IRONING_LABELS,
@@ -43,54 +43,50 @@ export function IroningQuantityInput({
   };
 
   return (
-    <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0">
-      <div className="flex-1 min-w-0 pr-4">
-        <div className="font-medium text-dark-gray text-sm">{label}</div>
-        <div className="text-xs text-medium-gray/70">{description}</div>
-        <div className="text-xs text-nordic-blue mt-1">
+    <div className="flex items-center justify-between gap-3 py-3.5">
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-dark-gray">{label}</p>
+        <p className="text-xs text-medium-gray">{description}</p>
+        <p className="mt-1 text-xs tabular-nums text-nordic-blue">
           {formatNok(priceOre)} kr/stk
-        </div>
+        </p>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-1.5">
         {/* Subtotal for this category */}
         {value > 0 && (
-          <span className="text-sm text-medium-gray mr-2 min-w-[60px] text-right">
+          <span className="mr-1.5 min-w-[3.75rem] text-right text-sm tabular-nums text-medium-gray">
             {formatNok(subtotalOre)} kr
           </span>
         )}
 
-        {/* Quantity controls */}
-        <div className="flex items-center gap-1 bg-soft-gray rounded-lg p-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 rounded-md"
-            onClick={handleDecrement}
-            disabled={disabled || value === 0}
-          >
-            <span className="text-lg">-</span>
-          </Button>
-          <input
-            type="number"
-            min="0"
-            value={value}
-            onChange={handleInputChange}
-            disabled={disabled}
-            className="w-12 h-8 text-center bg-white rounded-md border-0 text-base font-medium focus:ring-2 focus:ring-nordic-blue/30 disabled:opacity-50"
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 rounded-md"
-            onClick={handleIncrement}
-            disabled={disabled}
-          >
-            <span className="text-lg">+</span>
-          </Button>
-        </div>
+        {/* Quantity controls — mirrors the order-flow MiniStep look */}
+        <button
+          type="button"
+          aria-label="Færre"
+          onClick={handleDecrement}
+          disabled={disabled || value === 0}
+          className="flex size-9 items-center justify-center rounded-full border border-cream-dark bg-white text-nordic-blue transition-all hover:border-sea-green hover:text-sea-green active:scale-90 disabled:cursor-not-allowed disabled:border-cream-dark disabled:text-cream-dark disabled:active:scale-100"
+        >
+          <Minus className="size-4" />
+        </button>
+        <input
+          type="number"
+          min="0"
+          value={value}
+          onChange={handleInputChange}
+          disabled={disabled}
+          className="h-9 w-12 rounded-xl border border-cream-dark bg-white text-center font-serif text-lg font-semibold tabular-nums text-dark-gray outline-none transition-colors focus:border-sea-green focus:ring-2 focus:ring-sea-green/20 disabled:bg-cream/50 disabled:text-medium-gray"
+        />
+        <button
+          type="button"
+          aria-label="Flere"
+          onClick={handleIncrement}
+          disabled={disabled}
+          className="flex size-9 items-center justify-center rounded-full border border-cream-dark bg-white text-nordic-blue transition-all hover:border-sea-green hover:text-sea-green active:scale-90 disabled:cursor-not-allowed disabled:border-cream-dark disabled:text-cream-dark disabled:active:scale-100"
+        >
+          <Plus className="size-4" />
+        </button>
       </div>
     </div>
   );

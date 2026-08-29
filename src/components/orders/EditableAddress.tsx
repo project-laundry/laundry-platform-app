@@ -17,6 +17,9 @@ interface EditableAddressProps {
   isEditable: boolean;
 }
 
+const INPUT_CLASS =
+  'w-full rounded-2xl border border-cream-dark bg-white px-4 py-3 text-dark-gray outline-none transition-colors placeholder:text-medium-gray/60 focus:border-sea-green focus:ring-2 focus:ring-sea-green/20 disabled:bg-cream/50';
+
 export function EditableAddress({
   orderId,
   initialAddress,
@@ -46,7 +49,7 @@ export function EditableAddress({
     // Validate postal code
     if (!/^\d{4}$/.test(postalCode)) {
       newErrors.postalCode = 'Postnummer må være 4 siffer';
-    }    
+    }
 
     // Validate address instructions (optional)
     if (specialInstructionsAddress && specialInstructionsAddress.length > 500) {
@@ -91,54 +94,53 @@ export function EditableAddress({
 
   const handleCancel = () => {
     setStreet(initialAddress.street);
-    setPostalCode(initialAddress.postalCode);    
+    setPostalCode(initialAddress.postalCode);
     setSpecialInstructionsAddress(initialAddress.specialInstructionsAddress || '');
     setErrors({});
     setIsEditing(false);
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg shadow-[hsl(var(--nordic-blue)/4%)] border border-[hsl(var(--nordic-blue)/8%)] p-6">
-      <div className="flex items-center justify-between mb-5">
-        <h3 className="font-serif text-lg text-[hsl(var(--nordic-blue))]">
-          Adresse
-        </h3>
+    <div className="rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="font-serif text-lg font-semibold text-dark-gray">Adresse</h3>
         {isEditable && !isEditing && (
           <button
+            type="button"
             onClick={() => setIsEditing(true)}
-            className="flex items-center gap-1.5 text-sm text-[hsl(var(--nordic-blue)/70%)] hover:text-[hsl(var(--nordic-blue))] transition-colors"
+            className="flex items-center gap-1.5 text-sm font-medium text-nordic-blue transition-colors hover:text-sea-green"
           >
-            <Pencil className="w-3.5 h-3.5" />
+            <Pencil className="size-3.5" />
             <span>Rediger</span>
           </button>
         )}
       </div>
 
       {isEditing ? (
-        <div className="space-y-4">
+        <div className="mt-4 space-y-4">
           {/* Street Input */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium text-dark-gray">
               Gateadresse
-            </label>
+            </span>
             <input
               type="text"
               value={street}
               onChange={(e) => setStreet(e.target.value)}
               disabled={isLoading}
               placeholder="Eksempel: Bryggen 15"
-              className="w-full p-3 text-base text-gray-700 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[hsl(var(--nordic-blue)/30%)] focus:border-transparent disabled:bg-gray-100 transition-all"
+              className={INPUT_CLASS}
             />
             {errors.street && (
               <p className="mt-1 text-sm text-red-600">{errors.street}</p>
             )}
-          </div>
+          </label>
 
           {/* Postal Code Input */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium text-dark-gray">
               Postnummer
-            </label>
+            </span>
             <input
               type="text"
               value={postalCode}
@@ -146,75 +148,76 @@ export function EditableAddress({
               disabled={isLoading}
               placeholder="1234"
               maxLength={4}
-              className="w-full p-3 text-base text-gray-700 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[hsl(var(--nordic-blue)/30%)] focus:border-transparent disabled:bg-gray-100 transition-all"
+              className={`${INPUT_CLASS} tabular-nums`}
             />
             {errors.postalCode && (
               <p className="mt-1 text-sm text-red-600">{errors.postalCode}</p>
             )}
-          </div>
+          </label>
 
-          {/* City Select */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              By
-            </label>
+          {/* City (locked) */}
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium text-dark-gray">By</span>
             <input
               type="text"
               value={initialAddress.city}
               disabled
-              className="w-full p-3 text-base text-gray-500 bg-gray-100 border border-gray-200 rounded-xl cursor-not-allowed"
+              className="w-full cursor-not-allowed rounded-2xl border border-cream-dark bg-cream/50 px-4 py-3 text-medium-gray outline-none"
             />
-          </div>
+          </label>
 
           {/* Address Instructions Textarea */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium text-dark-gray">
               Henteinstruksjoner (valgfritt)
-            </label>
+            </span>
             <textarea
               value={specialInstructionsAddress}
               onChange={(e) => setSpecialInstructionsAddress(e.target.value)}
               disabled={isLoading}
+              rows={3}
               placeholder="Portkode, parkeringsinfo, hvor nøkkel er, etc."
-              className="w-full min-h-[100px] p-3 text-base text-gray-700 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[hsl(var(--nordic-blue)/30%)] focus:border-transparent disabled:bg-gray-100 resize-none transition-all"
+              className={`${INPUT_CLASS} resize-none`}
             />
             {errors.specialInstructionsAddress && (
               <p className="mt-1 text-sm text-red-600">{errors.specialInstructionsAddress}</p>
             )}
-          </div>
+          </label>
 
           {/* Action Buttons */}
           <div className="flex gap-2">
             <button
+              type="button"
               onClick={handleSave}
               disabled={isLoading}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-[hsl(var(--nordic-blue))] to-[hsl(var(--sea-green))] rounded-lg hover:opacity-90 disabled:opacity-50 transition-all"
+              className="inline-flex items-center gap-2 rounded-full bg-nordic-blue px-4 py-2 text-sm font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-cream-dark disabled:text-medium-gray disabled:shadow-none"
             >
-              <Check className="w-4 h-4" />
+              <Check className="size-4" />
               {isLoading ? 'Lagrer...' : 'Lagre'}
             </button>
             <button
+              type="button"
               onClick={handleCancel}
               disabled={isLoading}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-all"
+              className="inline-flex items-center gap-2 rounded-full border border-cream-dark bg-white px-4 py-2 text-sm font-medium text-nordic-blue transition-all hover:border-sea-green hover:text-sea-green active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <X className="w-4 h-4" />
+              <X className="size-4" />
               Avbryt
             </button>
           </div>
         </div>
       ) : (
-        <div className="flex items-start gap-4">
-          <div className="w-10 h-10 rounded-xl bg-[hsl(var(--nordic-blue)/8%)] flex items-center justify-center shrink-0">
-            <MapPin className="w-5 h-5 text-[hsl(var(--nordic-blue))]" />
-          </div>
-          <div className="pt-2">
-            <p className="text-gray-700">{initialAddress.street}</p>
-            <p className="text-gray-700">
+        <div className="mt-4 flex items-start gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sea-green/12 text-sea-green">
+            <MapPin className="size-5" />
+          </span>
+          <div className="pt-1.5">
+            <p className="text-dark-gray">{initialAddress.street}</p>
+            <p className="text-dark-gray">
               {initialAddress.postalCode} {initialAddress.city}
             </p>
             {initialAddress.specialInstructionsAddress && (
-              <p className="text-gray-500 italic mt-2">
+              <p className="mt-2 text-sm italic text-medium-gray">
                 {initialAddress.specialInstructionsAddress}
               </p>
             )}

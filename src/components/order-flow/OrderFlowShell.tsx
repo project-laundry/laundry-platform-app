@@ -3,11 +3,10 @@
 // Shared chrome for the 3-step order flow: backdrop, header, progress bar,
 // step titles, and the sticky estimate bar with the primary CTA.
 
-import Link from 'next/link';
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { ArrowRight, ChevronLeft } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { formatKr, type PriceResult } from '@/lib/config/pricing';
+import { AppHeader, BackLink } from '@/components/layout/AppHeader';
 
 export type OrderFlowStep = 1 | 2 | 3;
 
@@ -52,7 +51,6 @@ export function OrderFlowShell({
   isSubmitting?: boolean;
   children: React.ReactNode;
 }) {
-  const router = useRouter();
   const meta = STEP_META[step];
 
   // Scroll back to top on step change so the new step starts at its header.
@@ -72,23 +70,13 @@ export function OrderFlowShell({
         }}
       />
 
-      <header className="border-b border-cream-dark/70 bg-warm-white/70 backdrop-blur">
-        <div className="mx-auto flex max-w-2xl items-center justify-between px-5 py-3">
-          <button
-            type="button"
-            onClick={() => router.push(BACK_ROUTES[step])}
-            className="flex items-center gap-1 text-sm font-medium text-medium-gray transition-colors hover:text-nordic-blue"
-          >
-            <ChevronLeft className="size-4" />
-            Tilbake
-          </button>
-          <Link href="/dashboard" className="text-xl font-bold text-nordic-blue">
-            NooraCare
-          </Link>
-        </div>
-      </header>
+      <AppHeader />
 
       <main className="mx-auto max-w-2xl px-5 pb-44 pt-6">
+        <div className="mb-4">
+          <BackLink href={BACK_ROUTES[step]} />
+        </div>
+
         <ProgressDots step={step} />
 
         <div

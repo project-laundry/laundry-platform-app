@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { AppHeader } from '@/components/layout/AppHeader';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { AlertCircle, ChevronLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
@@ -121,31 +123,47 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-soft-gray flex items-center justify-center px-4">
-      <div className="max-w-md w-full">
+    <div className="flex min-h-screen flex-col bg-cream text-dark-gray">
+      {/* Atmospheric backdrop — soft sea-green wash over warm cream. */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10"
+        style={{
+          background:
+            'radial-gradient(120% 80% at 50% -10%, hsl(var(--sea-green) / 0.16), transparent 60%), radial-gradient(90% 60% at 110% 10%, hsl(var(--nordic-blue) / 0.10), transparent 55%)',
+        }}
+      />
+
+      <AppHeader />
+
+      <main className="flex flex-1 items-center justify-center px-5 py-10">
+
+      <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-3 duration-500">
         {/* Header */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-block">
-            <h1 className="text-3xl font-bold text-nordic-blue mb-2">NooraCare</h1>
-          </Link>
-          <h2 className="text-2xl font-bold text-dark-gray mb-2">Logg inn</h2>
-          <p className="text-medium-gray">Velkommen tilbake!</p>
+        <div className="mb-8 text-center">
+          <p className="text-sm font-medium uppercase tracking-[0.18em] text-sea-green">
+            Velkommen tilbake!
+          </p>
+          <h1 className="mt-2 font-serif text-4xl font-semibold leading-tight text-dark-gray">
+            Logg inn
+          </h1>
         </div>
 
         {/* Login Form */}
-        <div className="bg-white rounded-2xl shadow-sm p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-6 shadow-[var(--shadow-card)] backdrop-blur sm:p-8">
+          <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
-                {error}
+              <div className="flex items-start gap-2 rounded-2xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
+                <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                <span>{error}</span>
               </div>
             )}
 
             {needsConfirmation && (
-              <div className="bg-amber-50 border border-amber-200 text-dark-gray px-4 py-3 rounded-lg text-sm space-y-2">
+              <div className="space-y-2 rounded-2xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
                 <p>Vi sendte en bekreftelseslenke til {formData.email}.</p>
                 {resendStatus === 'sent' ? (
-                  <p className="text-green-700 font-medium">
+                  <p className="font-medium text-sea-green">
                     Bekreftelses-e-post sendt på nytt. Sjekk innboksen din.
                   </p>
                 ) : (
@@ -153,51 +171,54 @@ export default function LoginPage() {
                     type="button"
                     onClick={handleResend}
                     disabled={resendStatus === 'sending' || !formData.email}
-                    className="text-nordic-blue font-semibold hover:underline disabled:opacity-50"
+                    className="font-medium text-nordic-blue underline-offset-2 hover:underline disabled:opacity-50"
                   >
                     {resendStatus === 'sending' ? 'Sender...' : 'Send bekreftelses-e-post på nytt'}
                   </button>
                 )}
                 {resendStatus === 'error' && resendError && (
-                  <p className="text-red-600">Kunne ikke sende: {resendError}</p>
+                  <p className="text-red-700">Kunne ikke sende: {resendError}</p>
                 )}
               </div>
             )}
 
-            <div>
-              <label htmlFor="email" className="block text-sm font-semibold text-dark-gray mb-2">
+            <label className="block" htmlFor="email">
+              <span className="mb-1.5 block text-sm font-medium text-dark-gray">
                 E-post
-              </label>
+              </span>
               <input
                 type="email"
                 id="email"
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue"
+                className="w-full rounded-2xl border border-cream-dark bg-white px-4 py-3 text-dark-gray outline-none transition-colors placeholder:text-medium-gray/60 focus:border-sea-green focus:ring-2 focus:ring-sea-green/20"
                 placeholder="din.epost@example.com"
                 required
               />
-            </div>
+            </label>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-semibold text-dark-gray mb-2">
+            <label className="block" htmlFor="password">
+              <span className="mb-1.5 block text-sm font-medium text-dark-gray">
                 Passord
-              </label>
+              </span>
               <input
                 type="password"
                 id="password"
                 name="password"
                 value={formData.password}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue"
+                className="w-full rounded-2xl border border-cream-dark bg-white px-4 py-3 text-dark-gray outline-none transition-colors placeholder:text-medium-gray/60 focus:border-sea-green focus:ring-2 focus:ring-sea-green/20"
                 placeholder="••••••••"
                 required
               />
-            </div>
+            </label>
 
             <div className="flex justify-end">
-              <a href="#" className="text-sm text-nordic-blue hover:underline">
+              <a
+                href="#"
+                className="text-sm font-medium text-sea-green underline-offset-2 hover:underline"
+              >
                 Glemt passord?
               </a>
             </div>
@@ -205,16 +226,19 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-nordic-blue text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-nordic-blue px-6 py-3.5 font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-cream-dark disabled:text-medium-gray disabled:shadow-none"
             >
               {loading ? 'Logger inn...' : 'Logg inn'}
             </button>
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-medium-gray">
+            <p className="text-sm text-medium-gray">
               Har du ikke konto?{' '}
-              <Link href="/auth/signup" className="text-nordic-blue font-semibold hover:underline">
+              <Link
+                href="/auth/signup"
+                className="font-medium text-nordic-blue underline-offset-2 hover:underline"
+              >
                 Registrer deg
               </Link>
             </p>
@@ -222,12 +246,17 @@ export default function LoginPage() {
         </div>
 
         {/* Back to Home */}
-        <div className="text-center mt-8">
-          <Link href="/" className="text-medium-gray hover:text-dark-gray">
-            ← Tilbake til hjemmesiden
+        <div className="mt-8 text-center">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1 text-sm font-medium text-medium-gray transition-colors hover:text-nordic-blue"
+          >
+            <ChevronLeft className="size-4" />
+            Tilbake til hjemmesiden
           </Link>
         </div>
       </div>
+      </main>
     </div>
   );
 }

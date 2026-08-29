@@ -1,5 +1,6 @@
 'use client';
 
+import { ShoppingBag } from 'lucide-react';
 import { CleanerOrderCard } from './CleanerOrderCard';
 import { isToday } from '@/lib/utils/date';
 import type { OrderWithCustomer } from '../actions';
@@ -11,7 +12,8 @@ interface CleanerOrderListProps {
 export function CleanerOrderList({ orders }: CleanerOrderListProps) {
   if (orders.length === 0) {
     return (
-      <div className="text-center py-8">
+      <div className="flex flex-col items-center gap-2 rounded-3xl border border-cream-dark/80 bg-warm-white/80 px-5 py-10 text-center shadow-[var(--shadow-card)] backdrop-blur">
+        <ShoppingBag className="size-8 text-cream-dark" />
         <p className="text-medium-gray">Du har ingen aktive oppdrag for oyeblikket.</p>
       </div>
     );

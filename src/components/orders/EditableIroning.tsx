@@ -50,42 +50,56 @@ export function EditableIroning({
   if (isEditing) {
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+        <div className="flex items-center justify-between gap-3 rounded-2xl bg-cream/70 px-4 py-3">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[hsl(var(--nordic-blue)/10%)] flex items-center justify-center">
-              <Shirt className="w-4 h-4 text-[hsl(var(--nordic-blue))]" />
-            </div>
-            <span className="text-gray-700 font-medium">Stryking</span>
+            <span className="flex size-9 items-center justify-center rounded-full bg-sea-green/12 text-sea-green">
+              <Shirt className="size-5" />
+            </span>
+            <span className="font-medium text-dark-gray">Stryking</span>
           </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={needsIroning}
-              onChange={(e) => setNeedsIroning(e.target.checked)}
-              disabled={isLoading}
-              className="sr-only peer"
-            />
-            <div className="w-12 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[hsl(var(--nordic-blue)/30%)] rounded-full peer peer-checked:after:translate-x-6 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all after:shadow-sm peer-checked:bg-gradient-to-r peer-checked:from-[hsl(var(--nordic-blue))] peer-checked:to-[hsl(var(--sea-green))]" />
-            <span className="ml-3 text-sm font-medium text-gray-700">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={needsIroning}
+            disabled={isLoading}
+            onClick={() => setNeedsIroning(!needsIroning)}
+            className="flex items-center gap-3 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <span
+              className={`relative flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
+                needsIroning ? 'bg-sea-green' : 'bg-cream-dark'
+              }`}
+            >
+              <span
+                className={`absolute flex size-5 items-center justify-center rounded-full bg-white shadow transition-transform ${
+                  needsIroning ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              >
+                {needsIroning && <Check className="size-3 text-sea-green" />}
+              </span>
+            </span>
+            <span className="text-sm font-medium text-dark-gray">
               {needsIroning ? 'Ja' : 'Nei'}
             </span>
-          </label>
+          </button>
         </div>
         <div className="flex gap-2">
           <button
+            type="button"
             onClick={handleSave}
             disabled={isLoading}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-gradient-to-r from-[hsl(var(--nordic-blue))] to-[hsl(var(--sea-green))] rounded-lg hover:opacity-90 disabled:opacity-50 transition-all"
+            className="inline-flex items-center gap-2 rounded-full bg-nordic-blue px-4 py-2 text-sm font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-cream-dark disabled:text-medium-gray disabled:shadow-none"
           >
-            <Check className="w-3.5 h-3.5" />
+            <Check className="size-3.5" />
             {isLoading ? 'Lagrer...' : 'Lagre'}
           </button>
           <button
+            type="button"
             onClick={handleCancel}
             disabled={isLoading}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-all"
+            className="inline-flex items-center gap-2 rounded-full border border-cream-dark bg-white px-4 py-2 text-sm font-medium text-nordic-blue transition-all hover:border-sea-green hover:text-sea-green active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <X className="w-3.5 h-3.5" />
+            <X className="size-3.5" />
             Avbryt
           </button>
         </div>
@@ -94,29 +108,31 @@ export function EditableIroning({
   }
 
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between gap-3">
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-[hsl(var(--nordic-blue)/10%)] flex items-center justify-center">
-          <Shirt className="w-4 h-4 text-[hsl(var(--nordic-blue))]" />
-        </div>
-        <span className="text-gray-600">Stryking</span>
+        <span className="flex size-9 items-center justify-center rounded-full bg-sea-green/12 text-sea-green">
+          <Shirt className="size-5" />
+        </span>
+        <span className="text-dark-gray">Stryking</span>
       </div>
       <div className="flex items-center gap-2">
         <span
-          className={`px-3 py-1 rounded-full text-sm font-medium ${
+          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
             initialNeedsIroning
-              ? 'bg-[hsl(var(--sea-green)/15%)] text-[hsl(var(--sea-green))]'
-              : 'bg-gray-100 text-gray-500'
+              ? 'bg-sea-green/10 text-sea-green'
+              : 'bg-cream-dark/60 text-medium-gray'
           }`}
         >
           {initialNeedsIroning ? 'Ja' : 'Nei'}
         </span>
         {isEditable && (
           <button
+            type="button"
             onClick={() => setIsEditing(true)}
-            className="p-1.5 text-[hsl(var(--nordic-blue)/60%)] hover:text-[hsl(var(--nordic-blue))] hover:bg-[hsl(var(--nordic-blue)/5%)] rounded-lg transition-all"
+            aria-label="Rediger stryking"
+            className="flex size-8 items-center justify-center rounded-full text-nordic-blue transition-all hover:bg-cream hover:text-sea-green active:scale-90"
           >
-            <Pencil className="w-3.5 h-3.5" />
+            <Pencil className="size-3.5" />
           </button>
         )}
       </div>

@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import { AppHeader, BackLink } from '@/components/layout/AppHeader';
 import { useRouter } from 'next/navigation';
+import { ArrowRight, Building2, Landmark } from 'lucide-react';
 import { useCleanerOnboardingStore } from '@/stores/cleaner-onboarding-store';
 import { CleanerFlowProgress } from '@/components/ui/CleanerFlowProgress';
 import { FormInput } from '@/components/forms/FormInput';
@@ -91,98 +92,128 @@ function BusinessInfoForm() {
     (businessType === 'individual' || (businessName && businessAddress));
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex justify-between items-center">
-            <Link href="/" className="text-2xl font-bold text-nordic-blue">NooraCare</Link>
-            <div className="text-sm text-slate-600">
-              Steg 1 av 5
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-cream text-dark-gray">
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10"
+        style={{
+          background:
+            'radial-gradient(120% 80% at 50% -10%, hsl(var(--sea-green) / 0.16), transparent 60%), radial-gradient(90% 60% at 110% 10%, hsl(var(--nordic-blue) / 0.10), transparent 55%)',
+        }}
+      />
 
-      <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Progress Indicator */}
+      <AppHeader />
+
+      <main className="mx-auto max-w-2xl px-5 pb-40 pt-6">
+        <div className="mb-4">
+          <BackLink href="/bli-renser" />
+        </div>
+
         <CleanerFlowProgress currentStep={1} />
 
-        {/* Form Section */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
-          <div className="mb-8">
-            <h1 className="text-3xl font-light text-slate-900 mb-4">
-              Virksomhet og juridisk informasjon
-            </h1>
-            <p className="text-slate-600">
-              Vi trenger noen juridiske opplysninger for å kunne behandle betalinger og overholde norsk lovgivning.
-            </p>
-          </div>
+        <div className="mt-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
+          <p className="text-sm font-medium uppercase tracking-[0.18em] text-sea-green">
+            Steg 1 av 5
+          </p>
+          <h1 className="mt-2 font-serif text-4xl font-semibold leading-tight text-dark-gray sm:text-5xl">
+            Virksomhet og juridisk informasjon
+          </h1>
+          <p className="mt-3 max-w-md text-medium-gray">
+            Vi trenger noen juridiske opplysninger for å kunne behandle betalinger og overholde norsk lovgivning.
+          </p>
+        </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Business Type */}
-            <FormRadioGroup
-              label="Hvordan driver du virksomheten din?"
-              name="businessType"
-              value={businessType}
-              onChange={(value) => setBusinessType(value as CleanerBusinessType)}
-              options={[
-                { value: 'individual', label: 'Som privatperson' },
-                { value: 'business', label: 'Som registrert virksomhet' }
-              ]}
-              required
-              error={errors.businessType}
-            />
+        <form id="business-form" onSubmit={handleSubmit}>
+          <section
+            className="mt-6 rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur animate-in fade-in slide-in-from-bottom-3 duration-700"
+            style={{ animationDelay: '60ms' }}
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex size-9 items-center justify-center rounded-full bg-sea-green/12 text-sea-green">
+                <Building2 className="size-5" />
+              </span>
+              <h2 className="font-serif text-lg font-semibold text-dark-gray">
+                Virksomhet
+              </h2>
+            </div>
 
-            {/* Tax ID */}
-            <FormInput
-              label={businessType === 'individual' ? 'Fødselsnummer' : 'Organisasjonsnummer'}
-              value={taxId}
-              onChange={setTaxId}
-              placeholder={businessType === 'individual' ? '11 siffer (DDMMÅÅXXXXX)' : '9 siffer (XXXXXXXXX)'}
-              required
-              error={errors.taxId}
-            />
-            <p className="text-sm text-slate-600 -mt-4">
-              {businessType === 'individual'
-                ? 'Ditt personnummer brukes for skatteformål og betalingsbehandling'
-                : 'Virksomhetens organisasjonsnummer fra Brønnøysundregistrene'
-              }
-            </p>
+            <div className="mt-4 space-y-5">
+              <FormRadioGroup
+                label="Hvordan driver du virksomheten din?"
+                name="businessType"
+                value={businessType}
+                onChange={(value) => setBusinessType(value as CleanerBusinessType)}
+                options={[
+                  { value: 'individual', label: 'Som privatperson' },
+                  { value: 'business', label: 'Som registrert virksomhet' }
+                ]}
+                required
+                error={errors.businessType}
+              />
 
-            {/* Business Information (conditional) */}
-            {businessType === 'business' && (
-              <div className="bg-slate-50 rounded-lg p-6 space-y-4">
-                <h3 className="font-medium text-slate-900 mb-3">Virksomhetsinformasjon</h3>
-
+              <div>
                 <FormInput
-                  label="Firmanavn"
-                  value={businessName}
-                  onChange={setBusinessName}
-                  placeholder="Navn på din registrerte virksomhet"
+                  label={businessType === 'individual' ? 'Fødselsnummer' : 'Organisasjonsnummer'}
+                  value={taxId}
+                  onChange={setTaxId}
+                  placeholder={businessType === 'individual' ? '11 siffer (DDMMÅÅXXXXX)' : '9 siffer (XXXXXXXXX)'}
                   required
-                  error={errors.businessName}
+                  error={errors.taxId}
                 />
-
-                <FormTextarea
-                  label="Forretningsadresse"
-                  value={businessAddress}
-                  onChange={setBusinessAddress}
-                  placeholder="Gateadresse, postnummer og by"
-                  rows={3}
-                  required
-                  error={errors.businessAddress}
-                />
+                <p className="mt-1.5 text-sm text-medium-gray">
+                  {businessType === 'individual'
+                    ? 'Ditt personnummer brukes for skatteformål og betalingsbehandling'
+                    : 'Virksomhetens organisasjonsnummer fra Brønnøysundregistrene'
+                  }
+                </p>
               </div>
-            )}
 
-            {/* Bank Account Information */}
-            <div>
-              <h3 className="text-lg font-medium text-slate-900 mb-4">Bankkontoinformasjon</h3>
-              <p className="text-sm text-slate-600 mb-4">
-                Dette er hvor vi sender utbetalingene dine hver uke.
-              </p>
+              {businessType === 'business' && (
+                <div className="space-y-4 rounded-2xl bg-cream/70 p-4 animate-in fade-in slide-in-from-top-1 duration-300">
+                  <h3 className="font-medium text-dark-gray">Virksomhetsinformasjon</h3>
 
+                  <FormInput
+                    label="Firmanavn"
+                    value={businessName}
+                    onChange={setBusinessName}
+                    placeholder="Navn på din registrerte virksomhet"
+                    required
+                    error={errors.businessName}
+                  />
+
+                  <FormTextarea
+                    label="Forretningsadresse"
+                    value={businessAddress}
+                    onChange={setBusinessAddress}
+                    placeholder="Gateadresse, postnummer og by"
+                    rows={3}
+                    required
+                    error={errors.businessAddress}
+                  />
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section
+            className="mt-6 rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur animate-in fade-in slide-in-from-bottom-3 duration-700"
+            style={{ animationDelay: '120ms' }}
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex size-9 items-center justify-center rounded-full bg-sea-green/12 text-sea-green">
+                <Landmark className="size-5" />
+              </span>
+              <div>
+                <h2 className="font-serif text-lg font-semibold leading-none text-dark-gray">
+                  Bankkontoinformasjon
+                </h2>
+                <p className="mt-1 text-sm text-medium-gray">
+                  Dette er hvor vi sender utbetalingene dine hver uke.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4">
               <FormInput
                 label="Kontonummer"
                 value={bankAccount}
@@ -192,26 +223,23 @@ function BusinessInfoForm() {
                 error={errors.bankAccount}
               />
             </div>
-
-            {/* Navigation Buttons */}
-            <div className="flex justify-between pt-6">
-              <Link
-                href="/bli-renser"
-                className="px-6 py-3 border border-slate-300 text-slate-600 font-medium rounded-lg hover:bg-slate-50"
-              >
-                Tilbake
-              </Link>
-              <button
-                type="submit"
-                disabled={!isFormValid}
-                className="px-6 py-3 bg-teal-600 text-white font-medium rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Fortsett til tjenesteinformasjon
-              </button>
-            </div>
-          </form>
-        </div>
+          </section>
+        </form>
       </main>
+
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-cream-dark/70 bg-warm-white/90 backdrop-blur supports-[backdrop-filter]:bg-warm-white/75">
+        <div className="mx-auto max-w-2xl px-5 py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))]">
+          <button
+            type="submit"
+            form="business-form"
+            disabled={!isFormValid}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-nordic-blue px-6 py-3.5 font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-cream-dark disabled:text-medium-gray disabled:shadow-none"
+          >
+            Fortsett til tjenesteinformasjon
+            <ArrowRight className="size-4" />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

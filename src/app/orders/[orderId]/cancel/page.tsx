@@ -1,5 +1,7 @@
 import { redirect, notFound } from 'next/navigation';
+import { AppHeader } from '@/components/layout/AppHeader';
 import Link from 'next/link';
+import { ChevronLeft, TriangleAlert } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { getCustomerByUserId } from '@/lib/database/customers';
 import { getOrderWithDetailsByIdAndCustomerId } from '@/lib/database/orders';
@@ -46,74 +48,87 @@ export default async function CancelOrderPage({ params }: CancelPageProps) {
   });
 
   return (
-    <div className="min-h-screen bg-soft-gray">
+    <div className="min-h-screen bg-cream text-dark-gray">
+      {/* Atmospheric backdrop — soft sea-green wash over warm cream. */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10"
+        style={{
+          background:
+            'radial-gradient(120% 80% at 50% -10%, hsl(var(--sea-green) / 0.16), transparent 60%), radial-gradient(90% 60% at 110% 10%, hsl(var(--nordic-blue) / 0.10), transparent 55%)',
+        }}
+      />
+
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/dashboard" className="inline-block">
-              <h1 className="text-2xl font-bold text-nordic-blue">NooraCare</h1>
+      <AppHeader
+        right={
+          <span className="text-sm tabular-nums text-medium-gray">
+            Bestilling #{order.order_number}
+          </span>
+        }
+      />
+
+      <main className="mx-auto max-w-2xl px-5 pb-16 pt-10">
+        <div className="animate-in fade-in slide-in-from-bottom-3 duration-500">
+          {/* Warning Icon */}
+          <div className="text-center">
+            <span className="mx-auto flex size-16 items-center justify-center rounded-full bg-red-50 text-red-600">
+              <TriangleAlert className="size-8" />
+            </span>
+            <h1 className="mt-6 font-serif text-3xl font-semibold leading-tight text-dark-gray">
+              Kanseller bestilling
+            </h1>
+            <p className="mt-3 text-medium-gray">
+              Du er i ferd med å kansellere bestilling #{order.order_number}
+            </p>
+          </div>
+
+          {/* Order Summary */}
+          <div className="mt-8 rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur">
+            <h3 className="font-serif text-lg font-semibold text-dark-gray">
+              Bestillingsdetaljer
+            </h3>
+            <div className="mt-4 space-y-3 text-sm">
+              <div className="flex justify-between gap-4">
+                <span className="text-medium-gray">Bestillingsnummer</span>
+                <span className="font-medium tabular-nums text-dark-gray">
+                  #{order.order_number}
+                </span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-medium-gray">Hentedato</span>
+                <span className="font-medium capitalize text-dark-gray">{pickupDate}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-medium-gray">Adresse</span>
+                <span className="text-right font-medium text-dark-gray">
+                  {order.street}, {order.postal_code} {order.city}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Cancellation Options */}
+          <div className="mt-6">
+            <CancelConfirmationForm
+              orderId={orderId}
+              orderNumber={order.order_number}
+              hasSubscription={!!order.subscription_id}
+            />
+          </div>
+
+          {/* Back Link */}
+          <div className="mt-8 text-center">
+            <Link
+              href={`/orders/details/${orderId}`}
+              className="inline-flex items-center gap-1 text-sm font-medium text-medium-gray transition-colors hover:text-nordic-blue"
+            >
+              <ChevronLeft className="size-4" />
+              Tilbake til bestilling
             </Link>
-            <span className="text-medium-gray">Bestilling #{order.order_number}</span>
           </div>
         </div>
-      </header>
-
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Warning Icon */}
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg className="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-bold text-dark-gray mb-2">Kanseller bestilling</h1>
-          <p className="text-medium-gray">
-            Du er i ferd med å kansellere bestilling #{order.order_number}
-          </p>
-        </div>
-
-        {/* Order Summary */}
-        <div className="bg-white rounded-xl p-6 mb-6">
-          <h3 className="font-semibold text-dark-gray mb-4">Bestillingsdetaljer</h3>
-          <div className="space-y-3 text-sm">
-            <div className="flex justify-between">
-              <span className="text-medium-gray">Bestillingsnummer</span>
-              <span className="font-medium text-dark-gray">#{order.order_number}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-medium-gray">Hentedato</span>
-              <span className="font-medium text-dark-gray capitalize">{pickupDate}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-medium-gray">Adresse</span>
-              <span className="font-medium text-dark-gray text-right">
-                {order.street}, {order.postal_code} {order.city}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Cancellation Options */}
-        <CancelConfirmationForm
-          orderId={orderId}
-          orderNumber={order.order_number}
-          hasSubscription={!!order.subscription_id}
-        />
-
-        {/* Back Link */}
-        <div className="text-center mt-6">
-          <Link
-            href={`/orders/details/${orderId}`}
-            className="inline-flex items-center text-medium-gray hover:text-dark-gray transition-colors"
-          >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Tilbake til bestilling
-          </Link>
-        </div>
-      </div>
+      </main>
     </div>
   );
 }

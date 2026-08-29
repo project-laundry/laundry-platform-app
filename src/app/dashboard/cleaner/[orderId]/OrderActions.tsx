@@ -2,8 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AlertCircle, ArrowRight, PackageCheck } from 'lucide-react';
 import {
   updateCleanerOrderStatus,
   declineCleanerOrder,
@@ -56,6 +55,41 @@ const STATUS_TRANSITIONS: Partial<
     confirmText: 'Bekreft at du er på vei til kunden.',
   },
 };
+
+const PRIMARY_BUTTON =
+  'inline-flex w-full items-center justify-center gap-2 rounded-full bg-nordic-blue px-6 py-3.5 font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-cream-dark disabled:text-medium-gray disabled:shadow-none';
+
+const SECONDARY_BUTTON =
+  'inline-flex w-full items-center justify-center gap-2 rounded-full border border-cream-dark bg-white px-6 py-3.5 font-medium text-nordic-blue transition-all hover:border-sea-green hover:text-sea-green active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60';
+
+const DESTRUCTIVE_BUTTON =
+  'inline-flex w-full items-center justify-center gap-2 rounded-full bg-red-600 px-6 py-3.5 font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60';
+
+function ActionCard({
+  icon,
+  iconClassName,
+  title,
+  children,
+}: {
+  icon: React.ReactNode;
+  iconClassName: string;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur">
+      <div className="flex items-center gap-3">
+        <span
+          className={`flex size-9 shrink-0 items-center justify-center rounded-full ${iconClassName}`}
+        >
+          {icon}
+        </span>
+        <h2 className="font-serif text-lg font-semibold text-dark-gray">{title}</h2>
+      </div>
+      <div className="mt-4">{children}</div>
+    </section>
+  );
+}
 
 export function OrderActions({
   orderId,
@@ -139,11 +173,9 @@ export function OrderActions({
   // If order is completed or cancelled, don't show actions
   if (currentStatus === 'completed' || currentStatus === 'cancelled') {
     return (
-      <Card className="bg-gray-50">
-        <CardContent className="py-6 text-center text-medium-gray">
-          Denne ordren er {currentStatus === 'completed' ? 'fullfort' : 'kansellert'}.
-        </CardContent>
-      </Card>
+      <div className="rounded-3xl border border-cream-dark/80 bg-cream/70 px-5 py-6 text-center text-medium-gray">
+        Denne ordren er {currentStatus === 'completed' ? 'fullfort' : 'kansellert'}.
+      </div>
     );
   }
 
@@ -151,188 +183,186 @@ export function OrderActions({
     <div className="space-y-4">
       {/* Error message */}
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-          {error}
+        <div className="flex items-start gap-2 rounded-2xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
+          <AlertCircle className="mt-0.5 size-4 shrink-0" />
+          <p>{error}</p>
         </div>
       )}
 
       {/* Status Change Card */}
       {transition && !canFinish && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Neste steg</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {!showStatusConfirm ? (
-              <div className="space-y-3">
-                {/* Show description for in_cleaning status */}
-                {currentStatus === 'in_cleaning' &&
-                  (transition.descriptionWithIroning || transition.descriptionWithoutIroning) && (
-                    <p className="text-medium-gray">
-                      {needsIroning
-                        ? transition.descriptionWithIroning
-                        : transition.descriptionWithoutIroning}
-                    </p>
-                  )}
-                <Button
-                  onClick={() => setShowStatusConfirm(true)}
-                  className="w-full"
-                  size="lg"
+        <ActionCard
+          icon={<ArrowRight className="size-5" />}
+          iconClassName="bg-sea-green/12 text-sea-green"
+          title="Neste steg"
+        >
+          {!showStatusConfirm ? (
+            <div className="space-y-3">
+              {/* Show description for in_cleaning status */}
+              {currentStatus === 'in_cleaning' &&
+                (transition.descriptionWithIroning || transition.descriptionWithoutIroning) && (
+                  <p className="text-medium-gray">
+                    {needsIroning
+                      ? transition.descriptionWithIroning
+                      : transition.descriptionWithoutIroning}
+                  </p>
+                )}
+              <button
+                type="button"
+                onClick={() => setShowStatusConfirm(true)}
+                className={PRIMARY_BUTTON}
+              >
+                {transition.label}
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-300">
+              <p className="text-medium-gray">{transition.confirmText}</p>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowStatusConfirm(false)}
+                  disabled={isLoading}
+                  className={`${SECONDARY_BUTTON} flex-1`}
                 >
-                  {transition.label}
-                </Button>
+                  Avbryt
+                </button>
+                <button
+                  type="button"
+                  onClick={handleStatusChange}
+                  disabled={isLoading}
+                  className={`${PRIMARY_BUTTON} flex-1`}
+                >
+                  {isLoading ? 'Oppdaterer...' : 'Bekreft'}
+                </button>
               </div>
-            ) : (
-              <div className="space-y-4">
-                <p className="text-medium-gray">{transition.confirmText}</p>
-                <div className="flex gap-3">
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowStatusConfirm(false)}
-                    disabled={isLoading}
-                    className="flex-1"
-                  >
-                    Avbryt
-                  </Button>
-                  <Button
-                    onClick={handleStatusChange}
-                    disabled={isLoading}
-                    className="flex-1"
-                  >
-                    {isLoading ? 'Oppdaterer...' : 'Bekreft'}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            </div>
+          )}
+        </ActionCard>
       )}
 
       {/* Finish Order Card */}
       {canFinish && (
-        <Card className="border-nordic-blue/30">
-          <CardHeader>
-            <CardTitle className="text-lg text-nordic-blue">Fullfør ordre</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {!showFinishConfirm ? (
-              <div className="space-y-4">
-                {/* Validation messages */}
-                {!hasLaundryDetails && (
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm">
-                    Du ma registrere vaskdetaljer før du kan fullføre ordren.
-                  </div>
-                )}
-                {!hasPrice && (
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm">
-                    Pris ma beregnes før ordren kan fullføres.
-                  </div>
-                )}
-                <Button
-                  onClick={() => setShowFinishConfirm(true)}
-                  disabled={!hasLaundryDetails || !hasPrice}
-                  className="w-full bg-nordic-blue hover:bg-nordic-blue/90"
-                  size="lg"
-                >
-                  Fullfør ordre
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <p className="text-dark-gray font-medium">
-                  Bekreft at vasken er levert til kunden
-                </p>
-                <p className="text-sm text-medium-gray">
-                  Når du fullfører ordren vil kunden bli belastet for vasken, og ordren markeres som fullfort.
-                </p>
-                <label className="flex items-start gap-3 p-3 bg-soft-gray rounded-lg cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={finishConfirmChecked}
-                    onChange={(e) => setFinishConfirmChecked(e.target.checked)}
-                    className="mt-0.5 h-5 w-5 rounded border-gray-300 text-nordic-blue focus:ring-nordic-blue"
-                  />
-                  <span className="text-sm text-dark-gray">
-                    Jeg bekrefter at vasken er levert til kunden og at ordren kan fullføres.
-                  </span>
-                </label>
-                <div className="flex gap-3">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setShowFinishConfirm(false);
-                      setFinishConfirmChecked(false);
-                    }}
-                    disabled={isLoading}
-                    className="flex-1"
-                  >
-                    Avbryt
-                  </Button>
-                  <Button
-                    onClick={handleFinish}
-                    disabled={isLoading || !finishConfirmChecked}
-                    className="flex-1 bg-nordic-blue hover:bg-nordic-blue/90"
-                  >
-                    {isLoading ? 'Fullfører...' : 'Fullfør ordre'}
-                  </Button>
+        <ActionCard
+          icon={<PackageCheck className="size-5" />}
+          iconClassName="bg-nordic-blue/10 text-nordic-blue"
+          title="Fullfør ordre"
+        >
+          {!showFinishConfirm ? (
+            <div className="space-y-4">
+              {/* Validation messages */}
+              {!hasLaundryDetails && (
+                <div className="flex items-start gap-2 rounded-2xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
+                  <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                  <p>Du ma registrere vaskdetaljer før du kan fullføre ordren.</p>
                 </div>
+              )}
+              {!hasPrice && (
+                <div className="flex items-start gap-2 rounded-2xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
+                  <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                  <p>Pris ma beregnes før ordren kan fullføres.</p>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowFinishConfirm(true)}
+                disabled={!hasLaundryDetails || !hasPrice}
+                className={PRIMARY_BUTTON}
+              >
+                Fullfør ordre
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-300">
+              <p className="font-medium text-dark-gray">
+                Bekreft at vasken er levert til kunden
+              </p>
+              <p className="text-sm text-medium-gray">
+                Når du fullfører ordren vil kunden bli belastet for vasken, og ordren markeres som fullfort.
+              </p>
+              <label className="flex cursor-pointer items-start gap-3 rounded-2xl bg-cream/70 px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={finishConfirmChecked}
+                  onChange={(e) => setFinishConfirmChecked(e.target.checked)}
+                  className="mt-0.5 size-5 shrink-0 rounded accent-sea-green"
+                />
+                <span className="text-sm text-dark-gray">
+                  Jeg bekrefter at vasken er levert til kunden og at ordren kan fullføres.
+                </span>
+              </label>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowFinishConfirm(false);
+                    setFinishConfirmChecked(false);
+                  }}
+                  disabled={isLoading}
+                  className={`${SECONDARY_BUTTON} flex-1`}
+                >
+                  Avbryt
+                </button>
+                <button
+                  type="button"
+                  onClick={handleFinish}
+                  disabled={isLoading || !finishConfirmChecked}
+                  className={`${PRIMARY_BUTTON} flex-1`}
+                >
+                  {isLoading ? 'Fullfører...' : 'Fullfør ordre'}
+                </button>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </div>
+          )}
+        </ActionCard>
       )}
 
       {/* Decline Card */}
       {canDecline && (
-        <Card className="border-red-200">
-          <CardHeader>
-            <CardTitle className="text-lg text-dark-gray">
-              Har du ikke mulighet til å ta dette oppdraget?
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {!showDeclineConfirm ? (
-              <div className="space-y-4">
-                <p className="text-sm text-medium-gray">
-                  Ved å avslå blir oppdraget ledig for andre.
-                </p>
-                <div className="space-y-3">
-                  <Button
-                    onClick={() => setShowDeclineConfirm(true)}
-                    className="w-full bg-red-600 hover:bg-red-700 text-white"
-                    size="lg"
-                  >
-                    Avslå oppdrag
-                  </Button>                  
-                </div>
+        <ActionCard
+          icon={<AlertCircle className="size-5" />}
+          iconClassName="bg-red-50 text-red-600"
+          title="Har du ikke mulighet til å ta dette oppdraget?"
+        >
+          {!showDeclineConfirm ? (
+            <div className="space-y-4">
+              <p className="text-sm text-medium-gray">
+                Ved å avslå blir oppdraget ledig for andre.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowDeclineConfirm(true)}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-red-200 bg-white px-6 py-3.5 font-medium text-red-600 transition-all hover:border-red-400 active:scale-[0.98]"
+              >
+                Avslå oppdrag
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-300">
+              <p className="text-medium-gray">
+                Er du sikker pa at du vil avsla ordre #{orderNumber}? Ordren vil bli tildelt en annen renser.
+              </p>
+              <div className="flex flex-col gap-3">
+                <button
+                  type="button"
+                  onClick={handleDecline}
+                  disabled={isLoading}
+                  className={DESTRUCTIVE_BUTTON}
+                >
+                  {isLoading ? 'Avslår...' : 'Ja, avslå oppdraget'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowDeclineConfirm(false)}
+                  disabled={isLoading}
+                  className={SECONDARY_BUTTON}
+                >
+                  Avbryt
+                </button>
               </div>
-            ) : (
-              <div className="space-y-4">
-                <p className="text-medium-gray">
-                  Er du sikker pa at du vil avsla ordre #{orderNumber}? Ordren vil bli tildelt en annen renser.
-                </p>
-                <div className="flex flex-col gap-3">
-                  <Button
-                    onClick={handleDecline}
-                    disabled={isLoading}
-                    className="w-full bg-red-600 hover:bg-red-700 text-white"
-                    size="lg"
-                  >
-                    {isLoading ? 'Avslår...' : 'Ja, avslå oppdraget'}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowDeclineConfirm(false)}
-                    disabled={isLoading}
-                    className="w-full"
-                  >
-                    Avbryt
-                  </Button>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            </div>
+          )}
+        </ActionCard>
       )}
     </div>
   );

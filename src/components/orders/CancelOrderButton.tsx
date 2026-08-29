@@ -27,14 +27,16 @@ export function CancelOrderButton({
 
   if (!canCancel) {
     return (
-      <div className="bg-gray-50 rounded-2xl border border-gray-200 p-6">
-        <div className="flex items-start gap-4">
-          <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
-            <Clock className="w-5 h-5 text-gray-400" />
-          </div>
+      <div className="rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur">
+        <div className="flex items-start gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-cream-dark/60 text-medium-gray">
+            <Clock className="size-5" />
+          </span>
           <div className="flex-1">
-            <h3 className="font-semibold text-gray-900 mb-1">Kansellering ikke mulig</h3>
-            <p className="text-sm text-gray-500">
+            <h3 className="font-serif text-lg font-semibold text-dark-gray">
+              Kansellering ikke mulig
+            </h3>
+            <p className="mt-1 text-sm text-medium-gray">
               Bestillinger kan kun kanselleres mer enn 24 timer før henting.
             </p>
           </div>
@@ -44,22 +46,24 @@ export function CancelOrderButton({
   }
 
   return (
-    <div className="bg-gray-50 rounded-2xl border border-gray-200 p-6">
-      <div className="flex items-start gap-4">
-        <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
-          <XCircle className="w-5 h-5 text-gray-500" />
-        </div>
+    <div className="rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur">
+      <div className="flex items-start gap-3">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600">
+          <XCircle className="size-5" />
+        </span>
         <div className="flex-1">
-          <h3 className="font-semibold text-gray-900 mb-1">Kanseller bestilling</h3>
-          <p className="text-sm text-gray-500 mb-4">
+          <h3 className="font-serif text-lg font-semibold text-dark-gray">
+            Kanseller bestilling
+          </h3>
+          <p className="mt-1 text-sm text-medium-gray">
             Du kan kansellere denne bestillingen før den er hentet.
           </p>
           <Link
             href={`/orders/${orderId}/cancel`}
-            className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors group"
+            className="mt-4 inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-600 transition-all hover:border-red-400 active:scale-[0.98]"
           >
             <span>Kanseller bestilling</span>
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+            <ArrowRight className="size-4" />
           </Link>
         </div>
       </div>
