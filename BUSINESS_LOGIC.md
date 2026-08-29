@@ -198,6 +198,42 @@ Assignment happens at subscription creation.
 
 **Dashboard Specifications:** See [DASHBOARDS.md](./DASHBOARDS.md) for Admin Driver Dashboard, Cleaner Dashboard, and other role-based UI specifications.
 
+### Cancellation
+
+**Core Principle:** Whether something can be cancelled is decided by pickup status, not by a fixed calendar cutoff (except one explicit exception below): once a cleaner physically holds the laundry, that order always completes and is charged normally — cancellation can never orphan laundry mid-service or leave a cleaner unable to be paid for work already started.
+
+There are two independent, customer-initiated cancellation actions, plus a Vipps-initiated one:
+
+**1. Order Cancellation (single order):**
+- Entry: order details page → `/orders/[orderId]/cancel`. Action: `cancelOrderAction` (`app/orders/actions.ts`).
+- Allowed only for orders not yet picked up (`pending_assignment`, `pickup_scheduled`) **and** only when the scheduled pickup is more than 24 hours away. `CancelOrderButton` hides the option and shows a notice once inside that window; the action re-validates both conditions server-side.
+- If the order belongs to a subscription, the customer picks one of two options at confirmation:
+  - **Cancel this order only** — the order is cancelled; if the subscription is still `active`, the rolling window immediately generates a replacement upcoming order (`checkAndGenerateNextOrders`), so the subscription keeps going.
+  - **Cancel the subscription** — hands off to subscription cancellation (below) instead.
+- A one-time order (no subscription) just cancels, with nothing further to reconcile.
+
+**2. Subscription Cancellation:**
+- Entry: dashboard subscription strip → `/dashboard/subscription` (details) → `/dashboard/subscription/cancel` (confirmation) → success page. Action: `cancelSubscriptionAction` (`app/dashboard/subscription/actions.ts`).
+- Allowed for `pending_payment` or `active` subscriptions.
+- **No 24-hour exception here** — unlike single-order cancellation, whether an order is cancelled is decided purely by its status:
+
+  | Order status at cancel time | Outcome |
+  |---|---|
+  | `pending_assignment` / `pickup_scheduled` (not yet picked up) | Cancelled immediately, regardless of how close the pickup is |
+  | `picked_up` … `out_for_delivery` (in-flight) | Survives — completes and is charged normally, becoming the customer's **last** order |
+  | `completed` / `cancelled` (already terminal) | Untouched either way |
+
+- The subscription itself flips to `status = 'cancelled'` immediately in every case, which stops the rolling window from generating any further orders (`checkAndGenerateNextOrders` exits early once `status !== 'active'`).
+- **Deferred Vipps agreement stop:** if an in-flight order remains after the above, the Vipps agreement is deliberately **not** stopped yet — stopping it would cause the cleaner's eventual charge for that order to fail. Instead the agreement stays `active` until the order settles, then `stopVippsAgreementForCancelledSubscription` (`lib/payments/vipps/service.ts`) stops it. That function is a safe no-op unless the subscription is cancelled, its agreement is still active, and no active orders remain, so it's called unconditionally from two places once either can be true: the `charge-captured` webhook handler (the in-flight order's charge just cleared) and `finishOrderAction`'s 0-total branch (a 100%-off promo skips the charge entirely, so no webhook would otherwise fire).
+- If there's no in-flight order (nothing generated yet, or the last one already completed before cancellation), the Vipps agreement is stopped immediately as part of the same action — no deferral needed.
+- Cleaner/admin side: no explicit notification is sent. A cancelled pre-pickup order simply drops out of the cleaner's mission list (`getOrdersByCleanerId` excludes `cancelled`/`completed` orders), so it disappears on its own.
+- Already-completed, already-charged orders are never touched or refunded by subscription cancellation — the service was rendered, the charge stands.
+- Out of MVP scope: pausing a subscription (only cancel exists), and any customer-facing cancellation reason field.
+
+**3. Vipps-Initiated Cancellation (webhook-driven):**
+- Vipps can reject, stop, or expire an agreement from its side (`recurring.agreement-rejected/stopped/expired.v1`) — e.g. the customer cancels directly in the Vipps app. The webhook handler (`app/api/webhooks/vipps/recurring/route.ts`) calls the same `cancelSubscription`/`expireSubscription` functions subscription cancellation uses, so it inherits the same order-status split above (only not-yet-picked-up orders are cancelled). It does **not** get the deferred-stop treatment, since Vipps already stopped the agreement on its own — there is nothing left to defer.
+- A `stopped` event with `actor = 'MERCHANT'` is a no-op: it's the echo of a stop *we* just triggered (either branch of subscription cancellation above), not a new external cancellation.
+
 ### Date Consistency Rules
 
 **Database Constraints:**
@@ -324,7 +360,5 @@ Charge creation on completion runs for both recurring and one-time orders. `crea
 - Can retry payment or cancel order
 
 **Agreement Stopped/Cancelled:**
-- Subscription status → `cancelled`
-- No new orders generated
-- Existing orders can be completed
-- Customer must create new subscription to resume service
+- See [Cancellation](#cancellation) for the full mechanics (order-status split, deferred Vipps stop, webhook-driven vs. customer-initiated paths)
+- Customer must create a new subscription to resume service — there's no "reactivate" path
