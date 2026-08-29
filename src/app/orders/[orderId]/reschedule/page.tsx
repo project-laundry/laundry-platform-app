@@ -1,5 +1,7 @@
 import { redirect, notFound } from 'next/navigation';
+import { AppHeader } from '@/components/layout/AppHeader';
 import Link from 'next/link';
+import { CalendarDays, ChevronLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { getCustomerByUserId } from '@/lib/database/customers';
 import { getOrderWithDetailsByIdAndCustomerId } from '@/lib/database/orders';
@@ -52,71 +54,90 @@ export default async function RescheduleOrderPage({ params }: ReschedulePageProp
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-cream text-dark-gray">
+      {/* Atmospheric backdrop — soft sea-green wash over warm cream. */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10"
+        style={{
+          background:
+            'radial-gradient(120% 80% at 50% -10%, hsl(var(--sea-green) / 0.16), transparent 60%), radial-gradient(90% 60% at 110% 10%, hsl(var(--nordic-blue) / 0.10), transparent 55%)',
+        }}
+      />
+
       {/* Header */}
-      <header className="bg-white border-b border-slate-100">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/dashboard" className="inline-block">
-              <h1 className="text-2xl font-light text-slate-900">NooraCare</h1>
+      <AppHeader
+        right={
+          <span className="text-sm tabular-nums text-medium-gray">
+            Bestilling #{order.order_number}
+          </span>
+        }
+      />
+
+      <main className="mx-auto max-w-2xl px-5 pb-16 pt-10">
+        <div className="animate-in fade-in slide-in-from-bottom-3 duration-500">
+          {/* Page Header */}
+          <div className="text-center">
+            <span className="mx-auto flex size-16 items-center justify-center rounded-full bg-sea-green/12 text-sea-green">
+              <CalendarDays className="size-8" />
+            </span>
+            <h2 className="mt-6 font-serif text-3xl font-semibold leading-tight text-dark-gray">
+              Endre hentedato
+            </h2>
+            <p className="mt-3 text-medium-gray">Velg en ny dato for henting</p>
+          </div>
+
+          {/* Current Dates */}
+          <div className="mt-8 rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur">
+            <h3 className="font-serif text-lg font-semibold text-dark-gray">
+              Nåværende datoer
+            </h3>
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-[0.14em] text-medium-gray">
+                  Henting
+                </p>
+                <p className="mt-1 font-medium capitalize text-dark-gray">
+                  {formatDate(order.scheduled_date)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-[0.14em] text-medium-gray">
+                  Levering
+                </p>
+                <p className="mt-1 font-medium capitalize text-dark-gray">
+                  {formatDate(order.delivery_date)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Reschedule Form with Calendar */}
+          <div className="mt-6">
+            <RescheduleForm
+              orderId={orderId}
+              currentPickupDate={order.scheduled_date}
+              availableWeekdays={availableWeekdays}
+            />
+          </div>
+
+          {/* Back Link */}
+          <div className="mt-8 text-center">
+            <Link
+              href={`/orders/details/${orderId}`}
+              className="inline-flex items-center gap-1 text-sm font-medium text-medium-gray transition-colors hover:text-nordic-blue"
+            >
+              <ChevronLeft className="size-4" />
+              Tilbake til bestilling
             </Link>
-            <span className="text-slate-500">Bestilling #{order.order_number}</span>
+          </div>
+
+          {/* Footer Tagline */}
+          <div className="mt-12 text-center">
+            <p className="text-sm text-medium-gray">Renhet. Omtanke. NooraCare.</p>
           </div>
         </div>
-      </header>
-
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Page Header */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </div>
-          <h2 className="text-3xl font-light text-slate-900 mb-2">Endre hentedato</h2>
-          <p className="text-slate-500">Velg en ny dato for henting</p>
-        </div>
-
-        {/* Current Dates */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-6">
-          <h3 className="text-lg font-medium text-slate-900 mb-4">Nåværende datoer</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Henting</p>
-              <p className="font-medium text-slate-900 capitalize">{formatDate(order.scheduled_date)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Levering</p>
-              <p className="font-medium text-slate-900 capitalize">{formatDate(order.delivery_date)}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Reschedule Form with Calendar */}
-        <RescheduleForm
-          orderId={orderId}
-          currentPickupDate={order.scheduled_date}
-          availableWeekdays={availableWeekdays}
-        />
-
-        {/* Back Link */}
-        <div className="text-center mt-8">
-          <Link
-            href={`/orders/details/${orderId}`}
-            className="inline-flex items-center text-slate-500 hover:text-slate-900 transition-colors"
-          >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Tilbake til bestilling
-          </Link>
-        </div>
-
-        {/* Footer Tagline */}
-        <div className="text-center mt-12">
-          <p className="text-sm text-slate-400">Renhet. Omtanke. NooraCare.</p>
-        </div>
-      </div>
+      </main>
     </div>
   );
 }

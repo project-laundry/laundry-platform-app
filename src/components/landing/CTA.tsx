@@ -1,57 +1,43 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 
 export function CTA() {
   return (
-    <section className="relative py-24 md:py-32 overflow-hidden">
-      {/* Enhanced Gradient Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--nordic-blue))] via-[hsl(var(--nordic-blue))] to-[hsl(var(--sea-green))]" />
+    <section className="py-24 md:py-32">
+      <div className="mx-auto max-w-5xl px-5">
+        <div className="rounded-3xl bg-nordic-blue px-6 py-16 text-center shadow-[var(--shadow-card)] sm:px-12 md:py-20 animate-in fade-in slide-in-from-bottom-3 duration-500">
+          <div className="mx-auto max-w-3xl space-y-8">
+            {/* Heading */}
+            <h2 className="font-serif text-4xl font-semibold leading-tight text-white sm:text-5xl">
+              Klar for en renere hverdag?
+            </h2>
 
-      {/* Decorative Blurred Circles */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-10 right-10 w-96 h-96 bg-white opacity-10 rounded-full blur-3xl" />
-        <div className="absolute bottom-10 left-10 w-80 h-80 bg-white opacity-10 rounded-full blur-3xl" />
-      </div>
+            {/* Subheading with Promo */}
+            <p className="mx-auto max-w-2xl text-xl text-white/90 md:text-2xl">
+              Start i dag og få{" "}
+              <span className="font-semibold">første vasken til halv pris</span>
+            </p>
 
-      {/* Content */}
-      <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <div className="max-w-4xl mx-auto space-y-8">
-          {/* Heading */}
-          <h2 className="font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-light text-white leading-tight animate-fade-in">
-            Klar for en{" "}
-            <span className="font-medium">renere hverdag?</span>
-          </h2>
+            {/* CTAs */}
+            <div className="flex flex-col items-center justify-center gap-4 pt-4 sm:flex-row">
+              <Link
+                href="/auth/signup"
+                className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-3.5 font-medium text-nordic-blue shadow-soft transition-all hover:brightness-95 active:scale-[0.98]"
+              >
+                Start i dag
+              </Link>
+              <Link
+                href="/bli-renser"
+                className="inline-flex items-center gap-2 rounded-full border border-white/60 px-7 py-3.5 font-medium text-white transition-all hover:bg-white/10 active:scale-[0.98]"
+              >
+                Bli en renser
+              </Link>
+            </div>
 
-          {/* Subheading with Promo */}
-          <p className="text-xl md:text-2xl text-white/90 max-w-2xl mx-auto animate-fade-in" style={{ animationDelay: "0.2s" }}>
-            Start i dag og få{" "}
-            <span className="font-semibold">første vasken til halv pris</span>
-          </p>
-
-          {/* CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 animate-fade-in" style={{ animationDelay: "0.4s" }}>
-            <Button
-              variant="outline"
-              size="xl"
-              className="bg-white text-[hsl(var(--nordic-blue))] hover:bg-white/90 border-white"
-              asChild
-            >
-              <Link href="/auth/signup">Start i dag</Link>
-            </Button>
-            <Button
-              variant="outline"
-              size="xl"
-              className="bg-transparent text-white border-2 border-white hover:bg-white/10"
-              asChild
-            >
-              <Link href="/bli-renser">Bli en renser</Link>
-            </Button>
+            {/* Disclaimer */}
+            <p className="pt-2 text-sm text-white/70">
+              Ingen binding. Kanseller når som helst.
+            </p>
           </div>
-
-          {/* Disclaimer */}
-          <p className="text-sm text-white/70 pt-4 animate-fade-in" style={{ animationDelay: "0.6s" }}>
-            Ingen binding. Kanseller når som helst.
-          </p>
         </div>
       </div>
     </section>

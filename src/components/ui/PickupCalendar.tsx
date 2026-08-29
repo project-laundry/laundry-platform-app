@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import type { Weekday } from '@/types/database';
 import { getWeekdayFromDate } from '@/lib/utils/date';
 import { MIN_DAYS_NOTICE } from '@/lib/config/order-timing';
@@ -95,41 +95,43 @@ export function PickupCalendar({
 
   if (isLoading) {
     return (
-      <div className="border border-slate-200 rounded-lg p-3">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600" />
+      <div className="rounded-2xl border border-cream-dark bg-white p-3">
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="size-8 animate-spin text-sea-green" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="border border-slate-200 rounded-lg p-3">
+    <div className="rounded-2xl border border-cream-dark bg-white p-3">
       {/* Month Header */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="mb-3 flex items-center justify-between">
         <button
+          type="button"
           onClick={previousMonth}
-          className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
+          className="flex size-9 items-center justify-center rounded-full border border-cream-dark bg-white text-nordic-blue transition-all hover:border-sea-green hover:text-sea-green active:scale-90"
           aria-label="Forrige måned"
         >
-          <ChevronLeft className="w-4 h-4 text-slate-600" />
+          <ChevronLeft className="size-4" />
         </button>
-        <h4 className="text-sm font-medium text-slate-900">
+        <h4 className="text-sm font-medium text-dark-gray">
           {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
         </h4>
         <button
+          type="button"
           onClick={nextMonth}
-          className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
+          className="flex size-9 items-center justify-center rounded-full border border-cream-dark bg-white text-nordic-blue transition-all hover:border-sea-green hover:text-sea-green active:scale-90"
           aria-label="Neste måned"
         >
-          <ChevronRight className="w-4 h-4 text-slate-600" />
+          <ChevronRight className="size-4" />
         </button>
       </div>
 
       {/* Weekday Labels */}
-      <div className="grid grid-cols-7 gap-0.5 mb-1">
+      <div className="mb-1 grid grid-cols-7 gap-0.5">
         {weekdayLabels.map((label) => (
-          <div key={label} className="text-center text-xs text-slate-500 py-1.5">
+          <div key={label} className="py-1.5 text-center text-xs text-medium-gray">
             {label}
           </div>
         ))}
@@ -147,14 +149,15 @@ export function PickupCalendar({
           return (
             <button
               key={day.date}
+              type="button"
               onClick={() => day.isAvailable && onDateSelect(day.date)}
               disabled={!day.isAvailable}
-              className={`aspect-square rounded-md text-xs font-medium transition-all duration-200 ${
+              className={`aspect-square rounded-full text-xs font-medium tabular-nums transition-all ${
                 isSelected
-                  ? 'bg-teal-600 text-white'
+                  ? 'bg-sea-green text-white'
                   : day.isAvailable
-                  ? 'text-slate-700 hover:bg-slate-100'
-                  : 'text-slate-300 cursor-not-allowed'
+                  ? 'text-dark-gray hover:bg-sea-green/10 hover:text-sea-green'
+                  : 'cursor-not-allowed text-cream-dark'
               }`}
             >
               {day.day}

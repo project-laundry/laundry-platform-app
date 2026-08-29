@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { Wordmark } from '@/components/layout/AppHeader';
 import { Menu, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { EnvironmentBadge } from "@/components/ui/EnvironmentBadge";
 import { createClient } from "@/lib/supabase/client";
 import type { UserRole } from "@/types/database";
@@ -62,32 +62,35 @@ export function Navbar() {
     return '/dashboard';
   };
 
+  const primaryPill =
+    "inline-flex items-center justify-center rounded-full bg-nordic-blue px-5 py-2.5 text-sm font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98]";
+  const outlinePill =
+    "inline-flex items-center justify-center rounded-full border border-cream-dark bg-white px-5 py-2.5 text-sm font-medium text-nordic-blue transition-all hover:border-sea-green hover:text-sea-green active:scale-[0.98]";
+
   return (
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled
-          ? "bg-card/95 backdrop-blur-md shadow-soft py-4"
-          : "bg-transparent py-6"
+          ? "border-b border-cream-dark/70 bg-warm-white/70 backdrop-blur py-3"
+          : "bg-transparent py-5"
       }`}
     >
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl px-5">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
-            <span className="text-2xl font-serif font-semibold text-[hsl(var(--nordic-blue))]">
-              NooraCare
-            </span>
+          <div className="flex items-center gap-2">
+            <Wordmark />
             <EnvironmentBadge />
-          </Link>
+          </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden items-center gap-8 md:flex">
             {navLinks.map((link) => (
               link.href.startsWith('#') ? (
                 <a
                   key={link.href}
                   href={link.href}
-                  className="text-sm font-medium text-foreground/80 hover:text-[hsl(var(--nordic-blue))] transition-colors"
+                  className="text-sm font-medium text-medium-gray transition-colors hover:text-nordic-blue"
                 >
                   {link.label}
                 </a>
@@ -95,7 +98,7 @@ export function Navbar() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="text-sm font-medium text-foreground/80 hover:text-[hsl(var(--nordic-blue))] transition-colors"
+                  className="text-sm font-medium text-medium-gray transition-colors hover:text-nordic-blue"
                 >
                   {link.label}
                 </Link>
@@ -104,33 +107,33 @@ export function Navbar() {
           </div>
 
           {/* Desktop Auth Buttons */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden items-center gap-3 md:flex">
             {isAuthenticated ? (
-              <Button variant="hero" size="default" asChild>
-                <Link href={getDashboardUrl()}>Dashboard</Link>
-              </Button>
+              <Link href={getDashboardUrl()} className={primaryPill}>
+                Dashboard
+              </Link>
             ) : (
               <>
-                <Button variant="outline" size="default" asChild>
-                  <Link href="/auth/login">Logg inn</Link>
-                </Button>
-                <Button variant="hero" size="default" asChild>
-                  <Link href="/auth/signup">Kom i gang</Link>
-                </Button>
+                <Link href="/auth/login" className={outlinePill}>
+                  Logg inn
+                </Link>
+                <Link href="/auth/signup" className={primaryPill}>
+                  Kom i gang
+                </Link>
               </>
             )}
           </div>
 
           {/* Mobile Menu Button */}
           <button
-            className="md:hidden p-2 text-foreground hover:text-[hsl(var(--nordic-blue))] transition-colors"
+            className="p-2 text-dark-gray transition-colors hover:text-nordic-blue md:hidden"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             aria-label="Toggle menu"
           >
             {isMobileMenuOpen ? (
-              <X className="w-6 h-6" />
+              <X className="size-6" />
             ) : (
-              <Menu className="w-6 h-6" />
+              <Menu className="size-6" />
             )}
           </button>
         </div>
@@ -138,14 +141,14 @@ export function Navbar() {
 
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
-        <div className="md:hidden bg-background border-t border-border shadow-lg">
-          <div className="container mx-auto px-4 py-6 space-y-4">
+        <div className="border-t border-cream-dark/70 bg-warm-white/95 backdrop-blur md:hidden animate-in fade-in slide-in-from-top-1 duration-300">
+          <div className="mx-auto max-w-6xl space-y-4 px-5 py-6">
             {navLinks.map((link) => (
               link.href.startsWith('#') ? (
                 <a
                   key={link.href}
                   href={link.href}
-                  className="block py-2 text-sm font-medium text-foreground/80 hover:text-[hsl(var(--nordic-blue))] transition-colors"
+                  className="block py-2 text-sm font-medium text-medium-gray transition-colors hover:text-nordic-blue"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   {link.label}
@@ -154,36 +157,29 @@ export function Navbar() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="block py-2 text-sm font-medium text-foreground/80 hover:text-[hsl(var(--nordic-blue))] transition-colors"
+                  className="block py-2 text-sm font-medium text-medium-gray transition-colors hover:text-nordic-blue"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   {link.label}
                 </Link>
               )
             ))}
-            <div className="pt-4 space-y-3">
+            <div className="space-y-3 pt-4">
               {isAuthenticated ? (
-                <Button
-                  variant="hero"
-                  size="default"
-                  className="w-full"
-                  asChild
+                <Link
+                  href={getDashboardUrl()}
+                  className={`${primaryPill} w-full`}
                 >
-                  <Link href={getDashboardUrl()}>Dashboard</Link>
-                </Button>
+                  Dashboard
+                </Link>
               ) : (
                 <>
-                  <Button
-                    variant="outline"
-                    size="default"
-                    className="w-full"
-                    asChild
-                  >
-                    <Link href="/auth/login">Logg inn</Link>
-                  </Button>
-                  <Button variant="hero" size="default" className="w-full" asChild>
-                    <Link href="/auth/signup">Kom i gang</Link>
-                  </Button>
+                  <Link href="/auth/login" className={`${outlinePill} w-full`}>
+                    Logg inn
+                  </Link>
+                  <Link href="/auth/signup" className={`${primaryPill} w-full`}>
+                    Kom i gang
+                  </Link>
                 </>
               )}
             </div>

@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { Badge } from '@/components/ui/badge';
+import { ChevronDown } from 'lucide-react';
+import { StatusBadge } from './StatusBadge';
 import { getOrderStatusLabel, getOrderStatusVariant } from '@/lib/utils/order-status';
 import type { OrderWithRelations } from '@/types/database';
 
@@ -14,42 +15,37 @@ export function OrderHistorySection({ orders }: OrderHistorySectionProps) {
   }
 
   return (
-    <details className="group bg-card/80 backdrop-blur-sm rounded-2xl border border-border/50 overflow-hidden hover:border-[hsl(var(--nordic-blue))]/30 transition-all duration-300 animate-fade-in opacity-0" style={{ animationDelay: '0.4s', animationFillMode: 'forwards' }}>
-      <summary className="flex items-center justify-between cursor-pointer list-none px-6 py-5 hover:bg-cream/50 transition-all">
+    <details className="group overflow-hidden rounded-3xl border border-cream-dark/80 bg-warm-white/80 shadow-[var(--shadow-card)] backdrop-blur animate-in fade-in slide-in-from-bottom-3 duration-500">
+      <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-4 transition-colors hover:bg-cream/50">
         <div className="flex items-center gap-3">
-          <h3 className="font-serif text-xl font-medium text-foreground">Historikk</h3>
-          <Badge variant="neutral" className="bg-cream text-muted-foreground">{orders.length}</Badge>
+          <h3 className="font-serif text-lg font-semibold text-dark-gray">Historikk</h3>
+          <span className="inline-flex items-center rounded-full bg-cream-dark/60 px-2.5 py-0.5 text-xs font-medium tabular-nums text-medium-gray">
+            {orders.length}
+          </span>
         </div>
-        <svg
-          className="w-5 h-5 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
+        <ChevronDown className="size-5 text-medium-gray transition-transform duration-200 group-open:rotate-180" />
       </summary>
-      <div className="border-t border-border/30">
+      <div className="border-t border-cream-dark/60">
         {/* Mobile: stacked cards */}
-        <ul className="sm:hidden divide-y divide-border/20">
+        <ul className="divide-y divide-cream-dark/60 sm:hidden">
           {orders.map((order) => (
             <li key={order.id}>
               <Link
                 href={`/orders/details/${order.id}`}
-                className="block px-6 py-4 hover:bg-cream/30 transition-all"
+                className="block px-5 py-4 transition-colors hover:bg-cream/50"
               >
-                <div className="flex items-center justify-between gap-3 mb-3">
-                  <span className="font-semibold text-nordic-blue text-sm">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <span className="text-sm font-semibold tabular-nums text-nordic-blue">
                     #{order.order_number}
                   </span>
-                  <Badge variant={getOrderStatusVariant(order.status)}>
+                  <StatusBadge variant={getOrderStatusVariant(order.status)}>
                     {getOrderStatusLabel(order.status)}
-                  </Badge>
+                  </StatusBadge>
                 </div>
                 <dl className="grid grid-cols-3 gap-2 text-xs">
                   <div>
-                    <dt className="text-muted-foreground mb-0.5">Henting</dt>
-                    <dd className="font-medium text-foreground">
+                    <dt className="mb-0.5 text-medium-gray">Henting</dt>
+                    <dd className="font-medium tabular-nums text-dark-gray">
                       {new Date(order.scheduled_date).toLocaleDateString('no-NO', {
                         day: 'numeric',
                         month: 'short',
@@ -57,8 +53,8 @@ export function OrderHistorySection({ orders }: OrderHistorySectionProps) {
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-muted-foreground mb-0.5">Levering</dt>
-                    <dd className="font-medium text-foreground">
+                    <dt className="mb-0.5 text-medium-gray">Levering</dt>
+                    <dd className="font-medium tabular-nums text-dark-gray">
                       {new Date(order.delivery_date).toLocaleDateString('no-NO', {
                         day: 'numeric',
                         month: 'short',
@@ -66,8 +62,8 @@ export function OrderHistorySection({ orders }: OrderHistorySectionProps) {
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-muted-foreground mb-0.5">Fullfort</dt>
-                    <dd className="text-muted-foreground">
+                    <dt className="mb-0.5 text-medium-gray">Fullfort</dt>
+                    <dd className="tabular-nums text-medium-gray">
                       {order.completed_at
                         ? new Date(order.completed_at).toLocaleDateString('no-NO', {
                             day: 'numeric',
@@ -87,58 +83,58 @@ export function OrderHistorySection({ orders }: OrderHistorySectionProps) {
           ))}
         </ul>
         {/* Desktop: table */}
-        <div className="hidden sm:block overflow-x-auto">
+        <div className="hidden overflow-x-auto sm:block">
           <table className="w-full">
-            <thead className="bg-cream/50 border-b border-border/30">
+            <thead className="border-b border-cream-dark/60 bg-cream/50">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-sea-green uppercase tracking-widest">
+                <th className="px-5 py-3.5 text-left text-xs font-medium uppercase tracking-[0.14em] text-medium-gray">
                   Bestilling
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-sea-green uppercase tracking-widest">
+                <th className="px-5 py-3.5 text-left text-xs font-medium uppercase tracking-[0.14em] text-medium-gray">
                   Status
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-sea-green uppercase tracking-widest">
+                <th className="px-5 py-3.5 text-left text-xs font-medium uppercase tracking-[0.14em] text-medium-gray">
                   Henting
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-sea-green uppercase tracking-widest">
+                <th className="px-5 py-3.5 text-left text-xs font-medium uppercase tracking-[0.14em] text-medium-gray">
                   Levering
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-sea-green uppercase tracking-widest">
+                <th className="px-5 py-3.5 text-left text-xs font-medium uppercase tracking-[0.14em] text-medium-gray">
                   Fullfort
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/20">
+            <tbody className="divide-y divide-cream-dark/60">
               {orders.map((order) => (
-                <tr
-                  key={order.id}
-                  className="hover:bg-cream/30 transition-all cursor-pointer border-l-4 border-l-transparent hover:border-l-[hsl(var(--sea-green))]"
-                >
-                  <td className="px-6 py-5 whitespace-nowrap">
-                    <Link href={`/orders/details/${order.id}`} className="text-nordic-blue hover:underline font-semibold text-sm">
+                <tr key={order.id} className="transition-colors hover:bg-cream/50">
+                  <td className="whitespace-nowrap px-5 py-3.5">
+                    <Link
+                      href={`/orders/details/${order.id}`}
+                      className="text-sm font-semibold tabular-nums text-nordic-blue underline-offset-2 hover:underline"
+                    >
                       #{order.order_number}
                     </Link>
                   </td>
-                  <td className="px-6 py-5 whitespace-nowrap">
-                    <Badge variant={getOrderStatusVariant(order.status)}>
+                  <td className="whitespace-nowrap px-5 py-3.5">
+                    <StatusBadge variant={getOrderStatusVariant(order.status)}>
                       {getOrderStatusLabel(order.status)}
-                    </Badge>
+                    </StatusBadge>
                   </td>
-                  <td className="px-6 py-5 whitespace-nowrap text-sm font-medium text-foreground">
+                  <td className="whitespace-nowrap px-5 py-3.5 text-sm font-medium tabular-nums text-dark-gray">
                     {new Date(order.scheduled_date).toLocaleDateString('no-NO', {
                       day: 'numeric',
                       month: 'short',
                       year: 'numeric',
                     })}
                   </td>
-                  <td className="px-6 py-5 whitespace-nowrap text-sm font-medium text-foreground">
+                  <td className="whitespace-nowrap px-5 py-3.5 text-sm font-medium tabular-nums text-dark-gray">
                     {new Date(order.delivery_date).toLocaleDateString('no-NO', {
                       day: 'numeric',
                       month: 'short',
                       year: 'numeric',
                     })}
                   </td>
-                  <td className="px-6 py-5 whitespace-nowrap text-sm text-muted-foreground">
+                  <td className="whitespace-nowrap px-5 py-3.5 text-sm tabular-nums text-medium-gray">
                     {order.completed_at
                       ? new Date(order.completed_at).toLocaleDateString('no-NO', {
                           day: 'numeric',

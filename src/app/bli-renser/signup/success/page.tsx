@@ -1,43 +1,51 @@
 import Link from 'next/link';
+import { ChevronLeft, MailCheck } from 'lucide-react';
 
 export default function CleanerEmailVerificationPage() {
   return (
-    <div className="min-h-screen bg-soft-gray flex items-center justify-center px-4">
-      <div className="max-w-md w-full text-center">
-        <div className="bg-white rounded-2xl shadow-sm p-8">
+    <div className="min-h-screen bg-cream text-dark-gray">
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10"
+        style={{
+          background:
+            'radial-gradient(120% 80% at 50% -10%, hsl(var(--sea-green) / 0.16), transparent 60%), radial-gradient(90% 60% at 110% 10%, hsl(var(--nordic-blue) / 0.10), transparent 55%)',
+        }}
+      />
+
+      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-5 py-10">
+        <div className="rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 text-center shadow-[var(--shadow-card)] backdrop-blur animate-in fade-in slide-in-from-bottom-3 duration-500 sm:p-8">
           {/* Success Icon */}
-          <div className="w-20 h-20 bg-success-green/10 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg className="w-10 h-10 text-success-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
+          <div className="mx-auto flex size-20 items-center justify-center rounded-full bg-sea-green/10 text-sea-green">
+            <MailCheck className="size-10" />
           </div>
 
           {/* Success Message */}
-          <h1 className="text-2xl font-bold text-dark-gray mb-4">
+          <h1 className="mt-6 font-serif text-3xl font-semibold leading-tight text-dark-gray">
             Sjekk e-posten din!
           </h1>
-          <p className="text-medium-gray mb-8 leading-relaxed">
+          <p className="mt-3 text-medium-gray">
             Vi har sendt en bekreftelseslenke til e-postadressen din. Klikk på lenken for å aktivere renserkontoen din.
           </p>
 
           {/* Next Steps */}
-          <div className="text-left bg-soft-gray rounded-lg p-6 mb-8">
-            <h3 className="font-semibold text-dark-gray mb-3">Hva skjer nå?</h3>
-            <ul className="space-y-2 text-sm text-medium-gray">
+          <div className="mt-6 rounded-2xl bg-cream/70 p-4 text-left">
+            <h3 className="font-serif font-semibold text-dark-gray">Hva skjer nå?</h3>
+            <ul className="mt-3 space-y-2 text-sm text-medium-gray">
               <li className="flex items-start">
-                <span className="text-nordic-blue mr-2">1.</span>
+                <span className="mr-2 font-medium tabular-nums text-sea-green">1.</span>
                 Åpne e-posten fra NooraCare
               </li>
               <li className="flex items-start">
-                <span className="text-nordic-blue mr-2">2.</span>
+                <span className="mr-2 font-medium tabular-nums text-sea-green">2.</span>
                 Klikk på bekreftelseslenken
               </li>
               <li className="flex items-start">
-                <span className="text-nordic-blue mr-2">3.</span>
+                <span className="mr-2 font-medium tabular-nums text-sea-green">3.</span>
                 Fullfør renserprofilen din
               </li>
               <li className="flex items-start">
-                <span className="text-nordic-blue mr-2">4.</span>
+                <span className="mr-2 font-medium tabular-nums text-sea-green">4.</span>
                 Start å motta oppdrag!
               </li>
             </ul>
@@ -46,24 +54,28 @@ export default function CleanerEmailVerificationPage() {
           {/* Login Button */}
           <Link
             href="/auth/login"
-            className="block w-full bg-nordic-blue text-white font-semibold py-3 rounded-lg transition-colors mb-4 text-center"
+            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-nordic-blue px-6 py-3.5 font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98]"
           >
             Gå til innlogging
           </Link>
 
           {/* Support */}
-          <p className="text-sm text-medium-gray">
+          <p className="mt-4 text-sm text-medium-gray">
             Ikke mottatt e-post? Sjekk spam-mappen eller{' '}
-            <Link href="/bli-renser/signup" className="text-nordic-blue hover:underline">
+            <Link href="/bli-renser/signup" className="font-medium text-sea-green underline-offset-2 hover:underline">
               prøv igjen
             </Link>
           </p>
         </div>
 
         {/* Back to Home */}
-        <div className="text-center mt-8">
-          <Link href="/bli-renser" className="text-medium-gray hover:text-dark-gray">
-            ← Tilbake til bli renser
+        <div className="mt-8 flex justify-center">
+          <Link
+            href="/bli-renser"
+            className="flex items-center gap-1 text-sm font-medium text-medium-gray transition-colors hover:text-nordic-blue"
+          >
+            <ChevronLeft className="size-4" />
+            Tilbake til bli renser
           </Link>
         </div>
       </div>

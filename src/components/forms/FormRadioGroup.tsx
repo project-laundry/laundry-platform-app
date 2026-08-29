@@ -25,40 +25,48 @@ export function FormRadioGroup({
 }: FormRadioGroupProps) {
   return (
     <div>
-      <label className="block text-sm font-semibold text-dark-gray mb-3">
+      <span className="mb-2 block text-sm font-medium text-dark-gray">
         {label}
-        {required && <span className="text-red-600 ml-1">*</span>}
-      </label>
-      <div className="space-y-3">
-        {options.map((option) => (
-          <div key={option.value} className="flex items-start">
-            <input
-              type="radio"
-              id={`${name}-${option.value}`}
-              name={name}
-              value={option.value}
-              checked={value === option.value}
-              onChange={(e) => onChange(e.target.value)}
-              className="w-4 h-4 text-nordic-blue border-gray-300 focus:ring-nordic-blue mt-1"
-              required={required}
-            />
-            <div className="ml-2">
-              <label
-                htmlFor={`${name}-${option.value}`}
-                className="text-sm font-medium text-dark-gray cursor-pointer"
-              >
-                {option.label}
-              </label>
-              {option.description && (
-                <p className="text-xs text-gray-500 mt-1">{option.description}</p>
-              )}
-            </div>
-          </div>
-        ))}
+        {required && <span className="ml-1 text-red-600">*</span>}
+      </span>
+      <div className="space-y-2">
+        {options.map((option) => {
+          const active = value === option.value;
+          return (
+            <label
+              key={option.value}
+              htmlFor={`${name}-${option.value}`}
+              className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 transition-all ${
+                active
+                  ? 'border-sea-green bg-sea-green/8'
+                  : 'border-cream-dark bg-white hover:border-sea-green/50'
+              }`}
+            >
+              <input
+                type="radio"
+                id={`${name}-${option.value}`}
+                name={name}
+                value={option.value}
+                checked={active}
+                onChange={(e) => onChange(e.target.value)}
+                className="mt-0.5 size-4 shrink-0 accent-sea-green"
+                required={required}
+              />
+              <span className="min-w-0">
+                <span className="block text-sm font-medium text-dark-gray">
+                  {option.label}
+                </span>
+                {option.description && (
+                  <span className="mt-1 block text-xs text-medium-gray">
+                    {option.description}
+                  </span>
+                )}
+              </span>
+            </label>
+          );
+        })}
       </div>
-      {error && (
-        <p className="mt-1 text-sm text-red-600">{error}</p>
-      )}
+      {error && <p className="mt-1.5 text-sm text-red-600">{error}</p>}
     </div>
   );
 }

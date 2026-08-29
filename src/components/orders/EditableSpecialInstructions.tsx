@@ -53,58 +53,62 @@ export function EditableSpecialInstructions({
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg shadow-[hsl(var(--nordic-blue)/4%)] border border-[hsl(var(--nordic-blue)/8%)] p-6">
-      <div className="flex items-center justify-between mb-5">
-        <h3 className="font-serif text-lg text-[hsl(var(--nordic-blue))]">
+    <div className="rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="font-serif text-lg font-semibold text-dark-gray">
           Vaskeinstruksjoner
         </h3>
         {isEditable && !isEditing && (
           <button
+            type="button"
             onClick={() => setIsEditing(true)}
-            className="flex items-center gap-1.5 text-sm text-[hsl(var(--nordic-blue)/70%)] hover:text-[hsl(var(--nordic-blue))] transition-colors"
+            className="flex items-center gap-1.5 text-sm font-medium text-nordic-blue transition-colors hover:text-sea-green"
           >
-            <Pencil className="w-3.5 h-3.5" />
+            <Pencil className="size-3.5" />
             <span>Rediger</span>
           </button>
         )}
       </div>
 
       {isEditing ? (
-        <div className="space-y-4">
+        <div className="mt-4 space-y-4">
           <textarea
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
             disabled={isLoading}
+            rows={4}
             placeholder="Legg til instruksjoner for henting..."
-            className="w-full min-h-[120px] p-4 text-base text-gray-700 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[hsl(var(--nordic-blue)/30%)] focus:border-transparent disabled:bg-gray-100 resize-none transition-all"
+            className="w-full resize-none rounded-2xl border border-cream-dark bg-white px-4 py-3 text-dark-gray outline-none transition-colors placeholder:text-medium-gray/60 focus:border-sea-green focus:ring-2 focus:ring-sea-green/20 disabled:bg-cream/50"
           />
           <div className="flex gap-2">
             <button
+              type="button"
               onClick={handleSave}
               disabled={isLoading}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-[hsl(var(--nordic-blue))] to-[hsl(var(--sea-green))] rounded-lg hover:opacity-90 disabled:opacity-50 transition-all"
+              className="inline-flex items-center gap-2 rounded-full bg-nordic-blue px-4 py-2 text-sm font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-cream-dark disabled:text-medium-gray disabled:shadow-none"
             >
-              <Check className="w-4 h-4" />
+              <Check className="size-4" />
               {isLoading ? 'Lagrer...' : 'Lagre'}
             </button>
             <button
+              type="button"
               onClick={handleCancel}
               disabled={isLoading}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-all"
+              className="inline-flex items-center gap-2 rounded-full border border-cream-dark bg-white px-4 py-2 text-sm font-medium text-nordic-blue transition-all hover:border-sea-green hover:text-sea-green active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <X className="w-4 h-4" />
+              <X className="size-4" />
               Avbryt
             </button>
           </div>
         </div>
       ) : (
-        <div className="flex items-start gap-4">
-          <div className="w-10 h-10 rounded-xl bg-[hsl(var(--nordic-blue)/8%)] flex items-center justify-center shrink-0">
-            <MessageSquare className="w-5 h-5 text-[hsl(var(--nordic-blue))]" />
-          </div>
-          <p className="text-gray-700 pt-2">
+        <div className="mt-4 flex items-start gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sea-green/12 text-sea-green">
+            <MessageSquare className="size-5" />
+          </span>
+          <p className="pt-1.5 text-dark-gray">
             {initialInstructions || (
-              <span className="text-gray-400 italic">Ingen instruksjoner lagt til</span>
+              <span className="italic text-medium-gray">Ingen instruksjoner lagt til</span>
             )}
           </p>
         </div>

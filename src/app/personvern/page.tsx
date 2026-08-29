@@ -11,25 +11,36 @@ export const metadata: Metadata = {
 
 export default function PersonvernPage() {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-cream text-dark-gray">
+      {/* Atmospheric backdrop — soft sea-green wash over warm cream. */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10"
+        style={{
+          background:
+            'radial-gradient(120% 80% at 50% -10%, hsl(var(--sea-green) / 0.16), transparent 60%), radial-gradient(90% 60% at 110% 10%, hsl(var(--nordic-blue) / 0.10), transparent 55%)',
+        }}
+      />
       <Navbar />
-      <main className="pt-24 pb-16 bg-aurora min-h-screen">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl mx-auto">
+      <main className="min-h-screen pt-24 pb-16">
+        <div className="mx-auto max-w-2xl px-5">
             {/* Header */}
-            <header className="text-center mb-12">
-              <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl font-light text-foreground mb-4">
+            <header className="mb-12">
+              <p className="text-sm font-medium uppercase tracking-[0.18em] text-sea-green">
+                For kunder
+              </p>
+              <h1 className="mt-2 mb-4 font-serif text-4xl font-semibold leading-tight text-dark-gray sm:text-5xl">
                 Personvernerklæring
               </h1>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-medium-gray">
                 Sist oppdatert: 23.05.2026
               </p>
-              <p className="text-sm text-muted-foreground mt-2">
+              <p className="text-sm text-medium-gray mt-2">
                 Denne erklæringen gjelder for kunder. Er du tilknyttet
                 NooraCare som renser, finner du{" "}
                 <Link
                   href="/personvern-renser"
-                  className="text-[hsl(var(--nordic-blue))] underline underline-offset-4 hover:opacity-80"
+                  className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
                 >
                   egen erklæring for rensere her
                 </Link>
@@ -39,7 +50,7 @@ export default function PersonvernPage() {
 
             {/* Intro */}
             <section className="mb-10">
-              <p className="text-base text-foreground/80 leading-relaxed">
+              <p className="leading-relaxed text-dark-gray">
                 NooraCare AS behandler personopplysninger om deg når du
                 bruker tjenestene våre. Denne erklæringen forklarer hvilke
                 opplysninger vi samler inn, hvorfor, hvor lenge vi
@@ -51,18 +62,18 @@ export default function PersonvernPage() {
 
             {/* 1. Controller */}
             <section className="mb-10">
-              <h2 className="font-serif text-2xl md:text-3xl font-light text-foreground mb-4">
+              <h2 className="mb-4 font-serif text-2xl font-semibold text-dark-gray">
                 1. Behandlingsansvarlig
               </h2>
-              <p className="text-base text-foreground/80 leading-relaxed mb-4">
+              <p className="leading-relaxed text-dark-gray mb-4">
                 NooraCare AS er behandlingsansvarlig for behandlingen av
                 personopplysningene som beskrives her.
               </p>
-              <div className="bg-white/60 rounded-2xl p-6 shadow-soft border border-foreground/5">
-                <p className="text-sm text-foreground/70 mb-3 font-medium">
+              <div className="rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-6 shadow-[var(--shadow-card)] backdrop-blur">
+                <p className="mb-3 text-sm font-medium text-medium-gray">
                   Kontaktopplysninger:
                 </p>
-                <ul className="space-y-1.5 text-sm text-foreground/80">
+                <ul className="space-y-1.5 text-sm text-dark-gray">
                   <li>
                     <span className="font-medium">Selskapsnavn:</span>{" "}
                     NooraCare AS
@@ -81,7 +92,7 @@ export default function PersonvernPage() {
                     <span className="font-medium">Telefon:</span>{" "}
                     <a
                       href="tel:+4797616468"
-                      className="text-[hsl(var(--nordic-blue))] underline underline-offset-4 hover:opacity-80"
+                      className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
                     >
                       +47 976 16 468
                     </a>
@@ -90,7 +101,7 @@ export default function PersonvernPage() {
                     <span className="font-medium">E-post:</span>{" "}
                     <a
                       href="mailto:support@nooracare.no"
-                      className="text-[hsl(var(--nordic-blue))] underline underline-offset-4 hover:opacity-80"
+                      className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
                     >
                       support@nooracare.no
                     </a>
@@ -101,14 +112,14 @@ export default function PersonvernPage() {
 
             {/* 2. What we process */}
             <section className="mb-10">
-              <h2 className="font-serif text-2xl md:text-3xl font-light text-foreground mb-4">
+              <h2 className="mb-4 font-serif text-2xl font-semibold text-dark-gray">
                 2. Hvilke personopplysninger vi behandler
               </h2>
-              <p className="text-base text-foreground/80 leading-relaxed mb-4">
+              <p className="leading-relaxed text-dark-gray mb-4">
                 Vi behandler følgende kategorier opplysninger om deg som
                 kunde:
               </p>
-              <ul className="space-y-3 text-base text-foreground/80 leading-relaxed list-disc list-outside pl-6 mb-4">
+              <ul className="space-y-3 leading-relaxed text-dark-gray list-disc list-outside pl-6 mb-4">
                 <li>
                   <span className="font-medium">Kontoopplysninger:</span> fullt
                   navn, e-postadresse, telefonnummer, intern bruker-ID,
@@ -138,7 +149,7 @@ export default function PersonvernPage() {
                   reklamasjoner og dokumentasjon knyttet til disse.
                 </li>
               </ul>
-              <p className="text-base text-foreground/80 leading-relaxed">
+              <p className="leading-relaxed text-dark-gray">
                 Vi behandler ikke særlige kategorier av personopplysninger
                 (for eksempel helseopplysninger) som del av tjenesten.
               </p>
@@ -146,10 +157,10 @@ export default function PersonvernPage() {
 
             {/* 3. Purpose & legal basis */}
             <section className="mb-10">
-              <h2 className="font-serif text-2xl md:text-3xl font-light text-foreground mb-4">
+              <h2 className="mb-4 font-serif text-2xl font-semibold text-dark-gray">
                 3. Formål og rettslig grunnlag
               </h2>
-              <ul className="space-y-3 text-base text-foreground/80 leading-relaxed list-disc list-outside pl-6">
+              <ul className="space-y-3 leading-relaxed text-dark-gray list-disc list-outside pl-6">
                 <li>
                   <span className="font-medium">
                     Levere tjenesten du har bestilt
@@ -184,13 +195,13 @@ export default function PersonvernPage() {
 
             {/* 4. Recipients */}
             <section className="mb-10">
-              <h2 className="font-serif text-2xl md:text-3xl font-light text-foreground mb-4">
+              <h2 className="mb-4 font-serif text-2xl font-semibold text-dark-gray">
                 4. Hvem mottar opplysningene
               </h2>
-              <p className="text-base text-foreground/80 leading-relaxed mb-4">
+              <p className="leading-relaxed text-dark-gray mb-4">
                 Vi deler opplysninger med følgende kategorier av mottakere:
               </p>
-              <ul className="space-y-3 text-base text-foreground/80 leading-relaxed list-disc list-outside pl-6 mb-4">
+              <ul className="space-y-3 leading-relaxed text-dark-gray list-disc list-outside pl-6 mb-4">
                 <li>
                   <span className="font-medium">Supabase</span> – leverandør
                   av autentisering og databasehosting. Behandler
@@ -221,7 +232,7 @@ export default function PersonvernPage() {
                   opplysninger.
                 </li>
               </ul>
-              <p className="text-base text-foreground/80 leading-relaxed">
+              <p className="leading-relaxed text-dark-gray">
                 Vi selger aldri personopplysninger og deler dem ikke for
                 markedsføringsformål.
               </p>
@@ -229,10 +240,10 @@ export default function PersonvernPage() {
 
             {/* 5. Cross-border transfers */}
             <section className="mb-10">
-              <h2 className="font-serif text-2xl md:text-3xl font-light text-foreground mb-4">
+              <h2 className="mb-4 font-serif text-2xl font-semibold text-dark-gray">
                 5. Overføring til tredjeland
               </h2>
-              <p className="text-base text-foreground/80 leading-relaxed">
+              <p className="leading-relaxed text-dark-gray">
                 Personopplysningene dine behandles primært innenfor EU/EØS.
                 Dersom en databehandler benytter infrastruktur utenfor
                 EU/EØS, sikrer vi overføringen ved hjelp av EU-kommisjonens
@@ -244,10 +255,10 @@ export default function PersonvernPage() {
 
             {/* 6. Cookies */}
             <section className="mb-10">
-              <h2 className="font-serif text-2xl md:text-3xl font-light text-foreground mb-4">
+              <h2 className="mb-4 font-serif text-2xl font-semibold text-dark-gray">
                 6. Informasjonskapsler
               </h2>
-              <p className="text-base text-foreground/80 leading-relaxed">
+              <p className="leading-relaxed text-dark-gray">
                 Vi bruker kun nødvendige informasjonskapsler for å holde
                 deg innlogget og opprettholde sesjonen din. Disse settes av
                 Supabase Auth og fornyes automatisk så lenge du er logget
@@ -258,10 +269,10 @@ export default function PersonvernPage() {
 
             {/* 7. Retention */}
             <section className="mb-10">
-              <h2 className="font-serif text-2xl md:text-3xl font-light text-foreground mb-4">
+              <h2 className="mb-4 font-serif text-2xl font-semibold text-dark-gray">
                 7. Lagringstid
               </h2>
-              <ul className="space-y-3 text-base text-foreground/80 leading-relaxed list-disc list-outside pl-6">
+              <ul className="space-y-3 leading-relaxed text-dark-gray list-disc list-outside pl-6">
                 <li>
                   <span className="font-medium">Kontoopplysninger</span>{" "}
                   oppbevares så lenge du har en aktiv konto hos oss.
@@ -284,10 +295,10 @@ export default function PersonvernPage() {
 
             {/* 8. Security */}
             <section className="mb-10">
-              <h2 className="font-serif text-2xl md:text-3xl font-light text-foreground mb-4">
+              <h2 className="mb-4 font-serif text-2xl font-semibold text-dark-gray">
                 8. Sikkerhet
               </h2>
-              <p className="text-base text-foreground/80 leading-relaxed">
+              <p className="leading-relaxed text-dark-gray">
                 Vi har innført tekniske og organisatoriske tiltak for å
                 beskytte personopplysningene dine, blant annet kryptering
                 under transport (HTTPS) og i hvile, tilgangsstyring på
@@ -300,13 +311,13 @@ export default function PersonvernPage() {
 
             {/* 9. Rights */}
             <section className="mb-10">
-              <h2 className="font-serif text-2xl md:text-3xl font-light text-foreground mb-4">
+              <h2 className="mb-4 font-serif text-2xl font-semibold text-dark-gray">
                 9. Dine rettigheter
               </h2>
-              <p className="text-base text-foreground/80 leading-relaxed mb-4">
+              <p className="leading-relaxed text-dark-gray mb-4">
                 Du har følgende rettigheter etter personvernforordningen:
               </p>
-              <ul className="space-y-3 text-base text-foreground/80 leading-relaxed list-disc list-outside pl-6 mb-4">
+              <ul className="space-y-3 leading-relaxed text-dark-gray list-disc list-outside pl-6 mb-4">
                 <li>Innsyn i opplysningene vi behandler om deg (art. 15).</li>
                 <li>Retting av uriktige opplysninger (art. 16).</li>
                 <li>
@@ -325,11 +336,11 @@ export default function PersonvernPage() {
                 </li>
                 <li>Trekke tilbake samtykke der behandlingen bygger på det.</li>
               </ul>
-              <p className="text-base text-foreground/80 leading-relaxed">
+              <p className="leading-relaxed text-dark-gray">
                 For å utøve rettighetene dine kan du kontakte oss på{" "}
                 <a
                   href="mailto:support@nooracare.no"
-                  className="text-[hsl(var(--nordic-blue))] underline underline-offset-4 hover:opacity-80"
+                  className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
                 >
                   support@nooracare.no
                 </a>
@@ -340,10 +351,10 @@ export default function PersonvernPage() {
 
             {/* 10. Right to complain */}
             <section className="mb-10">
-              <h2 className="font-serif text-2xl md:text-3xl font-light text-foreground mb-4">
+              <h2 className="mb-4 font-serif text-2xl font-semibold text-dark-gray">
                 10. Klagerett
               </h2>
-              <p className="text-base text-foreground/80 leading-relaxed">
+              <p className="leading-relaxed text-dark-gray">
                 Hvis du mener vi behandler personopplysninger i strid med
                 regelverket, kan du klage til Datatilsynet. Du finner
                 kontaktinformasjon og veiledning på{" "}
@@ -351,7 +362,7 @@ export default function PersonvernPage() {
                   href="https://www.datatilsynet.no"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[hsl(var(--nordic-blue))] underline underline-offset-4 hover:opacity-80"
+                  className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
                 >
                   datatilsynet.no
                 </a>
@@ -362,10 +373,10 @@ export default function PersonvernPage() {
 
             {/* 11. Changes */}
             <section className="mb-10">
-              <h2 className="font-serif text-2xl md:text-3xl font-light text-foreground mb-4">
+              <h2 className="mb-4 font-serif text-2xl font-semibold text-dark-gray">
                 11. Endringer i erklæringen
               </h2>
-              <p className="text-base text-foreground/80 leading-relaxed">
+              <p className="leading-relaxed text-dark-gray">
                 NooraCare kan oppdatere denne erklæringen ved endringer i
                 tjenesten eller regelverket. Vesentlige endringer som
                 påvirker deg vil bli varslet på e-post eller i dashbordet i
@@ -377,22 +388,21 @@ export default function PersonvernPage() {
 
             {/* 12. Contact */}
             <section className="mb-4">
-              <h2 className="font-serif text-2xl md:text-3xl font-light text-foreground mb-4">
+              <h2 className="mb-4 font-serif text-2xl font-semibold text-dark-gray">
                 12. Kontakt oss
               </h2>
-              <p className="text-base text-foreground/80 leading-relaxed">
+              <p className="leading-relaxed text-dark-gray">
                 Spørsmål om personvern eller om denne erklæringen kan
                 rettes til{" "}
                 <a
                   href="mailto:support@nooracare.no"
-                  className="text-[hsl(var(--nordic-blue))] underline underline-offset-4 hover:opacity-80"
+                  className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
                 >
                   support@nooracare.no
                 </a>
                 .
               </p>
             </section>
-          </div>
         </div>
       </main>
       <Footer />

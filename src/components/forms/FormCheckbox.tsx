@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react';
 
 interface FormCheckboxProps {
   checked: boolean;
@@ -19,27 +19,31 @@ export function FormCheckbox({
 }: FormCheckboxProps) {
   return (
     <div>
-      <div className="flex items-start">
+      <label
+        className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 transition-all ${
+          checked
+            ? 'border-sea-green bg-sea-green/8'
+            : 'border-cream-dark bg-white hover:border-sea-green/50'
+        }`}
+      >
         <input
           type="checkbox"
           checked={checked}
           onChange={(e) => onChange(e.target.checked)}
-          className="w-4 h-4 text-nordic-blue border-gray-300 rounded focus:ring-nordic-blue mt-1"
+          className="mt-0.5 size-4 shrink-0 accent-sea-green"
           required={required}
         />
-        <div className="ml-2">
-          <label className="text-sm text-medium-gray cursor-pointer">
+        <span className="min-w-0">
+          <span className="block text-sm text-dark-gray">
             {label}
-            {required && <span className="text-red-600 ml-1">*</span>}
-          </label>
+            {required && <span className="ml-1 text-red-600">*</span>}
+          </span>
           {description && (
-            <p className="text-xs text-gray-500 mt-1">{description}</p>
+            <span className="mt-1 block text-xs text-medium-gray">{description}</span>
           )}
-        </div>
-      </div>
-      {error && (
-        <p className="mt-1 text-sm text-red-600 ml-6">{error}</p>
-      )}
+        </span>
+      </label>
+      {error && <p className="mt-1.5 text-sm text-red-600">{error}</p>}
     </div>
   );
 }

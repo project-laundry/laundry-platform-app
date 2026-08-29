@@ -25,15 +25,17 @@ export function FormSelect({
   disabled = false
 }: FormSelectProps) {
   return (
-    <div>
-      <label className="block text-sm font-semibold text-dark-gray mb-2">
+    <label className="block">
+      <span className="mb-1.5 block text-sm font-medium text-dark-gray">
         {label}
-        {required && <span className="text-red-600 ml-1">*</span>}
-      </label>
+        {required && <span className="ml-1 text-red-600">*</span>}
+      </span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nordic-blue focus:border-nordic-blue disabled:opacity-50 disabled:cursor-not-allowed"
+        className={`w-full rounded-2xl border bg-white px-4 py-3 text-dark-gray outline-none transition-colors focus:border-sea-green focus:ring-2 focus:ring-sea-green/20 disabled:cursor-not-allowed disabled:bg-cream/50 disabled:text-medium-gray ${
+          error ? 'border-red-300' : 'border-cream-dark'
+        }`}
         required={required}
         disabled={disabled}
       >
@@ -44,9 +46,7 @@ export function FormSelect({
           </option>
         ))}
       </select>
-      {error && (
-        <p className="mt-1 text-sm text-red-600">{error}</p>
-      )}
-    </div>
+      {error && <p className="mt-1.5 text-sm text-red-600">{error}</p>}
+    </label>
   );
 }

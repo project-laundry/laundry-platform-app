@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
-import Link from 'next/link';
+import { AppHeader } from '@/components/layout/AppHeader';
+import { Ban, Hourglass, XCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { getCleanerByUserId } from '@/lib/database/cleaners';
 import { getUsersById } from '@/lib/database/users';
@@ -42,75 +43,95 @@ export default async function CleanerDashboardPage() {
   const historyOrders = isApproved ? await getCompletedOrdersByCleanerId(cleaner.id) : [];
 
   return (
-    <div className="min-h-screen bg-soft-gray">
+    <div className="min-h-screen bg-cream text-dark-gray">
+      {/* Atmospheric backdrop — soft sea-green wash over warm cream. */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10"
+        style={{
+          background:
+            'radial-gradient(120% 80% at 50% -10%, hsl(var(--sea-green) / 0.16), transparent 60%), radial-gradient(90% 60% at 110% 10%, hsl(var(--nordic-blue) / 0.10), transparent 55%)',
+        }}
+      />
+
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <Link href="/" className="inline-block">
-              <h1 className="text-2xl font-bold text-nordic-blue">NooraCare</h1>
-            </Link>
-            <div className="flex items-center gap-4">
-              <span className="text-medium-gray">{displayName}</span>
-              <LogoutButton />
-            </div>
+      <AppHeader
+        maxWidth="max-w-5xl"
+        right={
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-medium-gray">{displayName}</span>
+            <LogoutButton />
           </div>
-        </div>
-      </header>
+        }
+      />
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <main className="mx-auto max-w-5xl px-5 pb-16 pt-8">
         {/* Greeting */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-dark-gray mb-2">
+        <div className="animate-in fade-in slide-in-from-bottom-3 duration-500">
+          <p className="text-sm font-medium uppercase tracking-[0.18em] text-sea-green">
+            Renser
+          </p>
+          <h1 className="mt-2 font-serif text-4xl font-semibold leading-tight text-dark-gray">
             Hei, {firstName}!
           </h1>
         </div>
 
         {/* Status-based content */}
-        {isPending && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-8 text-center">
-            <div className="text-4xl mb-4">&#8987;</div>
-            <h2 className="text-xl font-semibold text-yellow-800 mb-2">
-              Profilen din venter pa godkjenning
-            </h2>
-            <p className="text-yellow-700">
-              Vi gjennomgar soknaden din og gir deg beskjed via e-post nar den er behandlet.
-              Dette tar vanligvis 1-2 virkedager.
-            </p>
-          </div>
-        )}
+        <div
+          className="mt-6 animate-in fade-in slide-in-from-bottom-3 duration-500"
+          style={{ animationDelay: '60ms' }}
+        >
+          {isPending && (
+            <div className="flex flex-col items-center gap-3 rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-8 text-center shadow-[var(--shadow-card)] backdrop-blur">
+              <span className="flex size-12 items-center justify-center rounded-full bg-amber-50 text-amber-800">
+                <Hourglass className="size-6" />
+              </span>
+              <h2 className="font-serif text-lg font-semibold text-dark-gray">
+                Profilen din venter pa godkjenning
+              </h2>
+              <p className="max-w-md text-medium-gray">
+                Vi gjennomgar soknaden din og gir deg beskjed via e-post nar den er behandlet.
+                Dette tar vanligvis 1-2 virkedager.
+              </p>
+            </div>
+          )}
 
-        {isRejected && (
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
-            <div className="text-4xl mb-4">&#10060;</div>
-            <h2 className="text-xl font-semibold text-red-800 mb-2">
-              Soknaden din ble avvist
-            </h2>
-            <p className="text-red-700">
-              Dessverre ble soknaden din ikke godkjent. Ta kontakt med oss for mer informasjon.
-            </p>
-          </div>
-        )}
+          {isRejected && (
+            <div className="flex flex-col items-center gap-3 rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-8 text-center shadow-[var(--shadow-card)] backdrop-blur">
+              <span className="flex size-12 items-center justify-center rounded-full bg-red-50 text-red-600">
+                <XCircle className="size-6" />
+              </span>
+              <h2 className="font-serif text-lg font-semibold text-dark-gray">
+                Soknaden din ble avvist
+              </h2>
+              <p className="max-w-md text-medium-gray">
+                Dessverre ble soknaden din ikke godkjent. Ta kontakt med oss for mer informasjon.
+              </p>
+            </div>
+          )}
 
-        {isSuspended && (
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
-            <div className="text-4xl mb-4">&#128683;</div>
-            <h2 className="text-xl font-semibold text-red-800 mb-2">
-              Kontoen din er suspendert
-            </h2>
-            <p className="text-red-700">
-              Ta kontakt med NooraCare for mer informasjon.
-            </p>
-          </div>
-        )}
+          {isSuspended && (
+            <div className="flex flex-col items-center gap-3 rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-8 text-center shadow-[var(--shadow-card)] backdrop-blur">
+              <span className="flex size-12 items-center justify-center rounded-full bg-red-50 text-red-600">
+                <Ban className="size-6" />
+              </span>
+              <h2 className="font-serif text-lg font-semibold text-dark-gray">
+                Kontoen din er suspendert
+              </h2>
+              <p className="max-w-md text-medium-gray">
+                Ta kontakt med NooraCare for mer informasjon.
+              </p>
+            </div>
+          )}
 
-        {isApproved && (
-          <CleanerDashboardTabs
-            activeOrders={activeOrders}
-            historyOrders={historyOrders}
-          />
-        )}
+          {isApproved && (
+            <CleanerDashboardTabs
+              activeOrders={activeOrders}
+              historyOrders={historyOrders}
+            />
+          )}
+        </div>
       </main>
     </div>
   );
