@@ -231,3 +231,48 @@ export async function createChargeForCompletedOrder(
 
   return payment.id;
 }
+
+// =============================================================================
+// DEFERRED AGREEMENT STOP - SUBSCRIPTION CANCELLED WITH AN IN-FLIGHT ORDER
+// =============================================================================
+
+/**
+ * Stop the Vipps agreement for a subscription that was cancelled while an
+ * order was still in-flight. The stop was deferred so the cleaner could still
+ * charge for that order; call this once the final order is settled
+ * (charge captured, or finished with a 0 total).
+ *
+ * Safe to call unconditionally: no-op unless the subscription is cancelled,
+ * its agreement is still active, and no active orders remain. Never throws.
+ */
+export async function stopVippsAgreementForCancelledSubscription(
+  subscriptionId: string
+): Promise<void> {
+  try {
+    const { getSubscriptionById } = await import('@/lib/database/subscriptions');
+    const subscription = await getSubscriptionById(subscriptionId);
+    if (!subscription || subscription.status !== 'cancelled' || !subscription.payment_agreement_id) {
+      return;
+    }
+
+    const { getPaymentAgreementById, stopPaymentAgreement } = await import('@/lib/database/payment-agreements');
+    const agreement = await getPaymentAgreementById(subscription.payment_agreement_id);
+    if (!agreement || agreement.status !== 'active') {
+      return; // already stopped (or never activated) — idempotency guard
+    }
+
+    const { getActiveOrdersBySubscriptionId } = await import('@/lib/database/orders');
+    const activeOrders = await getActiveOrdersBySubscriptionId(subscriptionId);
+    if (activeOrders.length > 0) {
+      return; // another order still needs to be charged
+    }
+
+    console.log(`[stopVippsAgreementForCancelledSubscription] Stopping agreement ${agreement.provider_agreement_id} for cancelled subscription ${subscriptionId}`);
+    const vipps = createVippsRecurringClient();
+    await vipps.stopAgreement(agreement.provider_agreement_id);
+    await stopPaymentAgreement(agreement.id);
+  } catch (error) {
+    // Both call sites are post-payment cleanup — never let this break them.
+    console.error('[stopVippsAgreementForCancelledSubscription] Failed:', error);
+  }
+}

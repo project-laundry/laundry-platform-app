@@ -40,7 +40,7 @@ import {
   failPaymentWithMetadata,
   updatePaymentWithMetadata,
 } from '@/lib/database/payments';
-import { cancelVippsAgreement } from '@/lib/payments/vipps/service';
+import { cancelVippsAgreement, stopVippsAgreementForCancelledSubscription } from '@/lib/payments/vipps/service';
 import { createOrder } from '@/lib/database/orders';
 import { buildOrderData } from '@/lib/services/order-generation';
 import { recordPromoRedemption } from '@/lib/database/promo-codes';
@@ -307,6 +307,8 @@ async function handleChargeCaptured(
   // A one-time agreement has no linked subscription. It is safe to stop here:
   // the only charge is already CHARGED, and stopping only cancels PENDING/DUE/RESERVED charges.
   // (We must NOT stop earlier, e.g. at charge creation, or the still-pending charge would be cancelled.)
+  // For a recurring subscription that was cancelled while this order was in-flight, this is the
+  // deferred stop's other trigger: the last charge just cleared, so stop the agreement now.
   try {
     const paymentAgreement = await getPaymentAgreementByProviderId(agreementId);
 
@@ -317,6 +319,9 @@ async function handleChargeCaptured(
         console.log(`[Vipps Recurring Webhook] One-time order charged - stopping agreement ${agreementId}`);
         await cancelVippsAgreement(agreementId);
         await stopPaymentAgreement(paymentAgreement.id);
+      } else if (subscription.status === 'cancelled') {
+        console.log(`[Vipps Recurring Webhook] Final charge captured for cancelled subscription ${subscription.id} - stopping agreement`);
+        await stopVippsAgreementForCancelledSubscription(subscription.id);
       }
     }
   } catch (error) {

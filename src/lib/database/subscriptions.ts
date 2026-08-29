@@ -161,7 +161,7 @@ export async function updateSubscription(
  * - Vipps webhook events (agreement stopped/rejected/expired)
  *
  * Actions performed:
- * 1. Cancels all pending/upcoming orders
+ * 1. Cancels all not-yet-picked-up orders
  * 2. Updates subscription status to 'cancelled'
  *
  * @param subscriptionId - The subscription ID to cancel
@@ -210,7 +210,7 @@ export async function cancelSubscription(
  * Used when Vipps agreement expires naturally (reached end date).
  *
  * Actions performed:
- * 1. Cancels all pending/upcoming orders
+ * 1. Cancels all not-yet-picked-up orders
  * 2. Updates subscription status to 'expired'
  *
  * @param subscriptionId - The subscription ID to expire

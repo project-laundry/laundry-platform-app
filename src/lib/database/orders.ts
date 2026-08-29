@@ -587,10 +587,42 @@ export async function getOrderByIdAndCleanerId(
 }
 
 /**
- * Cancel all pending/upcoming orders for a subscription
+ * All non-terminal orders for a subscription (anything not completed/cancelled),
+ * ordered by pickup date. Used by the subscription-cancellation flow to decide
+ * which orders will be cancelled and whether one is already in-flight.
+ */
+export async function getActiveOrdersBySubscriptionId(
+  subscriptionId: string
+): Promise<Order[]> {
+  const supabase = await createAdminClient();
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('subscription_id', subscriptionId)
+    .in('status', [
+      'pending_assignment',
+      'pickup_scheduled',
+      'picked_up',
+      'in_cleaning',
+      'ready_for_delivery',
+      'out_for_delivery',
+    ])
+    .order('scheduled_date', { ascending: true });
+
+  if (error) {
+    console.error('[getActiveOrdersBySubscriptionId] Error fetching orders:', error);
+    return [];
+  }
+  return (data as Order[]) || [];
+}
+
+/**
+ * Cancel all not-yet-picked-up orders for a subscription
  *
  * Called when a subscription is cancelled or expired to prevent future orders.
- * Only cancels orders that haven't been completed yet.
+ * Only cancels orders that haven't been picked up yet — an order the cleaner
+ * physically holds (picked_up onward) always completes and is charged normally.
  *
  * @param subscriptionId - The subscription ID
  * @returns Number of orders cancelled
@@ -602,7 +634,7 @@ export async function cancelOrdersBySubscriptionId(
 
   console.log(`[cancelOrdersBySubscriptionId] Cancelling orders for subscription ${subscriptionId}`);
 
-  // Cancel all non-completed/non-cancelled orders
+  // Cancel only orders that haven't been picked up yet
   const { data, error } = await supabase
     .from('orders')
     .update({
@@ -610,7 +642,7 @@ export async function cancelOrdersBySubscriptionId(
       cancelled_at: new Date().toISOString(),
     })
     .eq('subscription_id', subscriptionId)
-    .not('status', 'in', '(completed,cancelled)')
+    .in('status', ['pending_assignment', 'pickup_scheduled'])
     .select('id');
 
   if (error) {
