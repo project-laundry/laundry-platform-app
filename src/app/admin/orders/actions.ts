@@ -3,6 +3,7 @@
 import { assignCleanerToOrder } from '@/lib/database/orders';
 import { getAvailableCleanersForCity } from '@/lib/database/cleaners';
 import { createClient } from '@/lib/supabase/server';
+import { assertRole } from '@/lib/auth/require-role';
 import type { Order, Customer, User } from '@/types/database';
 
 export interface OrderWithDetails extends Order {
@@ -19,6 +20,9 @@ export interface CleanerOption {
  * Get all orders pending cleaner assignment with customer and address details
  */
 export async function getPendingAssignmentOrders(): Promise<OrderWithDetails[]> {
+  const { error: authError } = await assertRole(['admin']);
+  if (authError) return [];
+
   const supabase = await createClient();
 
   const { data: orders, error } = await supabase
@@ -45,6 +49,9 @@ export async function getPendingAssignmentOrders(): Promise<OrderWithDetails[]> 
  * Get available cleaners for a specific city
  */
 export async function getCleanersForCity(city: string): Promise<CleanerOption[]> {
+  const { error: authError } = await assertRole(['admin']);
+  if (authError) return [];
+
   const cleaners = await getAvailableCleanersForCity(city);
 
   return cleaners.map((cleaner) => ({
@@ -66,6 +73,9 @@ export async function assignCleanerAction(
   orderId: string,
   cleanerId: string
 ): Promise<AssignCleanerResult> {
+  const { error: authError } = await assertRole(['admin']);
+  if (authError) return { success: false, error: authError };
+
   const order = await assignCleanerToOrder(orderId, cleanerId);
 
   if (!order) {

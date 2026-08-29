@@ -36,6 +36,7 @@
 - Has one Customer profile (if role = customer)
 - Has one Cleaner profile (if role = cleaner)
 - Has one Admin profile (if role = admin)
+- Has one Driver profile (if role = driver)
 
 **Indexes:**
 
@@ -149,6 +150,34 @@
 - `id` (uuid, PK) - Unique identifier
 - `user_id` (uuid, FK → User.id, unique, required) - Reference to User
 - `permissions` (string[], required) - Admin permissions
+- `created_at` (timestamp) - Profile creation timestamp
+- `updated_at` (timestamp) - Last update timestamp
+
+**Relationships:**
+
+- Belongs to User
+
+**Indexes:**
+
+- Unique: user_id
+
+---
+
+### Driver
+
+**Description:** Minimal profile for driver users. One driver serves exactly one city; the optional start point seeds the daily route. Rows are created manually by staff (no self-service onboarding).
+
+**Fields:**
+
+- `id` (uuid, PK) - Unique identifier
+- `user_id` (uuid, FK → User.id, unique, required) - Reference to User
+  - **On Delete:** CASCADE
+- `city` (string, required) - The one city this driver serves
+  - **MVP Constraint:** Must be 'Bergen' or 'Oslo' (app-level, like Cleaner.base_city)
+- `start_latitude` (double, nullable) - Stored route start point
+- `start_longitude` (double, nullable) - Stored route start point
+- `start_label` (string, nullable) - Display label for the start point (e.g. "Hjemme")
+  - **Note:** Ignored unless both coordinates are set; the dashboard falls back to the city centre
 - `created_at` (timestamp) - Profile creation timestamp
 - `updated_at` (timestamp) - Last update timestamp
 
@@ -296,7 +325,7 @@
 - **Scheduling:**
   - `scheduled_date` (date, required) - Scheduled pickup date
     - **Validation:** Must be >= today
-  - `delivery_date` (date, required) - Scheduled/actual delivery date
+  - `delivery_date` (date, required) - **Estimated** delivery date shown to the customer ("Estimert levering") while the order is active. An estimate only — never a commitment and never a gate for any logic; finishing and delivering earlier is desirable. On delivery completion the column is overwritten with the **actual** delivery date (`completed_at` holds the precise timestamp).
     - **Validation:** Must be >= scheduled_date
 - **Pickup Details:**
   - `special_instructions` (text, nullable) - One-time order notes
@@ -496,6 +525,7 @@
 
 - `customer`
 - `cleaner`
+- `driver` - Picks up and delivers laundry. Minimal profile in `drivers` (one city + optional route start); accounts and profiles are created manually by staff (never self-service).
 - `admin`
 
 ### CleanerVerificationStatus
@@ -597,7 +627,7 @@
 ## Security & Privacy
 
 - **RLS Policies:** Customers see own data only; cleaners see assigned orders only; admins have full access
-- **Driver Role (MVP):** Admins access driver dashboard to perform pickup/delivery operations
+- **Driver Role (MVP):** Dedicated `driver` users run the driver dashboard (`/dashboard/driver`); admins have access to it too. Privileged roles (`admin`, `driver`) cannot be self-selected at signup — `handle_new_user` only honors `customer`/`cleaner` from metadata.
 
 ---
 

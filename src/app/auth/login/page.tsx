@@ -81,6 +81,12 @@ export default function LoginPage() {
       return;
     }
 
+    if (role === 'driver') {
+      router.push('/dashboard/driver');
+      router.refresh();
+      return;
+    }
+
     if (role === 'cleaner') {
       // Check if cleaner has a profile (completed onboarding)
       const { data: cleanerProfile } = await supabase

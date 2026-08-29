@@ -13,10 +13,10 @@ interface CleanerOrderCardProps {
 // Status display configuration — badge tints per brandbook §4.
 const STATUS_CONFIG: Record<OrderStatus, { label: string; className: string }> = {
   pending_assignment: { label: 'Venter pa tildeling', className: 'bg-amber-50 text-amber-800' },
-  pickup_scheduled: { label: 'Henting planlagt', className: 'bg-nordic-blue/10 text-nordic-blue' },
-  picked_up: { label: 'Under arbeid', className: 'bg-nordic-blue/10 text-nordic-blue' },
+  pickup_scheduled: { label: 'Venter på henting', className: 'bg-nordic-blue/10 text-nordic-blue' },
+  picked_up: { label: 'På vei til deg', className: 'bg-nordic-blue/10 text-nordic-blue' },
   in_cleaning: { label: 'Vaskes', className: 'bg-nordic-blue/10 text-nordic-blue' },
-  ready_for_delivery: { label: 'Klar for levering', className: 'bg-sea-green/10 text-sea-green' },
+  ready_for_delivery: { label: 'Klar for henting', className: 'bg-sea-green/10 text-sea-green' },
   out_for_delivery: { label: 'Ut for levering', className: 'bg-sea-green/10 text-sea-green' },
   completed: { label: 'Fullfort', className: 'bg-cream-dark/60 text-medium-gray' },
   cancelled: { label: 'Kansellert', className: 'bg-red-50 text-red-700' },
@@ -27,19 +27,21 @@ const BADGE_BASE = 'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs 
 export function CleanerOrderCard({ order }: CleanerOrderCardProps) {
   const statusConfig = STATUS_CONFIG[order.status];
   const hasPrice = order.total_cost_ore !== null;
-  const needsPickupToday = isToday(order.scheduled_date) && order.status === 'pickup_scheduled';
+  const arrivesToday =
+    isToday(order.scheduled_date) &&
+    (order.status === 'pickup_scheduled' || order.status === 'picked_up');
 
   return (
     <div
       className={`rounded-3xl border bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur transition-shadow hover:shadow-md ${
-        needsPickupToday ? 'border-amber-300' : 'border-cream-dark/80'
+        arrivesToday ? 'border-amber-300' : 'border-cream-dark/80'
       }`}
     >
-      {/* Urgent pickup badge */}
-      {needsPickupToday && (
+      {/* Laundry arriving today badge */}
+      {arrivesToday && (
         <div className="mb-3">
           <span className={`${BADGE_BASE} bg-amber-50 text-amber-800`}>
-            Hentes i dag!
+            Kommer til deg i dag
           </span>
         </div>
       )}
@@ -70,7 +72,7 @@ export function CleanerOrderCard({ order }: CleanerOrderCardProps) {
           </p>
         </div>
         <div>
-          <p className="text-medium-gray">Levering</p>
+          <p className="text-medium-gray">Est. levering</p>
           <p className="font-medium tabular-nums text-dark-gray">
             {new Date(order.delivery_date).toLocaleDateString('no-NO', {
               weekday: 'short',

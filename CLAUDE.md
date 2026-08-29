@@ -6,10 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is **NooraCare**, a peer-to-peer laundry platform that connects customers with local cleaners in Bergen and Oslo, Norway. The platform offers subscription-based pickup and delivery laundry services.
 
-The application supports three user roles:
+The application supports four user roles:
 
 - **Customers**: Schedule laundry pickups via subscription plans
 - **Cleaners**: Accept missions and provide laundry services
+- **Drivers**: Pick up and deliver laundry along a daily optimized route (admins also have driver access)
 - **Admins**: Manage operations and platform oversight
 
 ## Development Philosophy
@@ -92,7 +93,8 @@ src/
 │   │   ├── services/       # Service offerings
 │   │   └── success/        # Onboarding success
 │   ├── dashboard/          # User dashboards
-│   │   └── cleaner/        # Cleaner dashboard & missions
+│   │   ├── cleaner/        # Cleaner dashboard & missions
+│   │   └── driver/         # Driver dashboard (daily route)
 │   ├── orders/             # Customer order flow (3 steps)
 │   │   ├── [orderId]/      # Order cancel/reschedule
 │   │   ├── details/        # Customer order details
@@ -112,7 +114,7 @@ src/
 │       └── LogoutButton.tsx
 ├── hooks/                  # Custom React hooks (empty)
 ├── lib/                    # Core utilities and business logic
-│   ├── auth/               # Auth utilities (empty - using Supabase directly)
+│   ├── auth/               # requireRole/assertRole guards (require-role.ts)
 │   ├── config/
 │   │   └── pricing.ts      # Pricing constants and both calculators: calculateOrderPrice (cleaner-binding: per 5kg load + 3 ironing groups) and calculateCustomerEstimate (customer estimate: per bag/set/piece)
 │   ├── database/           # Database CRUD operations
@@ -174,7 +176,7 @@ All database operations use dedicated functions in `lib/database/`:
 
 ### Middleware
 
-`src/middleware.ts` refreshes Supabase auth sessions on every request.
+`src/proxy.ts` (Next 16 proxy convention) refreshes Supabase auth sessions on every request. Role guards live in `src/lib/auth/require-role.ts` (`requireRole` for pages/layouts, `assertRole` for server actions); privileged roles (`admin`, `driver`) can never be chosen at signup — the `handle_new_user` trigger only honors `customer`/`cleaner` metadata.
 
 ## Maps & Geocoding
 
@@ -259,7 +261,7 @@ The webhook uses HMAC-SHA256 signature verification with `VIPPS_WEBHOOK_SECRET` 
 **Subscription Cancellation:**
 - Entry point: the dashboard subscription strip → `/dashboard/subscription` (details) → `/dashboard/subscription/cancel` (confirmation) → success page. Action: `cancelSubscriptionAction` in `app/dashboard/subscription/actions.ts`.
 - **In-flight orders survive:** only not-yet-picked-up orders (`pending_assignment`, `pickup_scheduled`) are cancelled — `lib/database/orders.ts`'s `cancelOrdersBySubscriptionId`. An order already `picked_up` or beyond is never cancelled by subscription cancellation; it completes and is charged normally, becoming the customer's last order. Unlike order-level cancellation, there is no 24h-notice exception — the split is purely by status. `getActiveOrdersBySubscriptionId` reports what's still non-terminal, used to detect whether an in-flight order remains.
-- **Deferred Vipps stop:** if an in-flight order exists at cancel time, the subscription flips to `cancelled` immediately (blocking new order generation via the status guard in `checkAndGenerateNextOrders`), but the Vipps agreement is only stopped once that order settles — otherwise the cleaner's future charge for it would fail. `stopVippsAgreementForCancelledSubscription` (`lib/payments/vipps/service.ts`) does the stop; it's safe to call unconditionally (no-ops unless the subscription is cancelled, its agreement is still active, and no active orders remain) and is called from two places: the charge-captured webhook handler (once the final charge clears) and `finishOrderAction`'s 0-total branch (a 100% promo skips the charge entirely, so no webhook would otherwise fire).
+- **Deferred Vipps stop:** if an in-flight order exists at cancel time, the subscription flips to `cancelled` immediately (blocking new order generation via the status guard in `checkAndGenerateNextOrders`), but the Vipps agreement is only stopped once that order settles — otherwise the charge for it (created when the cleaner marks it ready) would fail. `stopVippsAgreementForCancelledSubscription` (`lib/payments/vipps/service.ts`) does the stop; it's safe to call unconditionally (no-ops unless the subscription is cancelled, its agreement is still active, no active orders remain, and **no Vipps charge for the subscription's orders is still pending/authorized** — stopping the agreement would cancel a pending charge) and is called from two places: the charge-captured webhook handler and `completeDeliveredOrder` (`lib/services/complete-order.ts`), which runs it unconditionally on every delivery completion. Between them every ordering is covered: capture-before-delivery (webhook no-ops on the active order, completion stops), same-day delivery with the charge still pending (completion defers, the webhook stops after capture), and 0-total promo orders with no charge event (completion stops).
 
 **Migration history:** The migration history was squashed into a single baseline
 before production launch — `supabase/migrations/20260606233033_initial_schema.sql`

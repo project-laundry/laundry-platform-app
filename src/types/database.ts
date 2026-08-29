@@ -5,7 +5,7 @@
 // ENUMS
 // =============================================================================
 
-export type UserRole = 'customer' | 'cleaner' | 'admin';
+export type UserRole = 'customer' | 'cleaner' | 'driver' | 'admin';
 
 export type CleanerVerificationStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
 
@@ -123,6 +123,19 @@ export interface Admin {
   updated_at: string;
 }
 
+export interface Driver {
+  id: string;
+  user_id: string;
+  // The one city this driver serves ('Bergen' or 'Oslo'); assigned at creation
+  city: string;
+  // Stored route start point (null → the dashboard falls back to the city centre)
+  start_latitude: number | null;
+  start_longitude: number | null;
+  start_label: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface PaymentAgreement {
   id: string;
   customer_id: string;
@@ -229,8 +242,7 @@ export interface Order {
   // Customer's checkout selection + estimate (null for pre-estimate orders)
   customer_estimate: CustomerEstimate | null;
   // Laundry details (cleaner input)
-  dark_loads: number;
-  white_loads: number;
+  wash_loads: number;
   ironing_details: OrderIroningDetails | null;
   // Pricing (calculated by cleaner)
   actual_weight_kg: number | null;
@@ -321,6 +333,7 @@ export interface UserWithProfile extends User {
   customer?: Customer;
   cleaner?: Cleaner;
   admin?: Admin;
+  driver?: Driver;
 }
 
 export interface CustomerWithRelations extends Customer {
@@ -401,6 +414,7 @@ export type Tables = {
   customers: Customer;
   cleaners: Cleaner;
   admins: Admin;
+  drivers: Driver;
   payment_agreements: PaymentAgreement;
   subscriptions: Subscription;
   orders: Order;

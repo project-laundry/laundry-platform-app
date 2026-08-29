@@ -147,7 +147,9 @@ export function OrderDetailsView({ order }: { order: OrderWithRelations }) {
                   <p className="font-medium text-dark-gray">
                     {formatDate(order.delivery_date)}
                   </p>
-                  <p className="text-sm text-medium-gray">Levering</p>
+                  <p className="text-sm text-medium-gray">
+                    {order.status === 'completed' ? 'Levert' : 'Estimert levering'}
+                  </p>
                 </div>
               </div>
 

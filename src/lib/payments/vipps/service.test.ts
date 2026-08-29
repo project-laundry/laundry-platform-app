@@ -6,7 +6,10 @@ const stopAgreement = vi.fn();
 vi.mock('./recurring-client', () => ({
   createVippsRecurringClient: vi.fn(() => ({ stopAgreement })),
 }));
-vi.mock('@/lib/database/payments', () => ({ createPayment: vi.fn() }));
+vi.mock('@/lib/database/payments', () => ({
+  createPayment: vi.fn(),
+  hasUnsettledVippsPaymentForSubscription: vi.fn(),
+}));
 vi.mock('@/lib/database/subscriptions', () => ({ getSubscriptionById: vi.fn() }));
 vi.mock('@/lib/database/payment-agreements', () => ({
   getPaymentAgreementById: vi.fn(),
@@ -17,6 +20,7 @@ vi.mock('@/lib/database/orders', () => ({ getActiveOrdersBySubscriptionId: vi.fn
 import { getSubscriptionById } from '@/lib/database/subscriptions';
 import { getPaymentAgreementById, stopPaymentAgreement } from '@/lib/database/payment-agreements';
 import { getActiveOrdersBySubscriptionId } from '@/lib/database/orders';
+import { hasUnsettledVippsPaymentForSubscription } from '@/lib/database/payments';
 import { stopVippsAgreementForCancelledSubscription } from './service';
 
 const m = (fn: unknown) => fn as Mock;
@@ -34,6 +38,7 @@ function happyPathMocks() {
     provider_agreement_id: 'agr-1',
   });
   m(getActiveOrdersBySubscriptionId).mockResolvedValue([]);
+  m(hasUnsettledVippsPaymentForSubscription).mockResolvedValue(false);
 }
 
 beforeEach(() => {
@@ -108,6 +113,16 @@ describe('stopVippsAgreementForCancelledSubscription', () => {
 
     await expect(stopVippsAgreementForCancelledSubscription('sub-1')).resolves.toBeUndefined();
 
+    expect(stopPaymentAgreement).not.toHaveBeenCalled();
+  });
+
+  it('is a no-op while a Vipps charge for the subscription is still pending/authorized', async () => {
+    happyPathMocks();
+    m(hasUnsettledVippsPaymentForSubscription).mockResolvedValue(true);
+
+    await stopVippsAgreementForCancelledSubscription('sub-1');
+
+    expect(stopAgreement).not.toHaveBeenCalled();
     expect(stopPaymentAgreement).not.toHaveBeenCalled();
   });
 });

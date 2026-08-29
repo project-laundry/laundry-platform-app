@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { AppHeader } from '@/components/layout/AppHeader';
-import { ClipboardList, Inbox } from 'lucide-react';
+import { ClipboardList, Inbox, Route } from 'lucide-react';
 import {
   getPendingAssignmentOrders,
   getCleanersForCity,
@@ -77,7 +78,18 @@ export default function AdminOrdersPage() {
         }}
       />
 
-      <AppHeader maxWidth="max-w-5xl" />
+      <AppHeader
+        maxWidth="max-w-5xl"
+        right={
+          <Link
+            href="/dashboard/driver"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-nordic-blue hover:underline"
+          >
+            <Route className="size-4" />
+            Kjøreplan
+          </Link>
+        }
+      />
 
       <main className="mx-auto max-w-5xl px-5 pb-16 pt-8">
         <div className="animate-in fade-in slide-in-from-bottom-3 duration-500">
@@ -143,7 +155,7 @@ export default function AdminOrdersPage() {
                       </p>
                     </div>
                     <div>
-                      <p className="text-medium-gray">Leveringsdato</p>
+                      <p className="text-medium-gray">Estimert levering</p>
                       <p className="font-medium tabular-nums text-dark-gray">
                         {new Date(order.delivery_date).toLocaleDateString('no-NO', {
                           weekday: 'long',

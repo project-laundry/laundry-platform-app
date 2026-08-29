@@ -158,7 +158,7 @@ function SuccessView() {
           </li>
           <li className="flex items-start">
             <span className="mr-2 font-serif font-semibold text-sea-green">3.</span>
-            Levering og betaling: Når klærne leveres ferdig renset tilbake, belastes du automatisk via Vipps.
+            Levering og betaling: Du belastes automatisk via Vipps når klærne dine er ferdig renset, og de leveres tilbake til deg.
           </li>
         </ul>
       </div>
@@ -169,7 +169,7 @@ function SuccessView() {
         <div>
           <p className="text-sm leading-relaxed text-medium-gray">
             <span className="font-medium text-dark-gray">Betaling og pris:</span>{' '}
-            Prisen baseres på valgt tjeneste og tøyets vekt, som vi veier ved henting. Du belastes automatisk via Vipps først når klærne dine er levert ferdig renset tilbake til deg.
+            Prisen baseres på valgt tjeneste og tøyets vekt. Du belastes automatisk via Vipps når klærne dine er ferdig renset — før de leveres tilbake til deg.
           </p>
           <a
             target="_blank"

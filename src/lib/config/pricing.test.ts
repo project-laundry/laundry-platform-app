@@ -71,7 +71,7 @@ describe('calculateOrderPrice', () => {
 
   it('applies the order minimum when the subtotal is below it', () => {
     // 1 load (22900) + pickup/delivery (10400) + service (1830) = 35130 < 50000
-    const result = calculateOrderPrice({ dark_loads: 1, white_loads: 0, ironing_details: noIroning });
+    const result = calculateOrderPrice({ wash_loads: 1, ironing_details: noIroning });
 
     expect(result.loads_subtotal_ore).toBe(22900);
     expect(result.subtotal_ore).toBe(35130);
@@ -81,7 +81,7 @@ describe('calculateOrderPrice', () => {
 
   it('uses the actual subtotal when it exceeds the minimum', () => {
     // 3 loads (68700) + 10400 + 1830 = 80930 >= 50000
-    const result = calculateOrderPrice({ dark_loads: 2, white_loads: 1, ironing_details: noIroning });
+    const result = calculateOrderPrice({ wash_loads: 3, ironing_details: noIroning });
 
     expect(result.loads_subtotal_ore).toBe(68700);
     expect(result.subtotal_ore).toBe(80930);
@@ -95,7 +95,7 @@ describe('calculateOrderPrice', () => {
       shirts_dresses: 2, // 2 * 4900 = 9800
       bedding: 1, // 8500
     };
-    const result = calculateOrderPrice({ dark_loads: 0, white_loads: 0, ironing_details: ironing });
+    const result = calculateOrderPrice({ wash_loads: 0, ironing_details: ironing });
 
     expect(result.ironing_subtotal_ore).toBe(9800 + 8500);
   });
@@ -106,14 +106,14 @@ describe('calculateOrderPrice', () => {
       tshirts_shorts: 2,
       business_shirts: 1,
     } as unknown as IroningDetails;
-    const result = calculateOrderPrice({ dark_loads: 1, white_loads: 0, ironing_details: legacy });
+    const result = calculateOrderPrice({ wash_loads: 1, ironing_details: legacy });
 
     expect(result.ironing_subtotal_ore).toBe(0);
     expect(Number.isFinite(result.total_ore)).toBe(true);
   });
 
   it('splits total into a 70% cleaner payout and 30% platform share', () => {
-    const result = calculateOrderPrice({ dark_loads: 2, white_loads: 1, ironing_details: noIroning });
+    const result = calculateOrderPrice({ wash_loads: 3, ironing_details: noIroning });
 
     expect(result.cleaner_payout_ore).toBe(Math.round((80930 * 70) / 100)); // 56651
     expect(result.platform_share_ore).toBe(80930 - result.cleaner_payout_ore);

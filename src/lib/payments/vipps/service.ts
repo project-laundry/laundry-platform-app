@@ -243,7 +243,11 @@ export async function createChargeForCompletedOrder(
  * (charge captured, or finished with a 0 total).
  *
  * Safe to call unconditionally: no-op unless the subscription is cancelled,
- * its agreement is still active, and no active orders remain. Never throws.
+ * its agreement is still active, no active orders remain, AND no Vipps charge
+ * for the subscription's orders is still un-settled — stopping the agreement
+ * would cancel a pending charge (see the webhook handler's comment). When it
+ * defers for a pending charge, the charge-captured webhook re-triggers it.
+ * Never throws.
  */
 export async function stopVippsAgreementForCancelledSubscription(
   subscriptionId: string
@@ -265,6 +269,14 @@ export async function stopVippsAgreementForCancelledSubscription(
     const activeOrders = await getActiveOrdersBySubscriptionId(subscriptionId);
     if (activeOrders.length > 0) {
       return; // another order still needs to be charged
+    }
+
+    const { hasUnsettledVippsPaymentForSubscription } = await import('@/lib/database/payments');
+    if (await hasUnsettledVippsPaymentForSubscription(subscriptionId)) {
+      // A charge is still pending/authorized — stopping the agreement would
+      // cancel it. The charge-captured webhook calls this function again once
+      // the charge settles (payment is marked captured before that call).
+      return;
     }
 
     console.log(`[stopVippsAgreementForCancelledSubscription] Stopping agreement ${agreement.provider_agreement_id} for cancelled subscription ${subscriptionId}`);

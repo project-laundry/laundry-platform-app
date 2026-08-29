@@ -185,6 +185,7 @@ Assignment happens at subscription creation.
    - **Who:** Cleaner
    - **Action:** Marks laundry as cleaned and ready
    - **Timestamp:** `ready_for_delivery_at`
+   - **Guard + charge:** rejected until wash details are registered (`wash_loads > 0`) and the price is set (`total_cost_ore`). Confirming this step **creates the Vipps charge** — the customer pays when the laundry is finished, not at delivery.
 
 4. `ready_for_delivery` → `out_for_delivery`
    - **Who:** Admin/Driver
@@ -195,6 +196,8 @@ Assignment happens at subscription creation.
    - **Who:** Admin/Driver
    - **Action:** Delivers clean laundry to customer
    - **Timestamp:** `completed_at`
+
+Drivers work from the driver dashboard (`/dashboard/driver`, one fixed city per driver profile; admins can cover any city), which builds an optimized route of these legs; steps 1–2 and 4–5 are the driver's, step 3 is the cleaner's. An order enters the driver's collection route the moment the cleaner marks it ready — `delivery_date` is an estimate shown to the customer, never a gate or deadline; finishing earlier than the estimate is desirable. Completing step 5 stamps `delivery_date` to the actual delivery date.
 
 **Dashboard Specifications:** See [DASHBOARDS.md](./DASHBOARDS.md) for Admin Driver Dashboard, Cleaner Dashboard, and other role-based UI specifications.
 
@@ -224,7 +227,7 @@ There are two independent, customer-initiated cancellation actions, plus a Vipps
   | `completed` / `cancelled` (already terminal) | Untouched either way |
 
 - The subscription itself flips to `status = 'cancelled'` immediately in every case, which stops the rolling window from generating any further orders (`checkAndGenerateNextOrders` exits early once `status !== 'active'`).
-- **Deferred Vipps agreement stop:** if an in-flight order remains after the above, the Vipps agreement is deliberately **not** stopped yet — stopping it would cause the cleaner's eventual charge for that order to fail. Instead the agreement stays `active` until the order settles, then `stopVippsAgreementForCancelledSubscription` (`lib/payments/vipps/service.ts`) stops it. That function is a safe no-op unless the subscription is cancelled, its agreement is still active, and no active orders remain, so it's called unconditionally from two places once either can be true: the `charge-captured` webhook handler (the in-flight order's charge just cleared) and `finishOrderAction`'s 0-total branch (a 100%-off promo skips the charge entirely, so no webhook would otherwise fire).
+- **Deferred Vipps agreement stop:** if an in-flight order remains after the above, the Vipps agreement is deliberately **not** stopped yet — stopping it would cause the charge for that order (created when the cleaner marks it ready) to fail. Instead the agreement stays `active` until the order settles, then `stopVippsAgreementForCancelledSubscription` (`lib/payments/vipps/service.ts`) stops it. That function is a safe no-op unless the subscription is cancelled, its agreement is still active, no active orders remain, and **no Vipps charge for the subscription's orders is still pending/authorized** — stopping the agreement would cancel a pending charge — so it's called unconditionally from two places once either can be true: the `charge-captured` webhook handler and `completeDeliveredOrder` (`lib/services/complete-order.ts`), which runs it unconditionally on every delivery completion. Between them every ordering is covered: capture-before-delivery (webhook no-ops on the active order, completion stops), same-day delivery with the charge still pending (completion defers, the webhook stops after capture), and 0-total promo orders with no charge event (completion stops).
 - If there's no in-flight order (nothing generated yet, or the last one already completed before cancellation), the Vipps agreement is stopped immediately as part of the same action — no deferral needed.
 - Cleaner/admin side: no explicit notification is sent. A cancelled pre-pickup order simply drops out of the cleaner's mission list (`getOrdersByCleanerId` excludes `cancelled`/`completed` orders), so it disappears on its own.
 - Already-completed, already-charged orders are never touched or refunded by subscription cancellation — the service was rendered, the charge stands.
@@ -296,12 +299,12 @@ These timestamps provide sufficient audit trail for MVP compliance.
    - Records `actual_weight_kg`
    - Calculates price based on weight, ironing, etc.
    - Sets `total_cost_ore` and `pricing_notes`
-   - On order completion, creates a Vipps charge against the agreement for the calculated amount (`createChargeForCompletedOrder`, DIRECT_CAPTURE)
+   - When the cleaner marks the order ready for delivery, a Vipps charge is created against the agreement for the calculated amount (`createChargeForCompletedOrder` — name is historical, DIRECT_CAPTURE)
 4. **Webhook:** `POST /api/webhooks/vipps/recurring` receives the charge events:
    - `recurring.charge-captured.v1` → Payment status = 'captured'
    - DIRECT_CAPTURE means no separate authorize/capture step
 5. **Cleaner Processes:** Cleaner completes laundry service
-6. **Next Order Generated:** When order completes, rolling window generates next order (recurring only)
+6. **Next Order Generated:** When the driver completes the delivery, the rolling window generates the next order (recurring only)
 
 Charge creation on completion runs for both recurring and one-time orders. `createChargeForCompletedOrder` resolves the Vipps agreement from the subscription (recurring) or directly from `order.payment_agreement_id` (one-time).
 

@@ -216,3 +216,44 @@ export async function getPaymentByReference(reference: string): Promise<Payment 
 
   return data;
 }
+
+/**
+ * True when any Vipps payment for the subscription's orders is still
+ * un-settled (pending/authorized). Used by the deferred agreement stop:
+ * stopping a Vipps agreement cancels its still-pending charges, so the stop
+ * must wait until every charge has settled.
+ */
+export async function hasUnsettledVippsPaymentForSubscription(
+  subscriptionId: string
+): Promise<boolean> {
+  const supabase = await createAdminClient();
+
+  const { data: orders, error: ordersError } = await supabase
+    .from('orders')
+    .select('id')
+    .eq('subscription_id', subscriptionId);
+
+  if (ordersError) {
+    console.error('Error fetching subscription orders for payment check:', ordersError);
+    // Fail safe: claim un-settled so the agreement is NOT stopped on a read error.
+    return true;
+  }
+  if (!orders || orders.length === 0) {
+    return false;
+  }
+
+  const { data: payments, error } = await supabase
+    .from('payments')
+    .select('id')
+    .in('order_id', orders.map((order) => order.id))
+    .eq('payment_provider', 'vipps')
+    .in('status', ['pending', 'authorized'])
+    .limit(1);
+
+  if (error) {
+    console.error('Error checking unsettled Vipps payments:', error);
+    return true;
+  }
+
+  return (payments?.length ?? 0) > 0;
+}

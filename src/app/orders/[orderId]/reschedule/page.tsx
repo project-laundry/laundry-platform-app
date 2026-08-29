@@ -103,7 +103,7 @@ export default async function RescheduleOrderPage({ params }: ReschedulePageProp
               </div>
               <div>
                 <p className="text-xs font-medium uppercase tracking-[0.14em] text-medium-gray">
-                  Levering
+                  Estimert levering
                 </p>
                 <p className="mt-1 font-medium capitalize text-dark-gray">
                   {formatDate(order.delivery_date)}
