@@ -75,13 +75,13 @@ export function DriverRouteSummary({
 
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-medium-gray">
         <span className="inline-flex items-center gap-1.5">
-          <ArrowDownToLine className="size-4 text-nordic-blue" /> {pickups} henting
+          <ArrowDownToLine className="size-4 text-nordic-blue" /> {pickups} henting hos kunde
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <WashingMachine className="size-4 text-dark-gray" /> {cleanerStops} renseri
+          <WashingMachine className="size-4 text-dark-gray" /> {cleanerStops} stopp hos renser
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <Home className="size-4 text-sea-green" /> {deliveries} levering
+          <Home className="size-4 text-sea-green" /> {deliveries} levering hos kunde
         </span>
         {totalKm > 0 && <span className="text-medium-gray/80">~{totalKm.toFixed(1)} km</span>}
       </div>
