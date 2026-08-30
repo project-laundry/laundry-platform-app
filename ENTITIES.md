@@ -161,11 +161,13 @@
 
 - Unique: user_id
 
+**Note (MVP):** The application does not read or write this table — admin access is `users.role = 'admin'`, and admin accounts are managed from the admin dashboard (Administratorer section). `permissions` remains a future hook.
+
 ---
 
 ### Driver
 
-**Description:** Minimal profile for driver users. One driver serves exactly one city; the optional start point seeds the daily route. Rows are created manually by staff (no self-service onboarding).
+**Description:** Minimal profile for driver users. One driver serves exactly one city; the optional start point seeds the daily route. Rows are created by admins from the admin dashboard (Sjåfører section — no self-service onboarding).
 
 **Fields:**
 
@@ -525,7 +527,7 @@
 
 - `customer`
 - `cleaner`
-- `driver` - Picks up and delivers laundry. Minimal profile in `drivers` (one city + optional route start); accounts and profiles are created manually by staff (never self-service).
+- `driver` - Picks up and delivers laundry. Minimal profile in `drivers` (one city + optional route start); accounts and profiles are created by admins from the admin dashboard (never self-service).
 - `admin`
 
 ### CleanerVerificationStatus

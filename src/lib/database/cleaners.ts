@@ -1,7 +1,7 @@
 // Cleaner database operations and matching logic
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import type { Cleaner, Weekday } from '@/types/database';
+import type { Cleaner, CleanerVerificationStatus, User, Weekday } from '@/types/database';
 import { getWeekdayFromDate, isWeekdayInSchedule } from '@/lib/utils/date';
 
 /**
@@ -209,4 +209,75 @@ export async function saveCleanerCoords(
   if (error) {
     console.error('Error saving cleaner coordinates:', error);
   }
+}
+
+/**
+ * Cleaner with the linked user record, for the admin cleaner list.
+ */
+export interface CleanerWithUser extends Cleaner {
+  user: User;
+}
+
+/**
+ * All cleaners (every verification status) with user info, newest first.
+ * Admin dashboard only.
+ */
+export async function getAllCleanersWithUser(limit = 200): Promise<CleanerWithUser[]> {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from('cleaners')
+    .select(`
+      *,
+      user:users!user_id(*)
+    `)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error || !data) {
+    console.error('Error fetching all cleaners:', error);
+    return [];
+  }
+
+  return data as CleanerWithUser[];
+}
+
+/**
+ * Activate (approve) or deactivate (suspend) a cleaner.
+ * Approve doubles as the approval step for 'pending' applications and
+ * clears any previous suspension. Suspend removes the cleaner from all
+ * matching (findAvailableCleaner and getAvailableCleanersForCity require
+ * verification_status = 'approved').
+ */
+export async function setCleanerVerificationStatus(
+  cleanerId: string,
+  status: Extract<CleanerVerificationStatus, 'approved' | 'suspended'>
+): Promise<Cleaner | null> {
+  const supabase = createAdminClient();
+
+  const updates =
+    status === 'approved'
+      ? {
+          verification_status: 'approved' as const,
+          approved_at: new Date().toISOString(),
+          suspended_at: null,
+        }
+      : {
+          verification_status: 'suspended' as const,
+          suspended_at: new Date().toISOString(),
+        };
+
+  const { data, error } = await supabase
+    .from('cleaners')
+    .update(updates)
+    .eq('id', cleanerId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating cleaner verification status:', error);
+    return null;
+  }
+
+  return data;
 }

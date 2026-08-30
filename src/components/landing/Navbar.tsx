@@ -57,7 +57,7 @@ export function Navbar() {
   ];
 
   const getDashboardUrl = () => {
-    if (userRole === 'admin') return '/admin/orders';
+    if (userRole === 'admin') return '/admin';
     if (userRole === 'cleaner') return '/dashboard/cleaner';
     return '/dashboard';
   };
