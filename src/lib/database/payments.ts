@@ -1,7 +1,7 @@
 // Payment database operations
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import type { Payment, PaymentStatus, PaymentType, PaymentProvider } from '@/types/database';
+import type { Payment, PaymentStatus, PaymentType, PaymentProvider, Customer, User, Order } from '@/types/database';
 
 export interface CreatePaymentData {
   customer_id: string;
@@ -256,4 +256,49 @@ export async function hasUnsettledVippsPaymentForSubscription(
   }
 
   return (payments?.length ?? 0) > 0;
+}
+
+/**
+ * Payment with customer and order summary for the admin payment list.
+ */
+export interface AdminPaymentListItem extends Payment {
+  customer: Customer & { user: User };
+  order: Pick<Order, 'id' | 'order_number'> | null;
+}
+
+/**
+ * All payments for the admin dashboard, newest first, optionally filtered
+ * by status.
+ */
+export async function getAllPaymentsWithDetails(options: {
+  status?: PaymentStatus;
+  limit?: number;
+}): Promise<AdminPaymentListItem[]> {
+  const supabase = await createAdminClient();
+
+  let query = supabase
+    .from('payments')
+    .select(`
+      *,
+      customer:customers!customer_id(
+        *,
+        user:users!user_id(*)
+      ),
+      order:orders!order_id(id, order_number)
+    `);
+
+  if (options.status) {
+    query = query.eq('status', options.status);
+  }
+
+  const { data, error } = await query
+    .order('created_at', { ascending: false })
+    .limit(options.limit ?? 200);
+
+  if (error || !data) {
+    console.error('Error fetching admin payments:', error);
+    return [];
+  }
+
+  return data as AdminPaymentListItem[];
 }

@@ -76,7 +76,7 @@ export default function LoginPage() {
     const role = userData.role;
 
     if (role === 'admin') {
-      router.push('/admin/orders');
+      router.push('/admin');
       router.refresh();
       return;
     }

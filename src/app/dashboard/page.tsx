@@ -32,7 +32,7 @@ export default async function DashboardPage() {
     redirect('/dashboard/driver');
   }
   if (dbUser?.role === 'admin') {
-    redirect('/admin/orders');
+    redirect('/admin');
   }
 
   // Get customer

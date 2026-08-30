@@ -1,73 +1,25 @@
 'use server';
 
-import { assignCleanerToOrder } from '@/lib/database/orders';
-import { getAvailableCleanersForCity } from '@/lib/database/cleaners';
-import { createClient } from '@/lib/supabase/server';
+import { revalidatePath } from 'next/cache';
 import { assertRole } from '@/lib/auth/require-role';
-import type { Order, Customer, User } from '@/types/database';
-
-export interface OrderWithDetails extends Order {
-  customer: Customer & { user: User };
-}
-
-export interface CleanerOption {
-  id: string;
-  display_name: string;
-  city: string;
-}
-
-/**
- * Get all orders pending cleaner assignment with customer and address details
- */
-export async function getPendingAssignmentOrders(): Promise<OrderWithDetails[]> {
-  const { error: authError } = await assertRole(['admin']);
-  if (authError) return [];
-
-  const supabase = await createClient();
-
-  const { data: orders, error } = await supabase
-    .from('orders')
-    .select(`
-      *,
-      customer:customers!customer_id(
-        *,
-        user:users!user_id(*)
-      )
-    `)
-    .eq('status', 'pending_assignment')
-    .order('scheduled_date', { ascending: true });
-
-  if (error || !orders) {
-    console.error('Error fetching pending orders:', error);
-    return [];
-  }
-
-  return orders as OrderWithDetails[];
-}
-
-/**
- * Get available cleaners for a specific city
- */
-export async function getCleanersForCity(city: string): Promise<CleanerOption[]> {
-  const { error: authError } = await assertRole(['admin']);
-  if (authError) return [];
-
-  const cleaners = await getAvailableCleanersForCity(city);
-
-  return cleaners.map((cleaner) => ({
-    id: cleaner.id,
-    display_name: cleaner.display_name,
-    city: cleaner.base_city,
-  }));
-}
+import { getOrderById, assignCleanerToOrder } from '@/lib/database/orders';
+import { getAvailableCleanersForCity } from '@/lib/database/cleaners';
 
 export interface AssignCleanerResult {
   success: boolean;
   error?: string;
 }
 
+/** Statuses an admin may (re)assign — only before the laundry is picked up. */
+const ASSIGNABLE_STATUSES = ['pending_assignment', 'pickup_scheduled'] as const;
+
 /**
- * Assign a cleaner to an order
+ * Assign or reassign a cleaner to an order.
+ *
+ * Server-side re-validation of everything the dropdown already enforces
+ * (server actions are public endpoints): the order must not be picked up
+ * yet, and the cleaner must be an available (approved + accepting) cleaner
+ * in the order's own city.
  */
 export async function assignCleanerAction(
   orderId: string,
@@ -76,11 +28,29 @@ export async function assignCleanerAction(
   const { error: authError } = await assertRole(['admin']);
   if (authError) return { success: false, error: authError };
 
-  const order = await assignCleanerToOrder(orderId, cleanerId);
-
+  const order = await getOrderById(orderId);
   if (!order) {
-    return { success: false, error: 'Failed to assign cleaner' };
+    return { success: false, error: 'Ordren ble ikke funnet' };
   }
 
+  if (!(ASSIGNABLE_STATUSES as readonly string[]).includes(order.status)) {
+    return { success: false, error: 'Ordren kan ikke tildeles etter at den er hentet' };
+  }
+
+  if (order.cleaner_id === cleanerId) {
+    return { success: false, error: 'Ordren er allerede tildelt denne renseren' };
+  }
+
+  const availableCleaners = await getAvailableCleanersForCity(order.city);
+  if (!availableCleaners.some((cleaner) => cleaner.id === cleanerId)) {
+    return { success: false, error: 'Renseren er ikke tilgjengelig i denne byen' };
+  }
+
+  const updated = await assignCleanerToOrder(orderId, cleanerId);
+  if (!updated) {
+    return { success: false, error: 'Kunne ikke tildele renser' };
+  }
+
+  revalidatePath('/admin/orders');
   return { success: true };
 }

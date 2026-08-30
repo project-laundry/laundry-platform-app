@@ -101,7 +101,7 @@ export default async function DriverDashboardPage({
           <div className="flex items-center gap-4">
             {dbUser.role === 'admin' && (
               <Link
-                href="/admin/orders"
+                href="/admin"
                 className="text-sm font-medium text-nordic-blue hover:underline"
               >
                 Admin

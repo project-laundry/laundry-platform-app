@@ -74,8 +74,13 @@ npm run test:watch # Run tests in watch mode
 ```
 src/
 ├── app/                    # Next.js App Router pages
-│   ├── admin/              # Admin dashboard
-│   │   └── orders/         # Order management & cleaner assignment
+│   ├── admin/              # Admin dashboard (layout = shell + role guard; page = overview with counts)
+│   │   ├── orders/         # All orders, status filters, cleaner (re)assignment
+│   │   ├── cleaners/       # Cleaner list, activate/deactivate (verification_status)
+│   │   ├── customers/      # Customer list + per-customer detail
+│   │   ├── payments/       # Payment list (read-only)
+│   │   ├── drivers/        # Driver list, create/edit (account + profile)
+│   │   └── admins/         # Admin user list, create/edit
 │   ├── api/                # API routes
 │   │   └── webhooks/
 │   │       └── vipps/
@@ -133,7 +138,8 @@ src/
 │   │       ├── service.ts          # High-level Vipps service layer
 │   │       └── config.ts           # Vipps configuration validation
 │   ├── services/
-│   │   └── order-generation.ts  # Subscription to orders logic
+│   │   ├── order-generation.ts  # Subscription to orders logic
+│   │   └── staff-accounts.ts    # Staff (driver/admin) account creation: auth user + role flip + cleanup
 │   ├── supabase/
 │   │   ├── client.ts       # Browser Supabase client
 │   │   ├── server.ts       # Server Supabase client
@@ -155,7 +161,8 @@ src/
 Server actions handle mutations from the UI:
 
 - `app/orders/actions.ts` - Subscription creation, Vipps agreement creation, customer queries
-- `app/admin/orders/actions.ts` - Pending orders, cleaner assignment
+- `app/admin/orders/actions.ts` - Cleaner (re)assignment
+- `app/admin/cleaners|drivers|admins/actions.ts` - Admin dashboard mutations (cleaner activation, staff account create/edit)
 
 **Note:** Vipps agreement creation uses server actions (not API routes) for consistency with the codebase pattern. API routes are only used where external services need to call in (webhooks, callbacks, cron).
 

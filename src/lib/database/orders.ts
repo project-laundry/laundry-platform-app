@@ -778,3 +778,53 @@ export async function getDriverRouteOrders(todayISO: string): Promise<DriverRout
 
   return data as DriverRouteOrder[];
 }
+
+/**
+ * Order with customer and cleaner summary for the admin order list.
+ */
+export interface AdminOrderListItem extends Order {
+  customer: Customer & { user: User };
+  cleaner: Pick<Cleaner, 'id' | 'display_name'> | null;
+}
+
+/**
+ * All orders for the admin dashboard, optionally filtered by status.
+ * sort 'upcoming' = soonest pickup first (work queues);
+ * sort 'newest'   = most recently created first (history views).
+ */
+export async function getAllOrdersWithDetails(options: {
+  statuses?: OrderStatus[];
+  sort: 'upcoming' | 'newest';
+  limit?: number;
+}): Promise<AdminOrderListItem[]> {
+  const supabase = createAdminClient();
+
+  let query = supabase
+    .from('orders')
+    .select(`
+      *,
+      customer:customers!customer_id(
+        *,
+        user:users!user_id(*)
+      ),
+      cleaner:cleaners!orders_cleaner_id_fkey(id, display_name)
+    `);
+
+  if (options.statuses && options.statuses.length > 0) {
+    query = query.in('status', options.statuses);
+  }
+
+  query =
+    options.sort === 'upcoming'
+      ? query.order('scheduled_date', { ascending: true })
+      : query.order('created_at', { ascending: false });
+
+  const { data, error } = await query.limit(options.limit ?? 200);
+
+  if (error || !data) {
+    console.error('Error fetching admin orders:', error);
+    return [];
+  }
+
+  return data as AdminOrderListItem[];
+}
