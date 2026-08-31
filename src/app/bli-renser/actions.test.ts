@@ -34,8 +34,6 @@ const baseData: CleanerOnboardingData = {
   machineCondition: 'good',
   displayName: 'Test Renser',
   experienceLevel: 'some',
-  specializations: [],
-  languages: ['no'],
   termsAccepted: true,
   privacyAccepted: true,
   informationAccuracyConfirmed: true,

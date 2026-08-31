@@ -3,12 +3,12 @@
 import { useState } from 'react';
 import { AppHeader, BackLink } from '@/components/layout/AppHeader';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Languages, Sparkles, UserRound } from 'lucide-react';
+import { ArrowRight, Sparkles, UserRound } from 'lucide-react';
 import { useCleanerOnboardingStore } from '@/stores/cleaner-onboarding-store';
 import { CleanerFlowProgress } from '@/components/ui/CleanerFlowProgress';
 import { FormInput } from '@/components/forms/FormInput';
 import { FormSelect } from '@/components/forms/FormSelect';
-import type { CleanerExperienceLevel, CleanerSpecialization } from '@/types/database';
+import type { CleanerExperienceLevel } from '@/types/database';
 
 export default function ProfilePage() {
   // Mount the form only after the store has rehydrated, so its initial state
@@ -18,21 +18,6 @@ export default function ProfilePage() {
   return <ProfileForm />;
 }
 
-const SPECIALIZATION_OPTIONS: { value: CleanerSpecialization; label: string }[] = [
-  { value: 'delicate', label: 'Delikate stoffer (silke, ull, etc.)' },
-  { value: 'formal', label: 'Forretningsklær (skjorter, dresser, etc.)' },
-  { value: 'sportswear', label: 'Sportsklær og aktivitetstøy' },
-  { value: 'outerwear', label: 'Ytterklær (jakker, frakker, etc.)' },
-  { value: 'down', label: 'Dunjakker og duntøy' },
-  { value: 'leather', label: 'Lær og skinn' },
-];
-
-const LANGUAGE_OPTIONS: { value: string; label: string }[] = [
-  { value: 'no', label: 'Norsk' },
-  { value: 'en', label: 'Engelsk' },
-  { value: 'other', label: 'Annet språk' },
-];
-
 function ProfileForm() {
   const router = useRouter();
   const { cleanerData, updateCleanerData } = useCleanerOnboardingStore();
@@ -41,30 +26,7 @@ function ProfileForm() {
   const [experienceLevel, setExperienceLevel] = useState<CleanerExperienceLevel>(
     cleanerData?.experienceLevel || 'beginner'
   );
-  const [specializations, setSpecializations] = useState<CleanerSpecialization[]>(
-    cleanerData?.specializations || []
-  );
-  const [languages, setLanguages] = useState<string[]>(
-    cleanerData?.languages || ['no'] // Norwegian by default
-  );
-
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  const toggleSpecialization = (spec: CleanerSpecialization) => {
-    setSpecializations(prev =>
-      prev.includes(spec)
-        ? prev.filter(s => s !== spec)
-        : [...prev, spec]
-    );
-  };
-
-  const toggleLanguage = (lang: string) => {
-    setLanguages(prev =>
-      prev.includes(lang)
-        ? prev.filter(l => l !== lang)
-        : [...prev, lang]
-    );
-  };
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -77,10 +39,6 @@ function ProfileForm() {
 
     if (!experienceLevel) {
       newErrors.experienceLevel = 'Vennligst velg erfaringsnivå';
-    }
-
-    if (languages.length === 0) {
-      newErrors.languages = 'Vennligst velg minst ett språk';
     }
 
     setErrors(newErrors);
@@ -97,16 +55,14 @@ function ProfileForm() {
     // Update store
     updateCleanerData({
       displayName,
-      experienceLevel,
-      specializations,
-      languages
+      experienceLevel
     });
 
     // Navigate to confirmation page
     router.push('/bli-renser/confirm');
   };
 
-  const isFormValid = displayName && experienceLevel && languages.length > 0;
+  const isFormValid = displayName && experienceLevel;
 
   return (
     <div className="min-h-screen bg-cream text-dark-gray">
@@ -198,52 +154,7 @@ function ProfileForm() {
                 required
                 error={errors.experienceLevel}
               />
-
-              <div>
-                <span className="mb-2 block text-sm font-medium text-dark-gray">
-                  Hvilke typer klær har du mest erfaring med? (valgfritt)
-                </span>
-                <div className="space-y-2">
-                  {SPECIALIZATION_OPTIONS.map((option) => (
-                    <CheckRow
-                      key={option.value}
-                      label={option.label}
-                      checked={specializations.includes(option.value)}
-                      onToggle={() => toggleSpecialization(option.value)}
-                    />
-                  ))}
-                </div>
-              </div>
             </div>
-          </section>
-
-          <section
-            className="mt-6 rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur animate-in fade-in slide-in-from-bottom-3 duration-700"
-            style={{ animationDelay: '180ms' }}
-          >
-            <div className="flex items-center gap-3">
-              <span className="flex size-9 items-center justify-center rounded-full bg-sea-green/12 text-sea-green">
-                <Languages className="size-5" />
-              </span>
-              <h2 className="font-serif text-lg font-semibold text-dark-gray">
-                Hvilke språk snakker du?
-                <span className="ml-1 text-red-600">*</span>
-              </h2>
-            </div>
-
-            <div className="mt-4 space-y-2">
-              {LANGUAGE_OPTIONS.map((option) => (
-                <CheckRow
-                  key={option.value}
-                  label={option.label}
-                  checked={languages.includes(option.value)}
-                  onToggle={() => toggleLanguage(option.value)}
-                />
-              ))}
-            </div>
-            {errors.languages && (
-              <p className="mt-1.5 text-sm text-red-600">{errors.languages}</p>
-            )}
           </section>
         </form>
       </main>
@@ -262,33 +173,5 @@ function ProfileForm() {
         </div>
       </div>
     </div>
-  );
-}
-
-function CheckRow({
-  label,
-  checked,
-  onToggle,
-}: {
-  label: string;
-  checked: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <label
-      className={`flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 transition-all ${
-        checked
-          ? 'border-sea-green bg-sea-green/8'
-          : 'border-cream-dark bg-white hover:border-sea-green/50'
-      }`}
-    >
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={onToggle}
-        className="size-4 shrink-0 accent-sea-green"
-      />
-      <span className="text-sm text-dark-gray">{label}</span>
-    </label>
   );
 }
