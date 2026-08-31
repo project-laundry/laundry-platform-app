@@ -1,11 +1,9 @@
 import Link from 'next/link';
 import { Inbox } from 'lucide-react';
 import { getAllOrdersWithDetails } from '@/lib/database/orders';
-import { getAvailableCleanersForCity } from '@/lib/database/cleaners';
 import { StatusBadge } from '@/components/dashboard/StatusBadge';
 import { getOrderStatusLabel, getOrderStatusVariant } from '@/lib/utils/order-status';
 import { formatKr } from '@/lib/config/pricing';
-import { AssignCleanerControl, type CleanerOption } from './AssignCleanerControl';
 import type { OrderStatus } from '@/types/database';
 
 const ACTIVE_STATUSES: OrderStatus[] = [
@@ -16,9 +14,6 @@ const ACTIVE_STATUSES: OrderStatus[] = [
   'ready_for_delivery',
   'out_for_delivery',
 ];
-
-/** Statuses where the admin can still (re)assign the cleaner. */
-const ASSIGNABLE_STATUSES: OrderStatus[] = ['pending_assignment', 'pickup_scheduled'];
 
 const FILTERS: Record<
   string,
@@ -45,23 +40,6 @@ export default async function AdminOrdersPage({
   const filter = FILTERS[filterKey];
 
   const orders = await getAllOrdersWithDetails({ statuses: filter.statuses, sort: filter.sort });
-
-  // Cleaner options per city, for the (re)assign controls.
-  const assignableCities = [
-    ...new Set(
-      orders
-        .filter((order) => ASSIGNABLE_STATUSES.includes(order.status))
-        .map((order) => order.city)
-    ),
-  ];
-  const cleanersByCity: Record<string, CleanerOption[]> = {};
-  for (const city of assignableCities) {
-    const cleaners = await getAvailableCleanersForCity(city);
-    cleanersByCity[city] = cleaners.map((cleaner) => ({
-      id: cleaner.id,
-      display_name: cleaner.display_name,
-    }));
-  }
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-3 duration-500">
@@ -97,10 +75,12 @@ export default async function AdminOrdersPage({
       ) : (
         <div className="mt-4 overflow-hidden rounded-3xl border border-cream-dark/80 bg-warm-white/80 shadow-[var(--shadow-card)] backdrop-blur">
           <ul className="divide-y divide-cream-dark/60">
-            {orders.map((order) => {
-              const assignable = ASSIGNABLE_STATUSES.includes(order.status);
-              return (
-                <li key={order.id} className="px-5 py-3.5">
+            {orders.map((order) => (
+              <li key={order.id}>
+                <Link
+                  href={`/admin/orders/${order.id}`}
+                  className="block px-5 py-3.5 transition-colors hover:bg-cream/40"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -123,18 +103,9 @@ export default async function AdminOrdersPage({
                       {order.total_cost_ore !== null ? formatKr(order.total_cost_ore) : '—'}
                     </p>
                   </div>
-                  {assignable && (
-                    <div className="mt-3">
-                      <AssignCleanerControl
-                        orderId={order.id}
-                        currentCleanerId={order.cleaner_id}
-                        cleaners={cleanersByCity[order.city] || []}
-                      />
-                    </div>
-                  )}
-                </li>
-              );
-            })}
+                </Link>
+              </li>
+            ))}
           </ul>
         </div>
       )}

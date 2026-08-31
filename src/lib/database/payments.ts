@@ -302,3 +302,23 @@ export async function getAllPaymentsWithDetails(options: {
 
   return data as AdminPaymentListItem[];
 }
+
+/**
+ * All payments for one order, newest first, for the admin order detail page.
+ */
+export async function getPaymentsByOrderId(orderId: string): Promise<Payment[]> {
+  const supabase = await createAdminClient();
+
+  const { data, error } = await supabase
+    .from('payments')
+    .select('*')
+    .eq('order_id', orderId)
+    .order('created_at', { ascending: false });
+
+  if (error || !data) {
+    console.error('Error fetching payments for order:', error);
+    return [];
+  }
+
+  return data;
+}

@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import Link from 'next/link';
 import { CalendarDays, MapPin, UserRound } from 'lucide-react';
 import { BackLink } from '@/components/layout/AppHeader';
 import { getCustomerWithUserById } from '@/lib/database/customers';
@@ -29,25 +30,30 @@ function formatDate(dateStr: string): string {
 
 function OrderRow({ order }: { order: OrderWithRelations }) {
   return (
-    <li className="flex items-center justify-between gap-3 px-5 py-3.5">
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-mono text-sm font-medium text-dark-gray">
-            #{order.order_number}
-          </span>
-          <StatusBadge variant={getOrderStatusVariant(order.status)}>
-            {getOrderStatusLabel(order.status)}
-          </StatusBadge>
+    <li>
+      <Link
+        href={`/admin/orders/${order.id}`}
+        className="flex items-center justify-between gap-3 px-5 py-3.5 transition-colors hover:bg-cream/40"
+      >
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-mono text-sm font-medium text-dark-gray">
+              #{order.order_number}
+            </span>
+            <StatusBadge variant={getOrderStatusVariant(order.status)}>
+              {getOrderStatusLabel(order.status)}
+            </StatusBadge>
+          </div>
+          <p className="mt-0.5 text-sm text-medium-gray">
+            Henting {formatDate(order.scheduled_date)}
+          </p>
         </div>
-        <p className="mt-0.5 text-sm text-medium-gray">
-          Henting {formatDate(order.scheduled_date)}
+        <p className="shrink-0 text-sm font-medium tabular-nums text-dark-gray">
+          {order.total_cost_ore !== null && order.total_cost_ore !== undefined
+            ? formatKr(order.total_cost_ore)
+            : '—'}
         </p>
-      </div>
-      <p className="shrink-0 text-sm font-medium tabular-nums text-dark-gray">
-        {order.total_cost_ore !== null && order.total_cost_ore !== undefined
-          ? formatKr(order.total_cost_ore)
-          : '—'}
-      </p>
+      </Link>
     </li>
   );
 }
