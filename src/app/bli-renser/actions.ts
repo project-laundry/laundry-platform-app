@@ -93,8 +93,6 @@ export async function createCleanerProfileAction(
       latitude: baseCoords?.latitude ?? null,
       longitude: baseCoords?.longitude ?? null,
       experience_level: data.experienceLevel,
-      languages: data.languages,
-      specializations: data.specializations || null,
       weekly_schedule: {
         mon: true,
         tue: true,

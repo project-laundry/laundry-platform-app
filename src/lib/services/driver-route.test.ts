@@ -53,8 +53,6 @@ function baseCleaner(over: Partial<Cleaner & { user: User }> = {}): Cleaner & { 
     latitude: 60.394,
     longitude: 5.317,
     experience_level: 'experienced',
-    languages: ['no'],
-    specializations: null,
     weekly_schedule: { mon: true, tue: true, wed: true, thu: true, fri: true, sat: false, sun: false },
     is_accepting_orders: true,
     created_at: '2026-01-01T00:00:00Z',

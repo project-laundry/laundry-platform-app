@@ -13,16 +13,6 @@ export type CleanerBusinessType = 'individual' | 'business';
 
 export type CleanerExperienceLevel = 'beginner' | 'some' | 'experienced' | 'expert' | 'professional';
 
-export type CleanerSpecialization =
-  | 'wool'
-  | 'silk'
-  | 'down'
-  | 'sportswear'
-  | 'leather'
-  | 'delicate'
-  | 'formal'
-  | 'outerwear';
-
 export type PaymentAgreementStatus = 'pending' | 'active' | 'stopped' | 'expired';
 
 export type SubscriptionStatus = 'pending_payment' | 'active' | 'paused' | 'cancelled' | 'expired';
@@ -104,8 +94,6 @@ export interface Cleaner {
   latitude: number | null;
   longitude: number | null;
   experience_level: CleanerExperienceLevel;
-  languages: string[];
-  specializations: CleanerSpecialization[] | null;
   weekly_schedule: WeeklySchedule;
   is_accepting_orders: boolean;
   created_at: string;

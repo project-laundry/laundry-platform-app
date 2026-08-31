@@ -1,4 +1,4 @@
-import type { CleanerBusinessType, CleanerExperienceLevel, CleanerSpecialization } from './database';
+import type { CleanerBusinessType, CleanerExperienceLevel } from './database';
 
 export interface CleanerOnboardingData {
   // Business Information
@@ -24,8 +24,6 @@ export interface CleanerOnboardingData {
   // Profile & Experience
   displayName: string;
   experienceLevel: CleanerExperienceLevel;
-  specializations: CleanerSpecialization[];
-  languages: string[];
 
   // Confirmation (final step)
   termsAccepted: boolean;

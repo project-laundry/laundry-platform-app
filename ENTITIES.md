@@ -110,10 +110,6 @@
 - `base_special_instructions` (text, nullable) - Permanent access instructions for base location
   - **Validation:** Max 500 chars
 - `experience_level` (enum → [CleanerExperienceLevel](#cleanerexperiencelevel), required) - Experience level
-- `languages` (string[], required) - Languages spoken
-  - **Validation:** ISO 639-1 codes (e.g., `['no', 'en']`), at least 1 language
-- `specializations` (enum[] → [CleanerSpecialization](#cleanerspecialization), nullable) - Clothing specializations
-  - **Note:** Can select multiple specializations
 - `weekly_schedule` (jsonb, required) - Weekly availability pattern
   - **Format:** `{"mon": true, "tue": true, "wed": true, "thu": true, "fri": true, "sat": false, "sun": false}`
   - **Default:** `{"mon": true, "tue": true, "wed": true, "thu": true, "fri": true, "sat": false, "sun": false}`
@@ -549,17 +545,6 @@
 - `experienced` - 3-5 years
 - `expert` - 5+ years
 - `professional` - Professional cleaning business
-
-### CleanerSpecialization
-
-- `wool` - Wool clothing
-- `silk` - Silk garments
-- `down` - Down jackets and bedding
-- `sportswear` - Athletic and performance wear
-- `leather` - Leather and suede items
-- `delicate` - General delicate fabrics
-- `formal` - Suits and formal wear
-- `outerwear` - Coats and heavy outerwear
 
 ### SubscriptionStatus
 

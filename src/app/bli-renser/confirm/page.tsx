@@ -166,7 +166,6 @@ export default function ConfirmPage() {
                   </>
                 }
               />
-              <SummaryRow label="Språk:" value={`${cleanerData.languages?.length || 0} valgt`} />
             </dl>
           </div>
         </section>
