@@ -5,7 +5,7 @@
 // when the first order is generated (see the Vipps recurring webhook).
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import type { OrderPromo } from '@/types/database';
+import type { OrderPromo, PromoCode, PromoDiscountType } from '@/types/database';
 
 export interface PromoValidationResult {
   valid: boolean;
@@ -121,4 +121,150 @@ export async function recordPromoRedemption(params: {
   if (error && error.code !== '23505') {
     console.error('Error recording promo redemption:', error);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Admin management (list, create, edit) — used by /admin/promo-codes only.
+// ---------------------------------------------------------------------------
+
+export interface PromoCodeWithRedemptionCount extends PromoCode {
+  redemption_count: number;
+}
+
+/**
+ * All promo codes with their redemption counts, newest first. Admin dashboard only.
+ *
+ * Counts are grouped in JS from a single fetch of the ledger's promo_code_id
+ * column — fine at MVP scale and avoids a per-code count query.
+ */
+export async function getAllPromoCodesWithRedemptionCount(): Promise<
+  PromoCodeWithRedemptionCount[]
+> {
+  const supabase = createAdminClient();
+
+  const [codesRes, redemptionsRes] = await Promise.all([
+    supabase.from('promo_codes').select('*').order('created_at', { ascending: false }),
+    supabase.from('promo_code_redemptions').select('promo_code_id'),
+  ]);
+
+  if (codesRes.error || !codesRes.data) {
+    console.error('Error fetching promo codes:', codesRes.error);
+    return [];
+  }
+
+  const counts = new Map<string, number>();
+  for (const row of redemptionsRes.data ?? []) {
+    counts.set(row.promo_code_id, (counts.get(row.promo_code_id) ?? 0) + 1);
+  }
+
+  return codesRes.data.map((code) => ({
+    ...code,
+    redemption_count: counts.get(code.id) ?? 0,
+  }));
+}
+
+export interface PromoCodeRedemptionRow {
+  id: string;
+  redeemed_at: string;
+  customer: { user: { full_name: string; email: string } } | null;
+}
+
+export interface PromoCodeWithRedemptions extends PromoCode {
+  redemptions: PromoCodeRedemptionRow[];
+}
+
+/**
+ * A single promo code with its redemptions (customer name + date), newest
+ * redemption first. Admin dashboard only.
+ */
+export async function getPromoCodeWithRedemptions(
+  promoCodeId: string
+): Promise<PromoCodeWithRedemptions | null> {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from('promo_codes')
+    .select(`
+      *,
+      redemptions:promo_code_redemptions(
+        id,
+        redeemed_at,
+        customer:customers!customer_id(
+          user:users!user_id(full_name, email)
+        )
+      )
+    `)
+    .eq('id', promoCodeId)
+    .maybeSingle();
+
+  if (error || !data) {
+    if (error) console.error('Error fetching promo code:', error);
+    return null;
+  }
+
+  const result = data as PromoCodeWithRedemptions;
+  result.redemptions.sort((a, b) => b.redeemed_at.localeCompare(a.redeemed_at));
+  return result;
+}
+
+export interface PromoCodeData {
+  code: string;
+  discount_type: PromoDiscountType;
+  discount_value: number;
+  max_discount_ore: number | null;
+  active: boolean;
+  valid_from: string | null;
+  valid_until: string | null;
+  max_redemptions: number | null;
+}
+
+export interface PromoCodeWriteResult {
+  promoCode: PromoCode | null;
+  error: string | null;
+}
+
+const DUPLICATE_CODE_ERROR = 'Koden finnes allerede';
+
+export async function createPromoCode(data: PromoCodeData): Promise<PromoCodeWriteResult> {
+  const supabase = createAdminClient();
+
+  const { data: promoCode, error } = await supabase
+    .from('promo_codes')
+    .insert(data)
+    .select()
+    .single();
+
+  if (error) {
+    // 23505 = unique_violation on promo_codes_code_key
+    if (error.code === '23505') return { promoCode: null, error: DUPLICATE_CODE_ERROR };
+    console.error('Error creating promo code:', error);
+    return { promoCode: null, error: 'Kunne ikke opprette rabattkoden' };
+  }
+
+  return { promoCode, error: null };
+}
+
+export async function updatePromoCode(
+  promoCodeId: string,
+  data: PromoCodeData
+): Promise<PromoCodeWriteResult> {
+  const supabase = createAdminClient();
+
+  const { data: promoCode, error } = await supabase
+    .from('promo_codes')
+    .update(data)
+    .eq('id', promoCodeId)
+    .select()
+    .maybeSingle();
+
+  if (error) {
+    if (error.code === '23505') return { promoCode: null, error: DUPLICATE_CODE_ERROR };
+    console.error('Error updating promo code:', error);
+    return { promoCode: null, error: 'Kunne ikke oppdatere rabattkoden' };
+  }
+  if (!promoCode) {
+    return { promoCode: null, error: 'Rabattkoden ble ikke funnet' };
+  }
+
+  return { promoCode, error: null };
 }
