@@ -48,8 +48,8 @@ Key implications:
 - **Migrations**:
   - Always create migration files in `supabase/migrations/` instead of applying changes directly via Supabase MCP
   - Use format `YYYYMMDDHHMMSS_description.sql`
-  - **IMPORTANT**: Never run migrations automatically - the user will apply them manually
-  - Only create the migration file and inform the user
+  - **IMPORTANT**: Claude must never apply migrations itself (no `supabase db push`, no Supabase MCP `execute_sql`/`apply_migration`) — only create the migration file and inform the user
+  - **CI applies migrations automatically on push** — `.github/workflows/staging.yaml` runs `supabase db push` against the staging project on every push to `develop`, and `.github/workflows/production.yaml` does the same against production on every push to `main`. So once a migration file is committed and pushed, it lands on the corresponding database without any manual `db push` — see `ENVIRONMENTS.md` for the full promotion flow. This means the migration ships as soon as the branch is pushed, not only once someone runs it by hand.
 - **Schema Documentation**:
   - See `ENTITIES.md` for complete database schema, entity definitions, relationships, and data integrity rules
   - See `BUSINESS_LOGIC.md` for application workflows, operational rules, and business process definitions
