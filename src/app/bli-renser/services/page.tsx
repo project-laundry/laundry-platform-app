@@ -3,11 +3,15 @@
 import { useState } from 'react';
 import { AppHeader, BackLink } from '@/components/layout/AppHeader';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, MapPin } from 'lucide-react';
+import { AlertCircle, ArrowRight, MapPin } from 'lucide-react';
 import { useCleanerOnboardingStore } from '@/stores/cleaner-onboarding-store';
 import { CleanerFlowProgress } from '@/components/ui/CleanerFlowProgress';
 import { FormInput } from '@/components/forms/FormInput';
-import { validatePostalCode } from '@/lib/validation/cleaner';
+import {
+  getCityFromPostalCode,
+  isValidPostalCodeFormat,
+  type SupportedCity,
+} from '@/lib/config/postal-codes';
 
 export default function ServicesPage() {
   // Mount the form only after the store has rehydrated, so its initial state
@@ -23,9 +27,17 @@ function ServicesForm() {
 
   const [baseStreet, setBaseStreet] = useState(cleanerData?.baseStreet || '');
   const [basePostalCode, setBasePostalCode] = useState(cleanerData?.basePostalCode || '');
-  const [baseCity, setBaseCity] = useState(cleanerData?.baseCity || '');
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const derivedCity: SupportedCity | null = isValidPostalCodeFormat(basePostalCode)
+    ? getCityFromPostalCode(basePostalCode)
+    : null;
+  const outOfArea = isValidPostalCodeFormat(basePostalCode) && derivedCity === null;
+
+  const handlePostalCode = (raw: string) => {
+    setBasePostalCode(raw.replace(/\D/g, '').slice(0, 4));
+  };
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -36,12 +48,8 @@ function ServicesForm() {
 
     if (!basePostalCode) {
       newErrors.basePostalCode = 'Postnummer er påkrevd';
-    } else if (!validatePostalCode(basePostalCode)) {
+    } else if (!isValidPostalCodeFormat(basePostalCode)) {
       newErrors.basePostalCode = 'Postnummer må være 4 siffer';
-    }
-
-    if (!baseCity) {
-      newErrors.baseCity = 'By er påkrevd';
     }
 
     setErrors(newErrors);
@@ -51,7 +59,7 @@ function ServicesForm() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validate()) {
+    if (!validate() || !derivedCity) {
       return;
     }
 
@@ -59,7 +67,7 @@ function ServicesForm() {
     updateCleanerData({
       baseStreet,
       basePostalCode,
-      baseCity,
+      baseCity: derivedCity,
       baseCountry: 'Norway'
     });
 
@@ -67,7 +75,7 @@ function ServicesForm() {
     router.push('/bli-renser/equipment');
   };
 
-  const isFormValid = baseStreet && basePostalCode && baseCity;
+  const isFormValid = Boolean(baseStreet) && derivedCity !== null;
 
   return (
     <div className="min-h-screen bg-cream text-dark-gray">
@@ -129,21 +137,35 @@ function ServicesForm() {
                 <FormInput
                   label="Postnummer"
                   value={basePostalCode}
-                  onChange={setBasePostalCode}
+                  onChange={handlePostalCode}
                   placeholder="4 siffer"
                   required
                   error={errors.basePostalCode}
                 />
 
-                <FormInput
-                  label="By"
-                  value={baseCity}
-                  onChange={setBaseCity}
-                  placeholder="Bergen, Oslo, etc."
-                  required
-                  error={errors.baseCity}
-                />
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-medium text-dark-gray">
+                    By
+                  </span>
+                  <div className="flex h-[3.25rem] items-center rounded-2xl border border-cream-dark bg-cream/50 px-4 text-dark-gray">
+                    {derivedCity ? (
+                      <span className="font-medium">{derivedCity}</span>
+                    ) : (
+                      <span className="text-medium-gray/60">Fra postnr.</span>
+                    )}
+                  </div>
+                </label>
               </div>
+
+              {outOfArea && (
+                <div className="flex items-start gap-2 rounded-2xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
+                  <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                  <span>
+                    Vi er foreløpig kun i Bergen og Oslo. Dette postnummeret er
+                    utenfor området vårt.
+                  </span>
+                </div>
+              )}
             </div>
           </section>
         </form>
