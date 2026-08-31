@@ -79,6 +79,7 @@ src/
 │   │   ├── cleaners/       # Cleaner list, activate/deactivate (verification_status)
 │   │   ├── customers/      # Customer list + per-customer detail
 │   │   ├── payments/       # Payment list (read-only)
+│   │   ├── promo-codes/    # Promo code list, create/edit, redemptions per code
 │   │   ├── drivers/        # Driver list, create/edit (account + profile)
 │   │   └── admins/         # Admin user list, create/edit
 │   ├── api/                # API routes
@@ -162,7 +163,7 @@ Server actions handle mutations from the UI:
 
 - `app/orders/actions.ts` - Subscription creation, Vipps agreement creation, customer queries
 - `app/admin/orders/actions.ts` - Cleaner (re)assignment, admin order edits (dates, address)
-- `app/admin/cleaners|drivers|admins/actions.ts` - Admin dashboard mutations (cleaner activation, staff account create/edit)
+- `app/admin/cleaners|drivers|admins|promo-codes/actions.ts` - Admin dashboard mutations (cleaner activation, staff account create/edit, promo code create/edit)
 
 **Note:** Vipps agreement creation uses server actions (not API routes) for consistency with the codebase pattern. API routes are only used where external services need to call in (webhooks, callbacks, cron).
 

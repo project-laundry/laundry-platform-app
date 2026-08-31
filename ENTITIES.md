@@ -474,7 +474,7 @@
 **Notes:**
 
 - **Validation** (at checkout): exists → active → within validity window → global cap not reached → not already redeemed by this customer.
-- **MVP:** No admin UI yet — codes are seeded via SQL.
+- Managed in the admin dashboard at `/admin/promo-codes` (list, create, edit, activate/deactivate; redemptions listed per code). Editing or deactivating a code never changes discount snapshots already locked at checkout.
 
 **Indexes:**
 
