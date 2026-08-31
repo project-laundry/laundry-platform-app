@@ -102,7 +102,7 @@
 - `base_postal_code` (string, required) - Base operation postal code
   - **Validation:** Exactly 4 digits
 - `base_city` (string, required) - Base operation city
-  - **Validation:** Min 2 chars, max 100 chars
+  - **Derived:** From `base_postal_code` via `getCityFromPostalCode` — never free-typed. Enforced in the onboarding UI and in `createCleanerProfileAction`.
   - **MVP Constraint:** Must be 'Bergen' or 'Oslo'
 - `base_country` (string, required) - Base operation country
   - **Default:** `'Norway'`

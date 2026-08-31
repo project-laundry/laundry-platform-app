@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createCleaner } from "@/lib/database/cleaners";
 import { geocodeAddress } from "@/lib/maps/geocoding";
+import { getCityFromPostalCode } from "@/lib/config/postal-codes";
 import type { CleanerOnboardingData } from "@/types/cleaner-flow";
 
 export interface CreateCleanerProfileResult {
@@ -40,6 +41,16 @@ export async function createCleanerProfileAction(
       };
     }
 
+    // Derive the service city from the postal code — base_city must be a
+    // supported city or the cleaner can never be matched to orders.
+    const baseCity = getCityFromPostalCode(data.basePostalCode);
+    if (!baseCity) {
+      return {
+        success: false,
+        error: "Postnummeret er utenfor serviceområdet vårt (Bergen og Oslo).",
+      };
+    }
+
     // 2. Check if user already has a cleaner profile
     const { data: existingCleaner } = await supabase
       .from("cleaners")
@@ -59,7 +70,7 @@ export async function createCleanerProfileAction(
     const baseCoords = await geocodeAddress({
       street: data.baseStreet,
       postal_code: data.basePostalCode,
-      city: data.baseCity,
+      city: baseCity,
       country: data.baseCountry,
     });
 
@@ -76,7 +87,7 @@ export async function createCleanerProfileAction(
       bank_account: data.bankAccount,
       base_street: data.baseStreet,
       base_postal_code: data.basePostalCode,
-      base_city: data.baseCity,
+      base_city: baseCity,
       base_country: data.baseCountry,
       base_special_instructions: data.baseSpecialInstructions || null,
       latitude: baseCoords?.latitude ?? null,

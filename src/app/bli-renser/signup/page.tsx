@@ -21,15 +21,13 @@ export default function CleanerSignupPage() {
     password: '',
     confirmPassword: '',
     phone: '',
-    city: 'Bergen' as 'Bergen' | 'Oslo',
     acceptTerms: false,
   });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    const checked = (e.target as HTMLInputElement).checked;
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target;
 
     setFormData(prev => ({
       ...prev,
@@ -177,23 +175,6 @@ export default function CleanerSignupPage() {
                   required
                 />
               </div>
-            </label>
-
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-medium text-dark-gray">
-                By
-              </span>
-              <select
-                id="city"
-                name="city"
-                value={formData.city}
-                onChange={handleInputChange}
-                className={inputClass}
-                required
-              >
-                <option value="Bergen">Bergen</option>
-                <option value="Oslo">Oslo</option>
-              </select>
             </label>
 
             <label className="block">
