@@ -828,3 +828,69 @@ export async function getAllOrdersWithDetails(options: {
 
   return data as AdminOrderListItem[];
 }
+
+/**
+ * Get one order with customer and cleaner summary for the admin order
+ * detail page. Returns null when no order has this id.
+ */
+export async function getAdminOrderById(orderId: string): Promise<AdminOrderListItem | null> {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select(`
+      *,
+      customer:customers!customer_id(
+        *,
+        user:users!user_id(*)
+      ),
+      cleaner:cleaners!orders_cleaner_id_fkey(id, display_name)
+    `)
+    .eq('id', orderId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching admin order:', error);
+    return null;
+  }
+
+  return data as AdminOrderListItem | null;
+}
+
+/**
+ * Fields an admin may change on an order. Coordinates are only present
+ * when the address changed (the action sets them after re-geocoding).
+ */
+export interface AdminOrderUpdate {
+  scheduled_date: string;
+  delivery_date: string;
+  street: string;
+  postal_code: string;
+  latitude?: number | null;
+  longitude?: number | null;
+}
+
+/**
+ * Apply an admin edit to an order. The admin server action owns all
+ * validation and status gating — this is a plain write.
+ */
+export async function updateOrderAdminFields(
+  orderId: string,
+  updates: AdminOrderUpdate
+): Promise<Order | null> {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from('orders')
+    .update(updates)
+    .eq('id', orderId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating order (admin):', error);
+    return null;
+  }
+
+  return data;
+}

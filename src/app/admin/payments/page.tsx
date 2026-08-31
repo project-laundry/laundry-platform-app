@@ -95,8 +95,17 @@ export default async function AdminPaymentsPage({
                       {payment.customer.user.full_name}
                     </p>
                     <p className="mt-0.5 truncate text-sm text-medium-gray">
-                      {payment.order ? `#${payment.order.order_number}` : '—'} ·{' '}
-                      {payment.payment_provider} · {formatDateTime(payment.created_at)}
+                      {payment.order ? (
+                        <Link
+                          href={`/admin/orders/${payment.order.id}`}
+                          className="font-medium text-sea-green hover:underline"
+                        >
+                          #{payment.order.order_number}
+                        </Link>
+                      ) : (
+                        '—'
+                      )}{' '}
+                      · {payment.payment_provider} · {formatDateTime(payment.created_at)}
                     </p>
                     {payment.status === 'failed' && payment.failure_reason && (
                       <p className="mt-0.5 truncate text-sm text-red-700">

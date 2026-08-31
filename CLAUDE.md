@@ -75,7 +75,7 @@ npm run test:watch # Run tests in watch mode
 src/
 ├── app/                    # Next.js App Router pages
 │   ├── admin/              # Admin dashboard (layout = shell + role guard; page = overview with counts)
-│   │   ├── orders/         # All orders, status filters, cleaner (re)assignment
+│   │   ├── orders/         # Order list + per-order detail page (edit details, cleaner (re)assignment)
 │   │   ├── cleaners/       # Cleaner list, activate/deactivate (verification_status)
 │   │   ├── customers/      # Customer list + per-customer detail
 │   │   ├── payments/       # Payment list (read-only)
@@ -161,7 +161,7 @@ src/
 Server actions handle mutations from the UI:
 
 - `app/orders/actions.ts` - Subscription creation, Vipps agreement creation, customer queries
-- `app/admin/orders/actions.ts` - Cleaner (re)assignment
+- `app/admin/orders/actions.ts` - Cleaner (re)assignment, admin order edits (dates, address)
 - `app/admin/cleaners|drivers|admins/actions.ts` - Admin dashboard mutations (cleaner activation, staff account create/edit)
 
 **Note:** Vipps agreement creation uses server actions (not API routes) for consistency with the codebase pattern. API routes are only used where external services need to call in (webhooks, callbacks, cron).
