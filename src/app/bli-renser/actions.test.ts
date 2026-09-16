@@ -9,12 +9,15 @@ vi.mock('@/lib/supabase/server', () => ({
 vi.mock('@/lib/database/cleaners', () => ({
   createCleaner: vi.fn(),
   getCleanerByUserId: vi.fn(),
+  isTaxIdTaken: vi.fn(),
 }));
 vi.mock('@/lib/maps/geocoding', () => ({ geocodeAddress: vi.fn() }));
+vi.mock('@/lib/auth/require-role', () => ({ assertRole: vi.fn() }));
 
-import { createCleaner, getCleanerByUserId } from '@/lib/database/cleaners';
+import { createCleaner, getCleanerByUserId, isTaxIdTaken } from '@/lib/database/cleaners';
 import { geocodeAddress } from '@/lib/maps/geocoding';
-import { createCleanerProfileAction } from './actions';
+import { assertRole } from '@/lib/auth/require-role';
+import { checkTaxIdAvailabilityAction, createCleanerProfileAction } from './actions';
 
 const m = (fn: unknown) => fn as Mock;
 
@@ -42,8 +45,13 @@ beforeEach(() => {
   vi.clearAllMocks();
   getUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null });
   m(getCleanerByUserId).mockResolvedValue(null); // no existing cleaner profile
+  m(isTaxIdTaken).mockResolvedValue(false);
   m(geocodeAddress).mockResolvedValue(null);
   m(createCleaner).mockResolvedValue({ data: { id: 'cl-1' }, error: null });
+  m(assertRole).mockResolvedValue({
+    auth: { authUserId: 'user-1', dbUser: { id: 'user-1', role: 'cleaner' } },
+    error: null,
+  });
 });
 
 describe('createCleanerProfileAction', () => {
@@ -175,5 +183,117 @@ describe('createCleanerProfileAction', () => {
 
     expect(result).toEqual({ success: false, error: 'Du har allerede en renserprofil' });
     expect(createCleaner).not.toHaveBeenCalled();
+  });
+
+  it('rejects a tax id that is already on another cleaner, before geocoding', async () => {
+    m(isTaxIdTaken).mockResolvedValue(true);
+
+    const result = await createCleanerProfileAction(baseData);
+
+    expect(result).toEqual({
+      success: false,
+      error:
+        'Fødselsnummeret er allerede registrert på en annen renserkonto. Ta kontakt med oss hvis du mener dette er feil.',
+    });
+    expect(isTaxIdTaken).toHaveBeenCalledWith('12345678901');
+    expect(geocodeAddress).not.toHaveBeenCalled();
+    expect(createCleaner).not.toHaveBeenCalled();
+  });
+
+  it('uses the organisasjonsnummer wording for a business', async () => {
+    m(isTaxIdTaken).mockResolvedValue(true);
+
+    const result = await createCleanerProfileAction({
+      ...baseData,
+      businessType: 'business',
+      taxId: '123456789',
+      businessName: 'Vask AS',
+      businessAddress: 'Vaskeveien 1, 0150 Oslo',
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error:
+        'Organisasjonsnummeret er allerede registrert på en annen renserkonto. Ta kontakt med oss hvis du mener dette er feil.',
+    });
+    expect(createCleaner).not.toHaveBeenCalled();
+  });
+
+  it('maps a unique violation from the insert to the tax id message', async () => {
+    m(createCleaner).mockResolvedValue({
+      data: null,
+      error: {
+        code: '23505',
+        message: 'duplicate key value violates unique constraint "cleaners_tax_id_key"',
+      },
+    });
+
+    const result = await createCleanerProfileAction(baseData);
+
+    expect(result).toEqual({
+      success: false,
+      error:
+        'Fødselsnummeret er allerede registrert på en annen renserkonto. Ta kontakt med oss hvis du mener dette er feil.',
+    });
+  });
+
+  it('keeps the generic message for other insert errors', async () => {
+    m(createCleaner).mockResolvedValue({
+      data: null,
+      error: { code: '23514', message: 'check constraint violated' },
+    });
+
+    const result = await createCleanerProfileAction(baseData);
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Kunne ikke opprette renserprofil. Vennligst prøv igjen.',
+    });
+  });
+});
+
+describe('checkTaxIdAvailabilityAction', () => {
+  it('normalises the tax id to digits and reports what the lookup says', async () => {
+    m(isTaxIdTaken).mockResolvedValue(true);
+
+    const result = await checkTaxIdAvailabilityAction({
+      taxId: '123456 78901',
+      businessType: 'individual',
+    });
+
+    expect(result).toEqual({ taken: true });
+    expect(isTaxIdTaken).toHaveBeenCalledWith('12345678901');
+  });
+
+  it('reports not taken when the lookup finds nothing', async () => {
+    const result = await checkTaxIdAvailabilityAction({
+      taxId: '12345678901',
+      businessType: 'individual',
+    });
+
+    expect(result).toEqual({ taken: false });
+    expect(isTaxIdTaken).toHaveBeenCalledWith('12345678901');
+  });
+
+  it('skips the lookup when the caller is not a cleaner', async () => {
+    m(assertRole).mockResolvedValue({ auth: null, error: 'Ingen tilgang' });
+
+    const result = await checkTaxIdAvailabilityAction({
+      taxId: '12345678901',
+      businessType: 'individual',
+    });
+
+    expect(result).toEqual({ taken: false });
+    expect(isTaxIdTaken).not.toHaveBeenCalled();
+  });
+
+  it('skips the lookup when the tax id has the wrong length for the business type', async () => {
+    const result = await checkTaxIdAvailabilityAction({
+      taxId: '12345678901',
+      businessType: 'business',
+    });
+
+    expect(result).toEqual({ taken: false });
+    expect(isTaxIdTaken).not.toHaveBeenCalled();
   });
 });

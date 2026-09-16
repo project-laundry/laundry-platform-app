@@ -8,7 +8,8 @@ import { CleanerFlowSection, CleanerFlowShell } from '@/components/cleaner-flow/
 import { FormInput } from '@/components/forms/FormInput';
 import { FormTextarea } from '@/components/forms/FormTextarea';
 import { FormRadioGroup } from '@/components/forms/FormRadioGroup';
-import { validateTaxId, validateBankAccount } from '@/lib/validation/cleaner';
+import { validateTaxId, validateBankAccount, taxIdTakenMessage } from '@/lib/validation/cleaner';
+import { checkTaxIdAvailabilityAction } from '../../actions';
 import type { CleanerBusinessType } from '@/types/database';
 
 const digitsOnly = (value: string) => value.replace(/\D/g, '');
@@ -34,6 +35,7 @@ function BusinessInfoForm() {
   const [bankAccount, setBankAccount] = useState(cleanerData?.bankAccount || '');
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [checking, setChecking] = useState(false);
 
   // Fødselsnummer is 11 digits, organisasjonsnummer is 9.
   const taxIdLength = businessType === 'individual' ? 11 : 9;
@@ -69,9 +71,23 @@ function BusinessInfoForm() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
+
+    // cleaners.tax_id is UNIQUE — catch a duplicate here instead of letting
+    // the final insert on step 5 fail with a generic error.
+    setChecking(true);
+    let taken = false;
+    try {
+      ({ taken } = await checkTaxIdAvailabilityAction({ taxId, businessType }));
+    } finally {
+      setChecking(false);
+    }
+    if (taken) {
+      setErrors({ taxId: taxIdTakenMessage(businessType) });
+      return;
+    }
 
     updateCleanerData({
       businessType,
@@ -95,6 +111,8 @@ function BusinessInfoForm() {
       formId="business-form"
       ctaLabel="Fortsett til adresse"
       canAdvance={isFormValid}
+      isSubmitting={checking}
+      submittingLabel="Sjekker …"
     >
       <form id="business-form" onSubmit={handleSubmit}>
         <CleanerFlowSection icon={<Building2 className="size-5" />} title="Virksomhet">

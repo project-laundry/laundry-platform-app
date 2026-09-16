@@ -1,5 +1,6 @@
 // Cleaner database operations and matching logic
 
+import type { PostgrestError } from '@supabase/supabase-js';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { Cleaner, CleanerVerificationStatus, User, Weekday } from '@/types/database';
 import { getWeekdayFromDate, isWeekdayInSchedule } from '@/lib/utils/date';
@@ -163,6 +164,34 @@ export async function getCleanerByUserId(userId: string): Promise<Cleaner | null
 }
 
 /**
+ * Onboarding pre-check: is this tax id (fødselsnummer / organisasjonsnummer)
+ * already on a cleaners row? cleaners.tax_id is UNIQUE across the whole
+ * table, soft-deleted rows included, so this does not filter on deleted_at.
+ * Uses the admin client — the onboarding user's own RLS policy only lets
+ * them read their own cleaner row, which does not exist yet. On a query
+ * error we log and report "not taken", so onboarding still proceeds and the
+ * insert's 23505 mapping in createCleanerProfileAction catches it instead.
+ * @param taxId - digits only, already validated by the caller
+ */
+export async function isTaxIdTaken(taxId: string): Promise<boolean> {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from('cleaners')
+    .select('id')
+    .eq('tax_id', taxId)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error checking cleaner tax id availability:', error);
+    return false;
+  }
+
+  return data !== null;
+}
+
+/**
  * Create a new cleaner profile
  * @param userId - The authenticated user's ID
  * @param cleanerData - Partial cleaner data from onboarding
@@ -171,7 +200,7 @@ export async function getCleanerByUserId(userId: string): Promise<Cleaner | null
 export async function createCleaner(
   userId: string,
   cleanerData: Partial<Cleaner>
-): Promise<{ data: Cleaner | null; error: Error | null }> {
+): Promise<{ data: Cleaner | null; error: PostgrestError | null }> {
   const supabase = createAdminClient();
 
   const { data, error } = await supabase

@@ -64,3 +64,14 @@ export function validateYear(year: string): boolean {
 
   return yearNum >= 1900 && yearNum <= currentYear;
 }
+
+/**
+ * Error shown when the tax id is already on another cleaner's row
+ * (cleaners.tax_id is UNIQUE). Used by the step-1 pre-check in the business
+ * form and by createCleanerProfileAction's fallback, so both say the same.
+ */
+export function taxIdTakenMessage(type: 'individual' | 'business'): string {
+  return type === 'individual'
+    ? 'Fødselsnummeret er allerede registrert på en annen renserkonto. Ta kontakt med oss hvis du mener dette er feil.'
+    : 'Organisasjonsnummeret er allerede registrert på en annen renserkonto. Ta kontakt med oss hvis du mener dette er feil.';
+}

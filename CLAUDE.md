@@ -95,7 +95,7 @@ src/
 │   ├── bli-renser/         # Cleaner landing page + onboarding flow
 │   │   ├── signup/         # Account creation (+ signup/success: "check your email")
 │   │   ├── (steps)/        # Route group: server layout = cleaner-only + no-profile guard; StepGuard = step order
-│   │   │   ├── business/   # Step 1: business type, tax id, bank account
+│   │   │   ├── business/   # Step 1: business type, tax id (uniqueness pre-check), bank account
 │   │   │   ├── services/   # Step 2: base address (where the cleaner washes) + note to the driver
 │   │   │   ├── equipment/  # Step 3: washing machine (stored on cleaners.machine_*)
 │   │   │   ├── profile/    # Step 4: display name + experience
@@ -166,6 +166,7 @@ Server actions handle mutations from the UI:
 
 - `app/orders/actions.ts` - Subscription creation, Vipps agreement creation, customer queries
 - `app/auth/actions.ts` - Public signup pre-check (`checkSignupAvailabilityAction`): both signup forms call it before `supabase.auth.signUp` because Supabase Auth hides which constraint failed inside `handle_new_user`; the `signUp` result is then mapped by `lib/auth/signup-errors.ts`
+- `app/bli-renser/actions.ts` - Cleaner profile creation (`createCleanerProfileAction`) and the step-1 tax id pre-check (`checkTaxIdAvailabilityAction`): `cleaners.tax_id` is UNIQUE, so the business form checks it before advancing instead of letting the final insert fail on step 5; the action also maps a `23505` from the insert to the same message as a race fallback
 - `app/admin/orders/actions.ts` - Cleaner (re)assignment, admin order edits (dates, address)
 - `app/admin/cleaners|drivers|admins|promo-codes/actions.ts` - Admin dashboard mutations (cleaner activation, staff account create/edit, promo code create/edit)
 
