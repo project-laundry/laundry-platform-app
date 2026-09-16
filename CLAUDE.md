@@ -123,7 +123,7 @@ src/
 │       └── LogoutButton.tsx
 ├── hooks/                  # Custom React hooks (empty)
 ├── lib/                    # Core utilities and business logic
-│   ├── auth/               # requireRole/assertRole guards (require-role.ts)
+│   ├── auth/               # requireRole/assertRole guards (require-role.ts); signup error mapping (signup-errors.ts)
 │   ├── config/
 │   │   └── pricing.ts      # Pricing constants and both calculators: calculateOrderPrice (cleaner-binding: per 5kg load + 3 ironing groups) and calculateCustomerEstimate (customer estimate: per bag/set/piece)
 │   ├── database/           # Database CRUD operations
@@ -165,6 +165,7 @@ src/
 Server actions handle mutations from the UI:
 
 - `app/orders/actions.ts` - Subscription creation, Vipps agreement creation, customer queries
+- `app/auth/actions.ts` - Public signup pre-check (`checkSignupAvailabilityAction`): both signup forms call it before `supabase.auth.signUp` because Supabase Auth hides which constraint failed inside `handle_new_user`; the `signUp` result is then mapped by `lib/auth/signup-errors.ts`
 - `app/admin/orders/actions.ts` - Cleaner (re)assignment, admin order edits (dates, address)
 - `app/admin/cleaners|drivers|admins|promo-codes/actions.ts` - Admin dashboard mutations (cleaner activation, staff account create/edit, promo code create/edit)
 

@@ -94,3 +94,34 @@ export async function updateUserContact(
 
   return { data, error: null };
 }
+
+/**
+ * Signup pre-check: are this e-mail and/or phone already used by a
+ * public.users row? Uses the admin client — the signup visitor is logged
+ * out and RLS lets nobody else read users. On a query error we log and
+ * report nothing taken, so signup still proceeds and the auth.signUp
+ * result mapping catches the duplicate instead.
+ */
+export async function findTakenSignupFields(
+  email: string,
+  phone: string
+): Promise<{ emailTaken: boolean; phoneTaken: boolean }> {
+  const supabase = createAdminClient();
+
+  const [emailResult, phoneResult] = await Promise.all([
+    supabase.from('users').select('id').eq('email', email).limit(1).maybeSingle(),
+    supabase.from('users').select('id').eq('phone', phone).limit(1).maybeSingle(),
+  ]);
+
+  if (emailResult.error) {
+    console.error('Error checking signup e-mail availability:', emailResult.error);
+  }
+  if (phoneResult.error) {
+    console.error('Error checking signup phone availability:', phoneResult.error);
+  }
+
+  return {
+    emailTaken: emailResult.data !== null,
+    phoneTaken: phoneResult.data !== null,
+  };
+}

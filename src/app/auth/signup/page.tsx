@@ -6,6 +6,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, ChevronLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { validateNorwegianPhone } from '@/lib/validation/cleaner';
+import { checkSignupAvailabilityAction } from '@/app/auth/actions';
+import { getSignUpErrorMessage, getTakenFieldsMessage } from '@/lib/auth/signup-errors';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -28,10 +31,24 @@ export default function SignupPage() {
     }));
   };
 
+  // Digits only, max 8 — the +47 prefix is fixed in the UI and added on submit.
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const phone = e.target.value.replace(/\D/g, '').slice(0, 8);
+    setFormData(prev => ({ ...prev, phone }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
+    if (formData.name.trim().length < 2) {
+      setError('Navn må ha minst 2 tegn');
+      return;
+    }
+    if (!validateNorwegianPhone(formData.phone)) {
+      setError('Telefonnummer må være 8 siffer');
+      return;
+    }
     if (formData.password !== formData.confirmPassword) {
       setError('Passordene stemmer ikke overens');
       return;
@@ -47,23 +64,37 @@ export default function SignupPage() {
 
     setLoading(true);
 
+    const email = formData.email.trim().toLowerCase();
+    const phone = `+47${formData.phone}`;
+
+    // Supabase hides which constraint failed inside the signup trigger, so
+    // check e-mail/phone availability first to name the offending field.
+    const availability = await checkSignupAvailabilityAction({ email, phone });
+    const takenMessage = getTakenFieldsMessage(availability);
+    if (takenMessage) {
+      setError(takenMessage);
+      setLoading(false);
+      return;
+    }
+
     const supabase = createClient();
 
-    const { error: signUpError } = await supabase.auth.signUp({
-      email: formData.email,
+    const signUpResult = await supabase.auth.signUp({
+      email,
       password: formData.password,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
         data: {
-          full_name: formData.name,
-          phone: `+47${formData.phone}`,
+          full_name: formData.name.trim(),
+          phone,
           role: 'customer',
         },
       },
     });
 
-    if (signUpError) {
-      setError(signUpError.message);
+    const signUpMessage = getSignUpErrorMessage(signUpResult);
+    if (signUpMessage) {
+      setError(signUpMessage);
       setLoading(false);
       return;
     }
@@ -163,9 +194,9 @@ export default function SignupPage() {
                   id="phone"
                   name="phone"
                   value={formData.phone}
-                  onChange={handleInputChange}
+                  onChange={handlePhoneChange}
                   className={`flex-1 ${inputClass}`}
-                  placeholder="123 45 678"
+                  placeholder="8 siffer"
                   required
                 />
               </div>
