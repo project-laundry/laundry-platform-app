@@ -92,12 +92,15 @@ src/
 │   │   ├── login/          # Login page
 │   │   ├── signup/         # Sign up page
 │   │   └── success/        # Registration success
-│   ├── bli-renser/         # Cleaner onboarding flow
-│   │   ├── business/       # Business information
-│   │   ├── equipment/      # Equipment details
-│   │   ├── profile/        # Cleaner profile
-│   │   ├── services/       # Service offerings
-│   │   └── success/        # Onboarding success
+│   ├── bli-renser/         # Cleaner landing page + onboarding flow
+│   │   ├── signup/         # Account creation (+ signup/success: "check your email")
+│   │   ├── (steps)/        # Route group: server layout = cleaner-only + no-profile guard; StepGuard = step order
+│   │   │   ├── business/   # Step 1: business type, tax id, bank account
+│   │   │   ├── services/   # Step 2: base address (where the cleaner washes) + note to the driver
+│   │   │   ├── equipment/  # Step 3: washing machine (stored on cleaners.machine_*)
+│   │   │   ├── profile/    # Step 4: display name + experience
+│   │   │   └── confirm/    # Step 5: summary + consent → createCleanerProfileAction
+│   │   └── success/        # Application submitted
 │   ├── dashboard/          # User dashboards
 │   │   ├── cleaner/        # Cleaner dashboard & missions
 │   │   └── driver/         # Driver dashboard (daily route)

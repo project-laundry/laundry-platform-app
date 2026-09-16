@@ -3,17 +3,16 @@ import type { Mock } from 'vitest';
 import type { CleanerOnboardingData } from '@/types/cleaner-flow';
 
 const getUser = vi.fn();
-const single = vi.fn();
-const eq = vi.fn(() => ({ single }));
-const select = vi.fn(() => ({ eq }));
-const from = vi.fn(() => ({ select }));
 vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn(async () => ({ auth: { getUser }, from })),
+  createClient: vi.fn(async () => ({ auth: { getUser } })),
 }));
-vi.mock('@/lib/database/cleaners', () => ({ createCleaner: vi.fn() }));
+vi.mock('@/lib/database/cleaners', () => ({
+  createCleaner: vi.fn(),
+  getCleanerByUserId: vi.fn(),
+}));
 vi.mock('@/lib/maps/geocoding', () => ({ geocodeAddress: vi.fn() }));
 
-import { createCleaner } from '@/lib/database/cleaners';
+import { createCleaner, getCleanerByUserId } from '@/lib/database/cleaners';
 import { geocodeAddress } from '@/lib/maps/geocoding';
 import { createCleanerProfileAction } from './actions';
 
@@ -42,7 +41,7 @@ const baseData: CleanerOnboardingData = {
 beforeEach(() => {
   vi.clearAllMocks();
   getUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null });
-  single.mockResolvedValue({ data: null, error: null }); // no existing cleaner profile
+  m(getCleanerByUserId).mockResolvedValue(null); // no existing cleaner profile
   m(geocodeAddress).mockResolvedValue(null);
   m(createCleaner).mockResolvedValue({ data: { id: 'cl-1' }, error: null });
 });
@@ -82,5 +81,99 @@ describe('createCleanerProfileAction', () => {
       'user-1',
       expect.objectContaining({ base_city: 'Bergen' })
     );
+  });
+
+  it('strips formatting from the tax id and bank account before saving', async () => {
+    const result = await createCleanerProfileAction({
+      ...baseData,
+      taxId: '123456 78901',
+      bankAccount: '1234.56.78901',
+    });
+
+    expect(result.success).toBe(true);
+    expect(createCleaner).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ tax_id: '12345678901', bank_account: '12345678901' })
+    );
+  });
+
+  it('rejects a bank account that is not 11 digits', async () => {
+    const result = await createCleanerProfileAction({
+      ...baseData,
+      bankAccount: '1234567890',
+    });
+
+    expect(result).toEqual({ success: false, error: 'Kontonummer må være 11 siffer' });
+    expect(createCleaner).not.toHaveBeenCalled();
+  });
+
+  it('rejects a 9-digit tax id for an individual', async () => {
+    const result = await createCleanerProfileAction({
+      ...baseData,
+      taxId: '123456789',
+    });
+
+    expect(result).toEqual({ success: false, error: 'Fødselsnummer må være 11 siffer' });
+    expect(createCleaner).not.toHaveBeenCalled();
+  });
+
+  it('requires business name and address for a registered business', async () => {
+    const result = await createCleanerProfileAction({
+      ...baseData,
+      businessType: 'business',
+      taxId: '123456789',
+      businessName: 'Vask AS',
+      businessAddress: '',
+    });
+
+    expect(result.success).toBe(false);
+    expect(createCleaner).not.toHaveBeenCalled();
+  });
+
+  it('stores the washing machine details as numbers and enum', async () => {
+    await createCleanerProfileAction(baseData);
+
+    expect(createCleaner).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({
+        machine_brand: 'Miele',
+        machine_capacity_kg: 8,
+        machine_year: 2020,
+        machine_condition: 'good',
+      })
+    );
+  });
+
+  it('rejects a non-integer machine capacity', async () => {
+    const result = await createCleanerProfileAction({
+      ...baseData,
+      machineCapacityKg: '7.5',
+    });
+
+    expect(result.success).toBe(false);
+    expect(createCleaner).not.toHaveBeenCalled();
+  });
+
+  it('stores the optional note to the driver, null when blank', async () => {
+    await createCleanerProfileAction({ ...baseData, baseSpecialInstructions: '  2. etasje  ' });
+    expect(createCleaner).toHaveBeenLastCalledWith(
+      'user-1',
+      expect.objectContaining({ base_special_instructions: '2. etasje' })
+    );
+
+    await createCleanerProfileAction({ ...baseData, baseSpecialInstructions: '   ' });
+    expect(createCleaner).toHaveBeenLastCalledWith(
+      'user-1',
+      expect.objectContaining({ base_special_instructions: null })
+    );
+  });
+
+  it('rejects when the user already has a cleaner profile', async () => {
+    m(getCleanerByUserId).mockResolvedValue({ id: 'cl-existing' });
+
+    const result = await createCleanerProfileAction(baseData);
+
+    expect(result).toEqual({ success: false, error: 'Du har allerede en renserprofil' });
+    expect(createCleaner).not.toHaveBeenCalled();
   });
 });

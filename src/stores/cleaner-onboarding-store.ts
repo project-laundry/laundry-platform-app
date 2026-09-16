@@ -8,12 +8,11 @@ interface CleanerOnboardingStore {
   setHasHydrated: (state: boolean) => void;
   updateCleanerData: (data: Partial<CleanerOnboardingData>) => void;
   resetCleanerData: () => void;
-  hasRequiredData: () => boolean;
 }
 
 export const useCleanerOnboardingStore = create<CleanerOnboardingStore>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       cleanerData: null,
       _hasHydrated: false,
 
@@ -25,14 +24,13 @@ export const useCleanerOnboardingStore = create<CleanerOnboardingStore>()(
         })),
 
       resetCleanerData: () => set({ cleanerData: null }),
-
-      hasRequiredData: () => {
-        const { cleanerData } = get();
-        return cleanerData !== null && cleanerData.businessType !== undefined;
-      }
     }),
     {
       name: 'nooracare-cleaner-onboarding',
+      // v1: machineCondition values changed ('very-good' → 'very_good').
+      // Persisted pre-v1 state is incompatible — drop it and start fresh.
+      version: 1,
+      migrate: () => ({ cleanerData: null }),
       storage: createJSONStorage(() => sessionStorage),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);

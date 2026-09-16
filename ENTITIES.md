@@ -107,9 +107,17 @@
 - `base_country` (string, required) - Base operation country
   - **Default:** `'Norway'`
   - **Validation:** Max 100 chars
-- `base_special_instructions` (text, nullable) - Permanent access instructions for base location
+- `base_special_instructions` (text, nullable) - Permanent access instructions for base location (optional "Beskjed til sjåføren" field in onboarding step 2; shown on the driver route)
   - **Validation:** Max 500 chars
 - `experience_level` (enum → [CleanerExperienceLevel](#cleanerexperiencelevel), required) - Experience level
+- `machine_brand` (string, nullable) - Washing machine brand and model from onboarding step 3
+  - **Validation:** Max 100 chars
+- `machine_capacity_kg` (smallint, nullable) - Machine capacity in whole kg
+  - **Validation:** > 0
+- `machine_year` (smallint, nullable) - Machine model year
+  - **Validation:** 1900–2100 (DB); onboarding requires ≤ current year
+- `machine_condition` (enum → [CleanerMachineCondition](#cleanermachinecondition), nullable) - Self-reported machine condition
+  - **Note:** All four machine fields are `NULL` for profiles created before they were stored (migration `20260916120000`).
 - `weekly_schedule` (jsonb, required) - Weekly availability pattern
   - **Format:** `{"mon": true, "tue": true, "wed": true, "thu": true, "fri": true, "sat": false, "sun": false}`
   - **Default:** `{"mon": true, "tue": true, "wed": true, "thu": true, "fri": true, "sat": false, "sun": false}`
@@ -545,6 +553,13 @@
 - `experienced` - 3-5 years
 - `expert` - 5+ years
 - `professional` - Professional cleaning business
+
+### CleanerMachineCondition
+
+- `excellent` - Like new
+- `very_good` - Minimal wear
+- `good` - Normal wear
+- `fair` - Some visible wear
 
 ### SubscriptionStatus
 
