@@ -7,6 +7,8 @@ import { AlertCircle, ChevronLeft } from 'lucide-react';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { createClient } from '@/lib/supabase/client';
 import { validateNorwegianPhone } from '@/lib/validation/cleaner';
+import { checkSignupAvailabilityAction } from '@/app/auth/actions';
+import { getSignUpErrorMessage, getTakenFieldsMessage } from '@/lib/auth/signup-errors';
 
 const inputClass =
   'w-full rounded-2xl border border-cream-dark bg-white px-4 py-3 text-dark-gray outline-none transition-colors placeholder:text-medium-gray/60 focus:border-sea-green focus:ring-2 focus:ring-sea-green/20';
@@ -43,6 +45,10 @@ export default function CleanerSignupPage() {
     e.preventDefault();
     setError(null);
 
+    if (formData.name.trim().length < 2) {
+      setError('Navn må ha minst 2 tegn');
+      return;
+    }
     if (formData.password !== formData.confirmPassword) {
       setError('Passordene stemmer ikke overens');
       return;
@@ -62,23 +68,37 @@ export default function CleanerSignupPage() {
 
     setLoading(true);
 
+    const email = formData.email.trim().toLowerCase();
+    const phone = `+47${formData.phone}`;
+
+    // Supabase hides which constraint failed inside the signup trigger, so
+    // check e-mail/phone availability first to name the offending field.
+    const availability = await checkSignupAvailabilityAction({ email, phone });
+    const takenMessage = getTakenFieldsMessage(availability);
+    if (takenMessage) {
+      setError(takenMessage);
+      setLoading(false);
+      return;
+    }
+
     const supabase = createClient();
 
-    const { error: signUpError } = await supabase.auth.signUp({
-      email: formData.email,
+    const signUpResult = await supabase.auth.signUp({
+      email,
       password: formData.password,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
         data: {
-          full_name: formData.name,
-          phone: `+47${formData.phone}`,
+          full_name: formData.name.trim(),
+          phone,
           role: 'cleaner',
         },
       },
     });
 
-    if (signUpError) {
-      setError(signUpError.message);
+    const signUpMessage = getSignUpErrorMessage(signUpResult);
+    if (signUpMessage) {
+      setError(signUpMessage);
       setLoading(false);
       return;
     }
