@@ -13,6 +13,8 @@ export type CleanerBusinessType = 'individual' | 'business';
 
 export type CleanerExperienceLevel = 'beginner' | 'some' | 'experienced' | 'expert' | 'professional';
 
+export type CleanerMachineCondition = 'excellent' | 'very_good' | 'good' | 'fair';
+
 export type PaymentAgreementStatus = 'pending' | 'active' | 'stopped' | 'expired';
 
 export type SubscriptionStatus = 'pending_payment' | 'active' | 'paused' | 'cancelled' | 'expired';
@@ -94,6 +96,11 @@ export interface Cleaner {
   latitude: number | null;
   longitude: number | null;
   experience_level: CleanerExperienceLevel;
+  // Washing machine details from onboarding step 3 (null for profiles created before they were stored)
+  machine_brand: string | null;
+  machine_capacity_kg: number | null;
+  machine_year: number | null;
+  machine_condition: CleanerMachineCondition | null;
   weekly_schedule: WeeklySchedule;
   is_accepting_orders: boolean;
   created_at: string;

@@ -1,31 +1,35 @@
-import type { CleanerBusinessType, CleanerExperienceLevel } from './database';
+import type {
+  CleanerBusinessType,
+  CleanerExperienceLevel,
+  CleanerMachineCondition,
+} from './database';
 
 export interface CleanerOnboardingData {
-  // Business Information
+  // Step 1: business + payout
   businessType: CleanerBusinessType;
-  taxId: string;
+  taxId: string; // digits only (11 for individual, 9 for business)
   businessName?: string;
   businessAddress?: string;
-  bankAccount: string;
+  bankAccount: string; // digits only, 11
 
-  // Service Area
+  // Step 2: base address (where the cleaner washes; drivers deliver/collect here)
   baseStreet: string;
   basePostalCode: string;
   baseCity: string;
   baseCountry: string;
   baseSpecialInstructions?: string;
 
-  // Equipment Information
+  // Step 3: washing machine (kept as form strings; the server action converts)
   machineBrand: string;
   machineCapacityKg: string;
   machineYear: string;
-  machineCondition: string;
+  machineCondition: CleanerMachineCondition;
 
-  // Profile & Experience
+  // Step 4: profile
   displayName: string;
   experienceLevel: CleanerExperienceLevel;
 
-  // Confirmation (final step)
+  // Step 5: confirmation
   termsAccepted: boolean;
   privacyAccepted: boolean;
   informationAccuracyConfirmed: boolean;

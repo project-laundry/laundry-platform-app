@@ -1,19 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { AppHeader, BackLink } from '@/components/layout/AppHeader';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, ChevronLeft } from 'lucide-react';
+import { AppHeader } from '@/components/layout/AppHeader';
 import { createClient } from '@/lib/supabase/client';
-import { useCleanerOnboardingStore } from '@/stores/cleaner-onboarding-store';
+import { validateNorwegianPhone } from '@/lib/validation/cleaner';
 
 const inputClass =
   'w-full rounded-2xl border border-cream-dark bg-white px-4 py-3 text-dark-gray outline-none transition-colors placeholder:text-medium-gray/60 focus:border-sea-green focus:ring-2 focus:ring-sea-green/20';
 
 export default function CleanerSignupPage() {
   const router = useRouter();
-  const updateCleanerData = useCleanerOnboardingStore((state) => state.updateCleanerData);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -28,11 +27,16 @@ export default function CleanerSignupPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
-
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === 'checkbox' ? checked : value,
     }));
+  };
+
+  // Digits only, max 8 — the +47 prefix is fixed in the UI and added on submit.
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const phone = e.target.value.replace(/\D/g, '').slice(0, 8);
+    setFormData((prev) => ({ ...prev, phone }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -43,12 +47,16 @@ export default function CleanerSignupPage() {
       setError('Passordene stemmer ikke overens');
       return;
     }
-    if (!formData.acceptTerms) {
-      setError('Du må akseptere vilkårene for å fortsette');
-      return;
-    }
     if (formData.password.length < 6) {
       setError('Passordet må være minst 6 tegn');
+      return;
+    }
+    if (!validateNorwegianPhone(formData.phone)) {
+      setError('Telefonnummer må være 8 siffer');
+      return;
+    }
+    if (!formData.acceptTerms) {
+      setError('Du må godta vilkårene for å fortsette');
       return;
     }
 
@@ -75,15 +83,14 @@ export default function CleanerSignupPage() {
       return;
     }
 
-    // Initialize store with basic data
-    updateCleanerData({});
-
-    // Redirect to business page (will be protected by layout)
+    // The email confirmation link lands on /auth/callback, which sends
+    // cleaners to /bli-renser/business to continue onboarding.
     router.push('/bli-renser/signup/success');
   };
 
   return (
-    <div className="min-h-screen bg-cream text-dark-gray">
+    <div className="flex min-h-screen flex-col bg-cream text-dark-gray">
+      {/* Atmospheric backdrop — soft sea-green wash over warm cream. */}
       <div
         aria-hidden
         className="pointer-events-none fixed inset-0 -z-10"
@@ -95,176 +102,168 @@ export default function CleanerSignupPage() {
 
       <AppHeader />
 
-      <div className="mx-auto w-full max-w-md px-5 py-10">
-        <div className="mb-4">
-          <BackLink href="/bli-renser" />
-        </div>
+      <main className="flex flex-1 items-center justify-center px-5 py-10">
+        <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-3 duration-500">
+          {/* Header */}
+          <div className="mb-8 text-center">
+            <p className="text-sm font-medium uppercase tracking-[0.18em] text-sea-green">
+              Bli renser
+            </p>
+            <h1 className="mt-2 font-serif text-4xl font-semibold leading-tight text-dark-gray">
+              Opprett konto
+            </h1>
+            <p className="mt-3 text-medium-gray">
+              Først en konto, så fyller du inn renserprofilen din.
+            </p>
+          </div>
 
-        {/* Header */}
-        <div className="text-center animate-in fade-in slide-in-from-bottom-3 duration-500">
-          <h1 className="font-serif text-4xl font-semibold leading-tight text-dark-gray">
-            Bli renser
-          </h1>
-          <p className="mt-3 text-medium-gray">Opprett konto og start onboarding</p>
-        </div>
+          {/* Signup form */}
+          <div className="rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-6 shadow-[var(--shadow-card)] backdrop-blur sm:p-8">
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {error && (
+                <div className="flex items-start gap-2 rounded-2xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
+                  <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
 
-        {/* Signup Form */}
-        <div
-          className="mt-6 rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur animate-in fade-in slide-in-from-bottom-3 duration-700 sm:p-8"
-          style={{ animationDelay: '60ms' }}
-        >
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="flex items-start gap-2 rounded-2xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
-                <AlertCircle className="mt-0.5 size-4 shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
-
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-medium text-dark-gray">
-                Fullt navn
-              </span>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                className={inputClass}
-                placeholder="Ola Nordmann"
-                required
-              />
-            </label>
-
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-medium text-dark-gray">
-                E-post
-              </span>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                className={inputClass}
-                placeholder="ola@example.com"
-                required
-              />
-            </label>
-
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-medium text-dark-gray">
-                Telefonnummer
-              </span>
-              <div className="flex gap-2">
+              <label className="block" htmlFor="name">
+                <span className="mb-1.5 block text-sm font-medium text-dark-gray">Fullt navn</span>
                 <input
                   type="text"
-                  value="+47"
-                  disabled
-                  className="w-16 rounded-2xl border border-cream-dark bg-cream/50 px-3 py-3 text-center text-dark-gray"
-                />
-                <input
-                  type="tel"
-                  id="phone"
-                  name="phone"
-                  value={formData.phone}
+                  id="name"
+                  name="name"
+                  value={formData.name}
                   onChange={handleInputChange}
-                  className={`flex-1 ${inputClass}`}
-                  placeholder="123 45 678"
+                  className={inputClass}
+                  placeholder="Ola Nordmann"
+                  autoComplete="name"
                   required
                 />
+              </label>
+
+              <label className="block" htmlFor="email">
+                <span className="mb-1.5 block text-sm font-medium text-dark-gray">E-post</span>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  className={inputClass}
+                  placeholder="ola@example.com"
+                  autoComplete="email"
+                  required
+                />
+              </label>
+
+              <label className="block" htmlFor="phone">
+                <span className="mb-1.5 block text-sm font-medium text-dark-gray">Telefonnummer</span>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value="+47"
+                    disabled
+                    aria-label="Landskode"
+                    className="w-16 rounded-2xl border border-cream-dark bg-cream/50 px-3 py-3 text-center text-dark-gray"
+                  />
+                  <input
+                    type="tel"
+                    id="phone"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handlePhoneChange}
+                    className={`flex-1 ${inputClass}`}
+                    placeholder="8 siffer"
+                    autoComplete="tel-national"
+                    required
+                  />
+                </div>
+              </label>
+
+              <label className="block" htmlFor="password">
+                <span className="mb-1.5 block text-sm font-medium text-dark-gray">Passord</span>
+                <input
+                  type="password"
+                  id="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  className={inputClass}
+                  placeholder="Minst 6 tegn"
+                  autoComplete="new-password"
+                  required
+                />
+              </label>
+
+              <label className="block" htmlFor="confirmPassword">
+                <span className="mb-1.5 block text-sm font-medium text-dark-gray">Bekreft passord</span>
+                <input
+                  type="password"
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleInputChange}
+                  className={inputClass}
+                  placeholder="Gjenta passordet"
+                  autoComplete="new-password"
+                  required
+                />
+              </label>
+
+              <div className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  id="acceptTerms"
+                  name="acceptTerms"
+                  checked={formData.acceptTerms}
+                  onChange={handleInputChange}
+                  className="mt-1 size-4 shrink-0 rounded border-cream-dark accent-sea-green focus:ring-sea-green/20"
+                  required
+                />
+                <label htmlFor="acceptTerms" className="text-sm text-medium-gray">
+                  Jeg godtar{' '}
+                  <Link href="/salgsvilkar" className="font-medium text-nordic-blue underline-offset-2 hover:underline">
+                    salgsvilkårene
+                  </Link>{' '}
+                  og{' '}
+                  <Link href="/personvern-renser" className="font-medium text-nordic-blue underline-offset-2 hover:underline">
+                    personvernerklæringen for rensere
+                  </Link>
+                </label>
               </div>
-            </label>
 
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-medium text-dark-gray">
-                Passord
-              </span>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleInputChange}
-                className={inputClass}
-                placeholder="••••••••"
-                required
-              />
-            </label>
+              <button
+                type="submit"
+                disabled={loading}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-nordic-blue px-6 py-3.5 font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-cream-dark disabled:text-medium-gray disabled:shadow-none"
+              >
+                {loading ? 'Oppretter konto …' : 'Opprett konto'}
+              </button>
+            </form>
 
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-medium text-dark-gray">
-                Bekreft passord
-              </span>
-              <input
-                type="password"
-                id="confirmPassword"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleInputChange}
-                className={inputClass}
-                placeholder="••••••••"
-                required
-              />
-            </label>
+            <div className="mt-6 text-center">
+              <p className="text-sm text-medium-gray">
+                Har du allerede konto?{' '}
+                <Link href="/auth/login" className="font-medium text-nordic-blue underline-offset-2 hover:underline">
+                  Logg inn
+                </Link>
+              </p>
+            </div>
+          </div>
 
-            <label
-              className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 transition-all ${
-                formData.acceptTerms
-                  ? 'border-sea-green bg-sea-green/8'
-                  : 'border-cream-dark bg-white hover:border-sea-green/50'
-              }`}
+          {/* Back */}
+          <div className="mt-8 text-center">
+            <Link
+              href="/bli-renser"
+              className="inline-flex items-center gap-1 text-sm font-medium text-medium-gray transition-colors hover:text-nordic-blue"
             >
-              <input
-                type="checkbox"
-                id="acceptTerms"
-                name="acceptTerms"
-                checked={formData.acceptTerms}
-                onChange={handleInputChange}
-                className="mt-0.5 size-4 shrink-0 accent-sea-green"
-                required
-              />
-              <span className="text-sm text-medium-gray">
-                Jeg aksepterer{' '}
-                <a href="#" className="font-medium text-sea-green underline-offset-2 hover:underline">
-                  vilkårene for bruk
-                </a>{' '}
-                og{' '}
-                <a href="#" className="font-medium text-sea-green underline-offset-2 hover:underline">
-                  personvernerklæringen
-                </a>
-              </span>
-            </label>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-nordic-blue px-6 py-3.5 font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-cream-dark disabled:text-medium-gray disabled:shadow-none"
-            >
-              {loading ? 'Oppretter konto...' : 'Opprett konto og fortsett'}
-            </button>
-          </form>
-
-          <p className="mt-6 text-center text-sm text-medium-gray">
-            Har du allerede konto?{' '}
-            <Link href="/auth/login" className="font-medium text-nordic-blue underline-offset-2 hover:underline">
-              Logg inn
+              <ChevronLeft className="size-4" />
+              Tilbake
             </Link>
-          </p>
+          </div>
         </div>
-
-        {/* Back to Landing */}
-        <div className="mt-8 flex justify-center">
-          <Link
-            href="/bli-renser"
-            className="flex items-center gap-1 text-sm font-medium text-medium-gray transition-colors hover:text-nordic-blue"
-          >
-            <ChevronLeft className="size-4" />
-            Tilbake til bli renser
-          </Link>
-        </div>
-      </div>
+      </main>
     </div>
   );
 }

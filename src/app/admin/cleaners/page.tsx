@@ -6,6 +6,7 @@ import {
   CLEANER_VERIFICATION_VARIANT,
 } from '@/lib/utils/cleaner-status';
 import { CleanerActivationButton } from './CleanerActivationButton';
+import { machineConditionLabel } from '@/lib/config/cleaner-options';
 
 export default async function AdminCleanersPage() {
   const cleaners = await getAllCleanersWithUser();
@@ -45,6 +46,11 @@ export default async function AdminCleanersPage() {
                   <p className="mt-1 truncate text-sm text-dark-gray">{cleaner.user.full_name}</p>
                   <p className="mt-0.5 truncate text-sm text-medium-gray">
                     {cleaner.base_city} · {cleaner.user.email} · {cleaner.user.phone}
+                  </p>
+                  <p className="mt-0.5 truncate text-sm text-medium-gray">
+                    {cleaner.machine_brand
+                      ? `${cleaner.machine_brand} · ${cleaner.machine_capacity_kg} kg · ${cleaner.machine_year} · ${machineConditionLabel(cleaner.machine_condition)}`
+                      : 'Vaskemaskin ikke registrert'}
                   </p>
                 </div>
                 <CleanerActivationButton

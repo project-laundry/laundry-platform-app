@@ -148,8 +148,8 @@ export default function PersonvernRenserPage() {
                   <span className="font-medium">Operasjonell informasjon:</span>{" "}
                   baseadresse (gateadresse, postnummer, by, land) hvor du
                   driver virksomheten din fra, instruksjoner for adkomst,
-                  ukentlig arbeidsplan, språk, spesialiseringer og
-                  erfaringsnivå.
+                  ukentlig arbeidsplan, erfaringsnivå og opplysninger om
+                  vaskemaskinen din (merke, kapasitet, årsmodell, tilstand).
                 </li>
                 <li>
                   <span className="font-medium">Profilinformasjon:</span>{" "}
