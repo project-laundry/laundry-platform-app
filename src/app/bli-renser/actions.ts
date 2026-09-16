@@ -1,14 +1,21 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { createCleaner, getCleanerByUserId } from "@/lib/database/cleaners";
+import { assertRole } from "@/lib/auth/require-role";
+import {
+  createCleaner,
+  getCleanerByUserId,
+  isTaxIdTaken,
+} from "@/lib/database/cleaners";
 import { geocodeAddress } from "@/lib/maps/geocoding";
 import { getCityFromPostalCode } from "@/lib/config/postal-codes";
 import {
+  taxIdTakenMessage,
   validateBankAccount,
   validateTaxId,
   validateYear,
 } from "@/lib/validation/cleaner";
+import type { CleanerBusinessType } from "@/types/database";
 import type { CleanerOnboardingData } from "@/types/cleaner-flow";
 
 export interface CreateCleanerProfileResult {
@@ -20,13 +27,40 @@ export interface CreateCleanerProfileResult {
 const digitsOnly = (value: string) => value.replace(/\D/g, "");
 
 /**
+ * Step-1 pre-check: is this tax id already on another cleaner's row?
+ * cleaners.tax_id is UNIQUE, but without this the duplicate only surfaces
+ * when the final insert fails on step 5. Cleaner-only — the (steps) layout
+ * guarantees the caller is a signed-in cleaner without a profile. A failed
+ * role guard or a malformed id reports "not taken": the form proceeds and
+ * createCleanerProfileAction rejects at the end instead.
+ */
+export async function checkTaxIdAvailabilityAction(input: {
+  taxId: string;
+  businessType: CleanerBusinessType;
+}): Promise<{ taken: boolean }> {
+  const { error } = await assertRole(["cleaner"]);
+  if (error) {
+    return { taken: false };
+  }
+
+  const taxId = digitsOnly(input.taxId ?? "");
+  if (!validateTaxId(taxId, input.businessType)) {
+    return { taken: false };
+  }
+
+  return { taken: await isTaxIdTaken(taxId) };
+}
+
+/**
  * Create a new cleaner profile
  * Called from the confirmation page after user accepts terms
  *
  * Flow:
  * 1. Verify user is authenticated
  * 2. Validate + normalise the submitted data (never trust the client)
- * 3. Check if user already has a cleaner profile
+ * 3. Check if user already has a cleaner profile, and that the tax id is
+ *    not already on another cleaner (step 1 checks this too; this is the
+ *    fallback for stale session data)
  * 4. Geocode the base address, create the cleaner record
  *
  * Note: User role is set to 'cleaner' during signup via the handle_new_user() trigger,
@@ -112,6 +146,12 @@ export async function createCleanerProfileAction(
       };
     }
 
+    // cleaners.tax_id is UNIQUE. Step 1 already ran this check, but the user
+    // may reach here with stale session data.
+    if (await isTaxIdTaken(taxId)) {
+      return { success: false, error: taxIdTakenMessage(data.businessType) };
+    }
+
     // 4. Geocode the base address so the cleaner has coordinates for route
     //    optimization. Null on failure — the profile still saves.
     const baseCoords = await geocodeAddress({
@@ -156,6 +196,12 @@ export async function createCleanerProfileAction(
 
     if (createError || !cleaner) {
       console.error("Error creating cleaner:", createError);
+      // 23505 = unique_violation. user_id was checked above, so the only
+      // other UNIQUE column that can fail is tax_id — a race between the
+      // pre-check and the insert lands here.
+      if (createError?.code === "23505") {
+        return { success: false, error: taxIdTakenMessage(data.businessType) };
+      }
       return {
         success: false,
         error: "Kunne ikke opprette renserprofil. Vennligst prøv igjen.",
