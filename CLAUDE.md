@@ -74,6 +74,7 @@ npm run test:watch # Run tests in watch mode
 ```
 src/
 ├── app/                    # Next.js App Router pages
+│   ├── not-found.tsx       # Root 404 (unmatched URLs + every notFound() call)
 │   ├── admin/              # Admin dashboard (layout = shell + role guard; page = overview with counts)
 │   │   ├── orders/         # Order list + per-order detail page (edit details, cleaner (re)assignment)
 │   │   ├── cleaners/       # Cleaner list, activate/deactivate (verification_status)
@@ -89,6 +90,7 @@ src/
 │   ├── auth/               # Authentication flow
 │   │   ├── address/        # Address input step
 │   │   ├── callback/       # Supabase auth callback
+│   │   ├── error/          # Invalid/expired confirmation link (callback redirects here)
 │   │   ├── login/          # Login page
 │   │   ├── signup/         # Sign up page
 │   │   └── success/        # Registration success

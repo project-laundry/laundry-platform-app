@@ -42,7 +42,7 @@ Entry point: `createSubscriptionAction(input)` in `src/app/orders/actions.ts`.
 
 Flow:
 1. Resolve authenticated user → customer record.
-2. Determine frequency (`on_demand` for single orders) and guard against an existing active subscription.
+2. Determine frequency (`on_demand` for single orders). Recurring only: an `active` subscription blocks checkout; a stale `pending_payment` one (abandoned Vipps checkout) is cancelled via `cancelSubscriptionAction` so the new row can be inserted.
 3. `createVippsAgreement()` (`lib/payments/vipps/service.ts`) → creates a Vipps FLEXIBLE agreement, `merchantRedirectUrl = /orders/success`. Frequency maps to Vipps interval (`weekly→WEEK:1`, `biweekly→WEEK:2`, `monthly→MONTH:1`).
 4. Insert `PaymentAgreement` (status `pending`).
    - **One-time:** store `order_defaults` in `provider_metadata` (no subscription created).

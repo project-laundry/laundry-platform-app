@@ -351,10 +351,10 @@ Charge creation on completion runs for both recurring and one-time orders. `crea
 
 ### Payment Failure Handling
 
-**Agreement Activation Failure:**
-- Subscription remains `status = 'pending_payment'`
-- No orders generated
-- Customer must re-approve agreement to activate
+**Agreement Activation Failure (abandoned checkout):**
+- Subscription remains `status = 'pending_payment'`, no orders generated
+- The dashboard shows a "betalingen ble ikke fullført" warning instead of the subscription strip
+- The next recurring checkout (`createSubscriptionAction`) automatically cancels the stale `pending_payment` subscription via `cancelSubscriptionAction` (stops the old Vipps agreement best-effort) before creating the new one — required because `idx_subscriptions_one_active_per_customer` also counts `pending_payment` rows. Only an `active` subscription blocks a new recurring checkout.
 
 **Per-Order Payment Failures:**
 - Order remains in current status

@@ -45,15 +45,17 @@ import type { OrderSelection } from '@/types/order-flow';
 import { validatePromoCode } from '@/lib/database/promo-codes';
 import { createSubscription, getActiveSubscriptionByCustomerId } from '@/lib/database/subscriptions';
 import { createPaymentAgreement, getPaymentAgreementsByCustomerId } from '@/lib/database/payment-agreements';
-import { findAvailableCleaner } from '@/lib/database/cleaners';
+import { findAvailableCleaner, getAvailableWeekdaysForCity } from '@/lib/database/cleaners';
 import { createVippsAgreement } from '@/lib/payments/vipps/service';
 import { createVippsRecurringClient } from '@/lib/payments/vipps/recurring-client';
+import { cancelSubscriptionAction } from '@/app/dashboard/subscription/actions';
 import {
   createSubscriptionAction,
   validatePromoCodeAction,
   getCheckoutStatusAction,
   getPickupPrefillAction,
   updateOrderSelectionAction,
+  updateOrderPickupDateAction,
   type CreateSubscriptionInput,
 } from './actions';
 
@@ -149,12 +151,36 @@ describe('createSubscriptionAction — promo handling', () => {
 describe('createSubscriptionAction — recurring orders', () => {
   it('blocks a second active subscription', async () => {
     happyPathMocks();
-    m(getActiveSubscriptionByCustomerId).mockResolvedValue({ id: 'existing-sub' });
+    m(getActiveSubscriptionByCustomerId).mockResolvedValue({ id: 'existing-sub', status: 'active' });
 
     const result = await createSubscriptionAction(baseInput);
 
     expect(result.displayError).toBe('Du har allerede et aktivt abonnement');
     expect(createVippsAgreement).not.toHaveBeenCalled();
+  });
+
+  it('discards an abandoned pending_payment subscription and continues checkout', async () => {
+    happyPathMocks();
+    m(getActiveSubscriptionByCustomerId).mockResolvedValue({ id: 'stale-sub', status: 'pending_payment' });
+    m(cancelSubscriptionAction).mockResolvedValue({ success: true, hasInFlightOrder: false });
+
+    const result = await createSubscriptionAction(baseInput);
+
+    expect(cancelSubscriptionAction).toHaveBeenCalledWith('stale-sub');
+    expect(createSubscription).toHaveBeenCalledOnce();
+    expect(result).toEqual({ redirectUrl: 'https://vipps.example/redirect', agreementId: 'agr-1' });
+  });
+
+  it('aborts checkout when the stale pending subscription cannot be discarded', async () => {
+    happyPathMocks();
+    m(getActiveSubscriptionByCustomerId).mockResolvedValue({ id: 'stale-sub', status: 'pending_payment' });
+    m(cancelSubscriptionAction).mockResolvedValue({ success: false, error: 'Kunne ikke kansellere abonnementet' });
+
+    const result = await createSubscriptionAction(baseInput);
+
+    expect(result.displayError).toBe('Kunne ikke starte en ny bestilling. Prøv igjen.');
+    expect(createVippsAgreement).not.toHaveBeenCalled();
+    expect(createSubscription).not.toHaveBeenCalled();
   });
 
   it('creates a payment agreement + subscription and returns the Vipps redirect', async () => {
@@ -556,5 +582,106 @@ describe('updateOrderSelectionAction', () => {
 
     const result = await updateOrderSelectionAction('order-1', selection);
     expect(result).toEqual({ success: false, error: 'Failed to update order selection' });
+  });
+});
+
+describe('updateOrderPickupDateAction', () => {
+  const eqMock = vi.fn();
+  const updateMock = vi.fn(() => ({ eq: eqMock }));
+
+  const ALL_WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
+  const WORKS_EVERY_DAY = { mon: true, tue: true, wed: true, thu: true, fri: true, sat: true, sun: true };
+  const WORKS_NEVER = { mon: false, tue: false, wed: false, thu: false, fri: false, sat: false, sun: false };
+
+  /** Authenticated customer owning a pickup_scheduled order with an assigned cleaner. */
+  function withScheduledOrder(weeklySchedule = WORKS_EVERY_DAY, status = 'pickup_scheduled') {
+    getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
+    m(getOrderWithDetailsByIdAndCustomerId).mockResolvedValue({
+      id: 'order-1',
+      status,
+      city: 'Oslo',
+      cleaner_id: 'cleaner-1',
+      cleaner: { id: 'cleaner-1', display_name: 'Kari', weekly_schedule: weeklySchedule },
+    });
+    m(getAvailableWeekdaysForCity).mockResolvedValue([...ALL_WEEKDAYS]);
+    eqMock.mockResolvedValue({ error: null });
+    m(createAdminClient).mockReturnValue({ from: vi.fn(() => ({ update: updateMock })) });
+  }
+
+  it('rejects rescheduling after pickup', async () => {
+    withScheduledOrder(WORKS_EVERY_DAY, 'picked_up');
+
+    const result = await updateOrderPickupDateAction('order-1', '2030-01-04');
+
+    expect(result).toEqual({ success: false, error: 'Kan ikke endre hentedato etter at ordren er hentet' });
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects a weekday with no cleaners in the city', async () => {
+    withScheduledOrder();
+    m(getAvailableWeekdaysForCity).mockResolvedValue([]);
+
+    const result = await updateOrderPickupDateAction('order-1', '2030-01-04');
+
+    expect(result).toEqual({ success: false, error: 'Ingen rensere tilgjengelig på denne dagen' });
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps the cleaner and writes only the new dates when they work on the new day', async () => {
+    withScheduledOrder(WORKS_EVERY_DAY);
+
+    const result = await updateOrderPickupDateAction('order-1', '2030-01-04');
+
+    expect(findAvailableCleaner).not.toHaveBeenCalled();
+    expect(updateMock).toHaveBeenCalledWith({ scheduled_date: '2030-01-04', delivery_date: '2030-01-06' });
+    expect(eqMock).toHaveBeenCalledWith('id', 'order-1');
+    expect(result).toEqual({
+      success: true,
+      newPickupDate: '2030-01-04',
+      newDeliveryDate: '2030-01-06',
+      cleanerChanged: false,
+      newCleanerName: undefined,
+    });
+  });
+
+  it('reassigns to an available cleaner when the current one does not work on the new day', async () => {
+    withScheduledOrder(WORKS_NEVER);
+    m(findAvailableCleaner).mockResolvedValue({ id: 'cleaner-2', display_name: 'Ola' });
+
+    const result = await updateOrderPickupDateAction('order-1', '2030-01-04');
+
+    expect(findAvailableCleaner).toHaveBeenCalledWith('Oslo', expect.any(Date));
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scheduled_date: '2030-01-04',
+        delivery_date: '2030-01-06',
+        cleaner_id: 'cleaner-2',
+        assigned_at: expect.any(String),
+      })
+    );
+    expect(result).toMatchObject({ success: true, cleanerChanged: true, newCleanerName: 'Ola' });
+  });
+
+  it('fails when no replacement cleaner is available', async () => {
+    withScheduledOrder(WORKS_NEVER);
+    m(findAvailableCleaner).mockResolvedValue(null);
+
+    const result = await updateOrderPickupDateAction('order-1', '2030-01-04');
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Ingen rensere tilgjengelig på denne dagen. Vennligst velg en annen dato.',
+    });
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it('surfaces a database failure', async () => {
+    withScheduledOrder();
+    eqMock.mockResolvedValue({ error: { message: 'boom' } });
+
+    const result = await updateOrderPickupDateAction('order-1', '2030-01-04');
+
+    expect(result).toEqual({ success: false, error: 'Kunne ikke oppdatere hentedato' });
   });
 });
