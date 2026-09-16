@@ -150,11 +150,23 @@ export async function createSubscriptionAction(
 
   const isRecurring = frequency !== 'on_demand';
 
-  // Only check for existing active subscription for recurring orders
+  // Recurring orders: a customer can hold one subscription at a time.
+  // - 'active' blocks a new checkout.
+  // - 'pending_payment' is an abandoned Vipps checkout. The partial unique index
+  //   idx_subscriptions_one_active_per_customer counts pending_payment rows, so
+  //   the stale row must be cancelled before a new subscription can be inserted.
+  //   cancelSubscriptionAction re-checks ownership, cancels the row (it has no
+  //   orders yet) and stops the old Vipps agreement best-effort.
   if (isRecurring) {
     const existingSubscription = await getActiveSubscriptionByCustomerId(customer.id);
-    if (existingSubscription) {
+    if (existingSubscription?.status === 'active') {
       return { displayError: "Du har allerede et aktivt abonnement", error: "Customer already has an active subscription" };
+    }
+    if (existingSubscription) {
+      const discarded = await cancelSubscriptionAction(existingSubscription.id);
+      if (!discarded.success) {
+        return { displayError: "Kunne ikke starte en ny bestilling. Prøv igjen.", error: "Failed to discard pending subscription" };
+      }
     }
   }
 
@@ -973,46 +985,42 @@ export async function updateOrderPickupDateAction(
     // Calculate new delivery date
     const newDeliveryDate = toISODateString(addDays(pickupDate, DAYS_PICKUP_TO_DELIVERY));
 
-    // Smart cleaner reassignment
-    const adminClient = createAdminClient();
-    let newCleanerId = order.assigned_cleaner_id;
+    // Smart cleaner reassignment: keep the current cleaner if they work on the
+    // new weekday, otherwise hand the order to one who does. The cleaner row is
+    // already joined by getOrderWithDetailsByIdAndCustomerId (order.cleaner), so
+    // no extra query is needed.
+    let newCleanerId = order.cleaner_id;
     let cleanerChanged = false;
     let newCleanerName: string | undefined;
 
-    if (order.assigned_cleaner_id) {
-      // Check if current cleaner works on new weekday
-      const { data: currentCleaner } = await adminClient
-        .from('cleaners')
-        .select('id, display_name, weekly_schedule')
-        .eq('id', order.assigned_cleaner_id)
-        .single();
+    if (order.cleaner_id && order.cleaner) {
+      const cleanerWorksOnNewDay = isWeekdayInSchedule(order.cleaner.weekly_schedule, newWeekday);
 
-      if (currentCleaner) {
-        const cleanerWorksOnNewDay = isWeekdayInSchedule(currentCleaner.weekly_schedule, newWeekday);
-
-        if (!cleanerWorksOnNewDay) {
-          // Find new cleaner
-          const newCleaner = await findAvailableCleaner(order.city, pickupDate);
-          if (!newCleaner) {
-            return {
-              success: false,
-              error: 'Ingen rensere tilgjengelig på denne dagen. Vennligst velg en annen dato.'
-            };
-          }
-          newCleanerId = newCleaner.id;
-          cleanerChanged = true;
-          newCleanerName = newCleaner.display_name;
+      if (!cleanerWorksOnNewDay) {
+        const newCleaner = await findAvailableCleaner(order.city, pickupDate);
+        if (!newCleaner) {
+          return {
+            success: false,
+            error: 'Ingen rensere tilgjengelig på denne dagen. Vennligst velg en annen dato.'
+          };
         }
+        newCleanerId = newCleaner.id;
+        cleanerChanged = true;
+        newCleanerName = newCleaner.display_name;
       }
     }
 
-    // Update order
+    // Update order. cleaner_id / assigned_at are only written when the cleaner
+    // actually changed, so an unchanged assignment keeps its original timestamp.
+    const adminClient = createAdminClient();
     const { error } = await adminClient
       .from('orders')
       .update({
         scheduled_date: newPickupDate,
         delivery_date: newDeliveryDate,
-        assigned_cleaner_id: newCleanerId,
+        ...(cleanerChanged
+          ? { cleaner_id: newCleanerId, assigned_at: new Date().toISOString() }
+          : {}),
       })
       .eq('id', orderId);
 

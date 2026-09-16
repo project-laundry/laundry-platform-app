@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Plus, CalendarPlus } from 'lucide-react';
+import { Plus, CalendarPlus, AlertCircle } from 'lucide-react';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { createClient } from '@/lib/supabase/server';
 import { getCustomerByUserId } from '@/lib/database/customers';
@@ -125,13 +125,26 @@ export default async function DashboardPage() {
               )}
             </div>
 
-            {/* Subscription strip */}
+            {/* Subscription strip — or a warning when the Vipps checkout was never completed */}
             {subscription && (
               <div
                 className="mt-4 animate-in fade-in slide-in-from-bottom-3 duration-500"
                 style={{ animationDelay: '120ms' }}
               >
-                <SubscriptionStrip subscription={subscription} />
+                {subscription.status === 'pending_payment' ? (
+                  <div className="flex items-start gap-2 rounded-2xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
+                    <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                    <p>
+                      Betalingen for abonnementet ditt ble ikke fullført.{' '}
+                      <Link href="/orders/wash" className="font-medium underline underline-offset-2">
+                        Bestill på nytt
+                      </Link>{' '}
+                      for å starte abonnementet.
+                    </p>
+                  </div>
+                ) : (
+                  <SubscriptionStrip subscription={subscription} />
+                )}
               </div>
             )}
 

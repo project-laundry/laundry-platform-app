@@ -18,12 +18,12 @@ export async function selectCleanerWithLeastWorkload(cleaners: Cleaner[]): Promi
   const supabase = createAdminClient();
   const cleanerIds = cleaners.map(c => c.id);
 
-  // Get active order counts for each cleaner
+  // Count non-terminal orders per cleaner (anything not completed/cancelled)
   const { data: orders, error: ordersError } = await supabase
     .from('orders')
-    .select('assigned_cleaner_id')
-    .in('assigned_cleaner_id', cleanerIds)
-    .in('status', ['pending', 'assigned', 'picked_up', 'in_progress', 'ready_for_delivery', 'out_for_delivery']);
+    .select('cleaner_id')
+    .in('cleaner_id', cleanerIds)
+    .in('status', ['pickup_scheduled', 'picked_up', 'in_cleaning', 'ready_for_delivery', 'out_for_delivery']);
 
   if (ordersError) {
     // If we can't get order counts, fall back to random selection
@@ -36,9 +36,9 @@ export async function selectCleanerWithLeastWorkload(cleaners: Cleaner[]): Promi
   cleanerIds.forEach(id => orderCounts.set(id, 0));
 
   orders?.forEach(order => {
-    if (order.assigned_cleaner_id) {
-      const current = orderCounts.get(order.assigned_cleaner_id) || 0;
-      orderCounts.set(order.assigned_cleaner_id, current + 1);
+    if (order.cleaner_id) {
+      const current = orderCounts.get(order.cleaner_id) || 0;
+      orderCounts.set(order.cleaner_id, current + 1);
     }
   });
 
