@@ -34,4 +34,5 @@ export {
   isVippsConfigured,
   getVippsEnvironment,
   isVippsTestEnvironment,
+  pickVippsTestPhone,
 } from './config';
