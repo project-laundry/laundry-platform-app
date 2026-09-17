@@ -13,11 +13,20 @@ vi.mock('@/lib/database/cleaners', () => ({
 }));
 vi.mock('@/lib/maps/geocoding', () => ({ geocodeAddress: vi.fn() }));
 vi.mock('@/lib/auth/require-role', () => ({ assertRole: vi.fn() }));
+vi.mock('@/lib/ai/machine-recognition', () => ({
+  MAX_IMAGE_BASE64_LENGTH: 900_000,
+  recognizeWashingMachine: vi.fn(),
+}));
 
 import { createCleaner, getCleanerByUserId, isTaxIdTaken } from '@/lib/database/cleaners';
 import { geocodeAddress } from '@/lib/maps/geocoding';
 import { assertRole } from '@/lib/auth/require-role';
-import { checkTaxIdAvailabilityAction, createCleanerProfileAction } from './actions';
+import { recognizeWashingMachine } from '@/lib/ai/machine-recognition';
+import {
+  checkTaxIdAvailabilityAction,
+  createCleanerProfileAction,
+  recognizeMachineAction,
+} from './actions';
 
 const m = (fn: unknown) => fn as Mock;
 
@@ -52,6 +61,7 @@ beforeEach(() => {
     auth: { authUserId: 'user-1', dbUser: { id: 'user-1', role: 'cleaner' } },
     error: null,
   });
+  m(recognizeWashingMachine).mockResolvedValue({ status: 'unavailable' });
 });
 
 describe('createCleanerProfileAction', () => {
@@ -295,5 +305,63 @@ describe('checkTaxIdAvailabilityAction', () => {
 
     expect(result).toEqual({ taken: false });
     expect(isTaxIdTaken).not.toHaveBeenCalled();
+  });
+});
+
+describe('recognizeMachineAction', () => {
+  const VALID_INPUT = { imageBase64: 'aGVsbG8=', mediaType: 'image/jpeg' as const };
+
+  it('passes a valid payload to the recognition service and returns its result', async () => {
+    m(recognizeWashingMachine).mockResolvedValue({
+      status: 'ok',
+      suggestion: { brandModel: 'Bosch Serie 6', capacityKg: 9, year: null, condition: 'good' },
+    });
+
+    const result = await recognizeMachineAction(VALID_INPUT);
+
+    expect(result).toEqual({
+      status: 'ok',
+      suggestion: { brandModel: 'Bosch Serie 6', capacityKg: 9, year: null, condition: 'good' },
+    });
+    expect(recognizeWashingMachine).toHaveBeenCalledWith({ data: 'aGVsbG8=', mediaType: 'image/jpeg' });
+  });
+
+  it('skips the service when the caller is not a cleaner', async () => {
+    m(assertRole).mockResolvedValue({ auth: null, error: 'Ingen tilgang' });
+
+    const result = await recognizeMachineAction(VALID_INPUT);
+
+    expect(result).toEqual({ status: 'unavailable' });
+    expect(recognizeWashingMachine).not.toHaveBeenCalled();
+  });
+
+  it('rejects a data-URL prefixed or otherwise non-base64 payload', async () => {
+    const result = await recognizeMachineAction({
+      ...VALID_INPUT,
+      imageBase64: 'data:image/jpeg;base64,aGVsbG8=',
+    });
+
+    expect(result).toEqual({ status: 'unavailable' });
+    expect(recognizeWashingMachine).not.toHaveBeenCalled();
+  });
+
+  it('rejects an empty or oversized payload', async () => {
+    expect(await recognizeMachineAction({ ...VALID_INPUT, imageBase64: '' })).toEqual({
+      status: 'unavailable',
+    });
+    expect(
+      await recognizeMachineAction({ ...VALID_INPUT, imageBase64: 'a'.repeat(900_001) })
+    ).toEqual({ status: 'unavailable' });
+    expect(recognizeWashingMachine).not.toHaveBeenCalled();
+  });
+
+  it('rejects an unsupported media type', async () => {
+    const result = await recognizeMachineAction({
+      imageBase64: 'aGVsbG8=',
+      mediaType: 'image/heic' as unknown as 'image/jpeg',
+    });
+
+    expect(result).toEqual({ status: 'unavailable' });
+    expect(recognizeWashingMachine).not.toHaveBeenCalled();
   });
 });

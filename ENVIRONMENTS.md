@@ -49,6 +49,7 @@ Staging/production values are set **per environment** in the Vercel dashboard.
 | `VIPPS_CLIENT_ID` / `_SECRET` / `_SUBSCRIPTION_KEY` / `_MERCHANT_SERIAL_NUMBER` | Vipps **test** creds | Vipps **live** creds |
 | `VIPPS_WEBHOOK_SECRET_RECURRING` | staging webhook secret | prod webhook secret |
 | `GOOGLE_MAPS_API_KEY` | Maps Platform key (Geocoding API enabled) | same, or a prod-restricted key |
+| `ANTHROPIC_API_KEY` | Anthropic API key (cleaner onboarding photo recognition; optional) | separate prod key from the Anthropic Console |
 
 > `CRON_SECRET` is not used anywhere in `src/` (order generation is webhook-driven).
 > It is intentionally omitted.
