@@ -4,6 +4,7 @@ import {
   isVippsConfigured,
   getVippsEnvironment,
   isVippsTestEnvironment,
+  pickVippsTestPhone,
 } from './config';
 
 const REQUIRED = [
@@ -52,5 +53,21 @@ describe('getVippsEnvironment', () => {
     vi.stubEnv('VIPPS_API_URL', 'https://api.vipps.no');
     expect(getVippsEnvironment()).toBe('production');
     expect(isVippsTestEnvironment()).toBe(false);
+  });
+});
+
+describe('pickVippsTestPhone', () => {
+  it('returns a whitelisted Vipps test number', () => {
+    expect(pickVippsTestPhone('a1b2c3')).toMatch(/^47\d{8}$/);
+  });
+
+  it('is deterministic for the same customer', () => {
+    expect(pickVippsTestPhone('customer-1')).toBe(pickVippsTestPhone('customer-1'));
+  });
+
+  it('spreads different customers across the pool', () => {
+    const ids = Array.from({ length: 50 }, (_, i) => `customer-${i}`);
+    const distinct = new Set(ids.map(pickVippsTestPhone));
+    expect(distinct.size).toBeGreaterThan(1);
   });
 });

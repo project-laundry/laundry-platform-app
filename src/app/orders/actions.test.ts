@@ -27,7 +27,10 @@ vi.mock('@/lib/payments/vipps/service', () => ({
   createVippsAgreement: vi.fn(),
   cancelVippsAgreement: vi.fn(),
 }));
-vi.mock('@/lib/payments/vipps/config', () => ({ isVippsTestEnvironment: vi.fn() }));
+vi.mock('@/lib/payments/vipps/config', () => ({
+  isVippsTestEnvironment: vi.fn(),
+  pickVippsTestPhone: vi.fn(),
+}));
 vi.mock('@/lib/payments/vipps/recurring-client', () => ({ createVippsRecurringClient: vi.fn() }));
 vi.mock('@/lib/database/orders', () => ({
   getMostRecentOrderAddressByCustomerId: vi.fn(),

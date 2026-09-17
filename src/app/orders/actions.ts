@@ -12,7 +12,7 @@ import {
   getAvailableWeekdaysForCity,
 } from "@/lib/database/cleaners";
 import { createVippsAgreement } from "@/lib/payments/vipps/service";
-import { isVippsTestEnvironment } from "@/lib/payments/vipps/config";
+import { isVippsTestEnvironment, pickVippsTestPhone } from "@/lib/payments/vipps/config";
 import { createVippsRecurringClient } from "@/lib/payments/vipps/recurring-client";
 import { getWeekdayFromDate, isWeekdayInSchedule, addDays, toISODateString } from "@/lib/utils/date";
 import { DAYS_PICKUP_TO_DELIVERY, MIN_DAYS_NOTICE } from "@/lib/config/order-timing";
@@ -379,8 +379,9 @@ export async function validatePromoCodeAction(
  *
  * Flow:
  * 1. Validates test environment
- * 2. Gets user phone number from auth metadata
- * 3. Calls Vipps forceAcceptAgreement API
+ * 2. Verifies the caller owns the agreement
+ * 3. Calls Vipps forceAcceptAgreement API with a whitelisted Vipps test phone
+ *    (picked deterministically per customer, see pickVippsTestPhone)
  * 4. Polls subscription status until webhook activates it
  * 5. Returns success or error
  *
@@ -399,7 +400,7 @@ export async function forceAcceptAgreementAction(
       };
     }
 
-    // 2. Get authenticated user and phone number from users table
+    // 2. Get authenticated user
     const supabase = await createClient();
     const {
       data: { user: authUser },
@@ -411,25 +412,6 @@ export async function forceAcceptAgreementAction(
         error: 'Ikke autentisert',
       };
     }
-
-    // Fetch phone number from users table
-    const { data: dbUser, error: userError } = await supabase
-      .from('users')
-      .select('phone')
-      .eq('id', authUser.id)
-      .single();
-
-    if (userError || !dbUser?.phone) {
-      return {
-        success: false,
-        error: 'Telefonnummer mangler. Vennligst oppdater profilen din.',
-      };
-    }
-
-    const phoneNumber = dbUser.phone;
-
-    // Format phone number: Remove +47 prefix (Vipps expects format: 4712345678)
-    const formattedPhone = phoneNumber.replace(/^\+/, '');
 
     // 3. Get payment agreement to verify ownership
     const paymentAgreement = await getPaymentAgreementByProviderId(agreementId);
@@ -449,9 +431,11 @@ export async function forceAcceptAgreementAction(
       };
     }
 
-    // 4. Call Vipps forceAcceptAgreement API
+    // 4. Call Vipps forceAcceptAgreement API with a whitelisted Vipps test user.
+    // The phone the tester typed at signup is not a Vipps test user, so it
+    // can't be used here.
     const vippsClient = createVippsRecurringClient();
-    await vippsClient.forceAcceptAgreement(agreementId, formattedPhone);
+    await vippsClient.forceAcceptAgreement(agreementId, pickVippsTestPhone(customer.id));
 
     // 5. Poll payment agreement status until active (max 30 seconds)
     const maxAttempts = 30;
