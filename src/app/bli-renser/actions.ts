@@ -8,6 +8,12 @@ import {
   isTaxIdTaken,
 } from "@/lib/database/cleaners";
 import { geocodeAddress } from "@/lib/maps/geocoding";
+import {
+  MAX_IMAGE_BASE64_LENGTH,
+  recognizeWashingMachine,
+  type MachineImageMediaType,
+  type MachineRecognitionResult,
+} from "@/lib/ai/machine-recognition";
 import { getCityFromPostalCode } from "@/lib/config/postal-codes";
 import {
   taxIdTakenMessage,
@@ -49,6 +55,40 @@ export async function checkTaxIdAvailabilityAction(input: {
   }
 
   return { taken: await isTaxIdTaken(taxId) };
+}
+
+const ALLOWED_IMAGE_TYPES: readonly MachineImageMediaType[] = ["image/jpeg", "image/png", "image/webp"];
+const BASE64_PATTERN = /^[A-Za-z0-9+/]+={0,2}$/;
+
+/**
+ * Step-3 helper: ask Claude what washing machine is in the photo so the
+ * equipment form can pre-fill brand/model, capacity, year and condition.
+ * The cleaner can edit every suggested value; the photo is not stored.
+ * Cleaner-only — the (steps) layout guarantees the caller is a signed-in
+ * cleaner without a profile. A failed role guard, a bad media type or an
+ * oversized/invalid payload reports "unavailable": the form shows a short
+ * message and the cleaner fills the fields manually.
+ */
+export async function recognizeMachineAction(input: {
+  imageBase64: string;
+  mediaType: MachineImageMediaType;
+}): Promise<MachineRecognitionResult> {
+  const { error } = await assertRole(["cleaner"]);
+  if (error) {
+    return { status: "unavailable" };
+  }
+
+  const data = input.imageBase64 ?? "";
+  if (
+    !ALLOWED_IMAGE_TYPES.includes(input.mediaType) ||
+    data.length === 0 ||
+    data.length > MAX_IMAGE_BASE64_LENGTH ||
+    !BASE64_PATTERN.test(data)
+  ) {
+    return { status: "unavailable" };
+  }
+
+  return recognizeWashingMachine({ data, mediaType: input.mediaType });
 }
 
 /**

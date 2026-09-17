@@ -99,7 +99,7 @@ src/
 │   │   ├── (steps)/        # Route group: server layout = cleaner-only + no-profile guard; StepGuard = step order
 │   │   │   ├── business/   # Step 1: business type, tax id (uniqueness pre-check), bank account
 │   │   │   ├── services/   # Step 2: base address (where the cleaner washes) + note to the driver
-│   │   │   ├── equipment/  # Step 3: washing machine (stored on cleaners.machine_*)
+│   │   │   ├── equipment/  # Step 3: washing machine (stored on cleaners.machine_*); optional photo → recognizeMachineAction pre-fills the fields (resize-image.ts is the browser-side JPEG downscale)
 │   │   │   ├── profile/    # Step 4: display name + experience
 │   │   │   └── confirm/    # Step 5: summary + consent → createCleanerProfileAction
 │   │   └── success/        # Application submitted
@@ -125,6 +125,7 @@ src/
 │       └── LogoutButton.tsx
 ├── hooks/                  # Custom React hooks (empty)
 ├── lib/                    # Core utilities and business logic
+│   ├── ai/                 # Claude integration: machine-recognition.ts (photo → machine suggestion, never throws), config.ts (ANTHROPIC_API_KEY)
 │   ├── auth/               # requireRole/assertRole guards (require-role.ts); signup error mapping (signup-errors.ts)
 │   ├── config/
 │   │   └── pricing.ts      # Pricing constants and both calculators: calculateOrderPrice (cleaner-binding: per 5kg load + 3 ironing groups) and calculateCustomerEstimate (customer estimate: per bag/set/piece)
@@ -168,7 +169,7 @@ Server actions handle mutations from the UI:
 
 - `app/orders/actions.ts` - Subscription creation, Vipps agreement creation, customer queries
 - `app/auth/actions.ts` - Public signup pre-check (`checkSignupAvailabilityAction`): both signup forms call it before `supabase.auth.signUp` because Supabase Auth hides which constraint failed inside `handle_new_user`; the `signUp` result is then mapped by `lib/auth/signup-errors.ts`
-- `app/bli-renser/actions.ts` - Cleaner profile creation (`createCleanerProfileAction`) and the step-1 tax id pre-check (`checkTaxIdAvailabilityAction`): `cleaners.tax_id` is UNIQUE, so the business form checks it before advancing instead of letting the final insert fail on step 5; the action also maps a `23505` from the insert to the same message as a race fallback
+- `app/bli-renser/actions.ts` - Cleaner profile creation (`createCleanerProfileAction`) and the step-1 tax id pre-check (`checkTaxIdAvailabilityAction`): `cleaners.tax_id` is UNIQUE, so the business form checks it before advancing instead of letting the final insert fail on step 5; the action also maps a `23505` from the insert to the same message as a race fallback; and the step-3 photo helper (`recognizeMachineAction`): guards with `assertRole(["cleaner"])`, validates the base64 payload, and returns `lib/ai/machine-recognition.ts`'s `{ status: 'ok' | 'no_machine' | 'unavailable' }` result for the form to pre-fill from
 - `app/admin/orders/actions.ts` - Cleaner (re)assignment, admin order edits (dates, address)
 - `app/admin/cleaners|drivers|admins|promo-codes/actions.ts` - Admin dashboard mutations (cleaner activation, staff account create/edit, promo code create/edit)
 
@@ -201,6 +202,16 @@ Addresses are geocoded into `latitude`/`longitude` so the cleaner dashboard can 
 - **Geocode at the source, propagate by copy**: addresses are geocoded once where they enter the system — checkout and address edit (`app/orders/actions.ts`) and cleaner onboarding (`app/bli-renser/actions.ts`). Customer coords are stored in `subscriptions.order_defaults.initial_address` and copied onto every generated order by `lib/services/order-generation.ts`. Cleaner coords live on the `cleaners` row.
 - **Graceful degradation**: geocoding failures return `null`; the address still saves with `latitude`/`longitude` as `NULL`. `saveOrderCoords` / `saveCleanerCoords` exist for lazily backfilling rows that are missing coordinates.
 - **Env**: `GOOGLE_MAPS_API_KEY` (enable the **Geocoding API**; Routes API will be added for route optimization).
+
+## Machine Photo Recognition
+
+Cleaner onboarding step 3 can pre-fill the washing machine fields from a photo. The photo is never stored.
+
+- **Service**: `lib/ai/machine-recognition.ts` (`recognizeWashingMachine` → `{ status: 'ok', suggestion } | { status: 'no_machine' } | { status: 'unavailable' }`, never throws) and `lib/ai/config.ts` (`ANTHROPIC_API_KEY`). Uses `@anthropic-ai/sdk` `messages.parse` with a zod 4 schema via `zodOutputFormat`, model `claude-opus-5`, `output_config.effort: 'medium'`.
+- **Client-side resize is mandatory**: `app/bli-renser/(steps)/equipment/resize-image.ts` downscales the picked file to a ≤1024 px JPEG before calling `recognizeMachineAction`. Server actions reject bodies over 1 MB, and the Claude API doesn't accept HEIC — do not raise `bodySizeLimit` instead.
+- **Suggestions overwrite, nulls don't**: each of the four fields (brand/model, capacity, year, condition) is independently nullable; non-null values replace what's typed, null leaves it. The cleaner edits freely afterwards; the store is only written on submit as before.
+- **Graceful degradation**: missing key, API error, refusal, unparsable output → `unavailable`; a photo without a washing machine → `no_machine`. Both show a short message; the step is always completable manually.
+- **Env**: `ANTHROPIC_API_KEY` (optional; see `ENVIRONMENTS.md`).
 
 ## Payment Processing
 
