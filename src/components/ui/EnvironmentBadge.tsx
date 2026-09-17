@@ -2,7 +2,7 @@ import { getAppEnvironment } from "@/lib/utils/environment";
 
 const LABELS: Record<string, { text: string; className: string }> = {
   staging: {
-    text: "STAGING",
+    text: "TEST",
     className: "bg-amber-50 text-amber-800",
   },
   development: {
