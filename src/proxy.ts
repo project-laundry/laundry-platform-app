@@ -1,10 +1,12 @@
-// Session refresh for @supabase/ssr (Next.js 16 proxy convention).
+// Session refresh for @supabase/ssr (Next.js 16 proxy convention), plus the
+// pre-launch gate for the production domain (src/lib/prelaunch.ts).
 // Server components can't always write refreshed auth cookies; running
 // getUser() here once per navigation persists refreshed tokens (see the
 // comment in lib/supabase/server.ts setAll).
 
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { shouldRedirectToComingSoon } from '@/lib/prelaunch';
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -30,7 +32,21 @@ export async function proxy(request: NextRequest) {
   );
 
   // Refresh the session if expired so server components see a valid user.
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Pre-launch: nooracare.no shows only the coming-soon pages; the full app
+  // lives on test.nooracare.no until launch.
+  if (
+    shouldRedirectToComingSoon({
+      host: request.headers.get('host'),
+      pathname: request.nextUrl.pathname,
+      hasSession: user !== null,
+    })
+  ) {
+    return NextResponse.redirect(new URL('/', request.url));
+  }
 
   return response;
 }

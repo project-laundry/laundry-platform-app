@@ -54,6 +54,27 @@ Staging/production values are set **per environment** in the Vercel dashboard.
 > `CRON_SECRET` is not used anywhere in `src/` (order generation is webhook-driven).
 > It is intentionally omitted.
 
+**Pre-launch gate (no env var):** `src/proxy.ts` checks the request host against
+`src/lib/prelaunch.ts`. On `nooracare.no` / `www.nooracare.no`, anonymous visitors only reach
+the coming-soon pages, legal/contact pages, the price calculator and `/admin`; login, signup,
+the order flow and the parked `*/lansering` pages redirect to `/`. `test.nooracare.no`,
+localhost and Vercel previews are never gated, so the full app is tested on staging. Delete
+the gate at launch. Note that this also blocks `/auth/login` on production, so admins cannot
+sign in on `nooracare.no` until the gate is removed.
+
+### Launch checklist
+
+1. Delete `src/lib/prelaunch.ts`, its test, and the gate block in `src/proxy.ts`.
+2. Move `src/app/lansering/page.tsx` to `src/app/page.tsx` and `src/app/bli-renser/lansering/page.tsx`
+   to `src/app/bli-renser/page.tsx`; drop their `robots: { index: false }`; delete the coming-soon
+   pages and `src/components/coming-soon/` (keep `launch.ts` only if something still imports it).
+3. Create the promo code behind the waitlist offer (first `WAITLIST_OFFER_SPOTS` signups get the
+   first wash at half price — `src/components/coming-soon/launch.ts`) and email it to those rows
+   of `waitlist_signups`; everyone else gets the plain "we're open" email.
+4. Update the share images (`src/app/opengraph-image.tsx`, `src/app/bli-renser/opengraph-image.tsx`)
+   from "Snart slipper du …" to launch copy.
+5. Delete `waitlist_signups` rows no later than six months after launch (`/personvern#venteliste`).
+
 ---
 
 ## Setup checklist

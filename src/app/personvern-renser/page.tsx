@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { Navbar } from "@/components/landing/Navbar";
+import { MarketingNav } from '@/components/landing/MarketingNav';
 import { Footer } from "@/components/landing/Footer";
 
 export const metadata: Metadata = {
@@ -21,7 +21,7 @@ export default function PersonvernRenserPage() {
             'radial-gradient(120% 80% at 50% -10%, hsl(var(--sea-green) / 0.16), transparent 60%), radial-gradient(90% 60% at 110% 10%, hsl(var(--nordic-blue) / 0.10), transparent 55%)',
         }}
       />
-      <Navbar />
+      <MarketingNav />
       <main className="min-h-screen pt-24 pb-16">
         <div className="mx-auto max-w-2xl px-5">
             {/* Header */}

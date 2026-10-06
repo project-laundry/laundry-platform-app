@@ -8,7 +8,9 @@ import { EnvironmentBadge } from "@/components/ui/EnvironmentBadge";
 import { createClient } from "@/lib/supabase/client";
 import type { UserRole } from "@/types/database";
 
-export function Navbar() {
+/** `prelaunch`: rendered on the gated production host (see MarketingNav) —
+ *  no auth buttons, no links to sections that only exist on the launch page. */
+export function Navbar({ prelaunch = false }: { prelaunch?: boolean }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -24,6 +26,7 @@ export function Navbar() {
   }, []);
 
   useEffect(() => {
+    if (prelaunch) return; // nobody can sign in on the gated host
     const checkAuth = async () => {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
@@ -48,13 +51,18 @@ export function Navbar() {
     };
 
     checkAuth();
-  }, []);
+  }, [prelaunch]);
 
-  const navLinks = [
-    { href: "/#slik-virker-det", label: "Slik virker det" },
-    { href: "/pris-kalkulator", label: "Priser" },
-    { href: "/#områder", label: "Områder" },
-  ];
+  const navLinks = prelaunch
+    ? [
+        { href: "/#slik-virker-det", label: "Slik virker det" },
+        { href: "/pris-kalkulator", label: "Priser" },
+      ]
+    : [
+        { href: "/#slik-virker-det", label: "Slik virker det" },
+        { href: "/pris-kalkulator", label: "Priser" },
+        { href: "/#områder", label: "Områder" },
+      ];
 
   const getDashboardUrl = () => {
     if (userRole === 'admin') return '/admin';
@@ -108,7 +116,11 @@ export function Navbar() {
 
           {/* Desktop Auth Buttons */}
           <div className="hidden items-center gap-3 md:flex">
-            {isAuthenticated ? (
+            {prelaunch ? (
+              <Link href="/" className={primaryPill}>
+                Sett meg på listen
+              </Link>
+            ) : isAuthenticated ? (
               <Link href={getDashboardUrl()} className={primaryPill}>
                 Dashboard
               </Link>
@@ -165,7 +177,15 @@ export function Navbar() {
               )
             ))}
             <div className="space-y-3 pt-4">
-              {isAuthenticated ? (
+              {prelaunch ? (
+                <Link
+                  href="/"
+                  className={`${primaryPill} w-full`}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Sett meg på listen
+                </Link>
+              ) : isAuthenticated ? (
                 <Link
                   href={getDashboardUrl()}
                   className={`${primaryPill} w-full`}
