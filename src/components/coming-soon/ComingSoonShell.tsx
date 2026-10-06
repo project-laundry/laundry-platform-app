@@ -132,9 +132,9 @@ export function ComingSoonHero({
           style={{ animationDelay: '180ms' }}
         >
           {offer && (
-            <p className="mb-4 flex items-start gap-2.5 rounded-2xl bg-fersken px-4 py-3 text-sm text-fjord shadow-soft">
-              <Gift className="mt-0.5 size-4 shrink-0" />
-              <span className="flex flex-wrap items-baseline gap-x-1.5">
+            <p className="mb-4 flex items-start gap-2.5 rounded-2xl bg-fersken px-3.5 py-3 text-[clamp(11.5px,calc((100vw_-_100px)/24),14px)] text-fjord shadow-soft sm:px-4 sm:text-sm">
+              <Gift className="mt-0.5 hidden size-4 shrink-0 sm:block" />
+              <span className="flex flex-wrap items-baseline gap-x-1">
                 <span className="font-semibold">{offer.title}</span>
                 <span>{offer.detail}</span>
               </span>
