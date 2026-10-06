@@ -1,4 +1,4 @@
-import { PRICING, CLEANER_PAYOUT_PER_LOAD_ORE, formatKr } from '@/lib/config/pricing';
+import { PRICING, CLEANER_MIN_PAYOUT_PER_ORDER_ORE, formatKr } from '@/lib/config/pricing';
 
 /** Cleaner FAQ, shared by the coming-soon page (a subset) and the full
  *  landing page so the answers can't drift. Keys let pages pick entries. */
@@ -17,7 +17,7 @@ export const CLEANER_FAQ = {
   },
   earnings: {
     q: 'Hvor mye tjener jeg?',
-    a: `Du får ${PRICING.cleaner_payout_percent} % av totalprisen på hvert oppdrag. En vask – én full maskin, inntil 5 kg – koster kunden ${formatKr(PRICING.price_per_load_ore)}, så du sitter igjen med ca. ${formatKr(CLEANER_PAYOUT_PER_LOAD_ORE)} per vask.`,
+    a: `Du får ${PRICING.cleaner_payout_percent} % av totalprisen på hvert oppdrag. Minste bestilling er ${formatKr(PRICING.minimum_order_ore)}, så du tjener minst ${formatKr(CLEANER_MIN_PAYOUT_PER_ORDER_ORE)} per oppdrag – og mer når kunden sender flere vask. En vask er én full maskin, inntil 5 kg.`,
   },
   turnaround: {
     q: 'Hvor raskt må tøyet være klart?',

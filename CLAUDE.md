@@ -133,7 +133,7 @@ src/
 │   ├── ai/                 # Claude integration: machine-recognition.ts (photo → machine suggestion, never throws), config.ts (ANTHROPIC_API_KEY)
 │   ├── auth/               # requireRole/assertRole guards (require-role.ts); signup error mapping (signup-errors.ts)
 │   ├── config/
-│   │   └── pricing.ts      # Pricing constants and both calculators: calculateOrderPrice (cleaner-binding: per 5kg load + 3 ironing groups) and calculateCustomerEstimate (customer estimate: per bag/set/piece). Ironing groups exist in the model but are NOT offered in the first version — hidden on every public surface, see BUSINESS_LOGIC.md "Ironing". CLEANER_PAYOUT_PER_LOAD_ORE is the "ca. 160 kr per vask" cleaner marketing leads with
+│   │   └── pricing.ts      # Pricing constants and both calculators: calculateOrderPrice (cleaner-binding: per 5kg load + 3 ironing groups) and calculateCustomerEstimate (customer estimate: per bag/set/piece). Ironing groups exist in the model but are NOT offered in the first version — hidden on every public surface, see BUSINESS_LOGIC.md "Ironing". CLEANER_MIN_PAYOUT_PER_ORDER_ORE is the "minst 350 kr per oppdrag" cleaner marketing leads with (70 % of the 500 kr order minimum)
 │   ├── database/           # Database CRUD operations
 │   │   ├── cleaners.ts     # Cleaner queries & matching
 │   │   ├── customers.ts    # Customer queries
@@ -169,7 +169,7 @@ src/
 └── proxy.ts                # Supabase session refresh + pre-launch gate
 ```
 
-**Customer-facing wording:** customers count **poser** ("fra 119 kr per pose", `PRICING.per_bag_ore`); cleaners count **vask** — one full machine, up to 5 kg (`PRICING.price_per_load_ore`). Mention the kilos only where a cleaner needs the definition (FAQ, payout box, dashboard), never on customer surfaces. Don't promise turnaround times, free delivery, ironing or a quality guarantee anywhere — see the honest-claims note in `components/landing/Hero.tsx`.
+**Customer-facing wording:** customers count **poser** (`PRICING.per_bag_ore`), and the per-bag price is never shown without the order minimum next to it ("119 kr per pose, minste bestilling 500 kr") — on its own it reads as a 119 kr order. Cleaners count **vask** — one full machine, up to 5 kg (`PRICING.price_per_load_ore`); mention the kilos only where a cleaner needs the definition (FAQ, payout box, dashboard), never on customer surfaces. Cleaner earnings are quoted as the guaranteed minimum per order (`CLEANER_MIN_PAYOUT_PER_ORDER_ORE`), not a per-load figure. "Nabo" is a sales pitch, not a description: fine in headlines, tab titles, share images and cross-promos, but whoever actually washes is "en lokal renser" / "en godkjent renser i området" — never "i nabolaget". Don't promise turnaround times, free delivery, ironing or a quality guarantee anywhere — see the honest-claims note in `components/landing/Hero.tsx`.
 
 ## Architecture Patterns
 

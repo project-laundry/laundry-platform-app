@@ -83,8 +83,9 @@ export function ComingSoonHero({
   /** Second headline line, set in Morgensol. */
   highlight: string;
   subtitle: string;
-  /** The concrete reason to sign up today, shown inside the form card. */
-  offer?: string;
+  /** The concrete reason to sign up today, shown inside the form card as two
+   *  short lines so it never wraps awkwardly on a phone. */
+  offer?: { title: string; detail: string };
   count: number | null;
 }) {
   return (
@@ -99,7 +100,7 @@ export function ComingSoonHero({
         }}
       />
       {/* Scattered bubbles, like the ones rising from the logo's towel stack. */}
-      <Bubbles className="absolute left-[6%] top-[18%] -z-10 size-10 opacity-40 sm:size-14" tone="text-frost" />
+      <Bubbles className="absolute left-[6%] top-[18%] -z-10 hidden size-14 opacity-40 sm:block" tone="text-frost" />
       <Bubbles className="absolute bottom-[14%] right-[7%] -z-10 size-12 rotate-45 opacity-50 sm:size-20" />
       <Bubbles className="absolute bottom-[22%] left-[10%] -z-10 hidden size-8 -rotate-12 opacity-30 sm:block" tone="text-fersken" />
 
@@ -131,9 +132,12 @@ export function ComingSoonHero({
           style={{ animationDelay: '180ms' }}
         >
           {offer && (
-            <p className="mb-4 flex items-start gap-2 rounded-2xl bg-sol/15 px-3.5 py-2.5 text-sm text-sno">
-              <Gift className="mt-0.5 size-4 shrink-0 text-sol" />
-              <span>{offer}</span>
+            <p className="mb-4 flex items-start gap-2.5 rounded-2xl bg-fersken px-4 py-3 text-sm text-fjord shadow-soft">
+              <Gift className="mt-0.5 size-4 shrink-0" />
+              <span className="flex flex-wrap items-baseline gap-x-1.5">
+                <span className="font-semibold">{offer.title}</span>
+                <span>{offer.detail}</span>
+              </span>
             </p>
           )}
           <WaitlistForm audience={audience} />

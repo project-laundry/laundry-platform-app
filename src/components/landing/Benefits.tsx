@@ -11,9 +11,9 @@ export function Benefits() {
     },
     {
       icon: Users,
-      title: "En nabo du kan stole på",
+      title: "En lokal renser du kan stole på",
       description:
-        "Tøyet vaskes av en godkjent renser i ditt eget nabolag – ikke et anonymt vaskeri.",
+        "Tøyet vaskes av en godkjent renser i området ditt – ikke et anonymt vaskeri.",
     },
     {
       icon: Wallet,
