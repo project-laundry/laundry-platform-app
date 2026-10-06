@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Users } from 'lucide-react';
+import { ArrowDown, ArrowRight, Gift, Users } from 'lucide-react';
 import { Wordmark } from '@/components/layout/AppHeader';
 import { Footer } from '@/components/landing/Footer';
 import { WaitlistForm } from '@/components/coming-soon/WaitlistForm';
@@ -8,13 +8,18 @@ import type { WaitlistAudience } from '@/types/database';
 // Below this many signups the counter does more harm than good, so it's hidden.
 const MIN_COUNT_TO_SHOW = 20;
 
+/** Anchor the hero's "scroll" hint points at; the page gives it to its steps section. */
+export const HOW_IT_WORKS_ID = 'slik-virker-det';
+
 /** Page shell shared by the two coming-soon pages: Snø backdrop for the
  *  sections, a transparent bar over the Fjord hero, footer. */
 export function ComingSoonShell({
+  audience,
   switchHref,
   switchLabel,
   children,
 }: {
+  audience: WaitlistAudience;
   switchHref: string;
   switchLabel: string;
   children: React.ReactNode;
@@ -46,7 +51,7 @@ export function ComingSoonShell({
 
       <main>{children}</main>
 
-      <Footer />
+      <Footer showPricing={audience === 'customer'} />
     </div>
   );
 }
@@ -69,6 +74,7 @@ export function ComingSoonHero({
   title,
   highlight,
   subtitle,
+  offer,
   count,
 }: {
   audience: WaitlistAudience;
@@ -77,6 +83,8 @@ export function ComingSoonHero({
   /** Second headline line, set in Morgensol. */
   highlight: string;
   subtitle: string;
+  /** The concrete reason to sign up today, shown inside the form card. */
+  offer?: string;
   count: number | null;
 }) {
   return (
@@ -122,6 +130,12 @@ export function ComingSoonHero({
           className="mx-auto mt-8 max-w-md rounded-3xl border border-sno/15 bg-sno/[0.07] p-5 text-left shadow-[0_30px_80px_-20px_rgb(0_0_0/0.45)] backdrop-blur-md sm:p-6 animate-in fade-in slide-in-from-bottom-3 duration-500"
           style={{ animationDelay: '180ms' }}
         >
+          {offer && (
+            <p className="mb-4 flex items-start gap-2 rounded-2xl bg-sol/15 px-3.5 py-2.5 text-sm text-sno">
+              <Gift className="mt-0.5 size-4 shrink-0 text-sol" />
+              <span>{offer}</span>
+            </p>
+          )}
           <WaitlistForm audience={audience} />
           {count !== null && count >= MIN_COUNT_TO_SHOW && (
             <p className="mt-4 flex items-center justify-center gap-1.5 text-sm text-sno/65">
@@ -130,6 +144,16 @@ export function ComingSoonHero({
             </p>
           )}
         </div>
+
+        {/* The hero fills the viewport, so say that there's more below it. */}
+        <a
+          href={`#${HOW_IT_WORKS_ID}`}
+          className="mt-10 inline-flex items-center gap-1.5 text-sm text-sno/60 transition-colors hover:text-sol animate-in fade-in duration-700"
+          style={{ animationDelay: '400ms' }}
+        >
+          Slik virker det
+          <ArrowDown className="size-4" />
+        </a>
       </div>
     </section>
   );
@@ -169,5 +193,60 @@ export function StepList({ steps }: { steps: { title: string; text: string }[] }
         </li>
       ))}
     </ol>
+  );
+}
+
+/** Expandable Q&A list. */
+export function FaqList({ items }: { items: readonly { q: string; a: string }[] }) {
+  return (
+    <div className="grid gap-3">
+      {items.map((item) => (
+        <details key={item.q} className={`group ${comingSoonCard}`}>
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-serif text-lg font-semibold text-dark-gray [&::-webkit-details-marker]:hidden">
+            {item.q}
+            <ArrowDown className="size-4 shrink-0 text-frost-deep transition-transform group-open:rotate-180" />
+          </summary>
+          <p className="mt-3 text-sm text-medium-gray">{item.a}</p>
+        </details>
+      ))}
+    </div>
+  );
+}
+
+/** Strip above the footer that sends visitors to the other audience's page.
+ *  A marketplace needs both sides; the customer page is where cleaners-to-be
+ *  land first, and vice versa. */
+export function CrossPromo({
+  eyebrow,
+  title,
+  text,
+  href,
+  cta,
+}: {
+  eyebrow: string;
+  title: string;
+  text: string;
+  href: string;
+  cta: string;
+}) {
+  return (
+    <section className="pb-12">
+      <div className="mx-auto max-w-5xl px-5">
+        <div className="flex flex-col gap-5 rounded-3xl bg-fjord p-6 text-sno shadow-[var(--shadow-card)] sm:flex-row sm:items-center sm:justify-between sm:p-8">
+          <div>
+            <p className="text-sm font-medium uppercase tracking-[0.18em] text-frost">{eyebrow}</p>
+            <h2 className="mt-1 font-serif text-2xl font-semibold">{title}</h2>
+            <p className="mt-2 max-w-lg text-sno/75">{text}</p>
+          </div>
+          <Link
+            href={href}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-sol px-6 py-3.5 font-semibold text-fjord shadow-soft transition-all hover:brightness-105 active:scale-[0.98]"
+          >
+            {cta}
+            <ArrowRight className="size-4" />
+          </Link>
+        </div>
+      </div>
+    </section>
   );
 }

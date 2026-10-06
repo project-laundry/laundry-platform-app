@@ -99,6 +99,11 @@ export function formatNokWhole(ore: number): string {
   return Math.round(oreToNok(ore)).toString();
 }
 
+/** What the cleaner keeps from one 5 kg load — the number cleaner marketing leads with. */
+export const CLEANER_PAYOUT_PER_LOAD_ORE = Math.round(
+  (PRICING.price_per_load_ore * PRICING.cleaner_payout_percent) / 100
+);
+
 /** Whole-krone formatting with unit — estimates read cleaner without decimals. */
 export function formatKr(ore: number): string {
   return `${Math.round(ore / 100).toLocaleString('nb-NO')} kr`;

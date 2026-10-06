@@ -531,7 +531,7 @@
 - `email` (varchar(255), required) - Lowercased, trimmed
 - `audience` (text, required) - `customer` | `cleaner`
 - `city` (text, required) - `bergen` | `oslo`
-- `created_at` (timestamp) - Signup time (also the consent timestamp — the form requires consent)
+- `created_at` (timestamp) - Signup time (also the consent timestamp — there is no checkbox; submitting the form is the consent, and the line under the button states exactly what it covers: one email when we open, no newsletter)
 
 **Notes:**
 

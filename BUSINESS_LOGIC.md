@@ -97,6 +97,10 @@ Customer subscribes Dec 26, 2025:
 
 **Note:** No fixed plan prices - fully flexible based on actual laundry volume and services.
 
+### Ironing (not in the first version)
+
+Ironing (stryking) is **not offered at launch**. The pricing model, `calculateOrderPrice`, `orders.customer_estimate` and the cleaner dashboard still carry the three ironing groups so the feature can be switched on later without a schema change, but no customer-facing surface shows it: the landing pages, the cleaner FAQ, the price calculator, the order flow (`/orders/wash`) and the customer's order edit all go through `SelectionEditor`, whose ironing section is off by default (`showIroning`). Ironing counts therefore stay 0, `needs_ironing` is always false, and the cleaner never sees ironing to register. Before ironing goes live: flip the `showIroning` default, add it back to the cleaner payout box and FAQ, and confirm cleaners are vetted for it in onboarding.
+
 ### Promo Codes & Discounts
 
 **Core Principle:** Codes are **shared** (one code, many customers) but redeemable **once per customer**. A discount applies to the **first order** of an agreement only, and is **platform-absorbed** (the cleaner is paid 70% of the full service price; only the customer's charge is reduced).
@@ -121,6 +125,20 @@ Customer subscribes Dec 26, 2025:
 **Enforcement summary:**
 - *Once per customer* → `UNIQUE(promo_code_id, customer_id)` on the ledger + a checkout lookup
 - *Global cap* (`max_redemptions`) → count of ledger rows for the code, checked at validation
+
+### Pre-launch Waitlist
+
+Until launch, `/` and `/bli-renser` collect a waitlist instead of taking orders or signups (the real pages are parked at `*/lansering` and gated on the production host — see [ENVIRONMENTS.md](./ENVIRONMENTS.md#launch-checklist)).
+
+**What we store:** email, audience (`customer` | `cleaner`), city (`bergen` | `oslo`) and the signup time — nothing else. See [WaitlistSignup](./ENTITIES.md#waitlistsignup).
+
+**Consent model:** no checkbox. The line under the button states the whole deal ("Én e-post når vi åpner, ingen nyhetsbrev") and submitting is the consent (GDPR art. 6(1)(a), documented in `/personvern#venteliste`). Consequences: the waitlist may be used for **one** launch email per audience and nothing else — no newsletter, no re-targeting — and rows are deleted within six months of launch.
+
+**What we promise on the pages (keep the code and the copy in sync):**
+- *Launch window:* `LAUNCH_WINDOW_LABEL` in `src/components/coming-soon/launch.ts` ("Åpner i Bergen og Oslo i vinter").
+- *Customer offer:* the first `WAITLIST_OFFER_SPOTS` (50) customer signups get their **first wash at half price**. This is fulfilled at launch with a promo code (percentage 50, first order only, platform-absorbed — the cleaner is still paid 70 % of the full price, see above) sent to those rows ordered by `created_at`.
+- *Cleaner earnings:* "ca. 160 kr per vask" is `CLEANER_PAYOUT_PER_LOAD_ORE` (70 % of the 229 kr load price), so it moves automatically when pricing changes.
+- *Cleaner FAQ:* one source, `src/app/bli-renser/faq.ts`, shared by the coming-soon and launch pages.
 
 ### Cleaner Assignment & Matching
 

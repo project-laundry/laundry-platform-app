@@ -140,6 +140,11 @@ All in `src/assets/brand/` (import them; `next/image` reads the size):
 (round badge), `favicon-512.png`. The favicon and Apple touch icon are
 `src/app/icon.png` and `src/app/apple-icon.png` (Next.js file conventions).
 
+**Social share images** (`opengraph-image.tsx` per route) go through `src/lib/og-image.tsx`:
+Fjord background with the Frost glow, the stacked negative logo on the left, a Fraunces
+headline with the second line in Morgensol, and a Morgensol dot before "nooracare.no ·
+Bergen og Oslo". Hex values are allowed there because Satori can't read CSS variables.
+
 ## 3. Shape, elevation, spacing
 
 | Element | Radius |

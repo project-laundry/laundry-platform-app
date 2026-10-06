@@ -12,7 +12,6 @@ const base = {
   email: '  Kari@Example.no ',
   audience: 'customer' as const,
   city: 'bergen' as const,
-  consent: true,
 };
 
 describe('joinWaitlistAction', () => {
@@ -41,12 +40,6 @@ describe('joinWaitlistAction', () => {
     const audience = await joinWaitlistAction({ ...base, audience: 'admin' as never });
     expect(city.ok).toBe(false);
     expect(audience.ok).toBe(false);
-    expect(addWaitlistSignup).not.toHaveBeenCalled();
-  });
-
-  it('requires consent', async () => {
-    const result = await joinWaitlistAction({ ...base, consent: false });
-    expect(result.ok).toBe(false);
     expect(addWaitlistSignup).not.toHaveBeenCalled();
   });
 

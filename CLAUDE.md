@@ -74,8 +74,9 @@ npm run test:watch # Run tests in watch mode
 ```
 src/
 ├── app/                    # Next.js App Router pages
-│   ├── page.tsx            # Pre-launch coming-soon page + waitlist (actions.ts: joinWaitlistAction)
-│   ├── lansering/          # The real landing page, parked (noindex) until launch — move back to page.tsx then
+│   ├── page.tsx            # Pre-launch coming-soon page + waitlist (actions.ts: joinWaitlistAction; no consent checkbox — submitting is the consent)
+│   ├── opengraph-image.tsx # Social share image for /, rendered by lib/og-image.tsx (bli-renser has its own)
+│   ├── lansering/          # The real landing page, parked (noindex + gated on prod) until launch — move back to page.tsx then; no testimonials until there are real ones
 │   ├── not-found.tsx       # Root 404 (unmatched URLs + every notFound() call)
 │   ├── admin/              # Admin dashboard (layout = shell + role guard; page = overview with counts)
 │   │   ├── orders/         # Order list + per-order detail page (edit details, cleaner (re)assignment)
@@ -96,7 +97,7 @@ src/
 │   │   ├── login/          # Login page
 │   │   ├── signup/         # Sign up page
 │   │   └── success/        # Registration success
-│   ├── bli-renser/         # Cleaner coming-soon page + waitlist; real landing parked at bli-renser/lansering; onboarding flow below
+│   ├── bli-renser/         # Cleaner coming-soon page + waitlist; real landing parked at bli-renser/lansering; onboarding flow below. faq.ts = the cleaner FAQ shared by both pages (coming-soon picks a subset via pickFaq)
 │   │   ├── signup/         # Account creation (+ signup/success: "check your email")
 │   │   ├── (steps)/        # Route group: server layout = cleaner-only + no-profile guard; StepGuard = step order
 │   │   │   ├── business/   # Step 1: business type, tax id (uniqueness pre-check), bank account
@@ -122,7 +123,7 @@ src/
 ├── assets/brand/          # Logo PNGs (primary/secondary/submerke, normal + negativ); favicons are app/icon.png + app/apple-icon.png
 ├── components/             # Reusable UI components
 │   ├── auth/               # Auth components (empty)
-│   ├── coming-soon/        # Shared shell + WaitlistForm for the two coming-soon pages
+│   ├── coming-soon/        # Shared shell (hero, StepList, FaqList, CrossPromo) + WaitlistForm for the two coming-soon pages; launch.ts holds the launch window label and the waitlist offer cap
 │   ├── forms/              # Form components (empty)
 │   ├── layout/             # Layout components (empty)
 │   └── ui/                 # UI elements
@@ -132,7 +133,7 @@ src/
 │   ├── ai/                 # Claude integration: machine-recognition.ts (photo → machine suggestion, never throws), config.ts (ANTHROPIC_API_KEY)
 │   ├── auth/               # requireRole/assertRole guards (require-role.ts); signup error mapping (signup-errors.ts)
 │   ├── config/
-│   │   └── pricing.ts      # Pricing constants and both calculators: calculateOrderPrice (cleaner-binding: per 5kg load + 3 ironing groups) and calculateCustomerEstimate (customer estimate: per bag/set/piece)
+│   │   └── pricing.ts      # Pricing constants and both calculators: calculateOrderPrice (cleaner-binding: per 5kg load + 3 ironing groups) and calculateCustomerEstimate (customer estimate: per bag/set/piece). Ironing groups exist in the model but are NOT offered in the first version — hidden on every public surface, see BUSINESS_LOGIC.md "Ironing". CLEANER_PAYOUT_PER_LOAD_ORE is the "ca. 160 kr per vask" cleaner marketing leads with
 │   ├── database/           # Database CRUD operations
 │   │   ├── cleaners.ts     # Cleaner queries & matching
 │   │   ├── customers.ts    # Customer queries
@@ -157,13 +158,18 @@ src/
 │   │   └── index.ts        # Exports
 │   ├── utils/
 │   │   ├── date.ts         # Date/weekday utilities
+│   │   ├── email.ts        # EMAIL_RE / isValidEmail, shared by the waitlist form (client) and action (server)
 │   │   └── order-number.ts # Order number generation
+│   ├── og-image.tsx        # Shared next/og renderer for the social share images (Fjord + stacked logo; Fraunces fetched at build, falls back silently)
+│   ├── prelaunch.ts        # Host-keyed pre-launch gate used by proxy.ts (see Middleware) — delete at launch
 │   └── notifications.ts    # Notification templates and system
 ├── types/
 │   ├── database.ts         # Complete entity types and enums
 │   └── index.ts            # General type exports
-└── middleware.ts           # Supabase session refresh
+└── proxy.ts                # Supabase session refresh + pre-launch gate
 ```
+
+**Customer-facing wording:** customers count **poser** ("fra 119 kr per pose", `PRICING.per_bag_ore`); cleaners count **vask** — one full machine, up to 5 kg (`PRICING.price_per_load_ore`). Mention the kilos only where a cleaner needs the definition (FAQ, payout box, dashboard), never on customer surfaces. Don't promise turnaround times, free delivery, ironing or a quality guarantee anywhere — see the honest-claims note in `components/landing/Hero.tsx`.
 
 ## Architecture Patterns
 
@@ -196,7 +202,7 @@ All database operations use dedicated functions in `lib/database/`:
 
 ### Middleware
 
-`src/proxy.ts` (Next 16 proxy convention) refreshes Supabase auth sessions on every request. Role guards live in `src/lib/auth/require-role.ts` (`requireRole` for pages/layouts, `assertRole` for server actions); privileged roles (`admin`, `driver`) can never be chosen at signup — the `handle_new_user` trigger only honors `customer`/`cleaner` metadata.
+`src/proxy.ts` (Next 16 proxy convention) refreshes Supabase auth sessions on every request and applies the **pre-launch gate** (`src/lib/prelaunch.ts`), keyed on the hostname: on `nooracare.no` / `www.nooracare.no`, anonymous visitors only reach `/`, `/bli-renser`, the legal/contact pages, the price calculator, `/admin` and `/auth/callback`; login, signup, the order flow and the parked `*/lansering` pages redirect to `/`. `test.nooracare.no`, localhost and previews are never gated — the full app lives on staging until launch. Signed-in users pass. Delete the gate at launch. Role guards live in `src/lib/auth/require-role.ts` (`requireRole` for pages/layouts, `assertRole` for server actions); privileged roles (`admin`, `driver`) can never be chosen at signup — the `handle_new_user` trigger only honors `customer`/`cleaner` metadata.
 
 ## Maps & Geocoding
 

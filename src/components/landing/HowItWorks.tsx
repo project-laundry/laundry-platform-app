@@ -1,4 +1,4 @@
-import { Calendar, ShoppingBag, Sparkles, Truck } from "lucide-react";
+import { Calendar, ShoppingBag, Truck, WashingMachine } from "lucide-react";
 import Link from "next/link";
 
 const steps = [
@@ -6,28 +6,28 @@ const steps = [
     icon: Calendar,
     title: "Bestill henting",
     description:
-      "Velg et tidspunkt som passer deg direkte i kalenderen. Du mottar en bekreftelse på e-post.",
+      "Fortell oss hva som skal vaskes, og velg dag for henting.",
     step: 1,
   },
   {
     icon: ShoppingBag,
     title: "Sett ut tøyet",
     description:
-      "Plasser klærne i en pose utenfor døren. Ingen sortering nødvendig – vi håndterer alt.",
+      "Ha tøyet klart i poser, så henter sjåføren vår det på døren.",
     step: 2,
   },
   {
-    icon: Sparkles,
-    title: "Proff behandling",
+    icon: WashingMachine,
+    title: "En nabo vasker",
     description:
-      "Vi vasker, tørker og bretter med profesjonell omhu. Faktura sendes digitalt når tøyet er klart.",
+      "En godkjent renser i nabolaget ditt vasker, tørker og bretter i sin egen maskin.",
     step: 3,
   },
   {
     icon: Truck,
     title: "Rent på døren",
     description:
-      "Klærne leveres ferdig brettet og klare til bruk innen 48 timer.",
+      "Vi leverer tøyet hjem, og du betaler enkelt med Vipps.",
     step: 4,
   },
 ];
@@ -42,10 +42,10 @@ export function HowItWorks() {
             Slik virker det
           </span>
           <h2 className="mb-6 font-serif text-4xl font-semibold leading-tight text-dark-gray sm:text-5xl">
-            Enkelt. Elegant. Effektivt.
+            Fire steg til rent tøy
           </h2>
           <p className="text-lg text-medium-gray">
-            Fire enkle steg til en renere hverdag
+            Fra skittentøy på døren til ferdig brettet i skapet.
           </p>
         </div>
 
