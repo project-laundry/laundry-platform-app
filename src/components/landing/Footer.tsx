@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Wordmark } from '@/components/layout/AppHeader';
+import { INSTAGRAM_URL } from '@/components/coming-soon/launch';
 
 // Brand icons were removed from lucide-react in v1.0; this is the original
 // lucide path inlined (ISC license).
@@ -21,7 +22,15 @@ function Instagram({ className }: { className?: string }) {
   );
 }
 
-export function Footer() {
+const PHONE_DISPLAY = '+47 976 16 468';
+const PHONE_HREF = `tel:${PHONE_DISPLAY.replace(/\s/g, '')}`;
+
+export function Footer({
+  /** The "Priser" link points at the customer price calculator; hide it on cleaner pages. */
+  showPricing = true,
+}: {
+  showPricing?: boolean;
+}) {
   return (
     <footer className="border-t border-cream-dark/70 bg-warm-white/80 backdrop-blur">
       {/* Main Footer Content */}
@@ -31,10 +40,9 @@ export function Footer() {
           <div className="space-y-4">
             <Wordmark />
             <p className="leading-relaxed text-medium-gray">
-              Noora kobler deg med en renser i nabolaget som vasker klærne
+              NooraCare kobler deg med en renser i nabolaget som vasker klærne
               dine.
             </p>
-            {/* TODO: replace with the legal entity name and 9-digit org number before production */}
             <div className="space-y-1 text-sm text-medium-gray">
               <p>NooraCare AS</p>
               <p>Org.nr: 836 788 842</p>
@@ -42,7 +50,7 @@ export function Footer() {
             {/* Social Icons */}
             <div className="flex gap-3 pt-2">
               <a
-                href="https://www.instagram.com/nooracare.no/"
+                href={INSTAGRAM_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex size-10 items-center justify-center rounded-full border border-cream-dark bg-white text-nordic-blue transition-all hover:border-sea-green hover:text-sea-green"
@@ -78,16 +86,15 @@ export function Footer() {
                   post@nooracare.no
                 </a>
               </li>
-              {/* TODO: replace with real phone number before production */}
               <li>
                 <a
-                  href="tel:+4700000000"
+                  href={PHONE_HREF}
                   className="transition-colors hover:text-nordic-blue"
                 >
-                  +47 976 16 468
+                  {PHONE_DISPLAY}
                 </a>
               </li>
-              {/* TODO: replace with real postal address before production */}
+              {/* TODO: confirm the postal address before production */}
               <li className="leading-relaxed">
                 Breimyra 232
                 <br />
@@ -110,14 +117,16 @@ export function Footer() {
               Selskap
             </h4>
             <ul className="space-y-3">
-              <li>
-                <Link
-                  href="/pris-kalkulator"
-                  className="text-medium-gray transition-colors hover:text-nordic-blue"
-                >
-                  Priser
-                </Link>
-              </li>
+              {showPricing && (
+                <li>
+                  <Link
+                    href="/pris-kalkulator"
+                    className="text-medium-gray transition-colors hover:text-nordic-blue"
+                  >
+                    Priser
+                  </Link>
+                </li>
+              )}
               <li>
                 <Link
                   href="/personvern"

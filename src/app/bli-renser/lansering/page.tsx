@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Wordmark } from '@/components/layout/AppHeader';
 import { Footer } from '@/components/landing/Footer';
 import { PRICING, formatKr } from '@/lib/config/pricing';
+import { CLEANER_FAQ } from '../faq';
 import { ClipboardList, Coins, Package, Truck, WashingMachine } from 'lucide-react';
 
 const primaryPill =
@@ -25,7 +26,7 @@ const WHY = [
   {
     icon: ClipboardList,
     title: 'Prisen regnes ut for deg',
-    text: 'Du registrerer antall vask og stryking i dashbordet. Prisen regnes ut automatisk, og kunden betaler med Vipps.',
+    text: 'Du registrerer antall vask i dashbordet. Prisen regnes ut automatisk, og kunden betaler med Vipps.',
   },
 ];
 
@@ -36,7 +37,7 @@ const GET_STARTED = [
   },
   {
     title: 'Fyll inn profilen',
-    text: 'Virksomhet, adressen der du vasker, vaskemaskinen din og litt om deg. Du trenger ikke laste opp dokumenter.',
+    text: 'Virksomhet, adressen der du vasker, vaskemaskinen din og litt om deg.',
   },
   {
     title: 'Bli godkjent',
@@ -58,7 +59,7 @@ const HOW = [
   {
     icon: WashingMachine,
     title: 'Du vasker og registrerer',
-    text: 'Vask, tørk og brett. Registrer antall vask og eventuell stryking, så settes prisen automatisk.',
+    text: 'Vask, tørk og brett. Registrer antall vask, så settes prisen automatisk.',
   },
   {
     icon: Package,
@@ -67,32 +68,7 @@ const HOW = [
   },
 ];
 
-const FAQ = [
-  {
-    q: 'Hvor kan jeg være renser?',
-    a: 'Foreløpig i Bergen og Oslo. Postnummeret ditt må ligge i et av områdene våre.',
-  },
-  {
-    q: 'Hva trenger jeg?',
-    a: 'En egen vaskemaskin hjemme og en adresse i Bergen eller Oslo som sjåføren kan levere til og hente fra. Du trenger ikke bil.',
-  },
-  {
-    q: 'Må jeg hente eller levere tøy?',
-    a: 'Nei. Sjåføren vår tar all henting og levering. Du vasker hjemme.',
-  },
-  {
-    q: 'Hvor mye tjener jeg?',
-    a: `Du får ${PRICING.cleaner_payout_percent} % av totalprisen på hvert oppdrag. Et oppdrag prises med ${formatKr(PRICING.price_per_load_ore)} per vask på 5 kg, pluss eventuell stryking.`,
-  },
-  {
-    q: 'Hvordan får jeg betalt?',
-    a: 'Kunden betaler med Vipps når du markerer oppdraget som klart. Din andel utbetales til kontonummeret du oppgir ved registrering.',
-  },
-  {
-    q: 'Hvordan blir jeg godkjent?',
-    a: 'Vi går gjennom søknaden din innen 1–2 virkedager. Du ser statusen i dashbordet ditt så snart den er behandlet.',
-  },
-];
+const FAQ = Object.values(CLEANER_FAQ);
 
 // The real cleaner landing page, parked here while "/bli-renser" shows the
 // coming-soon page. Move it back to src/app/bli-renser/page.tsx at launch.
@@ -253,15 +229,9 @@ export default function BecomeCleanerPage() {
                 <p className="text-xs uppercase tracking-[0.14em] text-medium-gray">Slik regnes betalingen</p>
                 <dl className="mt-4 divide-y divide-cream-dark/60">
                   <div className="flex items-center justify-between py-3">
-                    <dt className="text-sm text-medium-gray">Vask, per 5 kg</dt>
+                    <dt className="text-sm text-medium-gray">Vask (inntil 5 kg)</dt>
                     <dd className="font-serif text-lg font-semibold tabular-nums text-dark-gray">
                       {formatKr(PRICING.price_per_load_ore)}
-                    </dd>
-                  </div>
-                  <div className="flex items-center justify-between py-3">
-                    <dt className="text-sm text-medium-gray">Stryking, per plagg fra</dt>
-                    <dd className="font-serif text-lg font-semibold tabular-nums text-dark-gray">
-                      {formatKr(PRICING.ironing.everyday)}
                     </dd>
                   </div>
                   <div className="flex items-center justify-between py-3">
@@ -320,7 +290,7 @@ export default function BecomeCleanerPage() {
         </section>
       </main>
 
-      <Footer />
+      <Footer showPricing={false} />
     </div>
   );
 }

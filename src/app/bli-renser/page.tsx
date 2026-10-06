@@ -1,29 +1,35 @@
 import type { Metadata } from 'next';
 import { ClipboardList, Coins, Truck } from 'lucide-react';
-import { PRICING } from '@/lib/config/pricing';
+import { CLEANER_PAYOUT_PER_LOAD_ORE, PRICING, formatKr } from '@/lib/config/pricing';
 import {
   ACCENT_CHIPS,
   ComingSoonHero,
   ComingSoonShell,
+  CrossPromo,
+  FaqList,
+  HOW_IT_WORKS_ID,
   SectionHeading,
   StepList,
   comingSoonCard,
 } from '@/components/coming-soon/ComingSoonShell';
+import { LAUNCH_WINDOW_LABEL } from '@/components/coming-soon/launch';
 import { getWaitlistCount } from '@/lib/database/waitlist';
+import { pickFaq } from './faq';
 
 // Pre-launch cleaner landing page. The full page (with signup) is parked at
 // /bli-renser/lansering; at launch, move it back here.
 export const metadata: Metadata = {
   title: 'Bli renser hos NooraCare | Kommer snart',
-  description:
-    'Vask tøy hjemme i din egen maskin og tjen penger. NooraCare åpner snart i Bergen og Oslo – få beskjed når du kan registrere deg.',
+  description: `Vask tøy hjemme i din egen maskin og få ca. ${formatKr(CLEANER_PAYOUT_PER_LOAD_ORE)} per vask. NooraCare åpner snart i Bergen og Oslo – få beskjed når du kan registrere deg.`,
 };
+
+const PAYOUT_PER_LOAD = formatKr(CLEANER_PAYOUT_PER_LOAD_ORE);
 
 const WHY = [
   {
     icon: Coins,
     title: 'Betalt per oppdrag',
-    text: `Du får ${PRICING.cleaner_payout_percent} % av totalprisen på hvert oppdrag.`,
+    text: `Du får ${PRICING.cleaner_payout_percent} % av totalprisen – ca. ${PAYOUT_PER_LOAD} per vask, rett inn på konto.`,
   },
   {
     icon: Truck,
@@ -32,7 +38,7 @@ const WHY = [
   },
   {
     icon: ClipboardList,
-    title: 'Vi tar resten',
+    title: 'Kunder, pris og betaling',
     text: 'Vi finner kundene, regner ut prisen og tar betalingen med Vipps.',
   },
 ];
@@ -56,6 +62,9 @@ const STEPS = [
   },
 ];
 
+// The questions cleaners ask before they commit; the full list lives on the launch page.
+const FAQ = pickFaq(['needs', 'turnaround', 'damage', 'payment']);
+
 // Re-read the signup counter every 5 minutes.
 export const revalidate = 300;
 
@@ -63,13 +72,13 @@ export default async function CleanerComingSoonPage() {
   const count = await getWaitlistCount('cleaner');
 
   return (
-    <ComingSoonShell switchHref="/" switchLabel="For kunder">
+    <ComingSoonShell audience="cleaner" switchHref="/" switchLabel="For kunder">
       <ComingSoonHero
         audience="cleaner"
-        badge="Bli renser · kommer snart"
+        badge={`Bli renser · åpner ${LAUNCH_WINDOW_LABEL}`}
         title="Tjen penger på"
         highlight="vaskemaskinen din."
-        subtitle="Vask tøy hjemme i din egen maskin. Vi henter og leverer. Få beskjed først når registreringen åpner i Bergen og Oslo."
+        subtitle={`Vask tøy hjemme i din egen maskin og få ca. ${PAYOUT_PER_LOAD} per vask. Vi henter og leverer. Få beskjed først når registreringen åpner i Bergen og Oslo.`}
         count={count}
       />
 
@@ -94,12 +103,28 @@ export default async function CleanerComingSoonPage() {
       </section>
 
       {/* How it works */}
-      <section className="py-12">
+      <section id={HOW_IT_WORKS_ID} className="scroll-mt-6 border-b border-lin/70 py-12">
         <div className="mx-auto max-w-5xl px-5">
           <SectionHeading eyebrow="Slik virker det" title="Et oppdrag, steg for steg" />
           <StepList steps={STEPS} />
         </div>
       </section>
+
+      {/* FAQ */}
+      <section className="py-12">
+        <div className="mx-auto max-w-5xl px-5">
+          <SectionHeading eyebrow="Spørsmål og svar" title="Det folk lurer på" />
+          <FaqList items={FAQ} />
+        </div>
+      </section>
+
+      <CrossPromo
+        eyebrow="Vil du heller slippe klesvasken?"
+        title="Sett deg på kundelisten"
+        text="Vi henter, en nabo vasker, og vi leverer rent tøy hjem til deg. Få beskjed først når vi åpner."
+        href="/"
+        cta="For kunder"
+      />
     </ComingSoonShell>
   );
 }

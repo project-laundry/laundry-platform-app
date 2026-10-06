@@ -1,6 +1,8 @@
-import { Clock, Leaf, ShieldCheck, Heart, Award, BadgeCheck } from "lucide-react";
+import { Clock, Users, Wallet } from "lucide-react";
+import { PRICING, formatKr } from "@/lib/config/pricing";
 
 export function Benefits() {
+  // Only what a vetted neighbor washing at home can actually deliver.
   const benefits = [
     {
       icon: Clock,
@@ -8,31 +10,15 @@ export function Benefits() {
       description: "Bruk timene på familie, hobbyer eller bare avslapning.",
     },
     {
-      icon: Leaf,
-      title: "Miljøvennlig",
+      icon: Users,
+      title: "En nabo du kan stole på",
       description:
-        "Vi bruker kun miljøvennlige og allergivennlige vaskemidler.",
+        "Tøyet vaskes av en godkjent renser i ditt eget nabolag – ikke et anonymt vaskeri.",
     },
     {
-      icon: ShieldCheck,
-      title: "Trygg behandling",
-      description: "Dine plagg håndteres med største forsiktighet og respekt.",
-    },
-    {
-      icon: Heart,
-      title: "Personlig service",
-      description: "Tilpasset dine preferanser og behov, hver eneste gang.",
-    },
-    {
-      icon: Award,
-      title: "Profesjonell finish",
-      description: "Strøket, brettet og pakket – klar til bruk.",
-    },
-    {
-      icon: BadgeCheck,
-      title: "Kvalitetsgaranti",
-      description:
-        "Ikke fornøyd? Vi ordner det. Din tilfredshet er vår prioritet.",
+      icon: Wallet,
+      title: "Enkel pris, enkel betaling",
+      description: `Fra ${formatKr(PRICING.per_bag_ore)} per pose. Du betaler med Vipps når tøyet er ferdig vasket. Ingen binding.`,
     },
   ];
 
@@ -42,12 +28,12 @@ export function Benefits() {
         {/* Section Header */}
         <div className="mx-auto mb-16 max-w-2xl text-center md:mb-20">
           <span className="mb-4 block text-sm font-medium uppercase tracking-[0.18em] text-sea-green">
-            Hvorfor velge Noora
+            Hvorfor velge NooraCare
           </span>
           <h2 className="mb-6 font-serif text-4xl font-semibold leading-tight text-dark-gray sm:text-5xl">
             For travle hverdager,
             <br />
-            med et snev av luksus
+            med hjelp fra naboen
           </h2>
         </div>
 

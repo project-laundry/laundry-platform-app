@@ -24,9 +24,11 @@ const geistMono = Geist_Mono({
 
 const TITLE = "NooraCare";
 const DESCRIPTION =
-  "Noora kobler deg med en renser i nabolaget som vasker klærne dine.";
+  "NooraCare kobler deg med en renser i nabolaget som vasker klærne dine.";
 
 export const metadata: Metadata = {
+  // Absolute base for og:image and friends; falls back to localhost in dev.
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
   title: TITLE,
   description: DESCRIPTION,
   authors: [{ name: "NooraCare" }],
