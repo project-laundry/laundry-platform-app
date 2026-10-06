@@ -12,10 +12,9 @@ import { getWaitlistCount } from '@/lib/database/waitlist';
 
 // Pre-launch landing page. The full landing page is parked at /lansering;
 // at launch, move src/app/lansering/page.tsx back here.
+// The description comes from the root layout.
 export const metadata: Metadata = {
-  title: 'NooraCare – Klesvask hentet og levert hjem | Kommer snart',
-  description:
-    'NooraCare henter, vasker og leverer klesvasken din i Bergen og Oslo. Vi åpner snart – sett deg på ventelisten.',
+  title: 'NooraCare – Slipp klesvasken. En nabo tar den.',
 };
 
 const OFFER = [
