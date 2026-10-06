@@ -48,7 +48,7 @@ const STEPS = [
   },
   {
     title: 'Du vasker hjemme',
-    text: 'Vask, tørk og brett i din egen maskin, når det passer deg.',
+    text: 'Vask, tørk og brett i din egen maskin, så tøyet er klart til levering i tide.',
   },
   {
     title: 'Sjåføren henter det rene tøyet',
@@ -69,7 +69,7 @@ export default async function CleanerComingSoonPage() {
         badge="Bli renser · kommer snart"
         title="Tjen penger på"
         highlight="vaskemaskinen din."
-        subtitle="Vask tøy hjemme, når det passer deg. Vi henter og leverer. Få beskjed først når registreringen åpner i Bergen og Oslo."
+        subtitle="Vask tøy hjemme i din egen maskin. Vi henter og leverer. Få beskjed først når registreringen åpner i Bergen og Oslo."
         count={count}
       />
 
