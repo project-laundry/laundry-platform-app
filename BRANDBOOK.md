@@ -115,8 +115,7 @@ Fonts are loaded in `src/app/layout.tsx` and mapped in `globals.css`:
 - **Fraunces** (`font-serif`) — headlines, section titles, prices, numbers
   with personality. Variable font with optical sizing; typically
   `font-semibold`.
-- **Jost** (`font-sans`, the default) — body text, labels, buttons, and the
-  wordmark.
+- **Jost** (`font-sans`, the default) — body text, labels, buttons.
 - **Geist Mono** (`font-mono`) — rarely; order numbers or codes if needed.
 
 | Element | Recipe |
@@ -129,9 +128,17 @@ Fonts are loaded in `src/app/layout.tsx` and mapped in `globals.css`:
 | Secondary text / hints | `text-sm text-medium-gray` |
 | Tiny label (sticky bar, meta) | `text-xs uppercase tracking-[0.14em] text-medium-gray` |
 | Price / big number | `font-serif text-2xl font-semibold tabular-nums text-dark-gray` |
-| Logo wordmark | The `Wordmark` component — lowercase **noora** (semibold) + care (light) in Jost, Fjord on light, Snø on Fjord (`tone="light"`). A text stand-in until the logo PNGs (towel stack with eyes + bubbles) are added. |
+| Logo | The `Wordmark` component — the primary logo PNG (towel stack with eyes + bubbles, "noora**care**"), `h-8 w-auto`. `tone="light"` uses the negative version on Fjord. Never re-typeset the logo as text. |
 
 Always add `tabular-nums` to prices, counts and dates that change in place.
+
+### Logo files
+
+All in `src/assets/brand/` (import them; `next/image` reads the size):
+`primaerlogo.png` / `primaerlogo-negativ.png` (horizontal, used by `Wordmark`),
+`sekundaerlogo.png` / `sekundaerlogo-negativ.png` (stacked), `submerke.png`
+(round badge), `favicon-512.png`. The favicon and Apple touch icon are
+`src/app/icon.png` and `src/app/apple-icon.png` (Next.js file conventions).
 
 ## 3. Shape, elevation, spacing
 

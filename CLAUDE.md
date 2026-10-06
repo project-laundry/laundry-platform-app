@@ -119,6 +119,7 @@ src/
 │   │   └── actions.ts      # Server actions
 │   └── profile/            # User profile pages
 │       └── cleaner/        # Cleaner profile view
+├── assets/brand/          # Logo PNGs (primary/secondary/submerke, normal + negativ); favicons are app/icon.png + app/apple-icon.png
 ├── components/             # Reusable UI components
 │   ├── auth/               # Auth components (empty)
 │   ├── coming-soon/        # Shared shell + WaitlistForm for the two coming-soon pages
