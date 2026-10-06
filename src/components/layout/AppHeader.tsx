@@ -1,18 +1,21 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
+import primaryLogo from '@/assets/brand/primaerlogo.png';
+import primaryLogoNegative from '@/assets/brand/primaerlogo-negativ.png';
 
-/** The NooraCare wordmark (BRANDBOOK §2): lowercase "noora" bold + "care" light,
- *  as in the logo. Text stand-in until the logo PNGs land. Use this everywhere
- *  the logo appears so the treatment can't drift; `tone="light"` on Fjord. */
+/** The NooraCare logo (BRANDBOOK §2). Use this everywhere the logo appears so
+ *  the treatment can't drift; `tone="light"` swaps in the negative version for
+ *  Fjord backgrounds. */
 export function Wordmark({ href = '/', tone = 'dark' }: { href?: string; tone?: 'dark' | 'light' }) {
   return (
-    <Link
-      href={href}
-      aria-label="NooraCare"
-      className={`font-sans text-2xl leading-none tracking-tight ${tone === 'light' ? 'text-sno' : 'text-fjord'}`}
-    >
-      <span className="font-semibold">noora</span>
-      <span className="font-light">care</span>
+    <Link href={href} className="inline-flex shrink-0">
+      <Image
+        src={tone === 'light' ? primaryLogoNegative : primaryLogo}
+        alt="NooraCare"
+        sizes="144px"
+        className="h-8 w-auto"
+      />
     </Link>
   );
 }
