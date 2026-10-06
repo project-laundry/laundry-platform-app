@@ -102,10 +102,10 @@ export default function PersonvernRenserPage() {
                   <li>
                     <span className="font-medium">E-post:</span>{" "}
                     <a
-                      href="mailto:support@nooracare.no"
+                      href="mailto:post@nooracare.no"
                       className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
                     >
-                      support@nooracare.no
+                      post@nooracare.no
                     </a>
                   </li>
                 </ul>
@@ -407,10 +407,10 @@ export default function PersonvernRenserPage() {
               <p className="leading-relaxed text-dark-gray">
                 For å utøve rettighetene dine kan du kontakte oss på{" "}
                 <a
-                  href="mailto:support@nooracare.no"
+                  href="mailto:post@nooracare.no"
                   className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
                 >
-                  support@nooracare.no
+                  post@nooracare.no
                 </a>
                 . Vi besvarer henvendelsen din uten ugrunnet opphold og
                 senest innen 30 dager.
@@ -463,10 +463,10 @@ export default function PersonvernRenserPage() {
                 Spørsmål om personvern eller om denne erklæringen kan
                 rettes til{" "}
                 <a
-                  href="mailto:support@nooracare.no"
+                  href="mailto:post@nooracare.no"
                   className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
                 >
-                  support@nooracare.no
+                  post@nooracare.no
                 </a>
                 .
               </p>

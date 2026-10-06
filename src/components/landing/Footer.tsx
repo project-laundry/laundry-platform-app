@@ -93,10 +93,10 @@ export function Footer() {
             <ul className="space-y-3 text-medium-gray">
               <li>
                 <a
-                  href="mailto:support@nooracare.no"
+                  href="mailto:post@nooracare.no"
                   className="transition-colors hover:text-nordic-blue"
                 >
-                  support@nooracare.no
+                  post@nooracare.no
                 </a>
               </li>
               {/* TODO: replace with real phone number before production */}

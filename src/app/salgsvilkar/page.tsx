@@ -97,10 +97,10 @@ export default function SalgsvilkarPage() {
                   <li>
                     <span className="font-medium">E-post:</span>{" "}
                     <a
-                      href="mailto:support@nooracare.no"
+                      href="mailto:post@nooracare.no"
                       className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
                     >
-                      support@nooracare.no
+                      post@nooracare.no
                     </a>
                   </li>
                 </ul>
@@ -235,10 +235,10 @@ export default function SalgsvilkarPage() {
                 </Link>
                 , eller ved å kontakte oss på{" "}
                 <a
-                  href="mailto:support@nooracare.no"
+                  href="mailto:post@nooracare.no"
                   className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
                 >
-                  support@nooracare.no
+                  post@nooracare.no
                 </a>
                 . Endringer trer i kraft fra og med neste planlagte henting,
                 forutsatt at de er registrert senest 24 timer før hentingen.
@@ -262,10 +262,10 @@ export default function SalgsvilkarPage() {
                 oppgi grunn. Angreretten utøves ved å gi NooraCare en utvetydig
                 melding på{" "}
                 <a
-                  href="mailto:support@nooracare.no"
+                  href="mailto:post@nooracare.no"
                   className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
                 >
-                  support@nooracare.no
+                  post@nooracare.no
                 </a>
                 . Standard angrerettskjema fra Forbrukertilsynet kan også
                 brukes.
@@ -295,10 +295,10 @@ export default function SalgsvilkarPage() {
               <p className="leading-relaxed text-dark-gray">
                 Reklamasjon sendes til{" "}
                 <a
-                  href="mailto:support@nooracare.no"
+                  href="mailto:post@nooracare.no"
                   className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
                 >
-                  support@nooracare.no
+                  post@nooracare.no
                 </a>{" "}
                 med ordrenummer og beskrivelse av forholdet. Vedlegg gjerne
                 bilder. Vi tar kontakt så snart som mulig for å avklare
@@ -339,10 +339,10 @@ export default function SalgsvilkarPage() {
                 behandler, hvorfor og hvordan, beskrives nærmere i vår
                 personvernerklæring. Spørsmål om personvern kan rettes til{" "}
                 <a
-                  href="mailto:support@nooracare.no"
+                  href="mailto:post@nooracare.no"
                   className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
                 >
-                  support@nooracare.no
+                  post@nooracare.no
                 </a>
                 .
               </p>

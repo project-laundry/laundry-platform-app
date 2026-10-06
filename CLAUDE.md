@@ -74,6 +74,8 @@ npm run test:watch # Run tests in watch mode
 ```
 src/
 ├── app/                    # Next.js App Router pages
+│   ├── page.tsx            # Pre-launch coming-soon page + waitlist (actions.ts: joinWaitlistAction)
+│   ├── lansering/          # The real landing page, parked (noindex) until launch — move back to page.tsx then
 │   ├── not-found.tsx       # Root 404 (unmatched URLs + every notFound() call)
 │   ├── admin/              # Admin dashboard (layout = shell + role guard; page = overview with counts)
 │   │   ├── orders/         # Order list + per-order detail page (edit details, cleaner (re)assignment)
@@ -94,7 +96,7 @@ src/
 │   │   ├── login/          # Login page
 │   │   ├── signup/         # Sign up page
 │   │   └── success/        # Registration success
-│   ├── bli-renser/         # Cleaner landing page + onboarding flow
+│   ├── bli-renser/         # Cleaner coming-soon page + waitlist; real landing parked at bli-renser/lansering; onboarding flow below
 │   │   ├── signup/         # Account creation (+ signup/success: "check your email")
 │   │   ├── (steps)/        # Route group: server layout = cleaner-only + no-profile guard; StepGuard = step order
 │   │   │   ├── business/   # Step 1: business type, tax id (uniqueness pre-check), bank account
@@ -119,6 +121,7 @@ src/
 │       └── cleaner/        # Cleaner profile view
 ├── components/             # Reusable UI components
 │   ├── auth/               # Auth components (empty)
+│   ├── coming-soon/        # Shared shell + WaitlistForm for the two coming-soon pages
 │   ├── forms/              # Form components (empty)
 │   ├── layout/             # Layout components (empty)
 │   └── ui/                 # UI elements
@@ -316,3 +319,13 @@ The platform uses a **rolling window** pattern that maintains 1 upcoming order a
 This eliminates batch order generation - orders are created just-in-time as needed.
 
 **Order payload mapping (single source of truth):** There are two order-creation paths — the first order (in the Vipps webhook's `generateFirstOrder`) and the rolling-window next order (in `checkAndGenerateNextOrders`). Both build their `createOrder` payload via **`buildOrderData(orderDefaults, params)`** in `lib/services/order-generation.ts`. This is the only place `order_defaults` → order fields (address, coordinates, service prefs) is mapped, so the two paths can't drift. When adding a field that flows from `order_defaults` onto orders, add it to `buildOrderData` and its test — never assemble a `createOrder` payload inline.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

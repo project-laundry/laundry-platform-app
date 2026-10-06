@@ -99,8 +99,8 @@ export default function RegistrationSuccessPage() {
           <ul className="mt-3 space-y-2 text-sm text-dark-gray">
             <li className="flex items-center gap-2">
               <Mail className="size-4 text-sea-green" />
-              <a href="mailto:support@nooracare.no" className="transition-colors hover:text-nordic-blue">
-                support@nooracare.no
+              <a href="mailto:post@nooracare.no" className="transition-colors hover:text-nordic-blue">
+                post@nooracare.no
               </a>
             </li>
             <li className="flex items-center gap-2">

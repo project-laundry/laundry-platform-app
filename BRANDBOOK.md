@@ -5,45 +5,87 @@ The visual language of NooraCare, as established by the customer order flow
 follows this guide.** When building or restyling UI, copy the recipes below
 rather than inventing new variants.
 
-The feel: a calm, warm Nordic laundry service. Cream paper, soft sea-green and
-deep blue accents, serif headlines, pill-shaped buttons, generous rounding.
-Nothing loud, nothing glossy.
+The feel: a calm Nordic laundry service with a playful wink. Snø paper, Fjord
+blue type and actions, soft Frost, and small bursts of Morgensol and Fersken —
+the same mix as the logo, where a towel stack with eyes peeks over the edge
+and two soap bubbles float up. Serif headlines, pill-shaped buttons, generous
+rounding. Friendly, never loud or glossy.
 
 ---
 
 ## 1. Color
 
-All colors are defined as CSS variables in `src/app/globals.css` and exposed as
-Tailwind utilities (`bg-cream`, `text-nordic-blue`, `border-cream-dark`, …).
-Never hard-code hex values in components — the single exception is Vipps
-orange, which is a third-party brand color.
+### The palette
 
-| Token | Tailwind | HSL | Role |
+| Name | Hex | Tailwind | Role |
 | --- | --- | --- | --- |
-| `--cream` | `cream` | `42 30% 96%` | Page background; subtle inset panels (`bg-cream/70`) |
-| `--warm-white` | `warm-white` | `40 40% 98%` | Card surfaces (`bg-warm-white/80` + `backdrop-blur`), headers, sticky bars |
-| `--cream-dark` | `cream-dark` | `42 25% 88%` | Borders, dividers, disabled fills, skeletons |
-| `--nordic-blue` | `nordic-blue` | `200 50% 35%` | Primary actions, logo, interactive icon color |
-| `--nordic-blue-light` | `nordic-blue-light` | `200 45% 55%` | Rare — softer blue accents |
-| `--sea-green` | `sea-green` | `175 35% 45%` | The accent: selected states, toggles, progress, eyebrows, info icons |
-| `--sea-green-light` | `sea-green-light` | `175 40% 60%` | Rare — softer green accents |
-| `--dark-gray` | `dark-gray` | `#1e293b` | Primary text |
-| `--medium-gray` | `medium-gray` | `#64748b` | Secondary text, labels, hints |
-| white | `white` | — | Interactive rows/inputs sitting on a card |
+| **Snø** | `#F7F5F0` | `sno` | Page background; text on Fjord |
+| **Lin** | `#E9E1D3` | `lin` | Borders, dividers, quiet panels, disabled fills |
+| **Frost** | `#9DBFCC` | `frost` | Soft blue fills, the lower towel in the logo, glows on Fjord |
+| **Fjord** | `#1E3A4C` | `fjord` | All text, primary actions, the logo, dark hero surfaces |
+| **Morgensol** | `#F0B84A` | `sol` | Playful accent: the logo's bubbles, highlights on Fjord, CTAs on Fjord |
+| **Fersken** | `#F2A48C` | `fersken` | Warm secondary accent fills |
+
+Plus one derived shade for readability:
+
+| Name | Hex | Tailwind | Role |
+| --- | --- | --- | --- |
+| **Frost dyp** | `#3D6A7B` | `frost-deep` | Frost darkened to 5.4:1 on Snø — icons, eyebrows, selected states, links that need to read as "chosen" |
+
+All colors are CSS variables in `src/app/globals.css`, exposed as Tailwind
+utilities. Never hard-code hex values in components — the single exception is
+Vipps orange, which is a third-party brand color.
+
+**Contrast rule:** Morgensol, Fersken and Frost are *fills*, never text or
+icons on Snø/white (all under 2:1). Use them as backgrounds behind Fjord text
+(`bg-sol/35 text-fjord`), or as text/icons on Fjord (Morgensol on Fjord is
+6.6:1).
+
+### Role tokens
+
+Most of the app uses role tokens that predate the palette. They now resolve to
+it, so existing code is on-brand without renames. Either name is fine in new
+code; prefer the palette name when you mean the brand color itself.
+
+| Role token | Resolves to | Use |
+| --- | --- | --- |
+| `cream` | Snø | Page background; subtle inset panels (`bg-cream/70`) |
+| `warm-white` | `#FDFCFA` (a hair lighter than Snø) | Card surfaces (`bg-warm-white/80` + `backdrop-blur`), header bars, sticky bars |
+| `cream-dark` | Lin | Borders, dividers, disabled fills, skeletons |
+| `nordic-blue` | Fjord | Primary actions, interactive icon color |
+| `nordic-blue-light` | Frost | Soft blue accents |
+| `sea-green` | Frost dyp | Selected states, toggles, progress, eyebrows, section icons |
+| `sea-green-light` | Frost | Soft highlight |
+| `dark-gray` | Fjord (`#1E3A4C`) | Primary text |
+| `medium-gray` | `#586974` (Fjord-tinted gray, 5.2:1 on Snø) | Secondary text, labels, hints |
+| `white` | — | Interactive rows/inputs sitting on a card |
 
 **Semantic / status colors** (Tailwind defaults):
 
 | Use | Recipe |
 | --- | --- |
-| Error / destructive note | `bg-red-50 text-red-700` note (see §6), `text-red-600` icons |
+| Error / destructive note | `bg-red-50 text-red-700` note (see §4), `text-red-600` icons |
 | Destructive action | `bg-red-600 text-white` pill button, or outline `border-red-200 text-red-600` |
 | Warning | `bg-amber-50 text-amber-800` note |
-| Success | sea-green, not a separate green: `bg-sea-green/10 text-sea-green` |
+| Success | Frost dyp, not a separate green: `bg-sea-green/10 text-sea-green` |
 | Vipps | `#FF5B24` (inline style; buttons only) |
 
-**Accent logic:** nordic-blue is what you *press* (primary buttons, links,
-stepper icons); sea-green is what is *chosen or highlighted* (active cards,
-toggles on, progress, section icons, eyebrow labels). Don't swap them.
+**Accent logic:** Fjord (`nordic-blue`) is what you *press*; Frost dyp
+(`sea-green`) is what is *chosen or highlighted*. Morgensol and Fersken are
+for *delight* — sparingly, and mostly on marketing surfaces: icon chips, step
+numbers, the logo's bubbles, a highlighted headline word on Fjord, the CTA on
+a Fjord hero. In the logged-in app, one playful touch per screen at most.
+
+**Playful accent recipes:**
+
+- Icon chips / step numbers cycle through the accent fills, Fjord icon on top:
+  `bg-sol/35`, `bg-frost/45`, `bg-fersken/40` (see `ACCENT_CHIPS` in
+  `src/components/coming-soon/ComingSoonShell.tsx`).
+- Bubbles: two outlined circles in Morgensol, the small one up-left of the big
+  one, as in the logo. Static decoration only, `aria-hidden`.
+- Dark hero (mirrors the secondary logo): `bg-fjord text-sno`, Frost glow from
+  the top, headline highlight in `text-sol`, primary CTA `bg-sol text-fjord`,
+  rounded bottom edge (`rounded-b-[2.5rem] sm:rounded-b-[4rem]`).
 
 **Backdrop:** pages get a fixed atmospheric wash over the cream base:
 
@@ -63,15 +105,18 @@ toggles on, progress, section icons, eyebrow labels). Don't swap them.
 
 **Retired:** the old “aurora” look — `bg-aurora`, `text-gradient`,
 `gradient-nordic`, floating blur blobs, gradient logo squares, `shadow-glow` —
-is not part of the brand. Don't use it.
+is not part of the brand. Don't use it. The pre-2026-10 sea-green/nordic-blue
+palette is also retired; the token names survive only as roles (above).
 
 ## 2. Typography
 
 Fonts are loaded in `src/app/layout.tsx` and mapped in `globals.css`:
 
-- **Source Serif 4** (`font-serif`) — headlines, section titles, prices,
-  numbers with personality. Weights 400–700, typically `font-semibold`.
-- **Inter** (`font-sans`, the default) — everything else. Weights 300–600.
+- **Fraunces** (`font-serif`) — headlines, section titles, prices, numbers
+  with personality. Variable font with optical sizing; typically
+  `font-semibold`.
+- **Jost** (`font-sans`, the default) — body text, labels, buttons, and the
+  wordmark.
 - **Geist Mono** (`font-mono`) — rarely; order numbers or codes if needed.
 
 | Element | Recipe |
@@ -80,11 +125,11 @@ Fonts are loaded in `src/app/layout.tsx` and mapped in `globals.css`:
 | Eyebrow above title | `text-sm font-medium uppercase tracking-[0.18em] text-sea-green` |
 | Page subtitle | `mt-3 max-w-md text-medium-gray` |
 | Section/card title | `font-serif text-lg font-semibold text-dark-gray` |
-| Body | default Inter, `text-dark-gray` |
+| Body | default Jost, `text-dark-gray` |
 | Secondary text / hints | `text-sm text-medium-gray` |
 | Tiny label (sticky bar, meta) | `text-xs uppercase tracking-[0.14em] text-medium-gray` |
 | Price / big number | `font-serif text-2xl font-semibold tabular-nums text-dark-gray` |
-| Logo wordmark | `font-serif text-2xl font-semibold text-nordic-blue` — plain serif text “NooraCare”, no icon box |
+| Logo wordmark | The `Wordmark` component — lowercase **noora** (semibold) + care (light) in Jost, Fjord on light, Snø on Fjord (`tone="light"`). A text stand-in until the logo PNGs (towel stack with eyes + bubbles) are added. |
 
 Always add `tabular-nums` to prices, counts and dates that change in place.
 
@@ -262,19 +307,21 @@ No floating/shimmer/bounce loops, no parallax, nothing that moves unprompted.
 `lucide-react` only. Default `size-4` inline / `size-5` in icon chips.
 Interactive icons are `text-nordic-blue`; decorative/selected accents are
 `text-sea-green`; muted illustrations `text-cream-dark` (e.g. empty states).
+On marketing surfaces, icons may sit in a playful accent chip (§1).
 
 ## 7. Voice
 
-Norwegian (bokmål), warm and direct — “Hva skal vi vaske?”, “Hvor henter vi?”.
+Norwegian (bokmål), warm, direct and a little playful — “Hva skal vi vaske?”, “Hvor henter vi?”.
 Sentence case everywhere (no Title Case), questions welcome in headings,
 “vi”/“du” voice, no exclamation-mark enthusiasm. Prices always formatted via
 `formatKr` from `lib/config/pricing`.
 
 ## 8. Checklist for new UI
 
-- [ ] Cream page + radial backdrop, `warm-white` cards with `rounded-3xl`
-- [ ] Serif headline + eyebrow, Inter body
-- [ ] Pills for buttons, sea-green for selection, nordic-blue for actions
+- [ ] Snø page + radial backdrop, `warm-white` cards with `rounded-3xl`
+- [ ] Fraunces headline + eyebrow, Jost body
+- [ ] Morgensol/Fersken/Frost only as fills (never text on light), and sparingly
+- [ ] Pills for buttons, Frost dyp (`sea-green`) for selection, Fjord (`nordic-blue`) for actions
 - [ ] Inputs per §4, focus ring `sea-green/20`
 - [ ] No aurora gradients, no gradient text, no hard-coded colors
 - [ ] `tabular-nums` on live numbers; `formatKr` for money
