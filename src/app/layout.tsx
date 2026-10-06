@@ -22,21 +22,24 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const TITLE = "NooraCare";
+const DESCRIPTION =
+  "Noora kobler deg med en renser i nabolaget som vasker klærne dine.";
+
 export const metadata: Metadata = {
-  title: "NooraCare – Gjør hverdagen renere, lysere, enklere",
-  description: "Profesjonell vaskservice med henting og levering i Bergen og Oslo. Spar tid med vår pålitelige klesvask - perfekt for travle familier. Allergivennlige produkter og miljøvennlig vask.",
-  keywords: ["vaskeri", "klesvask", "henting og levering", "Bergen", "Oslo", "vaskservice", "profesjonell vask", "allergivennlig", "miljøvennlig"],
+  title: TITLE,
+  description: DESCRIPTION,
   authors: [{ name: "NooraCare" }],
   openGraph: {
-    title: "NooraCare – Gjør hverdagen renere, lysere, enklere",
-    description: "Profesjonell vaskservice med henting og levering. Spar tid for det som betyr mest.",
+    title: TITLE,
+    description: DESCRIPTION,
     type: "website",
     locale: "no_NO",
   },
   twitter: {
     card: "summary_large_image",
-    title: "NooraCare – Gjør hverdagen renere, lysere, enklere",
-    description: "Profesjonell vaskservice med henting og levering i Bergen og Oslo.",
+    title: TITLE,
+    description: DESCRIPTION,
   },
 };
 
