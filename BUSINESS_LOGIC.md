@@ -137,7 +137,7 @@ Until launch, `/` and `/bli-renser` collect a waitlist instead of taking orders 
 **What we promise on the pages (keep the code and the copy in sync):**
 - *Launch window:* `LAUNCH_WINDOW_LABEL` in `src/components/coming-soon/launch.ts` ("Åpner i Bergen og Oslo i vinter").
 - *Customer offer:* the first `WAITLIST_OFFER_SPOTS` (50) customer signups get their **first wash at half price**. This is fulfilled at launch with a promo code (percentage 50, first order only, platform-absorbed — the cleaner is still paid 70 % of the full price, see above) sent to those rows ordered by `created_at`.
-- *Cleaner earnings:* "ca. 160 kr per vask" is `CLEANER_PAYOUT_PER_LOAD_ORE` (70 % of the 229 kr load price), so it moves automatically when pricing changes.
+- *Cleaner earnings:* "minst 350 kr per oppdrag" is `CLEANER_MIN_PAYOUT_PER_ORDER_ORE` (70 % of the 500 kr order minimum, which `calculateOrderPrice` applies before the split), so it moves automatically when pricing changes. A single load (229 kr + fees) lands under the minimum, so this is also what one wash pays.
 - *Cleaner FAQ:* one source, `src/app/bli-renser/faq.ts`, shared by the coming-soon and launch pages.
 
 ### Cleaner Assignment & Matching

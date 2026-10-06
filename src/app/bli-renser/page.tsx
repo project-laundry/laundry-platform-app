@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { ClipboardList, Coins, Truck } from 'lucide-react';
-import { CLEANER_PAYOUT_PER_LOAD_ORE, PRICING, formatKr } from '@/lib/config/pricing';
+import { CLEANER_MIN_PAYOUT_PER_ORDER_ORE, PRICING, formatKr } from '@/lib/config/pricing';
 import {
   ACCENT_CHIPS,
   ComingSoonHero,
@@ -20,16 +20,16 @@ import { pickFaq } from './faq';
 // /bli-renser/lansering; at launch, move it back here.
 export const metadata: Metadata = {
   title: 'Bli renser hos NooraCare | Kommer snart',
-  description: `Vask tøy hjemme i din egen maskin og få ca. ${formatKr(CLEANER_PAYOUT_PER_LOAD_ORE)} per vask. NooraCare åpner snart i Bergen og Oslo – få beskjed når du kan registrere deg.`,
+  description: `Vask tøy hjemme i din egen maskin og tjen minst ${formatKr(CLEANER_MIN_PAYOUT_PER_ORDER_ORE)} per oppdrag. NooraCare åpner snart i Bergen og Oslo – få beskjed når du kan registrere deg.`,
 };
 
-const PAYOUT_PER_LOAD = formatKr(CLEANER_PAYOUT_PER_LOAD_ORE);
+const MIN_PAYOUT = formatKr(CLEANER_MIN_PAYOUT_PER_ORDER_ORE);
 
 const WHY = [
   {
     icon: Coins,
     title: 'Betalt per oppdrag',
-    text: `Du får ${PRICING.cleaner_payout_percent} % av totalprisen – ca. ${PAYOUT_PER_LOAD} per vask, rett inn på konto.`,
+    text: `Du får ${PRICING.cleaner_payout_percent} % av totalprisen – minst ${MIN_PAYOUT} per oppdrag, rett inn på konto.`,
   },
   {
     icon: Truck,
@@ -78,7 +78,7 @@ export default async function CleanerComingSoonPage() {
         badge={`Bli renser · åpner ${LAUNCH_WINDOW_LABEL}`}
         title="Tjen penger på"
         highlight="vaskemaskinen din."
-        subtitle={`Vask tøy hjemme i din egen maskin og få ca. ${PAYOUT_PER_LOAD} per vask. Vi henter og leverer. Få beskjed først når registreringen åpner i Bergen og Oslo.`}
+        subtitle={`Vask tøy hjemme i din egen maskin og tjen minst ${MIN_PAYOUT} per oppdrag. Vi henter og leverer. Få beskjed først når registreringen åpner i Bergen og Oslo.`}
         count={count}
       />
 

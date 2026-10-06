@@ -40,7 +40,7 @@ export function Hero() {
               className="mx-auto mt-5 max-w-2xl text-lg leading-relaxed text-medium-gray md:text-xl lg:mx-0 animate-in fade-in slide-in-from-bottom-3 duration-500"
               style={{ animationDelay: "120ms" }}
             >
-              En godkjent renser i nabolaget vasker, tørker og bretter tøyet
+              En godkjent renser i området vasker, tørker og bretter tøyet
               ditt. Vi henter posene på døren og leverer dem rene tilbake.
             </p>
 

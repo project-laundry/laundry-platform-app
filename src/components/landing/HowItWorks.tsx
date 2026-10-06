@@ -18,9 +18,9 @@ const steps = [
   },
   {
     icon: WashingMachine,
-    title: "En nabo vasker",
+    title: "En lokal renser vasker",
     description:
-      "En godkjent renser i nabolaget ditt vasker, tørker og bretter i sin egen maskin.",
+      "En godkjent renser i området ditt vasker, tørker og bretter i sin egen maskin.",
     step: 3,
   },
   {

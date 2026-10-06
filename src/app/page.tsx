@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
-import { CalendarClock, Clock, Truck, Wallet } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowRight, CalendarClock, Truck, Wallet, WashingMachine } from 'lucide-react';
 import {
   ACCENT_CHIPS,
   ComingSoonHero,
@@ -11,7 +12,7 @@ import {
   comingSoonCard,
 } from '@/components/coming-soon/ComingSoonShell';
 import { LAUNCH_WINDOW_LABEL, WAITLIST_OFFER_SPOTS } from '@/components/coming-soon/launch';
-import { CLEANER_PAYOUT_PER_LOAD_ORE, PRICING, formatKr } from '@/lib/config/pricing';
+import { CLEANER_MIN_PAYOUT_PER_ORDER_ORE, PRICING, formatKr } from '@/lib/config/pricing';
 import { getWaitlistCount } from '@/lib/database/waitlist';
 
 // Pre-launch landing page. The full landing page is parked at /lansering;
@@ -21,22 +22,22 @@ export const metadata: Metadata = {
   title: 'NooraCare – Slipp klesvasken. En nabo tar den.',
 };
 
-// Benefits, not features: what the customer gets out of each part.
+// Direct, concrete titles — what the service is, not how it feels.
 const OFFER = [
   {
-    icon: Clock,
-    title: 'Få timene tilbake',
-    text: 'Hverdagsklær og sengetøy kommer tilbake vasket, tørket og ferdig brettet.',
+    icon: WashingMachine,
+    title: 'Vask, tørk og bretting',
+    text: 'Hverdagsklær og sengetøy, vasket og ferdig brettet.',
   },
   {
     icon: Truck,
-    title: 'Ingenting å bære',
-    text: 'Sjåføren henter posene på døren din og leverer dem rene tilbake.',
+    title: 'Henting og levering',
+    text: 'Vi henter tøyet hjemme hos deg og leverer det rent tilbake på døren.',
   },
   {
     icon: CalendarClock,
-    title: 'Ingen binding',
-    text: 'Hver uke, annenhver uke, hver måned – eller bare én gang når det passer.',
+    title: 'Fast eller én gang',
+    text: 'Hver uke, annenhver uke, hver måned – eller bare når du trenger det.',
   },
 ];
 
@@ -50,8 +51,8 @@ const STEPS = [
     text: 'Sjåføren vår henter posene hjemme hos deg.',
   },
   {
-    title: 'En nabo vasker',
-    text: 'En godkjent renser i nabolaget ditt vasker, tørker og bretter.',
+    title: 'En lokal renser vasker',
+    text: 'En godkjent renser i nærheten vasker, tørker og bretter.',
   },
   {
     title: 'Rent tøy tilbake',
@@ -72,15 +73,15 @@ export default async function ComingSoonPage() {
         badge={`Åpner i Bergen og Oslo ${LAUNCH_WINDOW_LABEL}`}
         title="Snart slipper du"
         highlight="klesvasken."
-        subtitle="En godkjent renser i nabolaget vasker tøyet ditt. Vi henter og leverer hjem til deg. Sett deg på listen, så får du beskjed først."
-        offer={`De ${WAITLIST_OFFER_SPOTS} første på listen får første vask til halv pris.`}
+        subtitle="En godkjent renser i området vasker tøyet ditt. Vi henter og leverer hjem til deg. Sett deg på listen, så får du beskjed først."
+        offer={{ title: 'Halv pris på første vask', detail: `for de ${WAITLIST_OFFER_SPOTS} første på listen` }}
         count={count}
       />
 
       {/* What you get */}
       <section className="border-b border-lin/70 py-12">
         <div className="mx-auto max-w-5xl px-5">
-          <SectionHeading eyebrow="Dette får du" title="Hele klesvasken, tatt hånd om" />
+          <SectionHeading eyebrow="Dette tilbyr vi" title="Hele klesvasken, tatt hånd om" />
           <div className="grid gap-3 sm:grid-cols-3">
             {OFFER.map((item, index) => (
               <div key={item.title} className={comingSoonCard}>
@@ -96,14 +97,24 @@ export default async function ComingSoonPage() {
           </div>
 
           {/* Price anchor — nobody joins a list for a service they can't price. */}
-          <div className="mt-3 flex items-start gap-3 rounded-2xl bg-cream/70 px-4 py-3.5 text-sm text-medium-gray">
-            <Wallet className="mt-0.5 size-4 shrink-0 text-frost-deep" />
-            <p>
-              <span className="font-serif text-base font-semibold text-dark-gray">
-                Fra {formatKr(PRICING.per_bag_ore)} per pose.
-              </span>{' '}
-              Du betaler med Vipps når tøyet er ferdig vasket. Ingen binding.
-            </p>
+          <div className="mt-3 flex flex-col gap-3 rounded-2xl bg-cream/70 px-4 py-3.5 text-sm text-medium-gray sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <Wallet className="mt-0.5 size-4 shrink-0 text-frost-deep" />
+              <p>
+                <span className="font-serif text-base font-semibold text-dark-gray">
+                  {formatKr(PRICING.per_bag_ore)} per pose, minste bestilling{' '}
+                  <span className="whitespace-nowrap">{formatKr(PRICING.minimum_order_ore)}</span>.
+                </span>{' '}
+                Du betaler med Vipps når tøyet er ferdig vasket. Ingen binding.
+              </p>
+            </div>
+            <Link
+              href="/pris-kalkulator"
+              className="inline-flex shrink-0 items-center gap-1.5 self-start font-medium text-nordic-blue transition-colors hover:text-sea-green sm:self-auto"
+            >
+              Se full prisliste
+              <ArrowRight className="size-4" />
+            </Link>
           </div>
         </div>
       </section>
@@ -119,7 +130,7 @@ export default async function ComingSoonPage() {
       <CrossPromo
         eyebrow="Har du vaskemaskin?"
         title="Tjen penger på å vaske for naboene"
-        text={`Du får ca. ${formatKr(CLEANER_PAYOUT_PER_LOAD_ORE)} per vask, og sjåføren vår tar all henting og levering.`}
+        text={`Du tjener minst ${formatKr(CLEANER_MIN_PAYOUT_PER_ORDER_ORE)} per oppdrag, og sjåføren vår tar all henting og levering.`}
         href="/bli-renser"
         cta="Bli renser"
       />
