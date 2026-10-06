@@ -192,7 +192,6 @@ export function OrderDetailsView({ order }: { order: OrderWithRelations }) {
                 <EditableOrderSelection
                   orderId={order.id}
                   initialEstimate={order.customer_estimate}
-                  initialNeedsIroning={order.needs_ironing}
                   isEditable={isEditable}
                 />
               </div>

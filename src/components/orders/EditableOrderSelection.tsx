@@ -8,12 +8,11 @@ import { SelectionEditor } from '@/components/order-flow/SelectionEditor';
 import { Breakdown, PriceDisclaimer } from '@/components/order-flow/primitives';
 import type { CustomerEstimate } from '@/types/database';
 import type { OrderSelection } from '@/types/order-flow';
-import { Pencil, Check, X, Shirt, ShoppingBag, BedDouble } from 'lucide-react';
+import { Pencil, Check, X, ShoppingBag, BedDouble } from 'lucide-react';
 
 interface EditableOrderSelectionProps {
   orderId: string;
   initialEstimate: CustomerEstimate | null;
-  initialNeedsIroning: boolean;
   isEditable: boolean;
 }
 
@@ -39,34 +38,14 @@ function getEstimateRows(estimate: CustomerEstimate) {
   if (estimate.bedding_sets > 0) {
     rows.push({ icon: BedDouble, label: `${estimate.bedding_sets} sengesett` });
   }
-  if (estimate.iron_everyday_items > 0) {
-    rows.push({
-      icon: Shirt,
-      label:
-        estimate.iron_everyday_items === 1
-          ? '1 vanlig plagg strykes'
-          : `${estimate.iron_everyday_items} vanlige plagg strykes`,
-    });
-  }
-  if (estimate.iron_formal_items > 0) {
-    rows.push({
-      icon: Shirt,
-      label:
-        estimate.iron_formal_items === 1
-          ? '1 skjorte eller finplagg strykes'
-          : `${estimate.iron_formal_items} skjorter og finklær strykes`,
-    });
-  }
-  if (estimate.iron_bedding) {
-    rows.push({ icon: BedDouble, label: 'Sengetøy strykes' });
-  }
+  // Ironing rows intentionally omitted — not offered in the first version
+  // (BUSINESS_LOGIC.md "Ironing"); the counts are always 0.
   return rows;
 }
 
 export function EditableOrderSelection({
   orderId,
   initialEstimate,
-  initialNeedsIroning,
   isEditable,
 }: EditableOrderSelectionProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -106,26 +85,9 @@ export function EditableOrderSelection({
     setIsEditing(false);
   };
 
-  // Legacy orders without a stored estimate: nothing sane to seed the editor
-  // with, so show the coarse ironing preference read-only.
+  // Legacy orders without a stored estimate: nothing sane to seed the editor with.
   if (!initialEstimate) {
-    return (
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Shirt className="size-4 shrink-0 text-sea-green" />
-          <span className="text-sm text-dark-gray">Stryking</span>
-        </div>
-        <span
-          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-            initialNeedsIroning
-              ? 'bg-sea-green/10 text-sea-green'
-              : 'bg-cream-dark/60 text-medium-gray'
-          }`}
-        >
-          {initialNeedsIroning ? 'Ja' : 'Nei'}
-        </span>
-      </div>
-    );
+    return <p className="text-sm text-medium-gray">Ingen detaljer registrert.</p>;
   }
 
   if (isEditing) {

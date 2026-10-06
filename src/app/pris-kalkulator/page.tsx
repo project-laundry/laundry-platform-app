@@ -1,12 +1,12 @@
 import { Metadata } from "next";
-import { Navbar } from "@/components/landing/Navbar";
+import { MarketingNav } from '@/components/landing/MarketingNav';
 import { Footer } from "@/components/landing/Footer";
 import { EstimateCalculator } from "@/components/order-flow/EstimateCalculator";
 
 export const metadata: Metadata = {
   title: "Priskalkulator | NooraCare",
   description:
-    "Beregn prisen for din klesvask med vår interaktive priskalkulator. Se alle priser for vask, stryking og levering.",
+    "Beregn prisen for din klesvask med vår priskalkulator. Se prisene for vask, sengetøy og levering.",
 };
 
 export default function PrisKalkulatorPage() {
@@ -21,7 +21,7 @@ export default function PrisKalkulatorPage() {
             'radial-gradient(120% 80% at 50% -10%, hsl(var(--sea-green) / 0.16), transparent 60%), radial-gradient(90% 60% at 110% 10%, hsl(var(--nordic-blue) / 0.10), transparent 55%)',
         }}
       />
-      <Navbar />
+      <MarketingNav />
       <main className="pb-16 pt-28">
         <div className="mx-auto max-w-2xl px-5">
           {/* Header */}
