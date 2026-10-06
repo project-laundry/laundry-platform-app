@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Wordmark } from '@/components/layout/AppHeader';
 
-// Brand icons were removed from lucide-react in v1.0; these are the original
-// lucide paths inlined (ISC license).
+// Brand icons were removed from lucide-react in v1.0; this is the original
+// lucide path inlined (ISC license).
 function Instagram({ className }: { className?: string }) {
   return (
     <svg
@@ -21,22 +21,6 @@ function Instagram({ className }: { className?: string }) {
   );
 }
 
-function Facebook({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
-    </svg>
-  );
-}
-
 export function Footer() {
   return (
     <footer className="border-t border-cream-dark/70 bg-warm-white/80 backdrop-blur">
@@ -47,8 +31,8 @@ export function Footer() {
           <div className="space-y-4">
             <Wordmark />
             <p className="leading-relaxed text-medium-gray">
-              Mer tid til det som betyr noe. Profesjonell vaskservice for
-              travle familier i Bergen og Oslo.
+              Noora kobler deg med en renser i nabolaget som vasker klærne
+              dine.
             </p>
             {/* TODO: replace with the legal entity name and 9-digit org number before production */}
             <div className="space-y-1 text-sm text-medium-gray">
@@ -58,18 +42,13 @@ export function Footer() {
             {/* Social Icons */}
             <div className="flex gap-3 pt-2">
               <a
-                href="#"
+                href="https://www.instagram.com/nooracare.no/"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="flex size-10 items-center justify-center rounded-full border border-cream-dark bg-white text-nordic-blue transition-all hover:border-sea-green hover:text-sea-green"
                 aria-label="Instagram"
               >
                 <Instagram className="size-5" />
-              </a>
-              <a
-                href="#"
-                className="flex size-10 items-center justify-center rounded-full border border-cream-dark bg-white text-nordic-blue transition-all hover:border-sea-green hover:text-sea-green"
-                aria-label="Facebook"
-              >
-                <Facebook className="size-5" />
               </a>
             </div>
           </div>
@@ -164,7 +143,7 @@ export function Footer() {
       <div className="border-t border-cream-dark/60">
         <div className="mx-auto max-w-6xl px-5 py-6">
           <div className="flex flex-col items-center justify-between gap-4 text-sm text-medium-gray md:flex-row">
-            <p>© 2025 NooraCare. Alle rettigheter reservert.</p>
+            <p>© 2026 NooraCare. Alle rettigheter reservert.</p>
             <div className="flex gap-6">
               <Link
                 href="/personvern"

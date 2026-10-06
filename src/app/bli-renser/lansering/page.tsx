@@ -148,7 +148,7 @@ export default function BecomeCleanerPage() {
                 Vask tøy hjemme og tjen penger
               </h1>
               <p className="mt-4 max-w-md text-lg text-medium-gray">
-                Vi henter og leverer tøyet. Du vasker det i din egen maskin, når det passer deg,
+                Vi henter og leverer tøyet. Du vasker det i din egen maskin
                 og får {PRICING.cleaner_payout_percent} % av prisen for hvert oppdrag.
               </p>
             </div>

@@ -20,7 +20,7 @@ const steps = [
     icon: Sparkles,
     title: "Proff behandling",
     description:
-      "Vi vasker, tørker og stryker med profesjonell omhu. Faktura sendes digitalt når tøyet er klart.",
+      "Vi vasker, tørker og bretter med profesjonell omhu. Faktura sendes digitalt når tøyet er klart.",
     step: 3,
   },
   {

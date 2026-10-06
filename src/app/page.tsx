@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { CalendarClock, Shirt, Truck, WashingMachine, Wallet } from 'lucide-react';
+import { CalendarClock, Truck, WashingMachine } from 'lucide-react';
 import {
   ACCENT_CHIPS,
   ComingSoonHero,
@@ -25,11 +25,6 @@ const OFFER = [
     text: 'Hverdagsklær og sengetøy, vasket og ferdig brettet.',
   },
   {
-    icon: Shirt,
-    title: 'Stryking',
-    text: 'Skjorter, kjoler og sengetøy, presset og klart til bruk.',
-  },
-  {
     icon: Truck,
     title: 'Henting og levering',
     text: 'Vi henter tøyet hjemme hos deg og leverer det rent tilbake på døren.',
@@ -52,7 +47,7 @@ const STEPS = [
   },
   {
     title: 'En lokal renser vasker',
-    text: 'En godkjent renser i nærheten vasker, tørker, bretter og stryker.',
+    text: 'En godkjent renser i nærheten vasker, tørker og bretter.',
   },
   {
     title: 'Rent tøy tilbake',
@@ -81,7 +76,7 @@ export default async function ComingSoonPage() {
       <section className="border-b border-lin/70 py-12">
         <div className="mx-auto max-w-5xl px-5">
           <SectionHeading eyebrow="Dette tilbyr vi" title="Hele klesvasken, tatt hånd om" />
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-3">
             {OFFER.map((item, index) => (
               <div key={item.title} className={comingSoonCard}>
                 <span
@@ -102,10 +97,6 @@ export default async function ComingSoonPage() {
         <div className="mx-auto max-w-5xl px-5">
           <SectionHeading eyebrow="Slik virker det" title="Fire steg til rent tøy" />
           <StepList steps={STEPS} />
-          <div className="mt-6 flex items-start gap-2 rounded-2xl bg-lin/60 px-3.5 py-2.5 text-sm text-medium-gray">
-            <Wallet className="mt-0.5 size-4 shrink-0 text-frost-deep" />
-            <p>Du betaler først når tøyet er vasket, og bare for det som faktisk ble vasket.</p>
-          </div>
         </div>
       </section>
     </ComingSoonShell>
