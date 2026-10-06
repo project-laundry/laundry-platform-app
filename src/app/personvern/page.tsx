@@ -33,7 +33,7 @@ export default function PersonvernPage() {
                 Personvernerklæring
               </h1>
               <p className="text-sm text-medium-gray">
-                Sist oppdatert: 23.05.2026
+                Sist oppdatert: 01.10.2026
               </p>
               <p className="text-sm text-medium-gray mt-2">
                 Denne erklæringen gjelder for kunder. Er du tilknyttet
@@ -58,6 +58,31 @@ export default function PersonvernPage() {
                 du har etter EUs personvernforordning (GDPR) og
                 personopplysningsloven.
               </p>
+            </section>
+
+            {/* Waitlist (pre-launch) — linked from the coming-soon pages */}
+            <section id="venteliste" className="mb-10 scroll-mt-24">
+              <div className="rounded-3xl border border-dashed border-sea-green/40 bg-sea-green/5 p-6">
+                <h2 className="mb-3 font-serif text-xl font-semibold text-dark-gray">
+                  Venteliste før lansering
+                </h2>
+                <p className="leading-relaxed text-dark-gray">
+                  Melder du deg på ventelisten vår (som kunde eller renser),
+                  lagrer vi e-postadressen din, byen du velger og tidspunktet
+                  for påmeldingen. Vi bruker dette bare til å gi deg beskjed
+                  når NooraCare åpner. Rettslig grunnlag er samtykket ditt
+                  (GDPR art. 6 nr. 1 bokstav a), som du kan trekke tilbake
+                  når som helst ved å skrive til{" "}
+                  <a
+                    href="mailto:post@nooracare.no"
+                    className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
+                  >
+                    post@nooracare.no
+                  </a>
+                  . Vi sletter ventelisten senest seks måneder etter
+                  lansering.
+                </p>
+              </div>
             </section>
 
             {/* 1. Controller */}
@@ -100,10 +125,10 @@ export default function PersonvernPage() {
                   <li>
                     <span className="font-medium">E-post:</span>{" "}
                     <a
-                      href="mailto:support@nooracare.no"
+                      href="mailto:post@nooracare.no"
                       className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
                     >
-                      support@nooracare.no
+                      post@nooracare.no
                     </a>
                   </li>
                 </ul>
@@ -339,10 +364,10 @@ export default function PersonvernPage() {
               <p className="leading-relaxed text-dark-gray">
                 For å utøve rettighetene dine kan du kontakte oss på{" "}
                 <a
-                  href="mailto:support@nooracare.no"
+                  href="mailto:post@nooracare.no"
                   className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
                 >
-                  support@nooracare.no
+                  post@nooracare.no
                 </a>
                 . Vi besvarer henvendelsen din uten ugrunnet opphold og
                 senest innen 30 dager.
@@ -395,10 +420,10 @@ export default function PersonvernPage() {
                 Spørsmål om personvern eller om denne erklæringen kan
                 rettes til{" "}
                 <a
-                  href="mailto:support@nooracare.no"
+                  href="mailto:post@nooracare.no"
                   className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
                 >
-                  support@nooracare.no
+                  post@nooracare.no
                 </a>
                 .
               </p>

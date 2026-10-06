@@ -88,10 +88,10 @@ export default function KontaktPage() {
                 <li className="flex items-start gap-3">
                   <Mail className="mt-1 size-4 text-sea-green" />
                   <a
-                    href="mailto:support@nooracare.no"
+                    href="mailto:post@nooracare.no"
                     className="transition-colors hover:text-nordic-blue"
                   >
-                    support@nooracare.no
+                    post@nooracare.no
                   </a>
                 </li>
                 {/* TODO: replace with real phone number before production */}

@@ -41,6 +41,10 @@ export type PaymentProvider = 'vipps' | 'stripe' | 'manual';
 
 export type PromoDiscountType = 'percentage' | 'fixed';
 
+export type WaitlistAudience = 'customer' | 'cleaner';
+
+export type WaitlistCity = 'bergen' | 'oslo';
+
 // =============================================================================
 // ENTITY TYPES
 // =============================================================================

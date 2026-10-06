@@ -521,6 +521,29 @@
 
 ---
 
+### WaitlistSignup
+
+**Description:** Pre-launch waitlist collected by the coming-soon pages (`/` for customers, `/bli-renser` for cleaners). Standalone — not linked to users. Delete the table's rows no later than six months after launch (promised in `/personvern#venteliste`).
+
+**Fields:**
+
+- `id` (uuid, PK) - Unique identifier
+- `email` (varchar(255), required) - Lowercased, trimmed
+- `audience` (text, required) - `customer` | `cleaner`
+- `city` (text, required) - `bergen` | `oslo`
+- `created_at` (timestamp) - Signup time (also the consent timestamp — the form requires consent)
+
+**Notes:**
+
+- Written only by `joinWaitlistAction` (`app/actions.ts`) via the service role; RLS is enabled with no policies.
+- Signing up twice is a silent no-op (`UNIQUE(email, audience)` + upsert ignoring duplicates), so the form never reveals whether an email is already listed.
+
+**Indexes:**
+
+- Unique: (email, audience)
+
+---
+
 **Note:** For MVP, email/SMS notifications are tracked via provider audit logs (SendGrid, Twilio, etc.) - no database storage needed.
 
 ---

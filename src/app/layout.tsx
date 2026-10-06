@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
-import { Source_Serif_4, Inter, Geist_Mono } from "next/font/google";
+import { Fraunces, Jost, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const sourceSerif = Source_Serif_4({
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-source-serif",
+// Brand fonts: Fraunces for headlines and the wordmark, Jost for body and labels.
+// Both are variable fonts; opsz lets Fraunces sharpen up at display sizes.
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
   subsets: ["latin"],
+  axes: ["opsz"],
   display: "swap",
 });
 
-const inter = Inter({
-  weight: ["300", "400", "500", "600"],
-  variable: "--font-inter",
+const jost = Jost({
+  variable: "--font-jost",
   subsets: ["latin"],
   display: "swap",
 });
@@ -47,7 +48,7 @@ export default function RootLayout({
   return (
     <html lang="no">
       <body
-        className={`${sourceSerif.variable} ${inter.variable} ${geistMono.variable} antialiased font-sans`}
+        className={`${fraunces.variable} ${jost.variable} ${geistMono.variable} antialiased font-sans`}
       >
         {children}
       </body>

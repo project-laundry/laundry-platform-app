@@ -4,18 +4,27 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Nordic Design System - HSL Colors */
-  --nordic-blue: 200 50% 35%;
-  --nordic-blue-light: 200 45% 55%;
-  --sea-green: 175 35% 45%;
-  --sea-green-light: 175 40% 60%;
-  --cream: 42 30% 96%;
-  --cream-dark: 42 25% 88%;
-  --warm-white: 40 40% 98%;
+  /* NooraCare brand palette (BRANDBOOK §1) — HSL triplets */
+  --sno: 43 30% 95%;        /* Snø #F7F5F0 */
+  --lin: 38 33% 87%;        /* Lin #E9E1D3 */
+  --frost: 197 32% 71%;     /* Frost #9DBFCC */
+  --frost-deep: 196 34% 36%; /* Frost dyp #3D6A7B — Frost darkened for text/icons (5.4:1 on Snø) */
+  --fjord: 203 43% 21%;     /* Fjord #1E3A4C */
+  --sol: 40 85% 62%;        /* Morgensol #F0B84A */
+  --fersken: 14 80% 75%;    /* Fersken #F2A48C */
+
+  /* Role tokens used across the app, mapped onto the palette */
+  --nordic-blue: var(--fjord);       /* primary actions */
+  --nordic-blue-light: var(--frost); /* soft blue accents */
+  --sea-green: var(--frost-deep);    /* chosen/highlighted: selection, icons, eyebrows */
+  --sea-green-light: var(--frost);   /* soft highlight, e.g. on Fjord backgrounds */
+  --cream: var(--sno);               /* page background */
+  --cream-dark: var(--lin);          /* borders, dividers, disabled fills */
+  --warm-white: 45 33% 99%;          /* card surfaces, a hair lighter than Snø */
 
   /* Text colors */
-  --medium-gray: #64748b;
-  --dark-gray: #1e293b;
+  --medium-gray: #586974; /* Fjord-tinted gray, 5.2:1 on Snø */
+  --dark-gray: #1e3a4c;   /* Fjord */
 
   /* Legacy (only the /prototype sandbox still uses this) */
   --success-green: #10b981;
@@ -23,7 +32,7 @@
   /* Shadows */
   --shadow-soft: 0 4px 20px hsl(var(--nordic-blue) / 8%);
   --shadow-glow: 0 0 40px hsl(var(--sea-green) / 20%);
-  --shadow-card: 0 8px 30px hsl(210 25% 20% / 6%);
+  --shadow-card: 0 8px 30px hsl(var(--fjord) / 7%);
 
   --radius: 0.625rem;
   --background: oklch(1 0 0);
@@ -68,6 +77,13 @@
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-sno: hsl(var(--sno));
+  --color-lin: hsl(var(--lin));
+  --color-frost: hsl(var(--frost));
+  --color-frost-deep: hsl(var(--frost-deep));
+  --color-fjord: hsl(var(--fjord));
+  --color-sol: hsl(var(--sol));
+  --color-fersken: hsl(var(--fersken));
   --color-nordic-blue: hsl(var(--nordic-blue));
   --color-nordic-blue-light: hsl(var(--nordic-blue-light));
   --color-sea-green: hsl(var(--sea-green));
@@ -78,8 +94,8 @@
   --color-success-green: var(--success-green);
   --color-medium-gray: var(--medium-gray);
   --color-dark-gray: var(--dark-gray);
-  --font-sans: var(--font-inter);
-  --font-serif: var(--font-source-serif);
+  --font-sans: var(--font-jost);
+  --font-serif: var(--font-fraunces);
   --font-mono: var(--font-geist-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
