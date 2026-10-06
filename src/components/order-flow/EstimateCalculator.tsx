@@ -1,16 +1,12 @@
 'use client';
 
 // Public price calculator (/pris-kalkulator) — same selection model and
-// estimate as the order flow, plus a static price list.
+// estimate as the order flow, plus a static price list. No ironing rows:
+// it's not part of the first version (BUSINESS_LOGIC.md "Ironing").
 
 import { useMemo, useState } from 'react';
 import { CreditCard, ListChecks, Truck } from 'lucide-react';
-import {
-  calculateCustomerEstimate,
-  formatKr,
-  IRONING_LABELS,
-  PRICING,
-} from '@/lib/config/pricing';
+import { calculateCustomerEstimate, formatKr, PRICING } from '@/lib/config/pricing';
 import type { OrderSelection } from '@/types/order-flow';
 import { SelectionEditor } from './SelectionEditor';
 import { Breakdown, PriceDisclaimer, Section } from './primitives';
@@ -49,21 +45,6 @@ export function EstimateCalculator() {
         <div className="divide-y divide-cream-dark/60 text-sm">
           <PriceListRow label="Vask av klær" detail="Per pose" amount={`${formatKr(PRICING.per_bag_ore)}`} />
           <PriceListRow label="Sengetøy" detail="Per sett · egen vask" amount={`${formatKr(PRICING.per_bedding_set_ore)}`} />
-          <PriceListRow
-            label={`Stryking · ${IRONING_LABELS.everyday.label}`}
-            detail="Per plagg"
-            amount={formatKr(PRICING.ironing.everyday)}
-          />
-          <PriceListRow
-            label={`Stryking · ${IRONING_LABELS.shirts_dresses.label}`}
-            detail="Per plagg"
-            amount={formatKr(PRICING.ironing.shirts_dresses)}
-          />
-          <PriceListRow
-            label="Stryking · Sengetøy"
-            detail="Per sett"
-            amount={formatKr(PRICING.ironing.bedding)}
-          />
           <PriceListRow
             label="Henting & levering"
             detail="Til døren"

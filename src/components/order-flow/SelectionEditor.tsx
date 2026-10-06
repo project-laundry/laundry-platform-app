@@ -26,9 +26,13 @@ import {
 export function SelectionEditor({
   selection: sel,
   onChange,
+  showIroning = false,
 }: {
   selection: OrderSelection;
   onChange: (next: OrderSelection) => void;
+  /** Ironing is not part of the first version, so the section is off
+   *  everywhere (BUSINESS_LOGIC.md "Ironing"). Flip the default when it ships. */
+  showIroning?: boolean;
 }) {
   const setBags = (n: number) => onChange({ ...sel, bags: clamp(n) });
   const setBedding = (n: number) => {
@@ -104,6 +108,7 @@ export function SelectionEditor({
         />
       </Section>
 
+      {showIroning && (
       <Section
         delay={200}
         icon={<Sparkles className="size-5" />}
@@ -136,6 +141,7 @@ export function SelectionEditor({
           />
         </div>
       </Section>
+      )}
     </>
   );
 }
