@@ -318,10 +318,11 @@ Subtle entrances only, via `tw-animate-css`:
 - Skeletons: `animate-pulse rounded-2xl bg-cream-dark/50`.
 - Press feedback: `active:scale-[0.98]` (buttons), `active:scale-90` (icon buttons).
 
-Marketing decoration may loop (the hero bubbles bob — token `animate-bob` in
-`globals.css`). Always put loops behind `motion-safe:` so reduced-motion users
-get a still picture. In the logged-in app, stick to the entrance animations
-above.
+Marketing illustrations may loop (the "Slik virker det" story: floating phone,
+spinning drum, rising bubbles, pulsing rings — tokens `animate-float`,
+`animate-drum`, `animate-rise`, `animate-ring` etc. in `globals.css`). Always
+put loops behind `motion-safe:` so reduced-motion users get a still picture.
+In the logged-in app, stick to the entrance animations above.
 
 ## 6. Iconography
 
