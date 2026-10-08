@@ -68,12 +68,13 @@ sign in on `nooracare.no` until the gate is removed.
 2. Move `src/app/lansering/page.tsx` to `src/app/page.tsx` and `src/app/bli-renser/lansering/page.tsx`
    to `src/app/bli-renser/page.tsx`; drop their `robots: { index: false }`; delete the coming-soon
    pages and `src/components/coming-soon/` (keep `launch.ts` only if something still imports it).
-3. Create the promo code behind the waitlist offer (first `WAITLIST_OFFER_SPOTS` signups get the
-   first wash at half price — `src/components/coming-soon/launch.ts`) and email it to those rows
-   of `waitlist_signups`; everyone else gets the plain "we're open" email.
+3. Create the promo code behind the waitlist offer (first `WAITLIST_OFFER_SPOTS` customer signups get
+   the first wash at half price — `src/components/coming-soon/launch.ts`) and email it to those rows
+   of `waitlist_signups` ordered by `created_at`; everyone else gets the plain "we're open" email.
 4. Update the share images (`src/app/opengraph-image.tsx`, `src/app/bli-renser/opengraph-image.tsx`)
    from "Snart slipper du …" to launch copy.
-5. Delete `waitlist_signups` rows no later than six months after launch (`/personvern#venteliste`).
+5. Delete `waitlist_signups` rows no later than six months after launch, except people who still
+   want the newsletter; unsubscribes are deleted right away (`/personvern#venteliste`).
 
 ---
 

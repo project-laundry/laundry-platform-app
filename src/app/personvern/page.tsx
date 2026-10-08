@@ -69,18 +69,21 @@ export default function PersonvernPage() {
                 <p className="leading-relaxed text-dark-gray">
                   Melder du deg på ventelisten vår (som kunde eller renser),
                   lagrer vi e-postadressen din, byen du velger og tidspunktet
-                  for påmeldingen. Vi bruker dette bare til å gi deg beskjed
-                  når NooraCare åpner. Rettslig grunnlag er samtykket ditt
-                  (GDPR art. 6 nr. 1 bokstav a), som du kan trekke tilbake
-                  når som helst ved å skrive til{" "}
+                  for påmeldingen. Vi bruker dette til å gi deg beskjed når
+                  NooraCare åpner, sende deg lanseringstilbudet og sende deg
+                  nyhetsbrev fra NooraCare. Rettslig grunnlag er samtykket
+                  ditt (GDPR art. 6 nr. 1 bokstav a), som du kan trekke
+                  tilbake når som helst – via avmeldingslenken i e-postene
+                  våre eller ved å skrive til{" "}
                   <a
                     href="mailto:post@nooracare.no"
                     className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
                   >
                     post@nooracare.no
                   </a>
-                  . Vi sletter ventelisten senest seks måneder etter
-                  lansering.
+                  . Melder du deg av, sletter vi adressen din. Vi deler den
+                  ikke med andre, og vi sletter adressen senest seks måneder
+                  etter lansering med mindre du fortsatt vil ha nyhetsbrevet.
                 </p>
               </div>
             </section>

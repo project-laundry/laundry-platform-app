@@ -40,8 +40,7 @@ export function Footer({
           <div className="space-y-4">
             <Wordmark />
             <p className="leading-relaxed text-medium-gray">
-              NooraCare kobler deg med en renser i nabolaget som vasker klærne
-              dine.
+              NooraCare kobler deg med en lokal renser som vasker klærne dine.
             </p>
             <div className="space-y-1 text-sm text-medium-gray">
               <p>NooraCare AS</p>
