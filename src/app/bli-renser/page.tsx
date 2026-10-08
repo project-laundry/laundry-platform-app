@@ -119,11 +119,9 @@ export default async function CleanerComingSoonPage() {
       </section>
 
       <CrossPromo
-        eyebrow="Vil du heller slippe klesvasken?"
-        title="Sett deg på kundelisten"
-        text="Vi henter, en nabo vasker, og vi leverer rent tøy hjem til deg. Få beskjed først når vi åpner."
+        text="Vil du heller slippe klesvasken? Vi henter, en nabo vasker, og vi leverer rent tøy hjem til deg."
         href="/"
-        cta="For kunder"
+        cta="Sett deg på kundelisten"
       />
     </ComingSoonShell>
   );

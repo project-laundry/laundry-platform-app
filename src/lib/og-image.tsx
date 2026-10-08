@@ -1,6 +1,6 @@
 // Shared renderer for the social share images (opengraph-image.tsx files).
-// Mirrors the coming-soon hero: Fjord background, Snø headline with a
-// Morgensol highlight, the negative stacked logo. Rendered statically at
+// The brand's Fjord block (BRANDBOOK §1): Fjord background, Snø headline with
+// a Morgensol highlight, the negative stacked logo. Rendered statically at
 // build time by next/og.
 
 import { ImageResponse } from 'next/og';

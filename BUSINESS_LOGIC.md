@@ -132,7 +132,7 @@ Until launch, `/` and `/bli-renser` collect a waitlist instead of taking orders 
 
 **What we store:** email, audience (`customer` | `cleaner`), city (`bergen` | `oslo`) and the signup time — nothing else. See [WaitlistSignup](./ENTITIES.md#waitlistsignup).
 
-**Consent model:** no checkbox. The line under the button states the whole deal ("Én e-post når vi åpner, ingen nyhetsbrev") and submitting is the consent (GDPR art. 6(1)(a), documented in `/personvern#venteliste`). Consequences: the waitlist may be used for **one** launch email per audience and nothing else — no newsletter, no re-targeting — and rows are deleted within six months of launch.
+**Consent model:** no checkbox. Submitting is the consent (GDPR art. 6(1)(a)); the form links to `/personvern#venteliste`, which states the whole deal. Consequences: the waitlist may be used for the launch email, the launch offer and a NooraCare newsletter — every email needs an unsubscribe link, unsubscribing deletes the row, the list is never shared, and rows are deleted within six months of launch unless the person still wants the newsletter.
 
 **What we promise on the pages (keep the code and the copy in sync):**
 - *Launch window:* `LAUNCH_WINDOW_LABEL` in `src/components/coming-soon/launch.ts` ("Åpner i Bergen og Oslo i vinter").

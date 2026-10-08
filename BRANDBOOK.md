@@ -83,9 +83,16 @@ a Fjord hero. In the logged-in app, one playful touch per screen at most.
   `src/components/coming-soon/ComingSoonShell.tsx`).
 - Bubbles: two outlined circles in Morgensol, the small one up-left of the big
   one, as in the logo. Static decoration only, `aria-hidden`.
-- Dark hero (mirrors the secondary logo): `bg-fjord text-sno`, Frost glow from
-  the top, headline highlight in `text-sol`, primary CTA `bg-sol text-fjord`,
-  rounded bottom edge (`rounded-b-[2.5rem] sm:rounded-b-[4rem]`).
+- Light hero (the coming-soon pages): a warm Lin surface (`bg-lin/60`) with
+  the Frost glow from the top and a Fersken glow in a corner, Fjord type, the
+  headline's second line marked with a Morgensol stroke behind the words
+  (`bg-sol/70` fill — never `text-sol` on light), the form in a white card,
+  an optional photo (beside the copy from `lg`, under the centered copy on
+  phones and tablets in portrait), rounded bottom edge
+  (`rounded-b-[2.5rem] sm:rounded-b-[4rem]`).
+- Fjord block (closing CTA, share images — mirrors the secondary logo):
+  `bg-fjord text-sno`, highlight in `text-sol`, CTA `bg-sol text-fjord`. One
+  per page at most.
 
 **Backdrop:** pages get a fixed atmospheric wash over the cream base:
 
@@ -312,7 +319,11 @@ Subtle entrances only, via `tw-animate-css`:
 - Skeletons: `animate-pulse rounded-2xl bg-cream-dark/50`.
 - Press feedback: `active:scale-[0.98]` (buttons), `active:scale-90` (icon buttons).
 
-No floating/shimmer/bounce loops, no parallax, nothing that moves unprompted.
+Marketing illustrations may loop (the "Slik virker det" story: floating phone,
+spinning drum, rising bubbles, pulsing rings — tokens `animate-float`,
+`animate-drum`, `animate-rise`, `animate-ring` etc. in `globals.css`). Always
+put loops behind `motion-safe:` so reduced-motion users get a still picture.
+In the logged-in app, stick to the entrance animations above.
 
 ## 6. Iconography
 
@@ -337,4 +348,4 @@ Sentence case everywhere (no Title Case), questions welcome in headings,
 - [ ] Inputs per §4, focus ring `sea-green/20`
 - [ ] No aurora gradients, no gradient text, no hard-coded colors
 - [ ] `tabular-nums` on live numbers; `formatKr` for money
-- [ ] Entrance animation on main content, nothing looping
+- [ ] Entrance animation on main content; loops only on marketing illustrations, behind `motion-safe:`

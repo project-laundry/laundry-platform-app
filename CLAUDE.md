@@ -123,7 +123,7 @@ src/
 ├── assets/brand/          # Logo PNGs (primary/secondary/submerke, normal + negativ); favicons are app/icon.png + app/apple-icon.png
 ├── components/             # Reusable UI components
 │   ├── auth/               # Auth components (empty)
-│   ├── coming-soon/        # Shared shell (hero, StepList, FaqList, CrossPromo) + WaitlistForm for the two coming-soon pages; launch.ts holds the launch window label and the waitlist offer cap
+│   ├── coming-soon/        # Shared shell (light hero with optional photo, StepList, FaqList, CrossPromo) + WaitlistForm for the two coming-soon pages; HowItWorksStory.tsx = the illustrated 5-step story on the customer page; launch.ts holds the launch window label, the waitlist offer cap and the Instagram URL
 │   ├── forms/              # Form components (empty)
 │   ├── layout/             # Layout components (empty)
 │   └── ui/                 # UI elements
