@@ -1,4 +1,3 @@
-import { getImageProps } from 'next/image';
 import Link from 'next/link';
 import { ArrowDown, ArrowRight, Gift, Users } from 'lucide-react';
 import { Wordmark } from '@/components/layout/AppHeader';
@@ -75,14 +74,9 @@ function Bubbles({ className, tone = 'text-sol' }: { className: string; tone?: s
   );
 }
 
-/** The hero, campaign-style: from `lg` up one landscape photo fills the
- *  whole viewport and the copy and form sit in Fjord type on its empty left
- *  side over a soft Snø fade. Below that (phones, tablets in portrait) the
- *  copy comes first, centered, with the portrait photo under it, so the form
- *  stays above the fold and the type never lands on the subject. The
- *  landscape photo must have a plain, bright left two thirds — see the
- *  prompt in the session notes / BRANDBOOK §1 "Light hero". Without a photo
- *  the copy is centered in one column. */
+/** The light hero (BRANDBOOK §1): badge, two-line headline with a Morgensol
+ *  stroke under the second line, subtitle and the waitlist form, centered in
+ *  one column so the form stays above the fold on a phone. */
 export function ComingSoonHero({
   audience,
   badge,
@@ -91,7 +85,6 @@ export function ComingSoonHero({
   subtitle,
   offer,
   count,
-  image,
 }: {
   audience: WaitlistAudience;
   badge: string;
@@ -103,148 +96,70 @@ export function ComingSoonHero({
    *  spans so it never wraps awkwardly on a phone. */
   offer?: { title: string; detail: string };
   count: number | null;
-  /** Hero photo, landscape, subject in the right third, plain wall on the
-   *  left. `mobileSrc` is the portrait counterpart (plain wall in the top two
-   *  thirds, subject at the bottom) shown under the copy below `lg`.
-   *  `position` / `mobilePosition` are CSS object-position values for crops
-   *  tighter than the photo. */
-  image?: {
-    src: string;
-    alt: string;
-    position?: string;
-    mobileSrc: string;
-    mobilePosition?: string;
-  };
 }) {
-  // With a photo the copy is centered until the side-by-side layout at `lg`.
-  const align = image ? 'mx-auto lg:mx-0' : 'mx-auto';
-  const copy = (
-    <>
-      <span className="inline-flex items-center gap-2 rounded-full border border-fjord/10 bg-white/60 px-4 py-1.5 text-sm tracking-wide text-medium-gray backdrop-blur animate-in fade-in slide-in-from-bottom-3 duration-500">
-        <span className="size-2 rounded-full bg-sol" />
-        {badge}
-      </span>
-
-      <h1
-        className={`relative mt-6 w-fit font-serif text-5xl font-semibold leading-[0.98] tracking-tight text-dark-gray sm:text-6xl xl:text-7xl 2xl:text-[5.25rem] animate-in fade-in slide-in-from-bottom-3 duration-500 ${align}`}
-        style={{ animationDelay: '60ms' }}
-      >
-        {title}
-        <br />
-        <span className="relative isolate inline-block">
-          <span
-            aria-hidden
-            className="absolute inset-x-[-0.06em] bottom-[0.08em] -z-10 h-[0.4em] rounded-md bg-sol/70"
-          />
-          {highlight}
-        </span>
-        <Bubbles className="absolute -right-7 -top-8 size-9 sm:-right-12 sm:-top-10 sm:size-12 motion-safe:animate-bob" />
-      </h1>
-
-      <p
-        className={`mt-6 max-w-md text-lg text-medium-gray sm:text-xl animate-in fade-in slide-in-from-bottom-3 duration-500 ${align}`}
-        style={{ animationDelay: '120ms' }}
-      >
-        {subtitle}
-      </p>
-
-      <div
-        id={WAITLIST_ID}
-        className={`mt-8 max-w-md scroll-mt-28 text-left animate-in fade-in slide-in-from-bottom-3 duration-500 ${align}`}
-        style={{ animationDelay: '180ms' }}
-      >
-        {offer && (
-          <p className="mb-4 flex items-start gap-2.5 rounded-2xl bg-fersken px-3.5 py-3 text-[clamp(11.5px,calc((100vw_-_100px)/24),14px)] text-fjord sm:px-4 sm:text-sm">
-            <Gift className="mt-0.5 hidden size-4 shrink-0 sm:block" />
-            <span className="flex flex-wrap items-baseline gap-x-1">
-              <span className="font-semibold">{offer.title}</span>
-              <span>{offer.detail}</span>
-            </span>
-          </p>
-        )}
-        <WaitlistForm audience={audience} />
-        {count !== null && count >= MIN_COUNT_TO_SHOW && (
-          <p className="mt-4 flex items-center justify-center gap-1.5 text-sm text-medium-gray">
-            <Users className="size-4 text-sea-green" />
-            Bli med <span className="font-semibold tabular-nums text-sea-green">{count}</span> andre
-          </p>
-        )}
-      </div>
-    </>
-  );
-
-  if (!image) {
-    return (
-      <section className="relative isolate overflow-hidden rounded-b-[2.5rem] bg-lin/60 sm:rounded-b-[4rem]">
-        <HeroGlow />
-        <div className="mx-auto w-full max-w-3xl px-5 pb-16 pt-28 text-center lg:pt-36">
-          {copy}
-          <a
-            href={`#${HOW_IT_WORKS_ID}`}
-            className="mt-10 inline-flex items-center gap-1.5 text-sm text-medium-gray transition-colors hover:text-sea-green animate-in fade-in duration-700"
-            style={{ animationDelay: '400ms' }}
-          >
-            Slik virker det
-            <ArrowDown className="size-4" />
-          </a>
-        </div>
-      </section>
-    );
-  }
-
-  // Fade that keeps the type legible on the photo: from the left on wide
-  // screens (copy sits on the wall), from the top when stacked (copy sits
-  // above the subject).
-  const fadeDesktop =
-    'linear-gradient(90deg, hsl(var(--sno) / 0.85) 0%, hsl(var(--sno) / 0.55) 35%, hsl(var(--sno) / 0) 62%)';
-  const fadeMobile =
-    'linear-gradient(180deg, hsl(var(--sno) / 0.9) 0%, hsl(var(--sno) / 0.6) 40%, hsl(var(--sno) / 0) 60%)';
-
-  // One photo per orientation, art-directed through <picture> so each
-  // breakpoint downloads only its own file (next/image getImageProps).
-  const common = { alt: image.alt, fill: true, priority: true, sizes: '100vw', quality: 90 } as const;
-  const {
-    props: { srcSet: desktop },
-  } = getImageProps({ ...common, src: image.src });
-  const {
-    props: { srcSet: mobile, ...img },
-  } = getImageProps({ ...common, src: image.mobileSrc });
-
   return (
-    <section className="relative isolate min-h-[100svh] overflow-hidden rounded-b-[2.5rem] bg-sno sm:rounded-b-[4rem] lg:flex lg:items-center lg:bg-lin/60">
-      {/* Stacked (below lg): a square crop of the portrait photo, anchored to
-          the bottom of the hero and aimed (mobilePosition) at the subject's
-          head and the bag, so her legs and the floor are cut and the hero
-          stays short. The square is capped so tablets don't get a photo the
-          height of the screen. The copy reserves the space above it (pb
-          below), so she always lands under the form. From lg: the landscape
-          photo fills the hero. */}
-      <picture
-        className="absolute inset-x-0 bottom-0 h-[min(100vw,44rem)] [mask-image:linear-gradient(180deg,transparent_0%,#000_18%)] animate-in fade-in duration-700 lg:top-0 lg:h-auto lg:[mask-image:none]"
-        style={{ animationDelay: '120ms' }}
-      >
-        <source media="(min-width: 1024px)" srcSet={desktop} />
-        <source srcSet={mobile} />
-        <img
-          {...img}
-          alt={image.alt}
-          className="object-cover [object-position:var(--pos-m)] lg:[object-position:var(--pos-d)]"
-          style={
-            {
-              ...img.style,
-              '--pos-m': image.mobilePosition ?? '50% 100%',
-              '--pos-d': image.position ?? '50% 50%',
-            } as React.CSSProperties
-          }
-        />
-      </picture>
-      <div aria-hidden className="absolute inset-0 lg:hidden" style={{ background: fadeMobile }} />
-      <div aria-hidden className="absolute inset-0 hidden lg:block" style={{ background: fadeDesktop }} />
+    <section className="relative isolate overflow-hidden rounded-b-[2.5rem] bg-lin/60 sm:rounded-b-[4rem]">
+      <HeroGlow />
+      <div className="mx-auto w-full max-w-3xl px-5 pb-16 pt-28 text-center lg:pt-36">
+        <span className="inline-flex items-center gap-2 rounded-full border border-fjord/10 bg-white/60 px-4 py-1.5 text-sm tracking-wide text-medium-gray backdrop-blur animate-in fade-in slide-in-from-bottom-3 duration-500">
+          <span className="size-2 rounded-full bg-sol" />
+          {badge}
+        </span>
 
-      <div className="relative z-10 w-full min-w-0">
-        <div className={`pb-[min(92vw,40rem)] pt-24 lg:py-32 ${heroContainer}`}>
-          <div className="mx-auto max-w-xl text-center lg:mx-0 lg:max-w-[42rem] lg:text-left">{copy}</div>
+        <h1
+          className="relative mx-auto mt-6 w-fit font-serif text-5xl font-semibold leading-[0.98] tracking-tight text-dark-gray sm:text-6xl xl:text-7xl 2xl:text-[5.25rem] animate-in fade-in slide-in-from-bottom-3 duration-500"
+          style={{ animationDelay: '60ms' }}
+        >
+          {title}
+          <br />
+          <span className="relative isolate inline-block">
+            <span
+              aria-hidden
+              className="absolute inset-x-[-0.06em] bottom-[0.08em] -z-10 h-[0.4em] rounded-md bg-sol/70"
+            />
+            {highlight}
+          </span>
+          <Bubbles className="absolute -right-7 -top-8 size-9 sm:-right-12 sm:-top-10 sm:size-12 motion-safe:animate-bob" />
+        </h1>
+
+        <p
+          className="mx-auto mt-6 max-w-md text-lg text-medium-gray sm:text-xl animate-in fade-in slide-in-from-bottom-3 duration-500"
+          style={{ animationDelay: '120ms' }}
+        >
+          {subtitle}
+        </p>
+
+        <div
+          id={WAITLIST_ID}
+          className="mx-auto mt-8 max-w-md scroll-mt-28 text-left animate-in fade-in slide-in-from-bottom-3 duration-500"
+          style={{ animationDelay: '180ms' }}
+        >
+          {offer && (
+            <p className="mb-4 flex items-start gap-2.5 rounded-2xl bg-fersken px-3.5 py-3 text-[clamp(11.5px,calc((100vw_-_100px)/24),14px)] text-fjord sm:px-4 sm:text-sm">
+              <Gift className="mt-0.5 hidden size-4 shrink-0 sm:block" />
+              <span className="flex flex-wrap items-baseline gap-x-1">
+                <span className="font-semibold">{offer.title}</span>
+                <span>{offer.detail}</span>
+              </span>
+            </p>
+          )}
+          <WaitlistForm audience={audience} />
+          {count !== null && count >= MIN_COUNT_TO_SHOW && (
+            <p className="mt-4 flex items-center justify-center gap-1.5 text-sm text-medium-gray">
+              <Users className="size-4 text-sea-green" />
+              Bli med <span className="font-semibold tabular-nums text-sea-green">{count}</span> andre
+            </p>
+          )}
         </div>
+
+        <a
+          href={`#${HOW_IT_WORKS_ID}`}
+          className="mt-10 inline-flex items-center gap-1.5 text-sm text-medium-gray transition-colors hover:text-sea-green animate-in fade-in duration-700"
+          style={{ animationDelay: '400ms' }}
+        >
+          Slik virker det
+          <ArrowDown className="size-4" />
+        </a>
       </div>
     </section>
   );
