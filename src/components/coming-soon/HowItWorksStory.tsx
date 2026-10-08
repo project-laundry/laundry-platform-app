@@ -137,7 +137,7 @@ function PhoneScene() {
   );
 }
 
-/** Step 2: a cleaner accepts. Generic silhouette — no face, no skin tone.
+/** Step 2: a cleaner accepts. Flat illustrated avatar — no facial features.
  *  Two rings pulse outward from the avatar; the toast slides in and fades. */
 function CleanerScene() {
   return (
@@ -147,10 +147,13 @@ function CleanerScene() {
         className="absolute size-44 rounded-full border-2 border-frost motion-safe:animate-ring"
         style={{ animationDelay: '1.3s' }}
       />
-      <div className="relative size-44 overflow-hidden rounded-full bg-frost/40 shadow-[var(--shadow-card)]">
-        <svg viewBox="0 0 100 100" className="size-full fill-fjord">
-          <circle cx="50" cy="38" r="18" />
-          <path d="M14 104c2-26 17-38 36-38s34 12 36 38z" />
+      <div className="relative size-44 overflow-hidden rounded-full border-[6px] border-white bg-frost/40 shadow-[var(--shadow-card)] ring-2 ring-frost">
+        <svg viewBox="0 0 100 100" className="size-full">
+          <path d="M29 48C29 28 38 19 50 19s21 9 21 29v36H29z" className="fill-fjord" />
+          <path d="M8 104c2-22 20-32 42-32s40 10 42 32z" className="fill-sno" />
+          <path d="M44 58v10l6 7 6-7V58z" className="fill-fersken" />
+          <path d="M34 36h32v10c0 12-7 20-16 20s-16-8-16-20z" className="fill-fersken" />
+          <path d="M29 48C29 28 38 19 50 19s21 9 21 29h-4c0-6-5-11-17-11s-17 5-17 11z" className="fill-fjord" />
         </svg>
       </div>
       <div className="absolute right-2 top-14 flex w-[260px] rotate-3 items-center gap-3 rounded-2xl bg-white px-4 py-3.5 shadow-[var(--shadow-card)] motion-safe:animate-toast">
