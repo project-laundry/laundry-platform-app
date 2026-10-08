@@ -87,8 +87,8 @@ a Fjord hero. In the logged-in app, one playful touch per screen at most.
   the Frost glow from the top and a Fersken glow in a corner, Fjord type, the
   headline's second line marked with a Morgensol stroke behind the words
   (`bg-sol/70` fill — never `text-sol` on light), the form in a white card,
-  an optional photo (beside the copy from `lg`, under the centered copy on
-  phones and tablets in portrait), rounded bottom edge
+  an optional photo (beside the copy from `lg`, dropped on phones and tablets
+  in portrait), rounded bottom edge
   (`rounded-b-[2.5rem] sm:rounded-b-[4rem]`).
 - Fjord block (closing CTA, share images — mirrors the secondary logo):
   `bg-fjord text-sno`, highlight in `text-sol`, CTA `bg-sol text-fjord`. One
