@@ -78,11 +78,10 @@ function Bubbles({ className, tone = 'text-sol' }: { className: string; tone?: s
 /** The hero, campaign-style: from `lg` up one landscape photo fills the
  *  whole viewport and the copy and form sit in Fjord type on its empty left
  *  side over a soft Snø fade. Below that (phones, tablets in portrait) the
- *  copy comes first, centered, with the portrait photo under it, so the form
- *  stays above the fold and the type never lands on the subject. The
- *  landscape photo must have a plain, bright left two thirds — see the
- *  prompt in the session notes / BRANDBOOK §1 "Light hero". Without a photo
- *  the copy is centered in one column. */
+ *  photo is dropped and the copy is centered in one column, same as without
+ *  a photo, so the form stays above the fold. The landscape photo must have
+ *  a plain, bright left two thirds — see the prompt in the session notes /
+ *  BRANDBOOK §1 "Light hero". */
 export function ComingSoonHero({
   audience,
   badge,
@@ -103,17 +102,13 @@ export function ComingSoonHero({
    *  spans so it never wraps awkwardly on a phone. */
   offer?: { title: string; detail: string };
   count: number | null;
-  /** Hero photo, landscape, subject in the right third, plain wall on the
-   *  left. `mobileSrc` is the portrait counterpart (plain wall in the top two
-   *  thirds, subject at the bottom) shown under the copy below `lg`.
-   *  `position` / `mobilePosition` are CSS object-position values for crops
+  /** Hero photo from `lg` up, landscape, subject in the right third, plain
+   *  wall on the left. `position` is a CSS object-position value for crops
    *  tighter than the photo. */
   image?: {
     src: string;
     alt: string;
     position?: string;
-    mobileSrc: string;
-    mobilePosition?: string;
   };
 }) {
   // With a photo the copy is centered until the side-by-side layout at `lg`.
@@ -192,63 +187,43 @@ export function ComingSoonHero({
     );
   }
 
-  // Fade that keeps the type legible on the photo: from the left on wide
-  // screens (copy sits on the wall), from the top when stacked (copy sits
-  // above the subject).
-  const fadeDesktop =
+  // Fade that keeps the type legible on the photo: the copy sits on the wall.
+  const fade =
     'linear-gradient(90deg, hsl(var(--sno) / 0.85) 0%, hsl(var(--sno) / 0.55) 35%, hsl(var(--sno) / 0) 62%)';
-  const fadeMobile =
-    'linear-gradient(180deg, hsl(var(--sno) / 0.9) 0%, hsl(var(--sno) / 0.6) 40%, hsl(var(--sno) / 0) 60%)';
 
-  // One photo per orientation, art-directed through <picture> so each
-  // breakpoint downloads only its own file (next/image getImageProps).
-  const common = { alt: image.alt, fill: true, priority: true, sizes: '100vw', quality: 90 } as const;
+  // The photo only exists from lg: below that <picture> resolves to an empty
+  // GIF, so phones never download it (next/image getImageProps).
   const {
-    props: { srcSet: desktop },
-  } = getImageProps({ ...common, src: image.src });
-  const {
-    props: { srcSet: mobile, ...img },
-  } = getImageProps({ ...common, src: image.mobileSrc });
+    props: { srcSet: desktop, ...img },
+  } = getImageProps({ alt: image.alt, fill: true, priority: true, sizes: '100vw', quality: 90, src: image.src });
 
   return (
-    <section className="relative isolate min-h-[100svh] overflow-hidden rounded-b-[2.5rem] bg-sno sm:rounded-b-[4rem] lg:flex lg:items-center lg:bg-lin/60">
-      {/* Stacked (below lg): a square crop of the portrait photo, anchored to
-          the bottom of the hero and aimed (mobilePosition) at the subject's
-          head and the bag, so her legs and the floor are cut and the hero
-          stays short. The square is capped so tablets don't get a photo the
-          height of the screen. The copy reserves the space above it (pb
-          below), so she always lands under the form. From lg: the landscape
-          photo fills the hero. */}
-      <picture
-        className="absolute inset-x-0 bottom-0 h-[min(100vw,44rem)] [mask-image:linear-gradient(180deg,transparent_0%,#000_18%)] animate-in fade-in duration-700 lg:top-0 lg:h-auto lg:[mask-image:none]"
-        style={{ animationDelay: '120ms' }}
-      >
+    <section className="relative isolate overflow-hidden rounded-b-[2.5rem] bg-lin/60 sm:rounded-b-[4rem] lg:flex lg:min-h-[100svh] lg:items-center">
+      <div className="lg:hidden">
+        <HeroGlow />
+      </div>
+      <picture className="absolute inset-0 hidden animate-in fade-in duration-700 lg:block" style={{ animationDelay: '120ms' }}>
         <source media="(min-width: 1024px)" srcSet={desktop} />
-        <source srcSet={mobile} />
+        <source srcSet={EMPTY_GIF} />
         <img
           {...img}
           alt={image.alt}
-          className="object-cover [object-position:var(--pos-m)] lg:[object-position:var(--pos-d)]"
-          style={
-            {
-              ...img.style,
-              '--pos-m': image.mobilePosition ?? '50% 100%',
-              '--pos-d': image.position ?? '50% 50%',
-            } as React.CSSProperties
-          }
+          className="object-cover"
+          style={{ ...img.style, objectPosition: image.position ?? '50% 50%' }}
         />
       </picture>
-      <div aria-hidden className="absolute inset-0 lg:hidden" style={{ background: fadeMobile }} />
-      <div aria-hidden className="absolute inset-0 hidden lg:block" style={{ background: fadeDesktop }} />
+      <div aria-hidden className="absolute inset-0 hidden lg:block" style={{ background: fade }} />
 
       <div className="relative z-10 w-full min-w-0">
-        <div className={`pb-[min(92vw,40rem)] pt-24 lg:py-32 ${heroContainer}`}>
+        <div className={`pb-16 pt-28 lg:py-32 ${heroContainer}`}>
           <div className="mx-auto max-w-xl text-center lg:mx-0 lg:max-w-[42rem] lg:text-left">{copy}</div>
         </div>
       </div>
     </section>
   );
 }
+
+const EMPTY_GIF = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
 
 /** Soft Frost light from the top, a warm Fersken glow in the corner. */
 function HeroGlow() {

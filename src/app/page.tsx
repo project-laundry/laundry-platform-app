@@ -32,10 +32,6 @@ export default async function ComingSoonPage() {
           src: '/images/hero-hallway.jpg',
           alt: 'En kvinne setter en gul klespose fra seg ved ytterdøren, med brettet tøy på en benk',
           position: '85% 50%',
-          // Portrait counterpart for phones, cropped square: aim at the head
-          // and the bag, cut the legs.
-          mobileSrc: '/images/hero-hallway-mobile.jpg',
-          mobilePosition: '62% 60%',
         }}
       />
 
