@@ -297,17 +297,8 @@ function MiniStep({
   );
 }
 
-/** How many more bags fit under the order minimum without raising the price.
- *  Turns "your 1 bag is bumped to 500 kr" into "2 more bags cost nothing
- *  extra" — same number, opposite feeling, and it nudges the order up. */
-export function bagsWithinMinimum(price: PriceResult): number {
-  if (!price.minimumApplied) return 0;
-  return Math.floor((PRICING.minimum_order_ore - price.subtotalOre) / PRICING.per_bag_ore);
-}
-
 /** Itemised price breakdown — live on step 1 and as review on the confirm step. */
 export function Breakdown({ price }: { price: PriceResult }) {
-  const extraBags = bagsWithinMinimum(price);
   return (
     <div className="overflow-hidden rounded-3xl border border-cream-dark/80 bg-warm-white/80 shadow-[var(--shadow-card)] backdrop-blur">
       {price.hasItems ? (
@@ -333,15 +324,8 @@ export function Breakdown({ price }: { price: PriceResult }) {
             <div className="flex items-start gap-2 bg-cream/60 px-5 py-3 text-sm text-medium-gray">
               <Info className="mt-0.5 size-4 shrink-0 text-sea-green" />
               <span>
-                Minste bestilling er {formatKr(PRICING.minimum_order_ore)}.{' '}
-                {extraBags > 0 ? (
-                  <span className="font-medium text-dark-gray">
-                    Du kan legge til {extraBags} {extraBags === 1 ? 'pose' : 'poser'} til
-                    uten at prisen øker.
-                  </span>
-                ) : (
-                  'Beløpet er justert opp til dette.'
-                )}
+                Minste bestilling er {formatKr(PRICING.minimum_order_ore)}.
+                Beløpet er justert opp til dette.
               </span>
             </div>
           )}
