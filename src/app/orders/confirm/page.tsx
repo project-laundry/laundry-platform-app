@@ -2,28 +2,36 @@
 
 // Step 3 — review everything, then hand off to Vipps to approve the payment
 // agreement (nothing is charged until the cleaner has priced the pickup).
+// Steps 1–2 work logged out; this step asks the visitor to log in first, and
+// the login/signup pages bring them back here (the order lives in localStorage).
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
+  AlertCircle,
   CalendarDays,
   CreditCard,
+  LogIn,
   MapPin,
   Package,
   RefreshCw,
-  Tag,
 } from 'lucide-react';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { calculateCustomerEstimate } from '@/lib/config/pricing';
 import type { OrderSelection } from '@/types/order-flow';
 import { isNonProduction } from '@/lib/utils/environment';
+import { createClient } from '@/lib/supabase/client';
+import { withNext } from '@/lib/auth/next-path';
 import {
   createSubscriptionAction,
   forceAcceptAgreementAction,
   validatePromoCodeAction,
 } from '../actions';
 import { OrderFlowShell } from '@/components/order-flow/OrderFlowShell';
-import { Breakdown, PriceDisclaimer, Section } from '@/components/order-flow/primitives';
+import { Breakdown, PriceDisclaimer } from '@/components/order-flow/primitives';
+
+const RETURN_PATH = '/orders/confirm';
 
 const FREQUENCY_LABELS: Record<string, string> = {
   weekly: 'Ukentlig',
@@ -72,12 +80,18 @@ export default function ConfirmPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
+  // null = not checked yet; the Vipps button stays disabled until we know.
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
   // Auto-accept bypasses the Vipps approval flow and is only available outside
   // production. In production this stays false so users always go through Vipps.
   const showAutoAccept = isNonProduction();
   const [autoAccept, setAutoAccept] = useState(showAutoAccept);
 
-  // Promo code state
+  // Promo code state. The field stays folded behind a link unless a code is
+  // already applied — a prominent code box sends people off to hunt for one.
+  const [promoOpen, setPromoOpen] = useState(!!orderData?.promoCode);
   const [promoInput, setPromoInput] = useState(orderData?.promoCode ?? '');
   const [promoStatus, setPromoStatus] = useState<'idle' | 'validating' | 'valid' | 'invalid'>(
     orderData?.promoCode ? 'valid' : 'idle'
@@ -86,6 +100,27 @@ export default function ConfirmPage() {
 
   const selection = orderData?.selection ?? EMPTY_SELECTION;
   const price = useMemo(() => calculateCustomerEstimate(selection), [selection]);
+
+  useEffect(() => {
+    let cancelled = false;
+    createClient()
+      .auth.getUser()
+      .then(({ data }) => {
+        if (!cancelled) setSignedIn(!!data.user);
+      })
+      .catch(() => {
+        if (!cancelled) setSignedIn(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (submitError) {
+      errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [submitError]);
 
   const handleApplyPromo = async () => {
     const code = promoInput.trim();
@@ -107,7 +142,7 @@ export default function ConfirmPage() {
       }
     } catch {
       setPromoStatus('invalid');
-      setPromoMessage('Kunne ikke validere rabattkoden');
+      setPromoMessage('Kunne ikke sjekke rabattkoden. Prøv igjen.');
     }
   };
 
@@ -121,6 +156,7 @@ export default function ConfirmPage() {
   const handleSubmit = async () => {
     if (!orderData || isSubmitting) return;
 
+    setSubmitError(null);
     setIsSubmitting(true);
 
     try {
@@ -140,12 +176,12 @@ export default function ConfirmPage() {
         promoCode: promoStatus === 'valid' ? promoInput.trim() || undefined : undefined,
       });
 
-      if (result.displayError) {
-        alert(result.displayError);
-      }
-
       if (result.error) {
-        throw new Error(result.error || 'Failed to create subscription');
+        // displayError is the customer-facing reason when there is one
+        // (e.g. the promo code no longer applies); otherwise stay generic.
+        setSubmitError(result.displayError || 'Det oppstod en feil. Prøv igjen.');
+        setIsSubmitting(false);
+        return;
       }
 
       if (autoAccept && result.agreementId) {
@@ -155,7 +191,7 @@ export default function ConfirmPage() {
         if (acceptResult.success) {
           router.push('/orders/success');
         } else {
-          alert(acceptResult.error || 'Auto-godkjenning feilet');
+          setSubmitError(acceptResult.error || 'Auto-godkjenning feilet');
           setIsSubmitting(false);
         }
       } else {
@@ -165,7 +201,7 @@ export default function ConfirmPage() {
       }
     } catch (error) {
       console.error('Order creation failed:', error);
-      alert('Det oppstod en feil. Vennligst prøv igjen.');
+      setSubmitError('Det oppstod en feil. Prøv igjen.');
       setRedirecting(false);
       setIsSubmitting(false);
     }
@@ -177,10 +213,57 @@ export default function ConfirmPage() {
     <OrderFlowShell
       step={3}
       price={price}
-      canAdvance={price.hasItems && !!orderData?.city && !!orderData?.firstPickupDate}
+      canAdvance={
+        signedIn === true &&
+        price.hasItems &&
+        !!orderData?.city &&
+        !!orderData?.firstPickupDate
+      }
       onAdvance={handleSubmit}
       isSubmitting={isSubmitting}
     >
+      {submitError && (
+        <div
+          ref={errorRef}
+          className="mt-6 flex items-start gap-2 rounded-2xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700 animate-in fade-in slide-in-from-top-1 duration-300"
+        >
+          <AlertCircle className="mt-0.5 size-4 shrink-0" />
+          <span>{submitError}</span>
+        </div>
+      )}
+
+      {signedIn === false && (
+        <div className="mt-6 rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur animate-in fade-in slide-in-from-bottom-3 duration-500">
+          <div className="flex items-center gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sea-green/12 text-sea-green">
+              <LogIn className="size-5" />
+            </span>
+            <div>
+              <h2 className="font-serif text-lg font-semibold leading-none text-dark-gray">
+                Logg inn for å fullføre
+              </h2>
+              <p className="mt-1 text-sm text-medium-gray">
+                Bestillingen din er lagret, så du fortsetter her etterpå.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+            <Link
+              href={withNext('/auth/login', RETURN_PATH)}
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-nordic-blue px-6 py-3.5 font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98]"
+            >
+              Logg inn
+            </Link>
+            <Link
+              href={withNext('/auth/signup', RETURN_PATH)}
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-cream-dark bg-white px-6 py-3.5 font-medium text-nordic-blue transition-all hover:border-sea-green hover:text-sea-green active:scale-[0.98]"
+            >
+              Opprett konto
+            </Link>
+          </div>
+        </div>
+      )}
+
       <div className="mt-6 space-y-4 animate-in fade-in slide-in-from-bottom-3 duration-700">
         <SummaryRow
           icon={<Package className="size-5" />}
@@ -211,68 +294,86 @@ export default function ConfirmPage() {
               : 'Én gang'
           }
         />
+
+        {/* The one thing that makes people hesitate at the Vipps button sits
+            right here, not under the price list. */}
+        <div className="flex items-start gap-2.5 rounded-2xl border border-dashed border-sea-green/40 bg-sea-green/5 px-4 py-3">
+          <CreditCard className="mt-0.5 size-4 shrink-0 text-sea-green" />
+          <p className="text-sm leading-relaxed text-medium-gray">
+            Du godkjenner kun en{' '}
+            <span className="font-medium text-dark-gray">betalingsavtale</span>{' '}
+            nå – ingenting trekkes før tøyet er hentet og priset.
+          </p>
+        </div>
       </div>
 
-      <Section
-        delay={120}
-        icon={<Tag className="size-5" />}
-        title="Rabattkode"
-        subtitle="Har du en kode? (valgfritt)"
+      <div
+        className="mt-8 animate-in fade-in slide-in-from-bottom-3 duration-700"
+        style={{ animationDelay: '120ms' }}
       >
-        <div className="flex gap-2">
-          <input
-            id="promoCode"
-            type="text"
-            value={promoInput}
-            onChange={(e) => {
-              setPromoInput(e.target.value);
-              if (promoStatus !== 'idle') {
-                setPromoStatus('idle');
-                setPromoMessage(null);
-              }
-            }}
-            disabled={promoStatus === 'valid'}
-            className="min-w-0 flex-1 rounded-2xl border border-cream-dark bg-white px-4 py-3 uppercase text-dark-gray outline-none transition-colors placeholder:normal-case placeholder:text-medium-gray/60 focus:border-sea-green focus:ring-2 focus:ring-sea-green/20 disabled:bg-cream/50 disabled:text-medium-gray"
-          />
-          {promoStatus === 'valid' ? (
-            <button
-              type="button"
-              onClick={handleRemovePromo}
-              className="shrink-0 rounded-2xl border border-cream-dark bg-white px-4 py-3 font-medium text-medium-gray transition-colors hover:border-sea-green/50 hover:text-dark-gray"
-            >
-              Fjern
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleApplyPromo}
-              disabled={!promoInput.trim() || promoStatus === 'validating'}
-              className="shrink-0 rounded-2xl bg-sea-green px-4 py-3 font-medium text-white transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:bg-cream-dark disabled:text-medium-gray"
-            >
-              {promoStatus === 'validating' ? 'Sjekker …' : 'Bruk'}
-            </button>
-          )}
-        </div>
-        {promoMessage && (
-          <p className={`mt-2 text-sm ${promoStatus === 'valid' ? 'text-sea-green' : 'text-red-600'}`}>
-            {promoMessage}
-          </p>
-        )}
-      </Section>
-
-      <div className="mt-8">
         <h2 className="mb-3 font-serif text-xl font-semibold text-dark-gray">
           Prisoversikt
         </h2>
         <Breakdown price={price} />
         <PriceDisclaimer />
-        <div className="mt-3 flex items-start gap-2.5 rounded-2xl bg-cream/70 px-4 py-3">
-          <CreditCard className="mt-0.5 size-4 shrink-0 text-sea-green" />
-          <p className="text-sm leading-relaxed text-medium-gray">
-            Du godkjenner kun en{' '}
-            <span className="font-medium text-dark-gray">betalingsavtale</span>{' '}
-            nå – ingenting trekkes før klærne er hentet og priset.
-          </p>
+
+        {/* Promo code: a link until opened, so it doesn't invite a code hunt. */}
+        <div className="mt-4">
+          {!promoOpen ? (
+            <button
+              type="button"
+              onClick={() => setPromoOpen(true)}
+              className="text-sm font-medium text-sea-green underline-offset-2 hover:underline"
+            >
+              Har du en rabattkode?
+            </button>
+          ) : (
+            <div className="animate-in fade-in slide-in-from-top-1 duration-300">
+              <label htmlFor="promoCode" className="mb-1.5 block text-sm font-medium text-dark-gray">
+                Rabattkode
+              </label>
+              <div className="flex gap-2">
+                <input
+                  id="promoCode"
+                  type="text"
+                  autoFocus={!orderData?.promoCode}
+                  value={promoInput}
+                  onChange={(e) => {
+                    setPromoInput(e.target.value);
+                    if (promoStatus !== 'idle') {
+                      setPromoStatus('idle');
+                      setPromoMessage(null);
+                    }
+                  }}
+                  disabled={promoStatus === 'valid'}
+                  className="min-w-0 flex-1 rounded-2xl border border-cream-dark bg-white px-4 py-3 uppercase text-dark-gray outline-none transition-colors placeholder:normal-case placeholder:text-medium-gray/60 focus:border-sea-green focus:ring-2 focus:ring-sea-green/20 disabled:bg-cream/50 disabled:text-medium-gray"
+                />
+                {promoStatus === 'valid' ? (
+                  <button
+                    type="button"
+                    onClick={handleRemovePromo}
+                    className="shrink-0 rounded-2xl border border-cream-dark bg-white px-4 py-3 font-medium text-medium-gray transition-colors hover:border-sea-green/50 hover:text-dark-gray"
+                  >
+                    Fjern
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleApplyPromo}
+                    disabled={!promoInput.trim() || promoStatus === 'validating'}
+                    className="shrink-0 rounded-2xl bg-sea-green px-4 py-3 font-medium text-white transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:bg-cream-dark disabled:text-medium-gray"
+                  >
+                    {promoStatus === 'validating' ? 'Sjekker …' : 'Bruk'}
+                  </button>
+                )}
+              </div>
+              {promoMessage && (
+                <p className={`mt-2 text-sm ${promoStatus === 'valid' ? 'text-sea-green' : 'text-red-600'}`}>
+                  {promoMessage}
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Auto-accept checkbox (non-production environments only) */}

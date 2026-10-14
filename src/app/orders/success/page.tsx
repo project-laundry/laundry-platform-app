@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, Suspense } from 'react';
 import { AppHeader } from '@/components/layout/AppHeader';
 import Link from 'next/link';
-import { Check, ChevronLeft, Clock, Info, Loader2, X } from 'lucide-react';
+import { ArrowRight, Check, ChevronLeft, Clock, Info, Loader2, X } from 'lucide-react';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { getCheckoutStatusAction, type CheckoutStatus } from '../actions';
 
@@ -16,13 +16,18 @@ type ViewState = 'loading' | 'active' | 'cancelled' | 'pending';
 
 function OrderSuccessPageContent() {
   const [viewState, setViewState] = useState<ViewState>('loading');
+  // One-time order or a subscription — the success copy differs.
+  const [recurring, setRecurring] = useState(false);
   const resetOrderData = useOrderFlowStore((state) => state.resetOrderData);
 
-  const pollStatus = useCallback(async (): Promise<ViewState> => {
+  const pollStatus = useCallback(async (): Promise<{ view: ViewState; recurring: boolean }> => {
     for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
       let status: CheckoutStatus;
+      let isRecurring = false;
       try {
-        ({ status } = await getCheckoutStatusAction());
+        const result = await getCheckoutStatusAction();
+        status = result.status;
+        isRecurring = result.recurring ?? false;
       } catch {
         status = 'unknown';
       }
@@ -31,11 +36,11 @@ function OrderSuccessPageContent() {
         // Only clear the order flow once the agreement is confirmed, so an
         // aborted checkout can be retried with the same details.
         resetOrderData();
-        return 'active';
+        return { view: 'active', recurring: isRecurring };
       }
 
       if (status === 'cancelled') {
-        return 'cancelled';
+        return { view: 'cancelled', recurring: isRecurring };
       }
 
       // pending / unknown — wait and retry (unless this was the last attempt)
@@ -45,22 +50,27 @@ function OrderSuccessPageContent() {
     }
 
     // Still not confirmed after polling — likely awaiting confirmation in app
-    return 'pending';
+    return { view: 'pending', recurring: false };
   }, [resetOrderData]);
 
+  const applyResult = ({ view, recurring }: { view: ViewState; recurring: boolean }) => {
+    setRecurring(recurring);
+    setViewState(view);
+  };
+
   useEffect(() => {
-    pollStatus().then(setViewState);
+    pollStatus().then(applyResult);
   }, [pollStatus]);
 
   const retryCheck = () => {
     setViewState('loading');
-    pollStatus().then(setViewState);
+    pollStatus().then(applyResult);
   };
 
   return (
     <PageShell>
       {viewState === 'loading' && <LoadingView />}
-      {viewState === 'active' && <SuccessView />}
+      {viewState === 'active' && <SuccessView recurring={recurring} />}
       {viewState === 'cancelled' && <CancelledView />}
       {viewState === 'pending' && <PendingView onRetry={retryCheck} />}
     </PageShell>
@@ -90,7 +100,7 @@ function LoadingView() {
   return (
     <div className="py-12 text-center">
       <Loader2 className="mx-auto size-10 animate-spin text-nordic-blue" />
-      <p className="mt-4 text-medium-gray">Bekrefter betalingen din...</p>
+      <p className="mt-4 text-medium-gray">Bekrefter avtalen …</p>
     </div>
   );
 }
@@ -128,7 +138,7 @@ function BackToDashboard() {
   );
 }
 
-function SuccessView() {
+function SuccessView({ recurring }: { recurring: boolean }) {
   return (
     <div className="text-center animate-in fade-in slide-in-from-bottom-3 duration-500">
       <StatusIcon tone="success">
@@ -136,10 +146,12 @@ function SuccessView() {
       </StatusIcon>
 
       <h1 className="font-serif text-4xl font-semibold leading-tight text-dark-gray">
-        Din avtale er opprettet!
+        {recurring ? 'Fast henting er satt opp' : 'Bestillingen er bekreftet'}
       </h1>
       <p className="mx-auto mt-3 max-w-md text-medium-gray">
-        Abonnementet er aktivt. Vi henter tøyet ditt på avtalt dato.
+        {recurring
+          ? 'Vi henter tøyet ditt på valgt dato, og deretter fast. Du kan avslutte når du vil.'
+          : 'Vi henter tøyet ditt på valgt dato.'}
       </p>
 
       {/* What happens next */}
@@ -169,7 +181,7 @@ function SuccessView() {
         <div>
           <p className="text-sm leading-relaxed text-medium-gray">
             <span className="font-medium text-dark-gray">Betaling og pris:</span>{' '}
-            Prisen baseres på valgt tjeneste og tøyets vekt. Du belastes automatisk via Vipps når klærne dine er ferdig renset — før de leveres tilbake til deg.
+            Renseren setter prisen når de har sett hva du faktisk sender inn. Du belastes automatisk via Vipps når tøyet er ferdig – før det leveres tilbake til deg.
           </p>
           <a
             target="_blank"
@@ -183,7 +195,13 @@ function SuccessView() {
       </div>
 
       <div className="mt-8">
-        <BackToDashboard />
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center gap-2 rounded-full bg-nordic-blue px-6 py-3.5 font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98]"
+        >
+          Gå til oversikten
+          <ArrowRight className="size-4" />
+        </Link>
       </div>
     </div>
   );

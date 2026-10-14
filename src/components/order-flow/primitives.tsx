@@ -55,15 +55,6 @@ export function Section({
   );
 }
 
-export function Explainer({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="mb-4 flex items-start gap-2 rounded-2xl bg-cream/70 px-3.5 py-2.5 text-sm text-medium-gray">
-      <Info className="mt-0.5 size-4 shrink-0 text-sea-green" />
-      <p>{children}</p>
-    </div>
-  );
-}
-
 export function Stepper({
   value,
   onChange,
@@ -131,16 +122,32 @@ function StepButton({
   );
 }
 
-/** A growing row of bags so the count feels tangible, not just a number. */
+/** A growing row of bags so the count feels tangible, not just a number. The
+ *  bag is the Morgensol one from the landing page's how-it-works story — the
+ *  one playful touch on this screen (BRANDBOOK §1), and the visual link
+ *  between the marketing page and the flow. Decorative only. */
 export function BagVisual({ count }: { count: number }) {
   return (
-    <div className="mt-4 flex flex-wrap gap-1.5 border-t border-cream-dark/60 pt-4">
+    <div aria-hidden className="mt-4 flex flex-wrap gap-1.5 border-t border-cream-dark/60 pt-4">
       {Array.from({ length: count }).map((_, i) => (
-        <ShoppingBag
+        <svg
           key={i}
-          className="size-6 text-sea-green animate-in fade-in zoom-in-50 duration-300"
+          viewBox="0 0 24 28"
+          className="size-7 animate-in fade-in zoom-in-50 duration-300"
           style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}
-        />
+        >
+          <path
+            d="M4.5 9.5c0-3 2.2-4.2 4.6-2.2L12 10l2.9-2.7c2.4-2 4.6-.8 4.6 2.2l1.4 13.3c.2 2-1.2 3.2-3.2 3.2H6.3c-2 0-3.4-1.2-3.2-3.2z"
+            className="fill-sol"
+          />
+          <path
+            d="M9.1 7.3 12 10l2.9-2.7"
+            className="fill-none stroke-fjord/40"
+            strokeWidth={1.6}
+            strokeLinecap="round"
+          />
+          <rect x="7.8" y="16.5" width="8.4" height="4.6" rx="1.6" className="fill-sno" />
+        </svg>
       ))}
     </div>
   );
@@ -322,6 +329,13 @@ export function Breakdown({ price }: { price: PriceResult }) {
               </span>
             </div>
           )}
+
+          <div className="flex items-center justify-between gap-4 px-5 py-3.5">
+            <p className="font-medium text-dark-gray">Estimert totalt</p>
+            <p className="shrink-0 font-serif text-xl font-semibold tabular-nums text-dark-gray">
+              ca. {formatKr(price.totalOre)}
+            </p>
+          </div>
         </div>
       ) : (
         <div className="flex flex-col items-center gap-2 px-5 py-10 text-center">
@@ -341,8 +355,7 @@ export function PriceDisclaimer() {
       <p className="text-sm leading-relaxed text-medium-gray">
         Dette er et{' '}
         <span className="font-medium text-dark-gray">omtrentlig estimat</span>.
-        Endelig pris kan endres når renseren har sett og veid det du faktisk
-        sender inn.
+        Endelig pris settes når renseren har sett hva du faktisk sender inn.
       </p>
     </div>
   );

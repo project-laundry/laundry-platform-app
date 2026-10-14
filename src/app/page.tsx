@@ -5,8 +5,9 @@ import { LAUNCH_WINDOW_LABEL, WAITLIST_OFFER_SPOTS } from '@/components/coming-s
 import { CLEANER_MIN_PAYOUT_PER_ORDER_ORE, formatKr } from '@/lib/config/pricing';
 import { getWaitlistCount } from '@/lib/database/waitlist';
 
-// Pre-launch landing page. The full landing page is parked at /lansering;
-// at launch, move src/app/lansering/page.tsx back here.
+// Pre-launch landing page: waitlist + the illustrated how-it-works story. At
+// launch, swap the waitlist form for the order CTA — the old launch landing
+// page was deleted, this is the landing page.
 // The description comes from the root layout.
 export const metadata: Metadata = {
   title: 'NooraCare – Slipp klesvasken. En nabo tar den.',

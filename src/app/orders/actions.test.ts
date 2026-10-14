@@ -359,26 +359,26 @@ describe('getCheckoutStatusAction', () => {
   it('maps Vipps ACTIVE to "active"', async () => {
     withLatestAgreement();
     getAgreement.mockResolvedValue({ status: 'ACTIVE' });
-    expect(await getCheckoutStatusAction()).toEqual({ status: 'active' });
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'active', recurring: true });
     expect(getAgreement).toHaveBeenCalledWith('agr-1');
   });
 
   it('maps Vipps PENDING to "pending"', async () => {
     withLatestAgreement();
     getAgreement.mockResolvedValue({ status: 'PENDING' });
-    expect(await getCheckoutStatusAction()).toEqual({ status: 'pending' });
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'pending', recurring: true });
   });
 
   it('maps Vipps STOPPED (user aborted) to "cancelled"', async () => {
     withLatestAgreement();
     getAgreement.mockResolvedValue({ status: 'STOPPED' });
-    expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled' });
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled', recurring: true });
   });
 
   it('maps Vipps EXPIRED to "cancelled"', async () => {
     withLatestAgreement();
     getAgreement.mockResolvedValue({ status: 'EXPIRED' });
-    expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled' });
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled', recurring: true });
   });
 
   it('checks the most recently created agreement', async () => {
@@ -392,20 +392,35 @@ describe('getCheckoutStatusAction', () => {
     m(createVippsRecurringClient).mockReturnValue({ getAgreement });
     getAgreement.mockResolvedValue({ status: 'STOPPED' });
 
-    expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled' });
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled', recurring: true });
     expect(getAgreement).toHaveBeenCalledWith('agr-2');
   });
 
   it('falls back to the DB status when Vipps is unreachable', async () => {
     withLatestAgreement('active');
     getAgreement.mockRejectedValue(new Error('network down'));
-    expect(await getCheckoutStatusAction()).toEqual({ status: 'active' });
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'active', recurring: true });
   });
 
   it('maps a stopped DB status to "cancelled" on the Vipps-error fallback', async () => {
     withLatestAgreement('stopped');
     getAgreement.mockRejectedValue(new Error('network down'));
-    expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled' });
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled', recurring: true });
+  });
+  it('reports a one-time checkout (order_defaults on the agreement) as not recurring', async () => {
+    getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
+    m(getPaymentAgreementsByCustomerId).mockResolvedValue([
+      {
+        id: 'pa-1',
+        provider_agreement_id: 'agr-1',
+        status: 'pending',
+        provider_metadata: { order_defaults: { first_pickup_date: '2026-10-20' } },
+      },
+    ]);
+    m(createVippsRecurringClient).mockReturnValue({ getAgreement });
+    getAgreement.mockResolvedValue({ status: 'ACTIVE' });
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'active', recurring: false });
   });
 });
 

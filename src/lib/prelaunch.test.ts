@@ -47,7 +47,6 @@ describe('isPublicPrelaunchPath', () => {
       '/bli-renser/signup/success',
       '/bli-renser/lansering',
       '/bli-renser/business',
-      '/lansering',
       '/orders/wash',
       '/dashboard',
       '/prototype',
@@ -62,7 +61,7 @@ describe('shouldRedirectToComingSoon', () => {
 
   it('redirects anonymous production visitors away from blocked paths', () => {
     expect(shouldRedirectToComingSoon({ ...prod, pathname: '/auth/login' })).toBe(true);
-    expect(shouldRedirectToComingSoon({ ...prod, pathname: '/lansering' })).toBe(true);
+    expect(shouldRedirectToComingSoon({ ...prod, pathname: '/orders/wash' })).toBe(true);
   });
 
   it('lets anonymous production visitors see public paths', () => {

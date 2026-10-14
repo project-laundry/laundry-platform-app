@@ -10,22 +10,29 @@ import { AppHeader, BackLink } from '@/components/layout/AppHeader';
 
 export type OrderFlowStep = 1 | 2 | 3;
 
-const STEP_META: Record<OrderFlowStep, { eyebrow: string; title: string; subtitle: string }> = {
+// Step 1 has no subtitle: the first control should sit above the fold on a
+// phone, and the estimate disclaimer under the breakdown already says the
+// price is set after pickup.
+const STEP_META: Record<
+  OrderFlowStep,
+  { eyebrow: string; title: string; subtitle?: string; cta: string }
+> = {
   1: {
     eyebrow: 'Steg 1 av 3',
     title: 'Hva skal vi vaske?',
-    subtitle:
-      'Velg hva du sender inn, så får du et prisanslag med en gang. Endelig pris settes etter henting.',
+    cta: 'Velg henting',
   },
   2: {
     eyebrow: 'Steg 2 av 3',
     title: 'Hvor og når?',
     subtitle: 'Hvor henter vi, og når passer det for deg?',
+    cta: 'Se oppsummering',
   },
   3: {
     eyebrow: 'Steg 3 av 3',
     title: 'Oppsummering',
     subtitle: 'Sjekk at alt stemmer før du godkjenner avtalen.',
+    cta: 'Godkjenn med vipps',
   },
 };
 
@@ -89,7 +96,9 @@ export function OrderFlowShell({
           <h1 className="mt-2 font-serif text-4xl font-semibold leading-tight text-dark-gray sm:text-5xl">
             {meta.title}
           </h1>
-          <p className="mt-3 max-w-md text-medium-gray">{meta.subtitle}</p>
+          {meta.subtitle && (
+            <p className="mt-3 max-w-md text-medium-gray">{meta.subtitle}</p>
+          )}
         </div>
 
         {children}
@@ -109,6 +118,11 @@ export function OrderFlowShell({
                 <span className="text-medium-gray">—</span>
               )}
             </p>
+            {/* Next to the Vipps button the estimate reads as "pay this now" —
+                say right here that it isn't. */}
+            {step === 3 && (
+              <p className="text-xs text-medium-gray">Ingenting trekkes nå</p>
+            )}
           </div>
 
           {step === 3 ? (
@@ -134,7 +148,7 @@ export function OrderFlowShell({
               onClick={onAdvance}
               className="inline-flex shrink-0 items-center gap-2 rounded-full bg-nordic-blue px-6 py-3.5 font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-cream-dark disabled:text-medium-gray disabled:shadow-none"
             >
-              {isSubmitting ? 'Sjekker …' : 'Gå videre'}
+              {isSubmitting ? 'Sjekker …' : meta.cta}
               {!isSubmitting && <ArrowRight className="size-4" />}
             </button>
           )}

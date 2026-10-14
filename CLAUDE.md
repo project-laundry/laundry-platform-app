@@ -74,9 +74,8 @@ npm run test:watch # Run tests in watch mode
 ```
 src/
 ├── app/                    # Next.js App Router pages
-│   ├── page.tsx            # Pre-launch coming-soon page + waitlist (actions.ts: joinWaitlistAction; no consent checkbox — submitting is the consent)
+│   ├── page.tsx            # Landing page: pre-launch waitlist hero + the illustrated how-it-works story (actions.ts: joinWaitlistAction; no consent checkbox — submitting is the consent). At launch, swap the waitlist form for the order CTA; no testimonials until there are real ones
 │   ├── opengraph-image.tsx # Social share image for /, rendered by lib/og-image.tsx (bli-renser has its own)
-│   ├── lansering/          # The real landing page, parked (noindex + gated on prod) until launch — move back to page.tsx then; no testimonials until there are real ones
 │   ├── not-found.tsx       # Root 404 (unmatched URLs + every notFound() call)
 │   ├── admin/              # Admin dashboard (layout = shell + role guard; page = overview with counts)
 │   │   ├── orders/         # Order list + per-order detail page (edit details, cleaner (re)assignment)
@@ -94,10 +93,10 @@ src/
 │   │   ├── address/        # Address input step
 │   │   ├── callback/       # Supabase auth callback
 │   │   ├── error/          # Invalid/expired confirmation link (callback redirects here)
-│   │   ├── login/          # Login page
-│   │   ├── signup/         # Sign up page
+│   │   ├── login/          # Login page (honors ?next= for same-site paths — the order flow sends anonymous customers here from step 3)
+│   │   ├── signup/         # Sign up page (passes ?next= through to the confirmation callback)
 │   │   └── success/        # Registration success
-│   ├── bli-renser/         # Cleaner coming-soon page + waitlist; real landing parked at bli-renser/lansering; onboarding flow below. faq.ts = the cleaner FAQ shared by both pages (coming-soon picks a subset via pickFaq)
+│   ├── bli-renser/         # Cleaner coming-soon page + waitlist; real cleaner landing parked at bli-renser/lansering; onboarding flow below. faq.ts = the cleaner FAQ shared by both pages (coming-soon picks a subset via pickFaq)
 │   │   ├── signup/         # Account creation (+ signup/success: "check your email")
 │   │   ├── (steps)/        # Route group: server layout = cleaner-only + no-profile guard; StepGuard = step order
 │   │   │   ├── business/   # Step 1: business type, tax id (uniqueness pre-check), bank account
@@ -109,7 +108,7 @@ src/
 │   ├── dashboard/          # User dashboards
 │   │   ├── cleaner/        # Cleaner dashboard & missions
 │   │   └── driver/         # Driver dashboard (daily route)
-│   ├── orders/             # Customer order flow (3 steps)
+│   ├── orders/             # Customer order flow (3 steps; steps 1–2 work logged out, step 3 asks the customer to log in before Vipps)
 │   │   ├── [orderId]/      # Order cancel/reschedule
 │   │   ├── details/        # Customer order details
 │   │   ├── wash/           # Step 1: what to wash (bags, bedding, ironing)
@@ -169,7 +168,7 @@ src/
 └── proxy.ts                # Supabase session refresh + pre-launch gate
 ```
 
-**Customer-facing wording:** customers count **poser** (`PRICING.per_bag_ore`), and the per-bag price is never shown without the order minimum next to it ("119 kr per pose, minste bestilling 500 kr") — on its own it reads as a 119 kr order. Cleaners count **vask** — one full machine, up to 5 kg (`PRICING.price_per_load_ore`); mention the kilos only where a cleaner needs the definition (FAQ, payout box, dashboard), never on customer surfaces. Cleaner earnings are quoted as the guaranteed minimum per order (`CLEANER_MIN_PAYOUT_PER_ORDER_ORE`), not a per-load figure. "Nabo" is a sales pitch, not a description: fine in headlines, tab titles, share images and cross-promos, but whoever actually washes is "en lokal renser" / "en godkjent renser i området" — never "i nabolaget". Don't promise turnaround times, free delivery, ironing or a quality guarantee anywhere — see the honest-claims note in `components/landing/Hero.tsx`.
+**Customer-facing wording:** customers count **poser** (`PRICING.per_bag_ore`), and the per-bag price is never shown without the order minimum next to it ("119 kr per pose, minste bestilling 500 kr") — on its own it reads as a 119 kr order. Cleaners count **vask** — one full machine, up to 5 kg (`PRICING.price_per_load_ore`); mention the kilos only where a cleaner needs the definition (FAQ, payout box, dashboard), never on customer surfaces. Cleaner earnings are quoted as the guaranteed minimum per order (`CLEANER_MIN_PAYOUT_PER_ORDER_ORE`), not a per-load figure. "Nabo" is a sales pitch, not a description: fine in headlines, tab titles, share images and cross-promos, but whoever actually washes is "en lokal renser" / "en godkjent renser i området" — never "i nabolaget". Don't promise turnaround times, free delivery, ironing or a quality guarantee anywhere — see the honest-claims note in `components/coming-soon/HowItWorksStory.tsx`.
 
 ## Architecture Patterns
 
@@ -202,7 +201,7 @@ All database operations use dedicated functions in `lib/database/`:
 
 ### Middleware
 
-`src/proxy.ts` (Next 16 proxy convention) refreshes Supabase auth sessions on every request and applies the **pre-launch gate** (`src/lib/prelaunch.ts`), keyed on the hostname: on `nooracare.no` / `www.nooracare.no`, anonymous visitors only reach `/`, `/bli-renser`, the legal/contact pages, the price calculator, `/admin` and `/auth/callback`; login, signup, the order flow and the parked `*/lansering` pages redirect to `/`. `test.nooracare.no`, localhost and previews are never gated — the full app lives on staging until launch. Signed-in users pass. Delete the gate at launch. Role guards live in `src/lib/auth/require-role.ts` (`requireRole` for pages/layouts, `assertRole` for server actions); privileged roles (`admin`, `driver`) can never be chosen at signup — the `handle_new_user` trigger only honors `customer`/`cleaner` metadata.
+`src/proxy.ts` (Next 16 proxy convention) refreshes Supabase auth sessions on every request and applies the **pre-launch gate** (`src/lib/prelaunch.ts`), keyed on the hostname: on `nooracare.no` / `www.nooracare.no`, anonymous visitors only reach `/`, `/bli-renser`, the legal/contact pages, the price calculator, `/admin` and `/auth/callback`; login, signup, the order flow and the parked `/bli-renser/lansering` page redirect to `/`. `test.nooracare.no`, localhost and previews are never gated — the full app lives on staging until launch. Signed-in users pass. Delete the gate at launch. Role guards live in `src/lib/auth/require-role.ts` (`requireRole` for pages/layouts, `assertRole` for server actions); privileged roles (`admin`, `driver`) can never be chosen at signup — the `handle_new_user` trigger only honors `customer`/`cleaner` metadata.
 
 ## Maps & Geocoding
 

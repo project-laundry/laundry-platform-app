@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { UserRole } from "@/types/database";
 
 /** `prelaunch`: rendered on the gated production host (see MarketingNav) —
- *  no auth buttons, no links to sections that only exist on the launch page. */
+ *  no auth buttons, the CTA points at the waitlist instead. */
 export function Navbar({ prelaunch = false }: { prelaunch?: boolean }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -53,16 +53,10 @@ export function Navbar({ prelaunch = false }: { prelaunch?: boolean }) {
     checkAuth();
   }, [prelaunch]);
 
-  const navLinks = prelaunch
-    ? [
-        { href: "/#slik-virker-det", label: "Slik virker det" },
-        { href: "/pris-kalkulator", label: "Priser" },
-      ]
-    : [
-        { href: "/#slik-virker-det", label: "Slik virker det" },
-        { href: "/pris-kalkulator", label: "Priser" },
-        { href: "/#områder", label: "Områder" },
-      ];
+  const navLinks = [
+    { href: "/#slik-virker-det", label: "Slik virker det" },
+    { href: "/pris-kalkulator", label: "Priser" },
+  ];
 
   const getDashboardUrl = () => {
     if (userRole === 'admin') return '/admin';
