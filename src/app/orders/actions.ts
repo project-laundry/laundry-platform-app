@@ -263,6 +263,10 @@ export type CheckoutStatus = 'active' | 'pending' | 'cancelled' | 'unknown';
 
 export interface CheckoutStatusResult {
   status: CheckoutStatus;
+  /** Whether the checkout set up a recurring subscription (vs. a one-time
+   *  order). One-time agreements carry their order_defaults in
+   *  provider_metadata; recurring ones keep them on the subscription. */
+  recurring?: boolean;
 }
 
 /**
@@ -301,34 +305,36 @@ export async function getCheckoutStatusAction(): Promise<CheckoutStatusResult> {
     return { status: 'unknown' };
   }
 
+  const recurring = !latest.provider_metadata?.order_defaults;
+
   try {
     const vipps = createVippsRecurringClient();
     const agreement = await vipps.getAgreement(latest.provider_agreement_id);
 
     switch (agreement.status) {
       case 'ACTIVE':
-        return { status: 'active' };
+        return { status: 'active', recurring };
       case 'PENDING':
-        return { status: 'pending' };
+        return { status: 'pending', recurring };
       case 'STOPPED':
       case 'EXPIRED':
-        return { status: 'cancelled' };
+        return { status: 'cancelled', recurring };
       default:
-        return { status: 'unknown' };
+        return { status: 'unknown', recurring };
     }
   } catch (error) {
     console.error('Failed to fetch Vipps agreement status:', error);
     // Fall back to the DB status (kept in sync by the webhook)
     switch (latest.status) {
       case 'active':
-        return { status: 'active' };
+        return { status: 'active', recurring };
       case 'pending':
-        return { status: 'pending' };
+        return { status: 'pending', recurring };
       case 'stopped':
       case 'expired':
-        return { status: 'cancelled' };
+        return { status: 'cancelled', recurring };
       default:
-        return { status: 'unknown' };
+        return { status: 'unknown', recurring };
     }
   }
 }

@@ -128,7 +128,7 @@ Ironing (stryking) is **not offered at launch**. The pricing model, `calculateOr
 
 ### Pre-launch Waitlist
 
-Until launch, `/` and `/bli-renser` collect a waitlist instead of taking orders or signups (the real pages are parked at `*/lansering` and gated on the production host — see [ENVIRONMENTS.md](./ENVIRONMENTS.md#launch-checklist)).
+Until launch, `/` and `/bli-renser` collect a waitlist instead of taking orders or signups (the real cleaner landing page is parked at `/bli-renser/lansering` and gated on the production host — see [ENVIRONMENTS.md](./ENVIRONMENTS.md#launch-checklist)).
 
 **What we store:** email, audience (`customer` | `cleaner`), city (`bergen` | `oslo`) and the signup time — nothing else. See [WaitlistSignup](./ENTITIES.md#waitlistsignup).
 

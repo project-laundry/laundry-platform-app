@@ -1,14 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { AppHeader } from '@/components/layout/AppHeader';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AlertCircle, ChevronLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { safeNextPath, withNext } from '@/lib/auth/next-path';
 
+// useSearchParams needs a Suspense boundary above it.
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const router = useRouter();
+  // Where to go after a customer login (the order flow sends people here
+  // from its last step). Staff and cleaners keep their own landing pages.
+  const next = safeNextPath(useSearchParams().get('next'));
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -106,8 +119,8 @@ export default function LoginPage() {
       return;
     }
 
-    // Default: customer dashboard
-    router.push('/dashboard');
+    // Default: back where the customer came from, else the dashboard
+    router.push(next ?? '/dashboard');
     router.refresh();
   };
 
@@ -242,7 +255,7 @@ export default function LoginPage() {
             <p className="text-sm text-medium-gray">
               Har du ikke konto?{' '}
               <Link
-                href="/auth/signup"
+                href={withNext('/auth/signup', next)}
                 className="font-medium text-nordic-blue underline-offset-2 hover:underline"
               >
                 Registrer deg
