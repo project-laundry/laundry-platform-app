@@ -157,10 +157,9 @@ export default function PersonvernPage() {
                 <li>
                   <span className="font-medium">Bestillingsopplysninger:</span>{" "}
                   henteadresse (gateadresse, postnummer, by, land),
-                  spesielle instruksjoner for henting og levering, ønske om
-                  stryking, planlagte hente- og leveringsdatoer, mengde
-                  vask (for eksempel mørke/lyse vasker og strykedetaljer),
-                  faktisk vekt og notater fra renseren.
+                  spesielle instruksjoner for henting og levering, planlagte
+                  hente- og leveringsdatoer, mengde vask (for eksempel
+                  mørke/lyse vasker), faktisk vekt og notater fra renseren.
                 </li>
                 <li>
                   <span className="font-medium">Betalingsopplysninger:</span>{" "}

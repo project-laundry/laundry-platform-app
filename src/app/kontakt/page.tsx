@@ -125,9 +125,9 @@ export default function KontaktPage() {
                 Tjenester og priser
               </h2>
               <p className="mt-3 leading-relaxed text-medium-gray">
-                NooraCare tilbyr henting og levering av klesvask, samt stryking,
-                til privatkunder i Bergen og Oslo. Vi har faste priser per vask
-                og per plagg for stryking.
+                NooraCare tilbyr henting og levering av klesvask til
+                privatkunder i Bergen og Oslo. Vi har faste priser per pose
+                klær og per sett sengetøy.
               </p>
               <Link
                 href="/pris-kalkulator"

@@ -113,8 +113,8 @@ export default function SalgsvilkarPage() {
                 2. Tjenestebeskrivelse
               </h2>
               <p className="leading-relaxed text-dark-gray mb-4">
-                NooraCare formidler henting, vask, eventuell stryking og
-                levering av klesvask i Bergen og Oslo. Tjenesten kan benyttes på
+                NooraCare formidler henting, vask og levering av klesvask i
+                Bergen og Oslo. Tjenesten kan benyttes på
                 to måter:
               </p>
               <ul className="space-y-3 leading-relaxed text-dark-gray list-disc list-outside pl-6">
@@ -154,8 +154,7 @@ export default function SalgsvilkarPage() {
               <p className="leading-relaxed text-dark-gray">
                 NooraCare bruker fleksibel prising: estimat vises ved
                 bestilling, men endelig pris fastsettes av renseren etter
-                henting basert på faktisk vekt og tilleggstjenester (for
-                eksempel stryking eller spesialvask).
+                henting basert på faktisk mengde vask.
               </p>
             </section>
 
@@ -200,8 +199,8 @@ export default function SalgsvilkarPage() {
               </h2>
               <p className="leading-relaxed text-dark-gray mb-4">
                 Henting skjer på avtalt dato innenfor det hentevinduet som
-                vises i bestillingsbekreftelsen. Vasket og eventuelt stryket
-                tøy leveres tilbake til samme adresse innenfor avtalt
+                vises i bestillingsbekreftelsen. Vasket tøy
+                leveres tilbake til samme adresse innenfor avtalt
                 leveringsvindu.
               </p>
               <p className="leading-relaxed text-dark-gray">

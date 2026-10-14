@@ -6,7 +6,7 @@ import { createSubscription, getActiveSubscriptionByCustomerId, getSubscriptionB
 import { createPaymentAgreement, getPaymentAgreementByProviderId, getPaymentAgreementsByCustomerId } from "@/lib/database/payment-agreements";
 import { getCustomerByUserId } from "@/lib/database/customers";
 import { validatePromoCode } from "@/lib/database/promo-codes";
-import { calculateCustomerEstimate, oreToNok } from "@/lib/config/pricing";
+import { calculateCustomerEstimate, oreToNok, withoutUnofferedIroning } from "@/lib/config/pricing";
 import {
   findAvailableCleaner,
   getAvailableWeekdaysForCity,
@@ -56,13 +56,13 @@ function sanitizeCount(value: number, max: number): number {
 
 function sanitizeSelection(sel: OrderSelection): OrderSelection {
   const beddingSets = sanitizeCount(sel.beddingSets, 12);
-  return {
+  return withoutUnofferedIroning({
     bags: sanitizeCount(sel.bags, 12),
     beddingSets,
     everydayItems: sanitizeCount(sel.everydayItems, 120),
     formalItems: sanitizeCount(sel.formalItems, 120),
     ironBedding: beddingSets > 0 && sel.ironBedding === true,
-  };
+  });
 }
 
 export interface CreateSubscriptionResult {

@@ -5,6 +5,7 @@ import {
   calculateCustomerEstimate,
   computeDiscountOre,
   estimatedGarments,
+  withoutUnofferedIroning,
   oreToNok,
   nokToOre,
   formatKr,
@@ -173,6 +174,21 @@ describe('calculateCustomerEstimate', () => {
     expect(result.lines.filter((l) => l.key === 'pickup')).toHaveLength(1);
     expect(result.lines.filter((l) => l.key === 'service')).toHaveLength(1);
     expect(result.feesOre).toBe(10400 + 1830);
+  });
+});
+
+describe('withoutUnofferedIroning', () => {
+  it('zeroes ironing and keeps bags and bedding while ironing is not offered', () => {
+    const stale = { bags: 1, beddingSets: 1, everydayItems: 2, formalItems: 2, ironBedding: true };
+    expect(withoutUnofferedIroning(stale)).toEqual({
+      bags: 1,
+      beddingSets: 1,
+      everydayItems: 0,
+      formalItems: 0,
+      ironBedding: false,
+    });
+    const lines = calculateCustomerEstimate(withoutUnofferedIroning(stale)).lines;
+    expect(lines.some((l) => l.key.startsWith('iron'))).toBe(false);
   });
 });
 

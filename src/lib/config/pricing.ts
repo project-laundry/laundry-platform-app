@@ -196,6 +196,20 @@ export interface PriceResult {
   totalOre: number;
 }
 
+/** Ironing is not offered in the first version (BUSINESS_LOGIC.md "Ironing").
+ *  Flip this when it ships: it un-hides the ironing section and stops
+ *  `withoutUnofferedIroning` from zeroing the counts. */
+export const IRONING_OFFERED = false;
+
+/** Zero the ironing part of a customer selection while ironing isn't offered.
+ *  Guards against stale counts — a browser that persisted the order flow
+ *  before ironing was hidden, or a hand-crafted request — so they never reach
+ *  the estimate, the stored `customer_estimate` or `needs_ironing`. */
+export function withoutUnofferedIroning(sel: OrderSelection): OrderSelection {
+  if (IRONING_OFFERED) return sel;
+  return { ...sel, everydayItems: 0, formalItems: 0, ironBedding: false };
+}
+
 /** Estimated number of garments to iron for a given number of bags. Used to
  *  seed the everyday-clothes count so the customer rarely has to count by hand. */
 export function estimatedGarments(bags: number): number {

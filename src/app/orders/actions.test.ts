@@ -203,14 +203,14 @@ describe('createSubscriptionAction — recurring orders', () => {
         order_defaults: expect.objectContaining({
           first_pickup_date: '2030-01-04',
           default_cleaner_id: 'cleaner-1',
-          // Ironing is implied by the selection (3 formal items)
-          default_needs_ironing: true,
+          // Ironing isn't offered yet: the 3 formal items are dropped
+          default_needs_ironing: false,
           customer_estimate: expect.objectContaining({
             bags: 2,
             bedding_sets: 1,
-            iron_formal_items: 3,
-            // 2*11900 + 1*22900 + 3*4900 + 10400 + 1830 = 73630
-            estimated_total_ore: 73630,
+            iron_formal_items: 0,
+            // 2*11900 + 1*22900 + 10400 + 1830 = 58930
+            estimated_total_ore: 58930,
           }),
         }),
       })
@@ -521,22 +521,22 @@ describe('updateOrderSelectionAction', () => {
     expect(updateMock).not.toHaveBeenCalled();
   });
 
-  it('writes needs_ironing and the recomputed estimate together', async () => {
+  it('writes needs_ironing and the recomputed estimate together, dropping unoffered ironing', async () => {
     withEditableOrder();
 
     const result = await updateOrderSelectionAction('order-1', selection);
 
     expect(result).toEqual({ success: true });
     expect(updateMock).toHaveBeenCalledWith({
-      // Ironing is implied by the selection (3 formal items)
-      needs_ironing: true,
+      // Ironing isn't offered yet: the 3 formal items are dropped
+      needs_ironing: false,
       customer_estimate: {
         bags: 2,
         bedding_sets: 1,
         iron_everyday_items: 0,
-        iron_formal_items: 3,
+        iron_formal_items: 0,
         iron_bedding: false,
-        estimated_total_ore: calculateCustomerEstimate(selection).totalOre,
+        estimated_total_ore: calculateCustomerEstimate({ ...selection, formalItems: 0 }).totalOre,
       },
     });
     expect(eqMock).toHaveBeenCalledWith('id', 'order-1');
@@ -574,7 +574,7 @@ describe('updateOrderSelectionAction', () => {
 
     expect(updateMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        customer_estimate: expect.objectContaining({ bags: 0, iron_everyday_items: 120 }),
+        customer_estimate: expect.objectContaining({ bags: 0, bedding_sets: 1, iron_everyday_items: 0 }),
       })
     );
   });

@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateOrderSelectionAction } from '@/app/orders/actions';
-import { calculateCustomerEstimate } from '@/lib/config/pricing';
+import { calculateCustomerEstimate, withoutUnofferedIroning } from '@/lib/config/pricing';
 import { SelectionEditor } from '@/components/order-flow/SelectionEditor';
 import { Breakdown, PriceDisclaimer } from '@/components/order-flow/primitives';
 import type { CustomerEstimate } from '@/types/database';
@@ -17,13 +17,13 @@ interface EditableOrderSelectionProps {
 }
 
 function toSelection(estimate: CustomerEstimate): OrderSelection {
-  return {
+  return withoutUnofferedIroning({
     bags: estimate.bags,
     beddingSets: estimate.bedding_sets,
     everydayItems: estimate.iron_everyday_items,
     formalItems: estimate.iron_formal_items,
     ironBedding: estimate.iron_bedding,
-  };
+  });
 }
 
 // The customer's checkout selection as compact row labels (zeros omitted).
@@ -39,7 +39,7 @@ function getEstimateRows(estimate: CustomerEstimate) {
     rows.push({ icon: BedDouble, label: `${estimate.bedding_sets} sengesett` });
   }
   // Ironing rows intentionally omitted — not offered in the first version
-  // (BUSINESS_LOGIC.md "Ironing"); the counts are always 0.
+  // (BUSINESS_LOGIC.md "Ironing").
   return rows;
 }
 
