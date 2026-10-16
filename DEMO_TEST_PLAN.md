@@ -101,7 +101,6 @@ Log in as the cleaner on `/dashboard/cleaner`.
 ## Demo-day hygiene
 
 - Do the full path (sections 3–7) once tonight so the demo data already exists, then keep a **second fresh customer** for the live run.
-- Do not open `/prototype` in the demo; it is mock-only.
 - Pickup dates: the DB rejects dates in the past, and cancel needs > 24 h notice, so always pick 2+ days out.
 - If Vipps is slow, the fallback is to show the admin order detail and the cleaner dashboard on pre-created data.
 - After testing, delete the throwaway customers in the Supabase staging dashboard if you want clean admin counts.

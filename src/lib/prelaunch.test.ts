@@ -49,7 +49,6 @@ describe('isPublicPrelaunchPath', () => {
       '/bli-renser/business',
       '/orders/wash',
       '/dashboard',
-      '/prototype',
     ]) {
       expect(isPublicPrelaunchPath(p), p).toBe(false);
     }

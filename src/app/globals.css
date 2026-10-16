@@ -26,7 +26,7 @@
   --medium-gray: #586974; /* Fjord-tinted gray, 5.2:1 on Snø */
   --dark-gray: #1e3a4c;   /* Fjord */
 
-  /* Legacy (only the /prototype sandbox still uses this) */
+  /* Success state (Badge) */
   --success-green: #10b981;
 
   /* Shadows */
