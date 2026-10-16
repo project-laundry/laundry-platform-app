@@ -6,7 +6,7 @@ import { getAvailableCleanersForCity } from '@/lib/database/cleaners';
 import { StatusBadge } from '@/components/dashboard/StatusBadge';
 import { getOrderStatusLabel, getOrderStatusVariant } from '@/lib/utils/order-status';
 import { PAYMENT_STATUS_LABELS, PAYMENT_STATUS_VARIANT } from '@/lib/utils/payment-status';
-import { formatKr } from '@/lib/config/pricing';
+import { IRONING_OFFERED, formatKr } from '@/lib/config/pricing';
 import { AssignCleanerControl, type CleanerOption } from '../AssignCleanerControl';
 import { OrderEditForm, type OrderEditability } from './OrderEditForm';
 import { AdminLogisticsControl } from './AdminLogisticsControl';
@@ -190,21 +190,27 @@ export default async function AdminOrderDetailPage({
             <dt className="text-medium-gray">Vaskeinstruksjoner</dt>
             <dd className="text-dark-gray">{order.special_instructions || '—'}</dd>
           </div>
-          <div>
-            <dt className="text-medium-gray">Stryking</dt>
-            <dd className="text-dark-gray">{order.needs_ironing ? 'Ja' : 'Nei'}</dd>
-          </div>
+          {IRONING_OFFERED && (
+            <div>
+              <dt className="text-medium-gray">Stryking</dt>
+              <dd className="text-dark-gray">{order.needs_ironing ? 'Ja' : 'Nei'}</dd>
+            </div>
+          )}
           {order.customer_estimate && (
             <div>
               <dt className="text-medium-gray">Bestilling (kundens valg)</dt>
               <dd className="text-dark-gray">
                 {order.customer_estimate.bags} poser · {order.customer_estimate.bedding_sets}{' '}
                 sengetøysett
-                {order.customer_estimate.iron_everyday_items > 0 &&
-                  ` · ${order.customer_estimate.iron_everyday_items} hverdagsplagg strykes`}
-                {order.customer_estimate.iron_formal_items > 0 &&
-                  ` · ${order.customer_estimate.iron_formal_items} skjorter/kjoler strykes`}
-                {order.customer_estimate.iron_bedding && ' · sengetøy strykes'}
+                {IRONING_OFFERED && (
+                  <>
+                    {order.customer_estimate.iron_everyday_items > 0 &&
+                      ` · ${order.customer_estimate.iron_everyday_items} hverdagsplagg strykes`}
+                    {order.customer_estimate.iron_formal_items > 0 &&
+                      ` · ${order.customer_estimate.iron_formal_items} skjorter/kjoler strykes`}
+                    {order.customer_estimate.iron_bedding && ' · sengetøy strykes'}
+                  </>
+                )}
               </dd>
             </div>
           )}

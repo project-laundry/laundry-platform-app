@@ -4,6 +4,7 @@ import { Calculator } from 'lucide-react';
 import {
   type PriceBreakdown,
   formatNok,
+  IRONING_OFFERED,
   PRICING,
 } from '@/lib/config/pricing';
 
@@ -41,7 +42,7 @@ export function PriceSummary({
         </div>
 
         {/* Ironing subtotal (only if > 0) */}
-        {breakdown.ironing_subtotal_ore > 0 && (
+        {IRONING_OFFERED && breakdown.ironing_subtotal_ore > 0 && (
           <div className="flex justify-between text-sm">
             <span className="text-medium-gray">Stryking</span>
             <span className="text-dark-gray">{formatNok(breakdown.ironing_subtotal_ore)} kr</span>

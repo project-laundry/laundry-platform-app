@@ -13,6 +13,7 @@ import {
 } from '@/lib/database/orders';
 import {
   calculateOrderPrice,
+  IRONING_OFFERED,
   computeDiscountOre,
   type LaundryDetails,
   type PriceBreakdown,
@@ -229,6 +230,9 @@ export async function saveLaundryDetails(
   if (details.wash_loads === 0) {
     return { success: false, error: 'Du må registrere minst ett vask' };
   }
+
+  // Ironing isn't offered yet: never price or store it, whatever the client sent.
+  if (!IRONING_OFFERED) details = { ...details, ironing_details: null };
 
   // Calculate service price (full price; the cleaner's payout is based on this)
   const priceBreakdown = calculateOrderPrice(details);

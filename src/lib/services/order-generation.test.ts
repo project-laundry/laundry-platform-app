@@ -200,7 +200,7 @@ describe('buildOrderData — shared order_defaults -> order mapping', () => {
       country: 'Norge',
       special_instructions_address: 'Ring på',
       special_instructions: 'Hentes kl 09',
-      needs_ironing: true,
+      needs_ironing: false, // default_needs_ironing is true, but ironing isn't offered (IRONING_OFFERED)
       customer_estimate: ORDER_DEFAULTS.customer_estimate,
       total_cost_ore: null,
       // The field that originally drifted between paths:

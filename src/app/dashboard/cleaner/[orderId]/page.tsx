@@ -7,7 +7,7 @@ import { getUsersById } from '@/lib/database/users';
 import { getCleanerOrderDetails } from '../actions';
 import { LaundryDetailsForm } from '../components/LaundryDetailsForm';
 import { OrderActions } from './OrderActions';
-import { formatKr } from '@/lib/config/pricing';
+import { IRONING_OFFERED, formatKr } from '@/lib/config/pricing';
 import { getPickupTimeRangeLabel } from '@/lib/config/pickup-times';
 import { buildSingleDestinationUrl } from '@/lib/utils/route';
 import { todayInOslo } from '@/lib/utils/date';
@@ -121,6 +121,9 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
   // and «Marker som klar» belongs below it.
   const actionsFirst = order.status !== 'in_cleaning';
   // Nothing to register before the laundry is picked up.
+  // Orders created before ironing was hidden can still carry needs_ironing.
+  const needsIroning = IRONING_OFFERED && order.needs_ironing;
+
   const showLaundryForm =
     order.status !== 'pending_assignment' && order.status !== 'pickup_scheduled';
 
@@ -129,7 +132,7 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
       orderId={order.id}
       orderNumber={order.order_number}
       currentStatus={order.status}
-      needsIroning={order.needs_ironing}
+      needsIroning={needsIroning}
       hasLaundryDetails={order.wash_loads > 0}
       hasPrice={order.total_cost_ore !== null}
       totalCostOre={order.total_cost_ore}
@@ -254,13 +257,9 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
           <div className="space-y-4">
             {/* Ironing and Frequency badges */}
             <div className="flex items-center gap-2">
-              {order.needs_ironing ? (
+              {needsIroning && (
                 <span className="inline-flex items-center rounded-full bg-nordic-blue/10 px-2.5 py-0.5 text-xs font-medium text-nordic-blue">
                   Stryking inkludert
-                </span>
-              ) : (
-                <span className="inline-flex items-center rounded-full bg-cream-dark/60 px-2.5 py-0.5 text-xs font-medium text-medium-gray">
-                  Ingen stryking
                 </span>
               )}
               {order.subscription && (
@@ -299,13 +298,17 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
               {order.customer_estimate.bedding_sets > 0 && (
                 <li>{order.customer_estimate.bedding_sets} sett sengetøy</li>
               )}
-              {order.customer_estimate.iron_everyday_items > 0 && (
-                <li>{order.customer_estimate.iron_everyday_items} vanlige plagg til stryking</li>
+              {IRONING_OFFERED && (
+                <>
+                  {order.customer_estimate.iron_everyday_items > 0 && (
+                    <li>{order.customer_estimate.iron_everyday_items} vanlige plagg til stryking</li>
+                  )}
+                  {order.customer_estimate.iron_formal_items > 0 && (
+                    <li>{order.customer_estimate.iron_formal_items} skjorter/kjoler til stryking</li>
+                  )}
+                  {order.customer_estimate.iron_bedding && <li>Stryking av sengetøy</li>}
+                </>
               )}
-              {order.customer_estimate.iron_formal_items > 0 && (
-                <li>{order.customer_estimate.iron_formal_items} skjorter/kjoler til stryking</li>
-              )}
-              {order.customer_estimate.iron_bedding && <li>Stryking av sengetøy</li>}
             </ul>
             <p className="mt-3 text-sm text-medium-gray">
               Estimert pris vist til kunden:{' '}
@@ -320,7 +323,7 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
         {showLaundryForm && (
           <LaundryDetailsForm
             orderId={order.id}
-            needsIroning={order.needs_ironing}
+            needsIroning={needsIroning}
             initialWashLoads={order.wash_loads || 0}
             initialIroningDetails={order.ironing_details}
             initialNotes={order.pricing_notes}

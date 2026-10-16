@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { formatNok } from '@/lib/config/pricing';
+import { IRONING_OFFERED, formatNok } from '@/lib/config/pricing';
 import { isToday } from '@/lib/utils/date';
 import { getPickupTimeRangeLabel } from '@/lib/config/pickup-times';
 import type { OrderWithCustomer } from '../actions';
@@ -91,7 +91,7 @@ export function CleanerOrderCard({ order }: CleanerOrderCardProps) {
 
       {/* Tags */}
       <div className="mb-4 flex flex-wrap gap-2">
-        {order.needs_ironing && (
+        {IRONING_OFFERED && order.needs_ironing && (
           <span className={`${BADGE_BASE} bg-nordic-blue/10 text-nordic-blue`}>
             Stryking inkludert
           </span>
