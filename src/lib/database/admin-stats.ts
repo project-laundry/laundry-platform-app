@@ -8,7 +8,6 @@ export interface AdminOverviewCounts {
   pendingCleaners: number;
   failedPayments: number;
   customers: number;
-  drivers: number;
 }
 
 const ACTIVE_ORDER_STATUSES = [
@@ -27,7 +26,7 @@ const ACTIVE_ORDER_STATUSES = [
 export async function getAdminOverviewCounts(): Promise<AdminOverviewCounts> {
   const supabase = createAdminClient();
 
-  const [pendingAssignment, active, pendingCleaners, failedPayments, customers, drivers] =
+  const [pendingAssignment, active, pendingCleaners, failedPayments, customers] =
     await Promise.all([
       supabase
         .from('orders')
@@ -46,7 +45,6 @@ export async function getAdminOverviewCounts(): Promise<AdminOverviewCounts> {
         .select('id', { count: 'exact', head: true })
         .eq('status', 'failed'),
       supabase.from('customers').select('id', { count: 'exact', head: true }),
-      supabase.from('drivers').select('id', { count: 'exact', head: true }),
     ]);
 
   return {
@@ -55,6 +53,5 @@ export async function getAdminOverviewCounts(): Promise<AdminOverviewCounts> {
     pendingCleaners: pendingCleaners.count ?? 0,
     failedPayments: failedPayments.count ?? 0,
     customers: customers.count ?? 0,
-    drivers: drivers.count ?? 0,
   };
 }

@@ -33,7 +33,7 @@ export default function PersonvernRenserPage() {
                 Personvernerklæring for rensere
               </h1>
               <p className="text-sm text-medium-gray">
-                Sist oppdatert: 23.05.2026
+                Sist oppdatert: 16.10.2026
               </p>
               <p className="text-sm text-medium-gray mt-2">
                 Denne erklæringen gjelder for personer som er tilknyttet
@@ -147,7 +147,7 @@ export default function PersonvernRenserPage() {
                 <li>
                   <span className="font-medium">Operasjonell informasjon:</span>{" "}
                   baseadresse (gateadresse, postnummer, by, land) hvor du
-                  driver virksomheten din fra, instruksjoner for adkomst,
+                  driver virksomheten din fra,
                   ukentlig arbeidsplan, erfaringsnivå og opplysninger om
                   vaskemaskinen din (merke, kapasitet, årsmodell, tilstand).
                 </li>

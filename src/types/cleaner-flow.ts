@@ -12,7 +12,7 @@ export interface CleanerOnboardingData {
   businessAddress?: string;
   bankAccount: string; // digits only, 11
 
-  // Step 2: base address (where the cleaner washes; drivers deliver/collect here)
+  // Step 2: base address (where the cleaner washes). baseSpecialInstructions is not asked while cleaners run their own pickup/delivery — kept for a future driver flow
   baseStreet: string;
   basePostalCode: string;
   baseCity: string;

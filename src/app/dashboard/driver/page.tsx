@@ -16,7 +16,10 @@ export default async function DriverDashboardPage({
 }: {
   searchParams: Promise<{ city?: string }>;
 }) {
-  const { authUserId, dbUser } = await requireRole(['driver', 'admin']);
+  // Dormant: cleaners do pickup and delivery (BUSINESS_LOGIC.md → Pickup/Delivery
+  // Operations). Admins are kept out so a bookmarked route can't move orders into
+  // driver-only statuses; add 'admin' back when drivers return.
+  const { authUserId, dbUser } = await requireRole(['driver']);
   const { city: cityParam } = await searchParams;
 
   const firstName = (dbUser.full_name || 'Sjåfør').split(' ')[0];

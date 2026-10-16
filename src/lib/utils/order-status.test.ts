@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { OrderStatus } from '@/types/database';
 import {
+  CUSTOMER_PROGRESS_STEPS,
   ORDER_STATUS_LABELS,
   ORDER_STATUS_VARIANT,
   getOrderStatusLabel,
@@ -46,5 +47,17 @@ describe('isOrderCompleted / isOrderActive', () => {
     expect(isOrderActive('pending_assignment')).toBe(true);
     expect(isOrderActive('completed')).toBe(false);
     expect(isOrderActive('cancelled')).toBe(false);
+  });
+});
+
+describe('CUSTOMER_PROGRESS_STEPS', () => {
+  it('omits the driver-only statuses', () => {
+    expect(CUSTOMER_PROGRESS_STEPS).toEqual([
+      'pending_assignment',
+      'pickup_scheduled',
+      'in_cleaning',
+      'ready_for_delivery',
+      'completed',
+    ]);
   });
 });

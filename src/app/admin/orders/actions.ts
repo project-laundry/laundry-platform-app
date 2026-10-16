@@ -6,8 +6,10 @@ import {
   getOrderById,
   assignCleanerToOrder,
   updateOrderAdminFields,
+  updateOrderStatusGuarded,
   type AdminOrderUpdate,
 } from '@/lib/database/orders';
+import { completeDeliveredOrder } from '@/lib/services/complete-order';
 import { getAvailableCleanersForCity } from '@/lib/database/cleaners';
 import { geocodeAddress } from '@/lib/maps/geocoding';
 import { validatePostalCode } from '@/lib/validation/cleaner';
@@ -174,6 +176,50 @@ export async function updateOrderDetailsAction(
   const updated = await updateOrderAdminFields(orderId, updates);
   if (!updated) {
     return { success: false, error: 'Kunne ikke lagre endringene' };
+  }
+
+  revalidatePath('/admin/orders');
+  revalidatePath(`/admin/orders/${orderId}`);
+  return { success: true };
+}
+
+export interface AdminLogisticsResult {
+  success: boolean;
+  error?: string;
+}
+
+/**
+ * Admin fallback when the cleaner forgot to tap «Jeg har hentet tøyet».
+ * Same transition as the cleaner's markOrderPickedUpAction. The guarded
+ * write is the status check, so a stale page can't move the wrong order.
+ */
+export async function adminMarkPickedUpAction(orderId: string): Promise<AdminLogisticsResult> {
+  const { error: authError } = await assertRole(['admin']);
+  if (authError) return { success: false, error: authError };
+
+  const updated = await updateOrderStatusGuarded(orderId, 'pickup_scheduled', 'in_cleaning', {
+    picked_up_at: new Date().toISOString(),
+  });
+  if (!updated) {
+    return { success: false, error: 'Ordren venter ikke på henting — last siden på nytt' };
+  }
+
+  revalidatePath('/admin/orders');
+  revalidatePath(`/admin/orders/${orderId}`);
+  return { success: true };
+}
+
+/**
+ * Admin fallback when the cleaner forgot to tap «Levert til kunden».
+ * Without it the next subscription order is never generated.
+ */
+export async function adminMarkDeliveredAction(orderId: string): Promise<AdminLogisticsResult> {
+  const { error: authError } = await assertRole(['admin']);
+  if (authError) return { success: false, error: authError };
+
+  const result = await completeDeliveredOrder(orderId, 'ready_for_delivery');
+  if (!result.success) {
+    return { success: false, error: result.error };
   }
 
   revalidatePath('/admin/orders');

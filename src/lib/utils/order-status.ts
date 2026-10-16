@@ -64,6 +64,16 @@ export function getOrderStatusStep(status: OrderStatus): number {
 }
 
 /**
+ * Segments of the customer progress bar. picked_up and out_for_delivery are
+ * driver-flow statuses the cleaner-run flow never enters, so they would be
+ * segments nothing lands on. Still in ORDER_STATUS_SEQUENCE, which the
+ * cancellation logic relies on.
+ */
+export const CUSTOMER_PROGRESS_STEPS: OrderStatus[] = ORDER_STATUS_SEQUENCE.filter(
+  (status) => status !== 'picked_up' && status !== 'out_for_delivery'
+);
+
+/**
  * Check if order is completed (completed or cancelled)
  */
 export function isOrderCompleted(status: OrderStatus): boolean {

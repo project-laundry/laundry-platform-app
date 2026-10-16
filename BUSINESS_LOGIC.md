@@ -80,7 +80,7 @@ Customer subscribes Dec 26, 2025:
 **Workflow:**
 
 1. **Order Created:** `total_cost_ore = NULL`
-2. **Pickup:** Driver delivers laundry to cleaner
+2. **Pickup:** Cleaner picks up the laundry at the customer's door
 3. **Cleaner Weighs & Prices:**
    - Cleaner weighs laundry, records `actual_weight_kg`
    - Calculates price based on weight, ironing preference, and other factors
@@ -187,37 +187,23 @@ Assignment happens at subscription creation.
 
 ### Pickup/Delivery Operations (MVP)
 
-**Complete Order Workflow:**
+**Who does the logistics:** In the first version the assigned cleaner picks up and delivers, within the customer's pickup window (`lib/config/pickup-times.ts`). Dedicated drivers are built but dormant: `/dashboard/driver` only admits the `driver` role (admins are kept out so they can't move orders into driver-only statuses), and no UI links to it or to `/admin/drivers`. To bring drivers back: add `admin` back to the driver dashboard guards, restore the admin entry points (AdminNav pill, overview tile, «Kjøreplan» link), the onboarding «Beskjed til sjåføren» field and the driver progress steps, and rewrite the cleaner copy.
 
-1. `pickup_scheduled` → `picked_up`
-   - **Who:** Admin/Driver
-   - **Action:** Picks up laundry from customer
-   - **Timestamp:** `picked_up_at`
+**Complete Order Workflow (cleaner-run):**
 
-2. `picked_up` → `in_cleaning`
-   - **Who:** Admin/Driver
-   - **Action:** Delivers laundry to cleaner
-   - **Timestamp:** `in_cleaning_at`
-
-3. `in_cleaning` → `ready_for_delivery`
-   - **Who:** Cleaner
-   - **Action:** Marks laundry as cleaned and ready
-   - **Timestamp:** `ready_for_delivery_at`
+1. `pickup_scheduled` → `in_cleaning`
+   - **Who:** Cleaner («Jeg har hentet tøyet»); admin fallback «Marker som hentet»
+   - **Action:** Picks up laundry at the customer's door; one guarded write stamps `picked_up_at` and `in_cleaning_at`. Before the pickup date the cleaner sees a warning, but an early pickup agreed with the customer is allowed.
+2. `in_cleaning` → `ready_for_delivery`
+   - **Who:** Cleaner only («Marker som klar»)
    - **Guard + charge:** rejected until wash details are registered (`wash_loads > 0`) and the price is set (`total_cost_ore`). Confirming this step **creates the Vipps charge** — the customer pays when the laundry is finished, not at delivery.
+3. `ready_for_delivery` → `completed`
+   - **Who:** Cleaner («Levert til kunden»); admin fallback «Marker som levert»
+   - **Action:** `completeDeliveredOrder(orderId, 'ready_for_delivery')` stamps `delivery_date` to the actual date (Norwegian time), generates the next order (recurring) and runs the cancelled-subscription agreement stop.
 
-4. `ready_for_delivery` → `out_for_delivery`
-   - **Who:** Admin/Driver
-   - **Action:** Collects clean laundry from cleaner
-   - **Timestamp:** `out_for_delivery_at`
+**Customer not home:** the cleaner calls the customer (phone shown on the order), who can move the pickup date. Declining is only for "can't take this order" — it blacklists the cleaner for that order.
 
-5. `out_for_delivery` → `completed`
-   - **Who:** Admin/Driver
-   - **Action:** Delivers clean laundry to customer
-   - **Timestamp:** `completed_at`
-
-Drivers work from the driver dashboard (`/dashboard/driver`, one fixed city per driver profile; admins can cover any city), which builds an optimized route of these legs; steps 1–2 and 4–5 are the driver's, step 3 is the cleaner's. An order enters the driver's collection route the moment the cleaner marks it ready — `delivery_date` is an estimate shown to the customer, never a gate or deadline; finishing earlier than the estimate is desirable. Completing step 5 stamps `delivery_date` to the actual delivery date.
-
-**Dashboard Specifications:** See [DASHBOARDS.md](./DASHBOARDS.md) for Admin Driver Dashboard, Cleaner Dashboard, and other role-based UI specifications.
+`picked_up` and `out_for_delivery` stay in the status enum for the dormant driver flow (driver: `pickup_scheduled → picked_up → in_cleaning`, `ready_for_delivery → out_for_delivery → completed`) and are never entered in the cleaner-run flow; the customer progress bar does not show them. `delivery_date` is an estimate shown to the customer, never a gate or deadline; finishing earlier than the estimate is desirable.
 
 ### Cancellation
 
@@ -312,7 +298,7 @@ These timestamps provide sufficient audit trail for MVP compliance.
 **Per-Order Payment Flow (FLEXIBLE):**
 
 1. **Order Created:** `total_cost_ore = NULL`, no payment yet
-2. **Driver Picks Up:** Delivers laundry to cleaner
+2. **Cleaner Picks Up:** Collects the laundry at the customer's door
 3. **Cleaner Weighs & Prices:**
    - Records `actual_weight_kg`
    - Calculates price based on weight, ironing, etc.
@@ -322,7 +308,7 @@ These timestamps provide sufficient audit trail for MVP compliance.
    - `recurring.charge-captured.v1` → Payment status = 'captured'
    - DIRECT_CAPTURE means no separate authorize/capture step
 5. **Cleaner Processes:** Cleaner completes laundry service
-6. **Next Order Generated:** When the driver completes the delivery, the rolling window generates the next order (recurring only)
+6. **Next Order Generated:** When the cleaner (or an admin) marks the order delivered, the rolling window generates the next order (recurring only)
 
 Charge creation on completion runs for both recurring and one-time orders. `createChargeForCompletedOrder` resolves the Vipps agreement from the subscription (recurring) or directly from `order.payment_agreement_id` (one-time).
 

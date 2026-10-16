@@ -1,4 +1,5 @@
 import { PRICING, CLEANER_MIN_PAYOUT_PER_ORDER_ORE, formatKr } from '@/lib/config/pricing';
+import { PICKUP_TIME_RANGE } from '@/lib/config/pickup-times';
 
 /** Cleaner FAQ, shared by the coming-soon page (a subset) and the full
  *  landing page so the answers can't drift. Keys let pages pick entries. */
@@ -9,11 +10,15 @@ export const CLEANER_FAQ = {
   },
   needs: {
     q: 'Hva trenger jeg?',
-    a: 'En egen vaskemaskin hjemme og en adresse i Bergen eller Oslo som sjåføren kan levere til og hente fra. Du trenger ikke bil.',
+    a: 'En egen vaskemaskin hjemme, en adresse i Bergen eller Oslo og mulighet til å hente og levere tøy hos kunder i byen din.',
   },
   driving: {
     q: 'Må jeg hente eller levere tøy?',
-    a: 'Nei. Sjåføren vår tar all henting og levering. Du vasker hjemme.',
+    a: `Ja. Du henter posene hos kunden på dagen kunden har valgt, mellom kl. ${PICKUP_TIME_RANGE.start} og ${PICKUP_TIME_RANGE.end}, og leverer det rene tøyet tilbake. Adressen, telefonnummeret og kundens beskjeder ser du i oppdraget.`,
+  },
+  noShow: {
+    q: 'Hva om kunden ikke er hjemme?',
+    a: 'Ring kunden fra oppdraget. Kunden kan flytte hentedagen selv i bestillingen sin. Avslå bare oppdraget hvis du ikke kan ta det.',
   },
   earnings: {
     q: 'Hvor mye tjener jeg?',
@@ -21,7 +26,7 @@ export const CLEANER_FAQ = {
   },
   turnaround: {
     q: 'Hvor raskt må tøyet være klart?',
-    a: 'Kunden får en estimert leveringsdato når tøyet hentes. Marker oppdraget som klart så snart tøyet er tørt og brettet, så henter sjåføren det på neste rute. Jo raskere du er ferdig, jo fornøydere kunde.',
+    a: 'Kunden får en estimert leveringsdato ved bestilling. Marker oppdraget som klart så snart tøyet er tørt og brettet, og lever det til kunden. Jo raskere du er ferdig, jo fornøydere kunde.',
   },
   damage: {
     q: 'Hva om noe skjer med et plagg?',

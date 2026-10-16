@@ -9,6 +9,7 @@ import { PAYMENT_STATUS_LABELS, PAYMENT_STATUS_VARIANT } from '@/lib/utils/payme
 import { formatKr } from '@/lib/config/pricing';
 import { AssignCleanerControl, type CleanerOption } from '../AssignCleanerControl';
 import { OrderEditForm, type OrderEditability } from './OrderEditForm';
+import { AdminLogisticsControl } from './AdminLogisticsControl';
 import type { OrderStatus } from '@/types/database';
 
 /** Statuses where the admin can still (re)assign the cleaner. */
@@ -111,6 +112,17 @@ export default async function AdminOrderDetailPage({
         )}
       </div>
 
+      {(order.status === 'pickup_scheduled' || order.status === 'ready_for_delivery') && (
+        <div className={`mt-4 ${cardClass}`}>
+          <h2 className="text-sm font-medium uppercase tracking-[0.18em] text-sea-green">
+            Henting og levering
+          </h2>
+          <div className="mt-2">
+            <AdminLogisticsControl orderId={order.id} status={order.status} />
+          </div>
+        </div>
+      )}
+
       <div className={`mt-4 ${cardClass}`}>
         <h2 className="text-sm font-medium uppercase tracking-[0.18em] text-sea-green">Pris</h2>
         <p className="mt-2 text-dark-gray">
@@ -171,11 +183,11 @@ export default async function AdminOrderDetailPage({
         </h2>
         <dl className="mt-2 space-y-1.5 text-sm">
           <div>
-            <dt className="text-medium-gray">Adressedetaljer</dt>
+            <dt className="text-medium-gray">Henteinstruksjoner</dt>
             <dd className="text-dark-gray">{order.special_instructions_address || '—'}</dd>
           </div>
           <div>
-            <dt className="text-medium-gray">Hentedetaljer</dt>
+            <dt className="text-medium-gray">Vaskeinstruksjoner</dt>
             <dd className="text-dark-gray">{order.special_instructions || '—'}</dd>
           </div>
           <div>

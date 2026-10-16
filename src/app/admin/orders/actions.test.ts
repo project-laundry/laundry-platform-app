@@ -7,16 +7,30 @@ vi.mock('@/lib/database/orders', () => ({
   getOrderById: vi.fn(),
   assignCleanerToOrder: vi.fn(),
   updateOrderAdminFields: vi.fn(),
+  updateOrderStatusGuarded: vi.fn(),
 }));
+vi.mock('@/lib/services/complete-order', () => ({ completeDeliveredOrder: vi.fn() }));
 vi.mock('@/lib/database/cleaners', () => ({ getAvailableCleanersForCity: vi.fn() }));
 vi.mock('@/lib/maps/geocoding', () => ({ geocodeAddress: vi.fn() }));
 
 import { revalidatePath } from 'next/cache';
 import { assertRole } from '@/lib/auth/require-role';
-import { getOrderById, assignCleanerToOrder, updateOrderAdminFields } from '@/lib/database/orders';
+import {
+  getOrderById,
+  assignCleanerToOrder,
+  updateOrderAdminFields,
+  updateOrderStatusGuarded,
+} from '@/lib/database/orders';
+import { completeDeliveredOrder } from '@/lib/services/complete-order';
 import { getAvailableCleanersForCity } from '@/lib/database/cleaners';
 import { geocodeAddress } from '@/lib/maps/geocoding';
-import { assignCleanerAction, updateOrderDetailsAction, type UpdateOrderDetailsInput } from './actions';
+import {
+  assignCleanerAction,
+  updateOrderDetailsAction,
+  adminMarkPickedUpAction,
+  adminMarkDeliveredAction,
+  type UpdateOrderDetailsInput,
+} from './actions';
 
 const m = (fn: unknown) => fn as Mock;
 
@@ -287,5 +301,67 @@ describe('updateOrderDetailsAction', () => {
     expect(result).toEqual({ success: true });
     expect(revalidatePath).toHaveBeenCalledWith('/admin/orders');
     expect(revalidatePath).toHaveBeenCalledWith('/admin/orders/ord-1');
+  });
+});
+
+describe('adminMarkPickedUpAction', () => {
+  it('rejects non-admins', async () => {
+    m(assertRole).mockResolvedValue({ auth: null, error: 'Ingen tilgang' });
+
+    const result = await adminMarkPickedUpAction('ord-1');
+
+    expect(result).toEqual({ success: false, error: 'Ingen tilgang' });
+    expect(updateOrderStatusGuarded).not.toHaveBeenCalled();
+  });
+
+  it('moves pickup_scheduled to in_cleaning with picked_up_at', async () => {
+    m(updateOrderStatusGuarded).mockResolvedValue({ id: 'ord-1' });
+
+    const result = await adminMarkPickedUpAction('ord-1');
+
+    expect(result).toEqual({ success: true });
+    expect(updateOrderStatusGuarded).toHaveBeenCalledWith(
+      'ord-1',
+      'pickup_scheduled',
+      'in_cleaning',
+      { picked_up_at: expect.any(String) }
+    );
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/orders/ord-1');
+  });
+
+  it('errors when the order is no longer waiting for pickup', async () => {
+    m(updateOrderStatusGuarded).mockResolvedValue(null);
+
+    const result = await adminMarkPickedUpAction('ord-1');
+
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('adminMarkDeliveredAction', () => {
+  it('rejects non-admins', async () => {
+    m(assertRole).mockResolvedValue({ auth: null, error: 'Ingen tilgang' });
+
+    const result = await adminMarkDeliveredAction('ord-1');
+
+    expect(result).toEqual({ success: false, error: 'Ingen tilgang' });
+    expect(completeDeliveredOrder).not.toHaveBeenCalled();
+  });
+
+  it('completes from ready_for_delivery', async () => {
+    m(completeDeliveredOrder).mockResolvedValue({ success: true });
+
+    const result = await adminMarkDeliveredAction('ord-1');
+
+    expect(result).toEqual({ success: true });
+    expect(completeDeliveredOrder).toHaveBeenCalledWith('ord-1', 'ready_for_delivery');
+  });
+
+  it('passes through a completion failure', async () => {
+    m(completeDeliveredOrder).mockResolvedValue({ success: false, error: 'feil' });
+
+    const result = await adminMarkDeliveredAction('ord-1');
+
+    expect(result).toEqual({ success: false, error: 'feil' });
   });
 });

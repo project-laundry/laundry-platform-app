@@ -107,7 +107,7 @@
 - `base_country` (string, required) - Base operation country
   - **Default:** `'Norway'`
   - **Validation:** Max 100 chars
-- `base_special_instructions` (text, nullable) - Permanent access instructions for base location (optional "Beskjed til sjåføren" field in onboarding step 2; shown on the driver route)
+- `base_special_instructions` (text, nullable) - Permanent access instructions for base location (not asked in onboarding while cleaners do their own pickup/delivery; shown on the dormant driver route)
   - **Validation:** Max 500 chars
 - `experience_level` (enum → [CleanerExperienceLevel](#cleanerexperiencelevel), required) - Experience level
 - `machine_brand` (string, nullable) - Washing machine brand and model from onboarding step 3
@@ -358,9 +358,9 @@
     - **Note:** Used during reassignment to prevent offering order to same cleaner again
   - `assigned_at` (timestamp, nullable) - Cleaner assignment timestamp
   - `picked_up_at` (timestamp, nullable) - Actual pickup timestamp
-  - `in_cleaning_at` (timestamp, nullable) - When driver delivered to cleaner
+  - `in_cleaning_at` (timestamp, nullable) - When the laundry reached the cleaner (set together with picked_up_at when the cleaner picks up)
   - `ready_for_delivery_at` (timestamp, nullable) - When cleaner marked laundry as ready
-  - `out_for_delivery_at` (timestamp, nullable) - When driver collected from cleaner
+  - `out_for_delivery_at` (timestamp, nullable) - When a driver collected from the cleaner (dormant driver flow only)
   - `completed_at` (timestamp, nullable) - Order completion timestamp
   - `cancelled_at` (timestamp, nullable) - Cancellation timestamp
   - `cancellation_reason` (text, nullable) - Reason for cancellation
@@ -554,7 +554,7 @@
 
 - `customer`
 - `cleaner`
-- `driver` - Picks up and delivers laundry. Minimal profile in `drivers` (one city + optional route start); accounts and profiles are created by admins from the admin dashboard (never self-service).
+- `driver` - Picks up and delivers laundry. Minimal profile in `drivers` (one city + optional route start); accounts and profiles are created by admins from the admin dashboard (never self-service). Dormant in the first version — cleaners do pickup and delivery.
 - `admin`
 
 ### CleanerVerificationStatus
@@ -603,10 +603,10 @@
 
 - `pending_assignment` - Waiting for cleaner assignment (edge case: no available cleaners)
 - `pickup_scheduled` - Cleaner assigned and pickup scheduled
-- `picked_up` - Laundry picked up from customer, in transit to cleaner
-- `in_cleaning` - Laundry delivered to cleaner, being washed
-- `ready_for_delivery` - Laundry cleaned, ready for driver to collect from cleaner
-- `out_for_delivery` - Driver collected from cleaner, en route to customer
+- `picked_up` - Laundry picked up from customer, in transit to cleaner (driver flow only)
+- `in_cleaning` - Laundry with the cleaner, being washed
+- `ready_for_delivery` - Laundry cleaned and charged, ready to be delivered
+- `out_for_delivery` - Driver collected from cleaner, en route to customer (driver flow only)
 - `completed` - Clean laundry delivered to customer (final state)
 - `cancelled` - Order cancelled (final state)
 
@@ -652,7 +652,7 @@
 ## Security & Privacy
 
 - **RLS Policies:** Customers see own data only; cleaners see assigned orders only; admins have full access
-- **Driver Role (MVP):** Dedicated `driver` users run the driver dashboard (`/dashboard/driver`); admins have access to it too. Privileged roles (`admin`, `driver`) cannot be self-selected at signup — `handle_new_user` only honors `customer`/`cleaner` from metadata.
+- **Driver Role (MVP):** Dedicated `driver` users run the driver dashboard (`/dashboard/driver`); dormant in the first version — only the driver role can open it (no driver accounts exist), and no UI links to it. Privileged roles (`admin`, `driver`) cannot be self-selected at signup — `handle_new_user` only honors `customer`/`cleaner` from metadata.
 
 ---
 

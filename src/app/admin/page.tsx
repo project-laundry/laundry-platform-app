@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ClipboardList, CreditCard, Shirt, Truck, Users } from 'lucide-react';
+import { ClipboardList, CreditCard, Shirt, Users } from 'lucide-react';
 import { getAdminOverviewCounts } from '@/lib/database/admin-stats';
 
 export default async function AdminOverviewPage() {
@@ -39,13 +39,6 @@ export default async function AdminOverviewPage() {
       label: 'Kunder',
       value: counts.customers,
       icon: Users,
-      alert: false,
-    },
-    {
-      href: '/admin/drivers',
-      label: 'Sjåfører',
-      value: counts.drivers,
-      icon: Truck,
       alert: false,
     },
   ];

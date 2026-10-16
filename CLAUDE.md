@@ -9,8 +9,8 @@ This is **NooraCare**, a peer-to-peer laundry platform that connects customers w
 The application supports four user roles:
 
 - **Customers**: Schedule laundry pickups via subscription plans
-- **Cleaners**: Accept missions and provide laundry services
-- **Drivers**: Pick up and deliver laundry along a daily optimized route (admins also have driver access)
+- **Cleaners**: Accept missions, pick up at the customer, wash, and deliver back
+- **Drivers** (dormant): Built to pick up and deliver along a daily optimized route, but not used in the first version — cleaners pick up and deliver, only the driver role can open the driver dashboard, and no UI links to the driver pages. Keep this code; it is intentionally unused
 - **Admins**: Manage operations and platform oversight
 
 ## Development Philosophy
@@ -83,7 +83,7 @@ src/
 │   │   ├── customers/      # Customer list + per-customer detail
 │   │   ├── payments/       # Payment list (read-only)
 │   │   ├── promo-codes/    # Promo code list, create/edit, redemptions per code
-│   │   ├── drivers/        # Driver list, create/edit (account + profile)
+│   │   ├── drivers/        # Driver list, create/edit (account + profile) — dormant, not in AdminNav
 │   │   └── admins/         # Admin user list, create/edit
 │   ├── api/                # API routes
 │   │   └── webhooks/
@@ -100,14 +100,14 @@ src/
 │   │   ├── signup/         # Account creation (+ signup/success: "check your email")
 │   │   ├── (steps)/        # Route group: server layout = cleaner-only + no-profile guard; StepGuard = step order
 │   │   │   ├── business/   # Step 1: business type, tax id (uniqueness pre-check), bank account
-│   │   │   ├── services/   # Step 2: base address (where the cleaner washes) + note to the driver
+│   │   │   ├── services/   # Step 2: base address (where the cleaner washes)
 │   │   │   ├── equipment/  # Step 3: washing machine (stored on cleaners.machine_*); optional photo → recognizeMachineAction pre-fills the fields (resize-image.ts is the browser-side JPEG downscale)
 │   │   │   ├── profile/    # Step 4: display name + experience
 │   │   │   └── confirm/    # Step 5: summary + consent → createCleanerProfileAction
 │   │   └── success/        # Application submitted
 │   ├── dashboard/          # User dashboards
 │   │   ├── cleaner/        # Cleaner dashboard & missions
-│   │   └── driver/         # Driver dashboard (daily route)
+│   │   └── driver/         # Driver dashboard (daily route) — dormant, driver role only
 │   ├── orders/             # Customer order flow (3 steps; steps 1–2 work logged out, step 3 asks the customer to log in before Vipps)
 │   │   ├── [orderId]/      # Order cancel/reschedule
 │   │   ├── details/        # Customer order details
@@ -205,7 +205,7 @@ All database operations use dedicated functions in `lib/database/`:
 
 ## Maps & Geocoding
 
-Addresses are geocoded into `latitude`/`longitude` so the cleaner dashboard can build an optimized pickup route.
+Addresses are geocoded into `latitude`/`longitude` so the (dormant) driver dashboard can build an optimized route and the cleaner gets a map link.
 
 - **Service**: `lib/maps/geocoding.ts` (`geocodeAddress` → `{ latitude, longitude } | null`, never throws) and `lib/maps/config.ts` (`GOOGLE_MAPS_API_KEY`).
 - **Geocode at the source, propagate by copy**: addresses are geocoded once where they enter the system — checkout and address edit (`app/orders/actions.ts`) and cleaner onboarding (`app/bli-renser/actions.ts`). Customer coords are stored in `subscriptions.order_defaults.initial_address` and copied onto every generated order by `lib/services/order-generation.ts`. Cleaner coords live on the `cleaners` row.

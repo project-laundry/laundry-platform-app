@@ -1,13 +1,12 @@
 import { Clock } from 'lucide-react';
 import {
-  ORDER_STATUS_SEQUENCE,
+  CUSTOMER_PROGRESS_STEPS,
   getOrderStatusLabel,
   getOrderStatusStep,
 } from '@/lib/utils/order-status';
 import type { OrderStatus } from '@/types/database';
 
-// Horizontal lifecycle progress — brandbook progress bars with the
-// current status label and its timestamp below. Not for cancelled orders.
+// Horizontal lifecycle progress (customer-visible steps only) — brandbook progress bars with the current status label and its timestamp below. Not for cancelled orders.
 export function OrderProgress({
   status,
   currentTimestamp,
@@ -23,11 +22,11 @@ export function OrderProgress({
   return (
     <div>
       <div className="flex gap-1.5">
-        {ORDER_STATUS_SEQUENCE.map((step, index) => (
+        {CUSTOMER_PROGRESS_STEPS.map((step) => (
           <span
             key={step}
             className={`h-1.5 flex-1 rounded-full ${
-              index <= currentStep ? 'bg-sea-green' : 'bg-cream-dark'
+              getOrderStatusStep(step) <= currentStep ? 'bg-sea-green' : 'bg-cream-dark'
             }`}
           />
         ))}

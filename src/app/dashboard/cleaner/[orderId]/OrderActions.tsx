@@ -2,8 +2,13 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, ArrowRight, Info } from 'lucide-react';
-import { markOrderReadyForDelivery, declineCleanerOrder } from '../actions';
+import { AlertCircle, ArrowRight, Info, Package, PackageCheck } from 'lucide-react';
+import {
+  markOrderReadyForDelivery,
+  declineCleanerOrder,
+  markOrderPickedUpAction,
+  markOrderDeliveredAction,
+} from '../actions';
 import { formatKr } from '@/lib/config/pricing';
 import type { OrderStatus } from '@/types/database';
 
@@ -15,16 +20,17 @@ interface OrderActionsProps {
   hasLaundryDetails: boolean;
   hasPrice: boolean;
   totalCostOre: number | null;
+  /** True from the customer's chosen pickup date onward (Norwegian time). */
+  pickupDue: boolean;
 }
 
-// What the driver handles — shown as info so the cleaner knows nothing is
-// expected from them in these statuses.
-const DRIVER_INFO: Partial<Record<OrderStatus, string>> = {
+// Statuses with nothing for the cleaner to press. picked_up and
+// out_for_delivery belong to the (dormant) driver flow and are never entered
+// when the cleaner runs pickup and delivery — kept so an old order still reads.
+const STATUS_INFO: Partial<Record<OrderStatus, string>> = {
   pending_assignment: 'Ordren venter på tildeling.',
-  pickup_scheduled: 'Sjåføren henter vasken hos kunden på hentedatoen og leverer den til deg.',
-  picked_up: 'Sjåføren er på vei til deg med vasken.',
-  ready_for_delivery: 'Vasken er klar og kunden er belastet — sjåføren henter den hos deg og leverer til kunden.',
-  out_for_delivery: 'Sjåføren leverer vasken til kunden. Kunden er allerede belastet.',
+  picked_up: 'Tøyet er hentet og på vei til deg.',
+  out_for_delivery: 'Tøyet er på vei til kunden. Kunden er allerede belastet.',
 };
 
 const PRIMARY_BUTTON =
@@ -62,6 +68,40 @@ function ActionCard({
   );
 }
 
+/** Two-tap confirm row shared by the pickup, ready and delivery cards. */
+function ConfirmRow({
+  isLoading,
+  confirmLabel,
+  onCancel,
+  onConfirm,
+}: {
+  isLoading: boolean;
+  confirmLabel: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="flex gap-3">
+      <button
+        type="button"
+        onClick={onCancel}
+        disabled={isLoading}
+        className={`${SECONDARY_BUTTON} flex-1`}
+      >
+        Avbryt
+      </button>
+      <button
+        type="button"
+        onClick={onConfirm}
+        disabled={isLoading}
+        className={`${PRIMARY_BUTTON} flex-1`}
+      >
+        {isLoading ? 'Oppdaterer...' : confirmLabel}
+      </button>
+    </div>
+  );
+}
+
 export function OrderActions({
   orderId,
   orderNumber,
@@ -70,28 +110,37 @@ export function OrderActions({
   hasLaundryDetails,
   hasPrice,
   totalCostOre,
+  pickupDue,
 }: OrderActionsProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPickupConfirm, setShowPickupConfirm] = useState(false);
   const [showReadyConfirm, setShowReadyConfirm] = useState(false);
+  const [showDeliverConfirm, setShowDeliverConfirm] = useState(false);
   const [showDeclineConfirm, setShowDeclineConfirm] = useState(false);
 
+  const canPickUp = currentStatus === 'pickup_scheduled';
   const canMarkReady = currentStatus === 'in_cleaning';
+  const canDeliver = currentStatus === 'ready_for_delivery';
   const canDecline = currentStatus === 'pickup_scheduled';
-  const driverInfo = DRIVER_INFO[currentStatus];
+  const statusInfo = STATUS_INFO[currentStatus];
 
-  const handleMarkReady = async () => {
+  // Runs one status action; on success closes its confirm and refreshes.
+  const runStatusAction = async (
+    action: (id: string) => Promise<{ success: boolean; error?: string }>,
+    closeConfirm: () => void
+  ) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const result = await markOrderReadyForDelivery(orderId);
+      const result = await action(orderId);
       if (!result.success) {
         setError(result.error || 'Kunne ikke oppdatere status');
         return;
       }
-      setShowReadyConfirm(false);
+      closeConfirm();
       router.refresh();
     } catch {
       setError('En feil oppstod');
@@ -137,19 +186,62 @@ export function OrderActions({
         </div>
       )}
 
-      {/* Mark ready for driver collection */}
+      {/* Step 1: pick up at the customer's door */}
+      {canPickUp && (
+        <ActionCard
+          icon={<Package className="size-5" />}
+          iconClassName="bg-nordic-blue/10 text-nordic-blue"
+          title="Hent tøyet hos kunden"
+        >
+          {!showPickupConfirm ? (
+            <div className="space-y-3">
+              <p className="text-medium-gray">Trykk når du har hentet posene hos kunden.</p>
+              {!pickupDue && (
+                <div className="flex items-start gap-2 rounded-2xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
+                  <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                  <p>Hentedatoen er ikke kommet ennå. Hent bare tidligere hvis du har avtalt det med kunden.</p>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowPickupConfirm(true)}
+                className={PRIMARY_BUTTON}
+              >
+                Jeg har hentet tøyet
+              </button>
+              <p className="text-sm text-medium-gray">
+                Er ingen hjemme? Ring kunden. Kunden kan flytte hentedagen selv i bestillingen sin.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-300">
+              <p className="text-medium-gray">Bekreft at du har hentet tøyet hos kunden.</p>
+              <ConfirmRow
+                isLoading={isLoading}
+                confirmLabel="Bekreft henting"
+                onCancel={() => setShowPickupConfirm(false)}
+                onConfirm={() =>
+                  runStatusAction(markOrderPickedUpAction, () => setShowPickupConfirm(false))
+                }
+              />
+            </div>
+          )}
+        </ActionCard>
+      )}
+
+      {/* Step 2: mark ready — charges the customer */}
       {canMarkReady && (
         <ActionCard
           icon={<ArrowRight className="size-5" />}
           iconClassName="bg-sea-green/12 text-sea-green"
-          title="Klar for henting"
+          title="Klar for levering"
         >
           {!showReadyConfirm ? (
             <div className="space-y-3">
               <p className="text-medium-gray">
                 {needsIroning
-                  ? 'Når vasken er ferdig vasket og strøket, gjør du den klar — sjåføren henter den hos deg.'
-                  : 'Når vasken er ferdig vasket, gjør du den klar — sjåføren henter den hos deg.'}
+                  ? 'Når vasken er ferdig vasket og strøket, gjør du den klar. Da belastes kunden, og du leverer tøyet tilbake.'
+                  : 'Når vasken er ferdig vasket, gjør du den klar. Da belastes kunden, og du leverer tøyet tilbake.'}
               </p>
               {!hasLaundryDetails && (
                 <div className="flex items-start gap-2 rounded-2xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
@@ -169,13 +261,13 @@ export function OrderActions({
                 disabled={!hasLaundryDetails || !hasPrice}
                 className={PRIMARY_BUTTON}
               >
-                Marker som klar for henting
+                Marker som klar
               </button>
             </div>
           ) : (
             <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-300">
               <p className="text-medium-gray">
-                Bekreft at vasken er ferdig og pakket, klar til at sjåføren henter den.
+                Bekreft at vasken er ferdig og pakket, klar til å leveres til kunden.
               </p>
               {totalCostOre !== null && (
                 <p className="rounded-2xl bg-cream/70 px-4 py-3 text-sm text-dark-gray">
@@ -184,34 +276,60 @@ export function OrderActions({
                   Vipps når du bekrefter.
                 </p>
               )}
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowReadyConfirm(false)}
-                  disabled={isLoading}
-                  className={`${SECONDARY_BUTTON} flex-1`}
-                >
-                  Avbryt
-                </button>
-                <button
-                  type="button"
-                  onClick={handleMarkReady}
-                  disabled={isLoading}
-                  className={`${PRIMARY_BUTTON} flex-1`}
-                >
-                  {isLoading ? 'Oppdaterer...' : 'Bekreft og belast'}
-                </button>
-              </div>
+              <ConfirmRow
+                isLoading={isLoading}
+                confirmLabel="Bekreft og belast"
+                onCancel={() => setShowReadyConfirm(false)}
+                onConfirm={() =>
+                  runStatusAction(markOrderReadyForDelivery, () => setShowReadyConfirm(false))
+                }
+              />
             </div>
           )}
         </ActionCard>
       )}
 
-      {/* Driver-handled status info */}
-      {driverInfo && (
+      {/* Step 3: deliver back to the customer */}
+      {canDeliver && (
+        <ActionCard
+          icon={<PackageCheck className="size-5" />}
+          iconClassName="bg-sea-green/12 text-sea-green"
+          title="Lever til kunden"
+        >
+          {!showDeliverConfirm ? (
+            <div className="space-y-3">
+              <p className="text-medium-gray">
+                Kunden er belastet. Trykk når det rene tøyet er levert hos kunden.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowDeliverConfirm(true)}
+                className={PRIMARY_BUTTON}
+              >
+                Levert til kunden
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-300">
+              <p className="text-medium-gray">Bekreft at tøyet er levert. Dette kan ikke angres.</p>
+              <ConfirmRow
+                isLoading={isLoading}
+                confirmLabel="Bekreft levering"
+                onCancel={() => setShowDeliverConfirm(false)}
+                onConfirm={() =>
+                  runStatusAction(markOrderDeliveredAction, () => setShowDeliverConfirm(false))
+                }
+              />
+            </div>
+          )}
+        </ActionCard>
+      )}
+
+      {/* Statuses with nothing to press */}
+      {statusInfo && (
         <div className="flex items-start gap-2 rounded-2xl bg-cream/70 px-4 py-3 text-sm text-medium-gray">
           <Info className="mt-0.5 size-4 shrink-0 text-sea-green" />
-          <p>{driverInfo}</p>
+          <p>{statusInfo}</p>
         </div>
       )}
 

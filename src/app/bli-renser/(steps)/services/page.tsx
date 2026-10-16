@@ -2,18 +2,15 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, MapPin, Truck } from 'lucide-react';
+import { AlertCircle, MapPin } from 'lucide-react';
 import { useCleanerOnboardingStore } from '@/stores/cleaner-onboarding-store';
 import { CleanerFlowSection, CleanerFlowShell } from '@/components/cleaner-flow/CleanerFlowShell';
 import { FormInput } from '@/components/forms/FormInput';
-import { FormTextarea } from '@/components/forms/FormTextarea';
 import {
   getCityFromPostalCode,
   isValidPostalCodeFormat,
   type SupportedCity,
 } from '@/lib/config/postal-codes';
-
-const INSTRUCTIONS_MAX = 500; // cleaners.base_special_instructions max length (ENTITIES.md)
 
 export default function ServicesPage() {
   // Mount the form only after the store has rehydrated, so its initial state
@@ -29,9 +26,6 @@ function ServicesForm() {
 
   const [baseStreet, setBaseStreet] = useState(cleanerData?.baseStreet || '');
   const [basePostalCode, setBasePostalCode] = useState(cleanerData?.basePostalCode || '');
-  const [baseSpecialInstructions, setBaseSpecialInstructions] = useState(
-    cleanerData?.baseSpecialInstructions || ''
-  );
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -70,7 +64,6 @@ function ServicesForm() {
       basePostalCode,
       baseCity: derivedCity,
       baseCountry: 'Norway',
-      baseSpecialInstructions: baseSpecialInstructions.trim() || undefined,
     });
 
     router.push('/bli-renser/equipment');
@@ -127,21 +120,6 @@ function ServicesForm() {
               </span>
             </div>
           )}
-        </CleanerFlowSection>
-
-        <CleanerFlowSection
-          icon={<Truck className="size-5" />}
-          title="Beskjed til sjåføren"
-          hint="Valgfritt. Vises til sjåføren som leverer og henter tøy hos deg."
-          delay={120}
-        >
-          <FormTextarea
-            label="Adkomst"
-            value={baseSpecialInstructions}
-            onChange={(value) => setBaseSpecialInstructions(value.slice(0, INSTRUCTIONS_MAX))}
-            placeholder="F.eks. etasje, ringeklokke eller hvor tøyet kan settes"
-            rows={3}
-          />
         </CleanerFlowSection>
       </form>
     </CleanerFlowShell>

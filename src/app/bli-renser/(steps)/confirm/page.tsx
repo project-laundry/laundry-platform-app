@@ -108,9 +108,6 @@ function ConfirmForm() {
               </>
             }
           />
-          {cleanerData.baseSpecialInstructions && (
-            <SummaryRow label="Beskjed til sjåføren" value={cleanerData.baseSpecialInstructions} />
-          )}
         </SummaryGroup>
 
         <SummaryGroup title="Vaskemaskin">

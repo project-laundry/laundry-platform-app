@@ -17,7 +17,7 @@ const STEP_META: Record<CleanerFlowStep, { title: string; subtitle: string; back
   },
   2: {
     title: 'Hvor vasker du?',
-    subtitle: 'Adressen der vaskemaskinen din står. Sjåføren vår leverer og henter tøyet her.',
+    subtitle: 'Adressen der vaskemaskinen din står. Vi bruker den til å finne kunder i byen din.',
     back: '/bli-renser/business',
   },
   3: {

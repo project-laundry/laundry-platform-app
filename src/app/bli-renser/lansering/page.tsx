@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Wordmark } from '@/components/layout/AppHeader';
 import { Footer } from '@/components/landing/Footer';
 import { PRICING, formatKr } from '@/lib/config/pricing';
+import { PICKUP_TIME_RANGE } from '@/lib/config/pickup-times';
 import { CLEANER_FAQ } from '../faq';
 import { ClipboardList, Coins, Package, Truck, WashingMachine } from 'lucide-react';
 
@@ -20,8 +21,8 @@ const WHY = [
   },
   {
     icon: Truck,
-    title: 'Ingen kjøring',
-    text: 'Sjåføren vår leverer tøyet hjem til deg og henter det når det er rent. Du trenger ikke bil.',
+    title: 'Du henter og leverer',
+    text: 'Du henter tøyet hos kunden og leverer det rent tilbake. Vi finner kundene for deg.',
   },
   {
     icon: ClipboardList,
@@ -53,8 +54,8 @@ const HOW = [
   },
   {
     icon: Truck,
-    title: 'Sjåføren leverer tøyet',
-    text: 'Sjåføren vår henter hos kunden og leverer tøyet hjem til deg.',
+    title: 'Du henter tøyet',
+    text: `Hent posene hos kunden på hentedatoen, mellom kl. ${PICKUP_TIME_RANGE.start} og ${PICKUP_TIME_RANGE.end}. Adressen og kundens beskjeder står i oppdraget.`,
   },
   {
     icon: WashingMachine,
@@ -63,8 +64,8 @@ const HOW = [
   },
   {
     icon: Package,
-    title: 'Sjåføren henter det rene tøyet',
-    text: 'Marker oppdraget som klart. Sjåføren henter det hos deg og leverer til kunden.',
+    title: 'Du leverer det rene tøyet',
+    text: 'Marker oppdraget som klart – da betaler kunden med Vipps. Lever tøyet tilbake til kunden.',
   },
 ];
 
@@ -124,7 +125,7 @@ export default function BecomeCleanerPage() {
                 Vask tøy hjemme og tjen penger
               </h1>
               <p className="mt-4 max-w-md text-lg text-medium-gray">
-                Vi henter og leverer tøyet. Du vasker det i din egen maskin
+                Du henter tøyet hos kunden, vasker det i din egen maskin, leverer det tilbake
                 og får {PRICING.cleaner_payout_percent} % av prisen for hvert oppdrag.
               </p>
             </div>
@@ -158,7 +159,7 @@ export default function BecomeCleanerPage() {
                 Hvorfor bli NooraCare-renser?
               </h2>
               <p className="mt-3 text-lg text-medium-gray">
-                Du vasker. Vi tar kundene, kjøringen og betalingen.
+                Du vasker og leverer. Vi tar kundene, prisen og betalingen.
               </p>
             </div>
 

@@ -18,6 +18,7 @@ import {
   type PriceBreakdown,
 } from '@/lib/config/pricing';
 import { createChargeForCompletedOrder } from '@/lib/payments/vipps/service';
+import { completeDeliveredOrder } from '@/lib/services/complete-order';
 
 export type { OrderWithCustomer };
 
@@ -41,15 +42,14 @@ export async function getCleanerOrderDetails(
 }
 
 /**
- * Mark an order as cleaned and ready for the driver to collect — and CHARGE
- * the customer (decision 5: the service is rendered and the price locked at
- * this moment; the driver never touches money).
+ * Mark an order as cleaned and ready to deliver — and CHARGE the customer
+ * (the service is rendered and the price locked at this moment).
  *
- * This is the ONLY status transition a cleaner performs
- * (in_cleaning → ready_for_delivery); the driver handles every other leg.
- * Wash details and price must exist first, because the charge fires here.
- * The guarded transition runs before the charge, so a double-tap can never
- * charge twice (the second call fails the from-status guard).
+ * Cleaners run their own logistics: markOrderPickedUpAction before this,
+ * markOrderDeliveredAction after it. Wash details and price must exist first,
+ * because the charge fires here. The guarded transition runs before the
+ * charge, so a double-tap can never charge twice (the second call fails the
+ * from-status guard).
  */
 export async function markOrderReadyForDelivery(
   orderId: string
@@ -109,6 +109,95 @@ export async function markOrderReadyForDelivery(
   revalidatePath(`/dashboard/cleaner/${orderId}`);
   return { success: true };
 }
+
+/**
+ * The cleaner has collected the bags at the customer's door. Cleaners do
+ * their own pickup (no drivers in this version) and the bags go straight
+ * into their machine, so this jumps pickup_scheduled → in_cleaning in ONE
+ * guarded write, stamping picked_up_at next to in_cleaning_at.
+ * No date check: the UI warns before the pickup date, but an early pickup
+ * agreed with the customer is allowed.
+ */
+export async function markOrderPickedUpAction(
+  orderId: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: 'Ikke autentisert' };
+  }
+
+  const cleaner = await getCleanerByUserId(user.id);
+  if (!cleaner) {
+    return { success: false, error: 'Renserprofil ikke funnet' };
+  }
+
+  const order = await getOrderByIdAndCleanerId(orderId, cleaner.id);
+  if (!order) {
+    return { success: false, error: 'Ordre ikke funnet eller ikke tildelt deg' };
+  }
+
+  if (order.status !== 'pickup_scheduled') {
+    return { success: false, error: 'Ordren er allerede hentet' };
+  }
+
+  const updated = await updateOrderStatusGuarded(orderId, 'pickup_scheduled', 'in_cleaning', {
+    picked_up_at: new Date().toISOString(),
+  });
+  if (!updated) {
+    return { success: false, error: 'Kunne ikke oppdatere status — last siden på nytt' };
+  }
+
+  revalidatePath('/dashboard/cleaner');
+  revalidatePath(`/dashboard/cleaner/${orderId}`);
+  return { success: true };
+}
+
+/**
+ * The cleaner has handed the clean laundry back to the customer. The charge
+ * already happened at "ready"; completion stamps the actual delivery date,
+ * fires the rolling window and the cancelled-subscription agreement stop
+ * (all inside completeDeliveredOrder).
+ */
+export async function markOrderDeliveredAction(
+  orderId: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: 'Ikke autentisert' };
+  }
+
+  const cleaner = await getCleanerByUserId(user.id);
+  if (!cleaner) {
+    return { success: false, error: 'Renserprofil ikke funnet' };
+  }
+
+  const order = await getOrderByIdAndCleanerId(orderId, cleaner.id);
+  if (!order) {
+    return { success: false, error: 'Ordre ikke funnet eller ikke tildelt deg' };
+  }
+
+  if (order.status !== 'ready_for_delivery') {
+    return { success: false, error: 'Ordren kan bare leveres når den er markert som klar' };
+  }
+
+  const result = await completeDeliveredOrder(orderId, 'ready_for_delivery');
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  revalidatePath('/dashboard/cleaner');
+  revalidatePath(`/dashboard/cleaner/${orderId}`);
+  return { success: true };
+}
+
 
 /**
  * Save laundry details (loads, ironing) and calculate price

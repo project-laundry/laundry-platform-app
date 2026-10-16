@@ -33,7 +33,7 @@ export default function SalgsvilkarPage() {
                 Salgsvilkår
               </h1>
               <p className="text-sm text-medium-gray">
-                Sist oppdatert: 23.05.2026
+                Sist oppdatert: 16.10.2026
               </p>
             </header>
 
@@ -198,17 +198,17 @@ export default function SalgsvilkarPage() {
                 6. Henting og levering
               </h2>
               <p className="leading-relaxed text-dark-gray mb-4">
-                Henting skjer på avtalt dato innenfor det hentevinduet som
-                vises i bestillingsbekreftelsen. Vasket tøy
-                leveres tilbake til samme adresse innenfor avtalt
-                leveringsvindu.
+                Henting skjer på datoen du har valgt, innenfor hentevinduet
+                som vises i bestillingen. Renseren henter tøyet og leverer det
+                vaskede tøyet tilbake til samme adresse. Leveringsdatoen som
+                vises er et estimat, ikke en fast avtale.
               </p>
               <p className="leading-relaxed text-dark-gray">
-                Du er ansvarlig for å være tilgjengelig på adressen i avtalte
-                tidsrom, eller for å gi tydelige instruksjoner for
-                kontaktløs henting/levering. Hvis henting eller levering ikke
-                kan gjennomføres på grunn av forhold på din side, kan
-                NooraCare belaste et bomturgebyr som angitt i prislisten.
+                Du er ansvarlig for å være tilgjengelig på adressen i
+                hentevinduet, eller for å gi tydelige instruksjoner for
+                kontaktløs henting og levering. Hvis henting ikke kan
+                gjennomføres, tar renseren kontakt med deg, og du kan flytte
+                hentedagen i bestillingen din.
               </p>
             </section>
 

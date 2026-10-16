@@ -33,7 +33,7 @@ export default function PersonvernPage() {
                 Personvernerklæring
               </h1>
               <p className="text-sm text-medium-gray">
-                Sist oppdatert: 01.10.2026
+                Sist oppdatert: 16.10.2026
               </p>
               <p className="text-sm text-medium-gray mt-2">
                 Denne erklæringen gjelder for kunder. Er du tilknyttet
@@ -247,8 +247,10 @@ export default function PersonvernPage() {
                   <span className="font-medium">
                     Rensere tilknyttet plattformen
                   </span>{" "}
-                  – får tilgang til navn, henteadresse og henteinstruksjoner
-                  for det konkrete oppdraget de utfører for deg. Renserne er
+                  – får tilgang til navn, telefonnummer, henteadresse,
+                  henteinstruksjoner og vaskeinstruksjoner for det konkrete
+                  oppdraget de utfører for deg, slik at de kan hente og
+                  levere tøyet. Renserne er
                   selvstendige tjenesteytere og opptrer som databehandler
                   for NooraCare i den utstrekning de behandler dine
                   opplysninger på vegne av oss.

@@ -1,5 +1,3 @@
-import Link from 'next/link';
-import { Route } from 'lucide-react';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { LogoutButton } from '@/components/ui/LogoutButton';
 import { AdminNav } from '@/components/admin/AdminNav';
@@ -22,18 +20,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
       <AppHeader
         maxWidth="max-w-5xl"
-        right={
-          <div className="flex items-center gap-4">
-            <Link
-              href="/dashboard/driver"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-nordic-blue hover:underline"
-            >
-              <Route className="size-4" />
-              Kjøreplan
-            </Link>
-            <LogoutButton />
-          </div>
-        }
+        right={<LogoutButton />}
       />
 
       <main className="mx-auto max-w-5xl px-5 pb-16 pt-6">

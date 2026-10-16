@@ -1,6 +1,6 @@
 import { redirect, notFound } from 'next/navigation';
 import { AppHeader, BackLink } from '@/components/layout/AppHeader';
-import { CalendarDays, ClipboardList, Shirt, ShoppingBag } from 'lucide-react';
+import { CalendarDays, ClipboardList, MapPin, Navigation, Phone, Shirt, ShoppingBag } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { getCleanerByUserId } from '@/lib/database/cleaners';
 import { getUsersById } from '@/lib/database/users';
@@ -8,6 +8,9 @@ import { getCleanerOrderDetails } from '../actions';
 import { LaundryDetailsForm } from '../components/LaundryDetailsForm';
 import { OrderActions } from './OrderActions';
 import { formatKr } from '@/lib/config/pricing';
+import { getPickupTimeRangeLabel } from '@/lib/config/pickup-times';
+import { buildSingleDestinationUrl } from '@/lib/utils/route';
+import { todayInOslo } from '@/lib/utils/date';
 import type { OrderStatus } from '@/types/database';
 
 interface OrderDetailsPageProps {
@@ -17,11 +20,11 @@ interface OrderDetailsPageProps {
 // Status display configuration — badge tints per brandbook §4.
 const STATUS_CONFIG: Record<OrderStatus, { label: string; className: string }> = {
   pending_assignment: { label: 'Venter på tildeling', className: 'bg-amber-50 text-amber-800' },
-  pickup_scheduled: { label: 'Venter på henting', className: 'bg-nordic-blue/10 text-nordic-blue' },
-  picked_up: { label: 'På vei til deg', className: 'bg-nordic-blue/10 text-nordic-blue' },
+  pickup_scheduled: { label: 'Skal hentes', className: 'bg-nordic-blue/10 text-nordic-blue' },
+  picked_up: { label: 'Hentet', className: 'bg-nordic-blue/10 text-nordic-blue' },
   in_cleaning: { label: 'Vaskes', className: 'bg-nordic-blue/10 text-nordic-blue' },
-  ready_for_delivery: { label: 'Klar for henting', className: 'bg-sea-green/10 text-sea-green' },
-  out_for_delivery: { label: 'Ut for levering', className: 'bg-sea-green/10 text-sea-green' },
+  ready_for_delivery: { label: 'Klar til levering', className: 'bg-sea-green/10 text-sea-green' },
+  out_for_delivery: { label: 'Leveres', className: 'bg-sea-green/10 text-sea-green' },
   completed: { label: 'Fullfort', className: 'bg-cream-dark/60 text-medium-gray' },
   cancelled: { label: 'Kansellert', className: 'bg-red-50 text-red-700' },
 };
@@ -103,6 +106,37 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
   // at the saved price, so the price is locked from ready_for_delivery on
   const isEditable = order.status === 'in_cleaning';
 
+  // The cleaner runs pickup and delivery, so they need the customer's door
+  // while the order is active — hidden once it is completed or cancelled.
+  const showLogistics = order.status !== 'completed' && order.status !== 'cancelled';
+  const customerPhone = order.customer.user.phone || null;
+  const mapsUrl =
+    order.latitude !== null && order.longitude !== null
+      ? buildSingleDestinationUrl({ latitude: order.latitude, longitude: order.longitude })
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+          `${order.street}, ${order.postal_code} ${order.city}`
+        )}`;
+  const pickupDue = order.scheduled_date <= todayInOslo();
+  // Buttons first, except while washing: then the details form is the work
+  // and «Marker som klar» belongs below it.
+  const actionsFirst = order.status !== 'in_cleaning';
+  // Nothing to register before the laundry is picked up.
+  const showLaundryForm =
+    order.status !== 'pending_assignment' && order.status !== 'pickup_scheduled';
+
+  const orderActions = (
+    <OrderActions
+      orderId={order.id}
+      orderNumber={order.order_number}
+      currentStatus={order.status}
+      needsIroning={order.needs_ironing}
+      hasLaundryDetails={order.wash_loads > 0}
+      hasPrice={order.total_cost_ore !== null}
+      totalCostOre={order.total_cost_ore}
+      pickupDue={pickupDue}
+    />
+  );
+
   return (
     <div className="min-h-screen bg-cream text-dark-gray">
       {/* Atmospheric backdrop — soft sea-green wash over warm cream. */}
@@ -153,6 +187,9 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
                 <div className="font-medium tabular-nums text-dark-gray">
                   {formatDate(order.scheduled_date)}
                 </div>
+                <div className="text-sm tabular-nums text-medium-gray">
+                  kl. {getPickupTimeRangeLabel()}
+                </div>
               </div>
               <div>
                 <div className="text-sm text-medium-gray">Estimert levering</div>
@@ -163,6 +200,54 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
             </div>
           </div>
         </SectionCard>
+
+        {/* Pickup & delivery — the cleaner goes to the customer's door */}
+        {showLogistics && (
+          <SectionCard icon={<MapPin className="size-5" />} title="Henting og levering">
+            <div className="space-y-4">
+              <div>
+                <div className="text-sm text-medium-gray">Adresse</div>
+                <div className="font-medium text-dark-gray">
+                  {order.street}
+                  <br />
+                  {order.postal_code} {order.city}
+                </div>
+              </div>
+
+              <div>
+                <div className="text-sm text-medium-gray">Henteinstruksjoner</div>
+                {order.special_instructions_address ? (
+                  <div className="text-dark-gray">{order.special_instructions_address}</div>
+                ) : (
+                  <div className="text-sm text-medium-gray">Ingen henteinstruksjoner</div>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <a
+                  href={mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-cream-dark bg-white px-4 py-2 text-sm font-medium text-nordic-blue transition-all hover:border-sea-green hover:text-sea-green"
+                >
+                  <Navigation className="size-4" />
+                  Veibeskrivelse
+                </a>
+                {customerPhone && (
+                  <a
+                    href={`tel:${customerPhone.replace(/\s/g, '')}`}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-cream-dark bg-white px-4 py-2 text-sm font-medium text-nordic-blue transition-all hover:border-sea-green hover:text-sea-green"
+                  >
+                    <Phone className="size-4" />
+                    Ring {customerPhone}
+                  </a>
+                )}
+              </div>
+            </div>
+          </SectionCard>
+        )}
+
+        {actionsFirst && orderActions}
 
         {/* Washing Instructions */}
         <SectionCard icon={<Shirt className="size-5" />} title="Vaskeinstruksjoner">
@@ -191,11 +276,11 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
             {/* Special instructions */}
             {order.special_instructions ? (
               <div>
-                <div className="text-sm text-medium-gray">Spesielle instruksjoner</div>
+                <div className="text-sm text-medium-gray">Fra kunden</div>
                 <div className="text-dark-gray">{order.special_instructions}</div>
               </div>
             ) : (
-              <div className="text-sm text-medium-gray">Ingen spesielle instruksjoner</div>
+              <div className="text-sm text-medium-gray">Ingen vaskeinstruksjoner fra kunden</div>
             )}
           </div>
         </SectionCard>
@@ -232,26 +317,19 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
         )}
 
         {/* Laundry Details Form */}
-        <LaundryDetailsForm
-          orderId={order.id}
-          needsIroning={order.needs_ironing}
-          initialWashLoads={order.wash_loads || 0}
-          initialIroningDetails={order.ironing_details}
-          initialNotes={order.pricing_notes}
-          isEditable={isEditable}
-          promo={order.promo}
-        />
+        {showLaundryForm && (
+          <LaundryDetailsForm
+            orderId={order.id}
+            needsIroning={order.needs_ironing}
+            initialWashLoads={order.wash_loads || 0}
+            initialIroningDetails={order.ironing_details}
+            initialNotes={order.pricing_notes}
+            isEditable={isEditable}
+            promo={order.promo}
+          />
+        )}
 
-        {/* Order Actions (Status changes, decline, finish) */}
-        <OrderActions
-          orderId={order.id}
-          orderNumber={order.order_number}
-          currentStatus={order.status}
-          needsIroning={order.needs_ironing}
-          hasLaundryDetails={order.wash_loads > 0}
-          hasPrice={order.total_cost_ore !== null}
-          totalCostOre={order.total_cost_ore}
-        />
+        {!actionsFirst && orderActions}
       </main>
     </div>
   );
