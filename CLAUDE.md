@@ -106,19 +106,17 @@ src/
 │   │   │   └── confirm/    # Step 5: summary + consent → createCleanerProfileAction
 │   │   └── success/        # Application submitted
 │   ├── dashboard/          # User dashboards
-│   │   ├── cleaner/        # Cleaner dashboard & missions
+│   │   ├── cleaner/        # Cleaner dashboard, missions & profile settings (settings/)
 │   │   └── driver/         # Driver dashboard (daily route) — dormant, driver role only
-│   ├── orders/             # Customer order flow (3 steps; steps 1–2 work logged out, step 3 asks the customer to log in before Vipps)
-│   │   ├── [orderId]/      # Order cancel/reschedule
-│   │   ├── details/        # Customer order details
-│   │   ├── wash/           # Step 1: what to wash (bags, bedding, ironing)
-│   │   ├── pickup/         # Step 2: address + pickup date + frequency
-│   │   ├── confirm/        # Step 3: review + promo code + Vipps handoff
-│   │   ├── success/        # Order success (polls agreement status)
-│   │   ├── layout.tsx      # Step route guards (redirects to /orders/wash)
-│   │   └── actions.ts      # Server actions
-│   └── profile/            # User profile pages
-│       └── cleaner/        # Cleaner profile view
+│   └── orders/             # Customer order flow (3 steps; steps 1–2 work logged out, step 3 asks the customer to log in before Vipps)
+│       ├── [orderId]/      # Order cancel/reschedule
+│       ├── details/        # Customer order details
+│       ├── wash/           # Step 1: what to wash (bags, bedding, ironing)
+│       ├── pickup/         # Step 2: address + pickup date + frequency
+│       ├── confirm/        # Step 3: review + promo code + Vipps handoff
+│       ├── success/        # Order success (polls agreement status)
+│       ├── layout.tsx      # Step route guards (redirects to /orders/wash)
+│       └── actions.ts      # Server actions
 ├── assets/brand/          # Logo PNGs (primary/secondary/submerke, normal + negativ); favicons are app/icon.png + app/apple-icon.png
 ├── components/             # Reusable UI components
 │   ├── auth/               # Auth components (empty)

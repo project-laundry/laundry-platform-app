@@ -241,6 +241,31 @@ export async function saveCleanerCoords(
 }
 
 /**
+ * Update a cleaner's own editable profile fields (settings page).
+ * Pass only the fields being changed; returns the updated row or null on error.
+ */
+export async function updateCleanerProfile(
+  cleanerId: string,
+  updates: Partial<Cleaner>
+): Promise<Cleaner | null> {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from('cleaners')
+    .update(updates)
+    .eq('id', cleanerId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating cleaner profile:', error);
+    return null;
+  }
+
+  return data;
+}
+
+/**
  * Cleaner with the linked user record, for the admin cleaner list.
  */
 export interface CleanerWithUser extends Cleaner {

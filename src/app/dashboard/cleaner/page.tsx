@@ -1,12 +1,14 @@
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { AppHeader } from '@/components/layout/AppHeader';
-import { Ban, Hourglass, XCircle } from 'lucide-react';
+import { Ban, ChevronRight, Hourglass, Settings, XCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { getCleanerByUserId } from '@/lib/database/cleaners';
 import { getUsersById } from '@/lib/database/users';
 import { getOrdersByCleanerId, getCompletedOrdersByCleanerId } from '@/lib/database/orders';
 import { LogoutButton } from '@/components/ui/LogoutButton';
 import { CleanerDashboardTabs } from './components/CleanerDashboardTabs';
+import type { WeeklySchedule } from '@/types/database';
 
 export default async function CleanerDashboardPage() {
   // Auth check
@@ -38,6 +40,26 @@ export default async function CleanerDashboardPage() {
   const isRejected = cleaner.verification_status === 'rejected';
   const isSuspended = cleaner.verification_status === 'suspended';
 
+  // Availability summary for the dashboard strip (approved cleaners only).
+  const WEEKDAY_LABELS: { key: keyof WeeklySchedule; label: string }[] = [
+    { key: 'mon', label: 'Man' },
+    { key: 'tue', label: 'Tir' },
+    { key: 'wed', label: 'Ons' },
+    { key: 'thu', label: 'Tor' },
+    { key: 'fri', label: 'Fre' },
+    { key: 'sat', label: 'Lør' },
+    { key: 'sun', label: 'Søn' },
+  ];
+  const activeDays = WEEKDAY_LABELS.filter(({ key }) => cleaner.weekly_schedule[key]).map(
+    ({ label }) => label
+  );
+  const activeDaysLabel =
+    activeDays.length === 7
+      ? 'Alle dager'
+      : activeDays.length > 0
+        ? activeDays.join(', ')
+        : 'Ingen dager valgt';
+
   // Get orders for approved cleaners
   const activeOrders = isApproved ? await getOrdersByCleanerId(cleaner.id) : [];
   const historyOrders = isApproved ? await getCompletedOrdersByCleanerId(cleaner.id) : [];
@@ -60,6 +82,13 @@ export default async function CleanerDashboardPage() {
         right={
           <div className="flex items-center gap-4">
             <span className="text-sm text-medium-gray">{displayName}</span>
+            <Link
+              href="/dashboard/cleaner/settings"
+              aria-label="Innstillinger"
+              className="text-medium-gray transition-colors hover:text-nordic-blue"
+            >
+              <Settings className="size-5" />
+            </Link>
             <LogoutButton />
           </div>
         }
@@ -126,10 +155,33 @@ export default async function CleanerDashboardPage() {
           )}
 
           {isApproved && (
-            <CleanerDashboardTabs
-              activeOrders={activeOrders}
-              historyOrders={historyOrders}
-            />
+            <>
+              <Link
+                href="/dashboard/cleaner/settings"
+                className="mb-5 flex items-center justify-between gap-3 rounded-2xl border border-cream-dark bg-white px-4 py-3 transition-colors hover:border-sea-green/50"
+              >
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`size-2.5 shrink-0 rounded-full ${
+                      cleaner.is_accepting_orders ? 'bg-sea-green' : 'bg-amber-500'
+                    }`}
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-dark-gray">
+                      {cleaner.is_accepting_orders
+                        ? 'Tar imot nye oppdrag'
+                        : 'Tar ikke imot nye oppdrag'}
+                    </p>
+                    <p className="text-sm text-medium-gray">{activeDaysLabel}</p>
+                  </div>
+                </div>
+                <ChevronRight className="size-4 shrink-0 text-medium-gray" />
+              </Link>
+              <CleanerDashboardTabs
+                activeOrders={activeOrders}
+                historyOrders={historyOrders}
+              />
+            </>
           )}
         </div>
       </main>
