@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Mail, Phone, MapPin, Building2, ArrowRight } from "lucide-react";
 import { MarketingNav } from '@/components/landing/MarketingNav';
 import { Footer } from "@/components/landing/Footer";
+import { COMPANY, formatOrgNumber, phoneHref } from "@/lib/config/company";
 
 export const metadata: Metadata = {
   title: "Kontakt | NooraCare",
@@ -54,18 +55,17 @@ export default function KontaktPage() {
                   Firmaopplysninger
                 </h2>
               </div>
-              {/* TODO: replace with the legal entity name and 9-digit org number before production */}
               <dl className="mt-4 space-y-3">
                 <div>
                   <dt className="text-sm text-medium-gray">Firmanavn</dt>
-                  <dd className="font-medium text-dark-gray">NooraCare AS</dd>
+                  <dd className="font-medium text-dark-gray">{COMPANY.legalName}</dd>
                 </div>
                 <div>
                   <dt className="text-sm text-medium-gray">
                     Organisasjonsnummer
                   </dt>
                   <dd className="font-medium tabular-nums text-dark-gray">
-                    836 788 842
+                    {formatOrgNumber()}
                   </dd>
                 </div>
               </dl>
@@ -88,29 +88,27 @@ export default function KontaktPage() {
                 <li className="flex items-start gap-3">
                   <Mail className="mt-1 size-4 text-sea-green" />
                   <a
-                    href="mailto:post@nooracare.no"
+                    href={`mailto:${COMPANY.email}`}
                     className="transition-colors hover:text-nordic-blue"
                   >
-                    post@nooracare.no
+                    {COMPANY.email}
                   </a>
                 </li>
-                {/* TODO: replace with real phone number before production */}
                 <li className="flex items-start gap-3">
                   <Phone className="mt-1 size-4 text-sea-green" />
                   <a
-                    href="tel:+4700000000"
+                    href={phoneHref()}
                     className="transition-colors hover:text-nordic-blue"
                   >
-                    +47 976 16 468
+                    {COMPANY.phoneDisplay}
                   </a>
                 </li>
-                {/* TODO: replace with real postal address before production */}
                 <li className="flex items-start gap-3">
                   <MapPin className="mt-1 size-4 text-sea-green" />
                   <span>
-                    Breimyra 232
+                    {COMPANY.address.street}
                     <br />
-                    5134 Flaktveit
+                    {COMPANY.address.postalCode} {COMPANY.address.city}
                   </span>
                 </li>
               </ul>

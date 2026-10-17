@@ -124,9 +124,10 @@ src/
 ├── assets/brand/          # Logo PNGs (primary/secondary/submerke, normal + negativ); favicons are app/icon.png + app/apple-icon.png
 ├── components/             # Reusable UI components
 │   ├── auth/               # Auth components (empty)
-│   ├── coming-soon/        # Shared shell (light hero with optional photo, StepList, FaqList, CrossPromo) + WaitlistForm for the two coming-soon pages; HowItWorksStory.tsx = the illustrated 5-step story on the customer page; launch.ts holds the launch window label, the waitlist offer cap and the Instagram URL
+│   ├── coming-soon/        # Shared shell (light hero with optional photo, StepList, FaqList, CrossPromo) + WaitlistForm for the two coming-soon pages; HowItWorksStory.tsx = the illustrated 5-step story on the customer page; launch.ts holds the launch window label and the waitlist offer cap
 │   ├── forms/              # Form components (empty)
 │   ├── layout/             # Layout components (empty)
+│   ├── legal/              # CompanyContactCard — the company details box shared by /salgsvilkar, /personvern and /personvern-renser (values from lib/config/company.ts)
 │   └── ui/                 # UI elements
 │       └── LogoutButton.tsx
 ├── hooks/                  # Custom React hooks (empty)
@@ -134,6 +135,7 @@ src/
 │   ├── ai/                 # Claude integration: machine-recognition.ts (photo → machine suggestion, never throws), config.ts (ANTHROPIC_API_KEY)
 │   ├── auth/               # requireRole/assertRole guards (require-role.ts); signup error mapping (signup-errors.ts); password-reset paths + error mapping (password-reset.ts); ?next= sanitizing (next-path.ts)
 │   ├── config/
+│   │   ├── company.ts      # COMPANY (legal name, org number, postal address, phone, e-mail, Instagram/Facebook URLs) + formatOrgNumber/phoneHref/formatPostalAddress — the ONLY place these values live; footer, /kontakt, the legal pages and bli-renser/success read from it. Confirm the values before launch
 │   │   ├── pricing.ts      # Pricing constants and both calculators: calculateOrderPrice (cleaner-binding: per 5kg load + 3 ironing groups) and calculateCustomerEstimate (customer estimate: per bag/set/piece). Ironing groups exist in the model but are NOT offered in the first version — hidden on every public surface, see BUSINESS_LOGIC.md "Ironing". CLEANER_MIN_PAYOUT_PER_ORDER_ORE is the "minst 350 kr per oppdrag" cleaner marketing leads with (70 % of the 500 kr order minimum)
 │   │   └── terms.ts        # TERMS_VERSION (ISO date of the current /salgsvilkar text, bump on every terms change) + formatTermsVersion; stamped into payment_agreements.provider_metadata.terms_consent at checkout
 │   ├── database/           # Database CRUD operations

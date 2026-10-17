@@ -9,5 +9,3 @@ export const LAUNCH_WINDOW_LABEL = 'i vinter';
  *  maps to a promo code sent to the first N signups — see BUSINESS_LOGIC.md
  *  "Promo codes & discounts". */
 export const WAITLIST_OFFER_SPOTS = 50;
-
-export const INSTAGRAM_URL = 'https://www.instagram.com/nooracare.no/';

@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { AlertCircle, ArrowRight, Check, CheckCircle2, Share2 } from 'lucide-react';
 import { joinWaitlistAction } from '@/app/actions';
 import { isValidEmail } from '@/lib/utils/email';
-import { INSTAGRAM_URL } from '@/components/coming-soon/launch';
+import { COMPANY } from '@/lib/config/company';
 import type { WaitlistAudience, WaitlistCity } from '@/types/database';
 
 const CITIES: { value: WaitlistCity; label: string }[] = [
@@ -182,7 +182,7 @@ function ShareRow({ text, title, path }: { text: string; title: string; path: st
           {copied ? 'Lenke kopiert' : 'Del lenken'}
         </button>
         <a
-          href={INSTAGRAM_URL}
+          href={COMPANY.instagramUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-2 rounded-full border border-cream-dark bg-white px-5 py-2.5 text-sm font-medium text-nordic-blue transition-all hover:border-sea-green hover:text-sea-green"

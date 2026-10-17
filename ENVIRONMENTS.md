@@ -66,6 +66,11 @@ sign in on `nooracare.no` until the gate is removed.
 
 ### Launch checklist
 
+Before any of the steps below: open `src/lib/config/company.ts` and confirm every value
+(legal name and org number against Brønnøysundregistrene; phone, postal address, e-mail,
+Instagram URL; set `facebookUrl` if a Facebook page exists). It is the only place these
+details live — the footer, `/kontakt` and the legal pages all read from it.
+
 1. Delete `src/lib/prelaunch.ts`, its test, and the gate block in `src/proxy.ts`.
 2. Move `src/app/lansering/page.tsx` to `src/app/page.tsx` and `src/app/bli-renser/lansering/page.tsx`
    to `src/app/bli-renser/page.tsx`; drop their `robots: { index: false }`; delete the coming-soon

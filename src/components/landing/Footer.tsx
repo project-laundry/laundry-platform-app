@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Wordmark } from '@/components/layout/AppHeader';
-import { INSTAGRAM_URL } from '@/components/coming-soon/launch';
+import { COMPANY, formatOrgNumber, phoneHref } from '@/lib/config/company';
 
 // Brand icons were removed from lucide-react in v1.0; this is the original
 // lucide path inlined (ISC license).
@@ -22,8 +22,22 @@ function Instagram({ className }: { className?: string }) {
   );
 }
 
-const PHONE_DISPLAY = '+47 976 16 468';
-const PHONE_HREF = `tel:${PHONE_DISPLAY.replace(/\s/g, '')}`;
+// Same origin as the Instagram icon above: lucide's facebook path, inlined.
+function Facebook({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+    </svg>
+  );
+}
 
 export function Footer({
   /** The "Priser" link points at the customer price calculator; hide it on cleaner pages. */
@@ -43,13 +57,13 @@ export function Footer({
               NooraCare kobler deg med en lokal renser som vasker klærne dine.
             </p>
             <div className="space-y-1 text-sm text-medium-gray">
-              <p>NooraCare AS</p>
-              <p>Org.nr: 836 788 842</p>
+              <p>{COMPANY.legalName}</p>
+              <p>Org.nr: {formatOrgNumber()}</p>
             </div>
             {/* Social Icons */}
             <div className="flex gap-3 pt-2">
               <a
-                href={INSTAGRAM_URL}
+                href={COMPANY.instagramUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex size-10 items-center justify-center rounded-full border border-cream-dark bg-white text-nordic-blue transition-all hover:border-sea-green hover:text-sea-green"
@@ -57,6 +71,17 @@ export function Footer({
               >
                 <Instagram className="size-5" />
               </a>
+              {COMPANY.facebookUrl && (
+                <a
+                  href={COMPANY.facebookUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex size-10 items-center justify-center rounded-full border border-cream-dark bg-white text-nordic-blue transition-all hover:border-sea-green hover:text-sea-green"
+                  aria-label="Facebook"
+                >
+                  <Facebook className="size-5" />
+                </a>
+              )}
             </div>
           </div>
 
@@ -79,25 +104,24 @@ export function Footer({
             <ul className="space-y-3 text-medium-gray">
               <li>
                 <a
-                  href="mailto:post@nooracare.no"
+                  href={`mailto:${COMPANY.email}`}
                   className="transition-colors hover:text-nordic-blue"
                 >
-                  post@nooracare.no
+                  {COMPANY.email}
                 </a>
               </li>
               <li>
                 <a
-                  href={PHONE_HREF}
+                  href={phoneHref()}
                   className="transition-colors hover:text-nordic-blue"
                 >
-                  {PHONE_DISPLAY}
+                  {COMPANY.phoneDisplay}
                 </a>
               </li>
-              {/* TODO: confirm the postal address before production */}
               <li className="leading-relaxed">
-                Breimyra 232
+                {COMPANY.address.street}
                 <br />
-                5134 Flaktveit
+                {COMPANY.address.postalCode} {COMPANY.address.city}
               </li>
               <li>
                 <Link
@@ -151,7 +175,7 @@ export function Footer({
       <div className="border-t border-cream-dark/60">
         <div className="mx-auto max-w-6xl px-5 py-6">
           <div className="flex flex-col items-center justify-between gap-4 text-sm text-medium-gray md:flex-row">
-            <p>© 2026 NooraCare. Alle rettigheter reservert.</p>
+            <p>© {new Date().getFullYear()} NooraCare. Alle rettigheter reservert.</p>
             <div className="flex gap-6">
               <Link
                 href="/personvern"
