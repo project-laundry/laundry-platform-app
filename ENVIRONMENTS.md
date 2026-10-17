@@ -137,6 +137,100 @@ details live — the footer, `/kontakt` and the legal pages all read from it.
       stopped`, `subscriptions.status = cancelled`, the order `cancelled`.
    6. `portal.vippsmobilepay.com` → *For developers* → *Webhooks* → errors tab is empty.
 
+9. **Production Auth e-mails and URLs** — run the **production column** of
+   [Supabase Auth e-mails](#supabase-auth-e-mails) on project `aalxmczclyunlyziqdqn`: custom SMTP
+   (Resend), the three Norwegian templates, Site URL `https://nooracare.no` + the redirect
+   allowlist, the 100/hour e-mail rate limit, and **leaked password protection**. Verify before
+   launch with the password-reset round trip (reachable through the pre-launch gate) and the
+   signup round trip on the `*.vercel.app` production deployment URL, as described there. Until
+   this is done, confirmation mails come from `supabase.io`, in English, at a few per hour, and
+   the order flow's return after e-mail confirmation (`?next=/orders/confirm`) is not allowlisted.
+
+---
+
+## Supabase Auth e-mails
+
+Supabase Auth sends the signup confirmation, password reset and magic link mails. Both hosted
+projects send through **Resend** (custom SMTP) from `NooraCare <no-reply@nooracare.no>`; the
+domain `nooracare.no` is verified in Resend (region eu-west-1 — DKIM at
+`resend._domainkey.nooracare.no`, return-path `send.nooracare.no`, DMARC `p=quarantine`).
+
+The **Norwegian templates are versioned in `supabase/templates/`** and wired into
+`supabase/config.toml` (`[auth.email.template.*]`, subject + `content_path`) so `supabase start`
+renders them locally into Mailpit (`http://127.0.0.1:54324`). The hosted dashboards cannot read
+the repo: **whenever a template file or its subject changes, paste it again into both projects**
+(step 3 below). Nothing in CI pushes Auth config — `supabase config push` is intentionally not
+used because `config.toml`'s `[auth]` block holds local-only values (confirmations, 2 mails/hour,
+`127.0.0.1` site URL) that must never reach a hosted project.
+
+All links in the templates are `{{ .ConfirmationURL }}`: Supabase verifies the token itself and
+then redirects to the `emailRedirectTo` the app passed (`/auth/callback`, with `?next=` for the
+order flow and the password reset) carrying `?code=`, which `src/app/auth/callback/route.ts`
+exchanges for a session. That redirect only happens when the target URL is allowlisted (step 4);
+otherwise Supabase silently falls back to the Site URL and the flow breaks.
+
+Do each step on **both** projects unless a column says otherwise. Project refs: production
+`aalxmczclyunlyziqdqn`, staging = the GitHub secret `STAGING_PROJECT_ID`.
+
+| | Staging | Production |
+|---|---|---|
+| Dashboard | `https://supabase.com/dashboard/project/<staging ref>` | `https://supabase.com/dashboard/project/aalxmczclyunlyziqdqn` |
+| Resend API key name | `supabase-auth-staging` | `supabase-auth-production` |
+| Site URL | `https://test.nooracare.no` | `https://nooracare.no` |
+| Redirect URLs | `https://test.nooracare.no/auth/callback**`<br>`https://laundry-platform-app-*-randrianas-projects.vercel.app/auth/callback**`<br>`http://localhost:3000/auth/callback**`<br>`http://127.0.0.1:3000/auth/callback**` | `https://nooracare.no/auth/callback**`<br>`https://www.nooracare.no/auth/callback**`<br>`https://laundry-platform-app-*-randrianas-projects.vercel.app/auth/callback**` |
+| E-mail rate limit | 100 / hour | 100 / hour |
+| Leaked password protection | on if the toggle is available (Pro plan) | **on** |
+
+1. **Resend: confirm the domain and create one API key per project.**
+   1. `https://resend.com/domains` → `nooracare.no` must show **Verified** (region eu-west-1). If it
+      shows *Pending*/*Failed*, open it → *Records* and compare with the DNS at Webhuset
+      (nameservers `ns.datacenter.no`): DKIM TXT `resend._domainkey`, MX `send` →
+      `feedback-smtp.eu-west-1.amazonses.com` priority 10, TXT `send` → `v=spf1 include:amazonses.com ~all`.
+      Never edit the root `nooracare.no` MX/SPF records — those are Google Workspace.
+   2. `https://resend.com/api-keys` → **Create API Key** → Name per the table, Permission
+      **Sending access**, Domain **nooracare.no** → **Add** → copy the key now (shown once). It is
+      the SMTP password in step 2; it is never stored in the repo or in Vercel.
+2. **Custom SMTP** — dashboard → **Authentication → Emails → SMTP Settings**
+   (`…/auth/smtp`) → toggle **Enable Custom SMTP** on and fill:
+   - Sender email `no-reply@nooracare.no` · Sender name `NooraCare`
+   - Host `smtp.resend.com` · Port `465` · Username `resend` · Password = the API key from step 1
+   - leave *Minimum interval between emails* at its default → **Save**.
+3. **Templates** — **Authentication → Emails → Templates** (`…/auth/templates`). For each tab,
+   set *Subject heading* to the `subject` from `supabase/config.toml` and replace the whole
+   *Message body* (Source view) with the file's content, then **Save**:
+   - *Confirm sign up* ← `supabase/templates/confirmation.html`
+   - *Reset Password* ← `supabase/templates/recovery.html`
+   - *Magic Link* ← `supabase/templates/magic_link.html`
+   Leave *Invite user*, *Change Email Address* and *Reauthentication* at their defaults.
+4. **URL configuration** — **Authentication → URL Configuration** (`…/auth/url-configuration`):
+   set **Site URL** from the table, then under **Redirect URLs** → *Add URL* once per line from
+   the table (keep the `**`; a `?` in a pattern is itself a wildcard, which is why the query string
+   is not spelled out). Remove any older bare entry such as `https://test.nooracare.no`.
+5. **Rate limit and password settings**
+   - **Authentication → Rate Limits** (`…/auth/rate-limits`) → *Rate limit for sending emails* →
+     `100` → Save. (Enabling custom SMTP resets this to 30/hour.)
+   - **Authentication → Sign In / Providers → Email** (`…/auth/providers?provider=Email`):
+     *Prevent use of leaked passwords* → **on** (Pro plan; greyed out on Free — skip there);
+     *Email OTP Expiration* must be `3600` (the templates say "gyldig i én time") → Save.
+6. **Verify.**
+   - **Both projects — password reset:** on the matching site (`https://test.nooracare.no` /
+     `https://nooracare.no`, both reachable pre-launch) open `/auth/forgot-password`, enter an
+     existing account's address. The mail arrives within a minute from `NooraCare
+     <no-reply@nooracare.no>` with subject "Tilbakestill passordet ditt hos NooraCare"; the
+     button opens `/auth/reset-password` on that same host. `https://resend.com/emails` lists it
+     as *Delivered*. If it instead lands on `/auth/forgot-password?expired=1` or on `/`, the
+     redirect URL was not allowlisted (step 4) or the Site URL is wrong.
+   - **Staging — signup with return path:** logged out on `https://test.nooracare.no`, run
+     `/orders/wash` → `/orders/pickup` → `/orders/confirm`, choose "Opprett konto", sign up with a
+     fresh address. Subject "Bekreft e-postadressen din hos NooraCare"; the button must land on
+     `/orders/confirm` (not `/dashboard`) in the same browser.
+   - **Production — signup pre-launch:** signup is gated on `nooracare.no`, so use the
+     production deployment's `*.vercel.app` URL (Vercel → Deployments → *Production* → Visit) and
+     run the same signup; the link must return to that `*.vercel.app` host's `/dashboard`. After
+     launch repeat once on `https://nooracare.no`.
+   - If a mail never arrives: Supabase → **Logs → Auth** shows SMTP errors (wrong key = `535`),
+     and Resend → *Emails* shows bounces.
+
 ---
 
 ## Setup checklist
@@ -156,8 +250,9 @@ in the dashboard.
    - `PROD_PROJECT_ID` — `aalxmczclyunlyziqdqn`
    - `PROD_DB_PASSWORD` — production DB password
 5. Push to `develop` → `staging.yaml` applies all migrations to staging.
-6. In staging project **Authentication → URL Configuration**, set Site URL and
-   Redirect URLs to `https://test.nooracare.no` (the auth callback depends on this).
+6. Configure Auth e-mails and URLs for the staging project — SMTP, the Norwegian templates,
+   Site URL + Redirect URLs, rate limit — by running the **staging column** of
+   [Supabase Auth e-mails](#supabase-auth-e-mails) below.
 
 ### 2. Vercel staging environment (one-time, manual)
 
@@ -198,3 +293,4 @@ Vercel **Preview**; we give it staging env vars and a stable domain.
 - [ ] A Vipps **test** checkout completes end-to-end on staging; webhook reaches the staging endpoint.
 - [ ] Merge `develop` → `main` → `production.yaml` runs; production is unaffected by staging data.
 - [ ] Production: `npx vercel env ls production` shows `VIPPS_API_URL` and the four live credentials, no `NEXT_PUBLIC_VIPPS_ALLOW_FORCE_ACCEPT`; a live checkout on the production deployment activates and the webhook returns 200 (launch checklist 6-8).
+- [ ] Both Supabase projects: a password-reset mail arrives from `no-reply@nooracare.no` in Norwegian and its link opens `/auth/reset-password` on the right host; a staging signup started from `/orders/confirm` returns there after confirmation (Supabase Auth e-mails → step 6).
