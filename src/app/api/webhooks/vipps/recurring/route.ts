@@ -16,6 +16,13 @@
 //
 // AGREEMENT EVENTS:
 // - recurring.agreement-activated.v1 → Agreement accepted by user → Activate payment agreement + subscription (if any) → Generate first order
+//   (idempotent: status-guarded updates + first-order existence check, because Vipps delivers at-least-once)
+//
+// RESPONSE CODES: 401 bad signature; 200 for anything a retry can never fix (unknown
+// agreement/charge, malformed body, activation of a stopped agreement); 500 when a
+// handler throws on a transient failure (DB write returned null, lost activation race)
+// so Vipps retries with its backoff (2 s ×4, 60 s, 120 s, hourly, daily, up to 7 days).
+// Vipps holds back later webhooks until it gets a 200, so never 5xx a permanent error.
 // - recurring.agreement-rejected.v1 → Agreement rejected by user → Stop payment agreement + cancel subscription (if any)
 // - recurring.agreement-stopped.v1 → Agreement stopped by user/merchant/admin → Stop payment agreement + cancel subscription (if any)
 // - recurring.agreement-expired.v1 → Agreement expired → Expire payment agreement + expire subscription (if any)
@@ -42,7 +49,7 @@ import {
   refundPaymentWithMetadata,
 } from '@/lib/database/payments';
 import { cancelVippsAgreement, stopVippsAgreementForCancelledSubscription } from '@/lib/payments/vipps/service';
-import { createOrder } from '@/lib/database/orders';
+import { createOrder, getOrderByPaymentAgreementId } from '@/lib/database/orders';
 import { buildOrderData } from '@/lib/services/order-generation';
 import { recordPromoRedemption } from '@/lib/database/promo-codes';
 import { addDays, toISODateString, getWeekdayFromDate, getNextOccurrenceOfWeekday } from '@/lib/utils/date';
@@ -147,8 +154,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Parse webhook body
-    const body: VippsRecurringWebhookBody = JSON.parse(rawBody);
+    // Parse webhook body. A body that isn't JSON can never be processed, so it
+    // is acknowledged (200) instead of being retried for 7 days.
+    let body: VippsRecurringWebhookBody;
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      console.error('[Vipps Recurring Webhook] Malformed JSON body:', rawBody);
+      return NextResponse.json({ success: false, error: 'Malformed body' }, { status: 200 });
+    }
 
     console.log('[Vipps Recurring Webhook] Received webhook');
     console.log('[Vipps Recurring Webhook] Payload:', JSON.stringify(body, null, 2));
@@ -165,17 +179,18 @@ export async function POST(request: NextRequest) {
       console.warn('[Vipps Recurring Webhook] Body:', JSON.stringify(body, null, 2));
     }
 
-    // Always return 200 OK to acknowledge webhook
+    // 200 OK acknowledges the webhook; Vipps stops retrying this event.
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('[Vipps Recurring Webhook] Error processing webhook:', error);
     console.error('[Vipps Recurring Webhook] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
 
-    // Return 200 OK to prevent webhook retries for errors
-    // Vipps will retry on non-200 responses, but these are likely permanent errors
+    // 500 makes Vipps retry (see RESPONSE CODES at the top of this file).
+    // Handlers only throw on failures a retry can fix; permanent conditions
+    // return normally and are acknowledged with 200 above.
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
-      { status: 200 }
+      { status: 500 }
     );
   }
 }
@@ -288,11 +303,15 @@ async function handleChargeCaptured(
   const payment = await getPaymentByReference(chargeId);
 
   if (!payment) {
-    throw new Error(`Payment not found for captured charge ${chargeId}`);
+    // No payment row carries this charge id (e.g. a charge created outside the
+    // app). A retry can't change that, so acknowledge instead of throwing —
+    // a 5xx here would make Vipps retry for 7 days and hold back later webhooks.
+    console.error(`[Vipps Recurring Webhook] Payment not found for captured charge ${chargeId}`);
+    return;
   }
 
   // Update payment to captured
-  await capturePaymentWithMetadata(payment.id, {
+  const captured = await capturePaymentWithMetadata(payment.id, {
     vipps_agreement_id: agreementId,
     vipps_charge_id: chargeId,
     vipps_status: 'CHARGED',
@@ -301,6 +320,9 @@ async function handleChargeCaptured(
     vipps_currency: currency,
     captured_at: occurred,
   });
+  if (!captured) {
+    throw new Error(`Failed to mark payment ${payment.id} as captured`);
+  }
 
   console.log(`[Vipps Recurring Webhook] Payment ${payment.id} marked as captured`);
 
@@ -424,7 +446,7 @@ async function handleChargeFailed(
   }
 
   // Mark payment as failed
-  await failPaymentWithMetadata(
+  const failed = await failPaymentWithMetadata(
     payment.id,
     failureReason || `Charge failed (code: ${failureCode})`,
     {
@@ -436,6 +458,9 @@ async function handleChargeFailed(
       failed_at: occurred,
     }
   );
+  if (!failed) {
+    throw new Error(`Failed to mark payment ${payment.id} as failed`);
+  }
 
   console.log(`[Vipps Recurring Webhook] Payment ${payment.id} marked as failed`);
 
@@ -476,9 +501,18 @@ async function handleChargeCreationFailed(
  * Handle recurring.agreement-activated.v1
  *
  * Agreement was accepted/activated by the user.
- * 1. Activates the payment agreement
- * 2. If linked subscription exists: activate it and generate first order
+ * 1. Activates the payment agreement (guarded on status = 'pending')
+ * 2. If linked subscription exists: activate it (guarded) and generate first order
  * 3. If no subscription (one-time order): generate order directly from payment agreement metadata
+ *
+ * Idempotent: Vipps delivers at-least-once and two deliveries can overlap.
+ * - pending  → guarded activate; if the update touches no row (a concurrent
+ *              delivery won, or the write failed) throw: Vipps retries ~2 s
+ *              later and that retry lands in one of the branches below.
+ * - active   → duplicate/retry: skip activation, still make sure the first
+ *              order exists (an earlier attempt may have died before creating it).
+ * - stopped/expired → cancelled from our side while still pending (or by
+ *              Vipps): ignore, never resurrect.
  */
 async function handleAgreementActivated(
   webhook: VippsAgreementWebhookBody,
@@ -488,13 +522,21 @@ async function handleAgreementActivated(
 
   console.log(`[Vipps Recurring Webhook] Agreement activated: ${agreementId}`);
 
-  // 1. Activate payment agreement
-  const activatedAgreement = await activatePaymentAgreement(paymentAgreement.id);
-  if (!activatedAgreement) {
-    throw new Error(`Failed to activate payment agreement ${paymentAgreement.id}`);
+  // 1. Activate payment agreement (status-guarded)
+  if (paymentAgreement.status === 'pending') {
+    const activatedAgreement = await activatePaymentAgreement(paymentAgreement.id);
+    if (!activatedAgreement) {
+      throw new Error(
+        `Payment agreement ${paymentAgreement.id} was not activated (no longer pending, or the update failed) — leaving it to the Vipps retry`
+      );
+    }
+    console.log(`[Vipps Recurring Webhook] Payment agreement ${paymentAgreement.id} activated`);
+  } else if (paymentAgreement.status === 'active') {
+    console.log(`[Vipps Recurring Webhook] Payment agreement ${paymentAgreement.id} already active (duplicate delivery) — ensuring the first order exists`);
+  } else {
+    console.log(`[Vipps Recurring Webhook] Payment agreement ${paymentAgreement.id} is ${paymentAgreement.status} — ignoring activation`);
+    return;
   }
-
-  console.log(`[Vipps Recurring Webhook] Payment agreement ${paymentAgreement.id} activated`);
 
   // 2. Check if there's a linked subscription
   const subscription = await getSubscriptionByPaymentAgreementId(paymentAgreement.id);
@@ -509,69 +551,69 @@ async function handleAgreementActivated(
 }
 
 /**
- * Handle subscription activation and first order generation (recurring orders)
+ * Handle subscription activation and first order generation (recurring orders).
+ * Status-guarded like the agreement: pending_payment → activate; active →
+ * duplicate, skip; anything else (cancelled/expired/paused) → no order.
+ * Errors propagate so the route answers 500 and Vipps retries.
  */
 async function handleSubscriptionActivation(
   paymentAgreement: PaymentAgreement,
-  subscription: { id: string; customer_id: string; order_defaults: unknown }
+  subscription: { id: string; customer_id: string; status: string; order_defaults: unknown }
 ): Promise<void> {
-  // Activate subscription
-  const activatedSubscription = await activateSubscriptionOnAgreementActivation(subscription.id);
-
-  if (!activatedSubscription) {
-    throw new Error(`Failed to activate subscription ${subscription.id} on agreement activation`);
+  if (subscription.status === 'pending_payment') {
+    const activatedSubscription = await activateSubscriptionOnAgreementActivation(subscription.id);
+    if (!activatedSubscription) {
+      throw new Error(
+        `Subscription ${subscription.id} was not activated (no longer pending_payment, or the update failed) — leaving it to the Vipps retry`
+      );
+    }
+    console.log(`[Vipps Recurring Webhook] Subscription ${subscription.id} activated`);
+  } else if (subscription.status === 'active') {
+    console.log(`[Vipps Recurring Webhook] Subscription ${subscription.id} already active (duplicate delivery)`);
+  } else {
+    console.log(`[Vipps Recurring Webhook] Subscription ${subscription.id} is ${subscription.status} — not generating an order`);
+    return;
   }
-
-  console.log(`[Vipps Recurring Webhook] Subscription ${subscription.id} activated`);
 
   // Generate first order
-  try {
-    const orderDefaults = activatedSubscription.order_defaults as SubscriptionOrderDefaults;
-    if (!orderDefaults?.initial_address) {
-      throw new Error('No order_defaults found in subscription');
-    }
-
-    await generateFirstOrder(
-      activatedSubscription.customer_id,
-      orderDefaults,
-      activatedSubscription.id,
-      paymentAgreement.id,
-      readPromoFromAgreement(paymentAgreement),
-    );
-  } catch (error) {
-    console.error(`[Vipps Recurring Webhook] Failed to generate first order for subscription:`, error);
-    // Don't throw - subscription is already activated
+  const orderDefaults = subscription.order_defaults as SubscriptionOrderDefaults | null;
+  if (!orderDefaults?.initial_address) {
+    throw new Error(`No order_defaults found in subscription ${subscription.id}`);
   }
+
+  await generateFirstOrder(
+    subscription.customer_id,
+    orderDefaults,
+    subscription.id,
+    paymentAgreement.id,
+    readPromoFromAgreement(paymentAgreement),
+  );
 }
 
 /**
- * Handle one-time order creation (no subscription)
+ * Handle one-time order creation (no subscription).
+ * Errors propagate so the route answers 500 and Vipps retries.
  */
 async function handleOneTimeOrderCreation(
   paymentAgreement: PaymentAgreement
 ): Promise<void> {
   console.log(`[Vipps Recurring Webhook] No linked subscription - creating one-time order`);
 
-  try {
-    // Read order_defaults from payment agreement metadata
-    const metadata = paymentAgreement.provider_metadata as { order_defaults?: SubscriptionOrderDefaults } | null;
-    const orderDefaults = metadata?.order_defaults;
+  // Read order_defaults from payment agreement metadata
+  const metadata = paymentAgreement.provider_metadata as { order_defaults?: SubscriptionOrderDefaults } | null;
+  const orderDefaults = metadata?.order_defaults;
 
-    if (!orderDefaults?.initial_address) {
-      throw new Error('No order_defaults found in payment agreement metadata');
-    }
-
-    await generateFirstOrder(
-      paymentAgreement.customer_id,
-      orderDefaults,
-      null, // no subscription_id
-      paymentAgreement.id,
-      readPromoFromAgreement(paymentAgreement),
-    );
-  } catch (error) {
-    console.error(`[Vipps Recurring Webhook] Failed to generate one-time order:`, error);
-    // Don't throw - payment agreement is already activated
+  if (!orderDefaults?.initial_address) {
+    throw new Error(`No order_defaults found in payment agreement ${paymentAgreement.id} metadata`);
   }
+
+  await generateFirstOrder(
+    paymentAgreement.customer_id,
+    orderDefaults,
+    null, // no subscription_id
+    paymentAgreement.id,
+    readPromoFromAgreement(paymentAgreement),
+  );
 }
 
 /**
@@ -585,7 +627,12 @@ function readPromoFromAgreement(paymentAgreement: PaymentAgreement): OrderPromo 
 
 /**
  * Generate the first order from order defaults
- * Used by both subscription and one-time order flows
+ * Used by both subscription and one-time order flows.
+ *
+ * Idempotent: the first order is the one that carries payment_agreement_id
+ * (rolling-window orders don't), so an existing order for this agreement means
+ * an earlier delivery already got here — skip the insert and only make sure
+ * the (idempotent) promo redemption is recorded.
  */
 async function generateFirstOrder(
   customerId: string,
@@ -594,6 +641,20 @@ async function generateFirstOrder(
   paymentAgreementId: string,
   promo: OrderPromo | null,
 ): Promise<void> {
+  const existingOrder = await getOrderByPaymentAgreementId(paymentAgreementId);
+  if (existingOrder) {
+    if (promo) {
+      await recordPromoRedemption({
+        promoCodeId: promo.promo_code_id,
+        customerId,
+        paymentAgreementId,
+        orderId: existingOrder.id,
+      });
+    }
+    console.log(`[Vipps Recurring Webhook] First order ${existingOrder.order_number} already exists for payment agreement ${paymentAgreementId} — skipping`);
+    return;
+  }
+
   // Calculate first pickup date
   const storedDate = new Date(orderDefaults.first_pickup_date);
   const now = new Date();
@@ -626,21 +687,23 @@ async function generateFirstOrder(
     })
   );
 
-  if (order) {
-    // Record the redemption now that a first order exists (committed customer).
-    // Idempotent via UNIQUE(promo_code_id, customer_id) — safe on webhook retries.
-    if (promo) {
-      await recordPromoRedemption({
-        promoCodeId: promo.promo_code_id,
-        customerId,
-        paymentAgreementId,
-        orderId: order.id,
-      });
-    }
-    console.log(`[Vipps Recurring Webhook] Order ${order.order_number} created (pickup: ${order.scheduled_date}, subscription: ${subscriptionId || 'none'}${promo ? `, promo: ${promo.code}` : ''})`);
-  } else {
-    console.error(`[Vipps Recurring Webhook] Failed to create order`);
+  if (!order) {
+    // createOrder already logged the Supabase error. Throw so the route answers
+    // 500 and Vipps retries; the existence check above makes the retry safe.
+    throw new Error(`Failed to create first order for payment agreement ${paymentAgreementId}`);
   }
+
+  // Record the redemption now that a first order exists (committed customer).
+  // Idempotent via UNIQUE(promo_code_id, customer_id) — safe on webhook retries.
+  if (promo) {
+    await recordPromoRedemption({
+      promoCodeId: promo.promo_code_id,
+      customerId,
+      paymentAgreementId,
+      orderId: order.id,
+    });
+  }
+  console.log(`[Vipps Recurring Webhook] Order ${order.order_number} created (pickup: ${order.scheduled_date}, subscription: ${subscriptionId || 'none'}${promo ? `, promo: ${promo.code}` : ''})`);
 }
 
 /**
@@ -656,13 +719,19 @@ async function handleAgreementRejected(
 
   console.log(`[Vipps Recurring Webhook] Agreement rejected: ${agreementId}`);
 
-  // Stop payment agreement
-  await stopPaymentAgreement(paymentAgreement.id);
+  // Stop payment agreement (re-runnable: a retry just re-stamps stopped_at)
+  const stopped = await stopPaymentAgreement(paymentAgreement.id);
+  if (!stopped) {
+    throw new Error(`Failed to stop payment agreement ${paymentAgreement.id}`);
+  }
 
   // Cancel linked subscription if exists
   const subscription = await getSubscriptionByPaymentAgreementId(paymentAgreement.id);
   if (subscription) {
-    await cancelSubscription(subscription.id, occurred, 'Agreement rejected by user');
+    const cancelled = await cancelSubscription(subscription.id, occurred, 'Agreement rejected by user');
+    if (!cancelled) {
+      throw new Error(`Failed to cancel subscription ${subscription.id}`);
+    }
   }
 }
 
@@ -686,17 +755,23 @@ async function handleAgreementStopped(
     return;
   }
 
-  // Stop payment agreement
-  await stopPaymentAgreement(paymentAgreement.id);
+  // Stop payment agreement (re-runnable: a retry just re-stamps stopped_at)
+  const stopped = await stopPaymentAgreement(paymentAgreement.id);
+  if (!stopped) {
+    throw new Error(`Failed to stop payment agreement ${paymentAgreement.id}`);
+  }
 
   // Cancel linked subscription if exists and is active
   const subscription = await getSubscriptionByPaymentAgreementId(paymentAgreement.id);
   if (subscription && subscription.status === 'active') {
-    await cancelSubscription(
+    const cancelled = await cancelSubscription(
       subscription.id,
       occurred,
       `Agreement stopped by ${actor || 'user'}`
     );
+    if (!cancelled) {
+      throw new Error(`Failed to cancel subscription ${subscription.id}`);
+    }
 
     // NOTE: According to Vipps docs:
     // - RESERVED charges are NOT automatically cancelled (merchant can still capture)
@@ -718,12 +793,18 @@ async function handleAgreementExpired(
 
   console.log(`[Vipps Recurring Webhook] Agreement expired: ${agreementId}`);
 
-  // Expire payment agreement
-  await expirePaymentAgreement(paymentAgreement.id);
+  // Expire payment agreement (re-runnable)
+  const expired = await expirePaymentAgreement(paymentAgreement.id);
+  if (!expired) {
+    throw new Error(`Failed to expire payment agreement ${paymentAgreement.id}`);
+  }
 
   // Expire linked subscription if exists
   const subscription = await getSubscriptionByPaymentAgreementId(paymentAgreement.id);
   if (subscription) {
-    await expireSubscription(subscription.id);
+    const expiredSubscription = await expireSubscription(subscription.id);
+    if (!expiredSubscription) {
+      throw new Error(`Failed to expire subscription ${subscription.id}`);
+    }
   }
 }

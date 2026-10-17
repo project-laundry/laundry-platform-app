@@ -662,6 +662,38 @@ export async function getActiveOrdersBySubscriptionId(
   return (data as Order[]) || [];
 }
 
+/**
+ * The order generated for a payment agreement on activation, or null if the
+ * activation webhook hasn't created it (yet). Only the first order of an
+ * agreement carries payment_agreement_id — rolling-window orders resolve the
+ * agreement through the subscription (see buildOrderData's callers) — so a hit
+ * means the activation webhook already generated the first order. Used as the
+ * idempotency check in that webhook and by the checkout success page.
+ *
+ * Unlike the other helpers in this file this THROWS on a query error: neither
+ * caller may act (insert a duplicate / report success) when it cannot tell.
+ */
+export async function getOrderByPaymentAgreementId(
+  paymentAgreementId: string
+): Promise<Order | null> {
+  const supabase = await createAdminClient();
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('payment_agreement_id', paymentAgreementId)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[getOrderByPaymentAgreementId] Error fetching order:', error);
+    throw new Error(`Failed to look up orders for payment agreement ${paymentAgreementId}`);
+  }
+
+  return data;
+}
+
 export interface RecentOrderAddress {
   street: string;
   postal_code: string;

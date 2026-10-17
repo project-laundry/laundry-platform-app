@@ -48,6 +48,7 @@ Flow:
    - **One-time:** store `order_defaults` in `provider_metadata` (no subscription created).
    - **Recurring:** insert `Subscription` (status `pending_payment`) linked to the PaymentAgreement, with `order_defaults`.
 5. Return Vipps checkout `redirectUrl` → user approves in the Vipps app.
+6. Back on `/orders/success` the page polls `getCheckoutStatusAction` (5 × 2 s, then a "Sjekk på nytt" button). It reads **our DB**, not Vipps: `payment_agreements.status = 'active'` **and** a first order (`getOrderByPaymentAgreementId`) → success; `stopped`/`expired` → cancelled; `pending` → asks Vipps only to detect an abort (`STOPPED`/`EXPIRED` → cancelled), otherwise keeps polling. Vipps `ACTIVE` alone never counts as success — it means the webhook hasn't landed.
 
 Test helper: `forceAcceptAgreementAction(agreementId)` (`actions.ts`) force-accepts via whitelisted phone numbers (test env only) and polls for activation.
 
@@ -57,17 +58,17 @@ Pre-pickup edit actions (all in `app/orders/actions.ts`): `updateOrderSpecialIns
 
 ## 4. Activation — webhook turns approval into an order
 
-Handler: `POST src/app/api/webhooks/vipps/recurring/route.ts`. HMAC-SHA256 verified (`lib/payments/vipps/webhook-auth.ts`).
+Handler: `POST src/app/api/webhooks/vipps/recurring/route.ts`. HMAC-SHA256 verified (`lib/payments/vipps/webhook-auth.ts`). **Response codes:** 401 bad signature; **200** for anything a retry can never fix (unknown agreement, unknown charge id, malformed body, activation of a `stopped`/`expired` agreement); **500** when a handler throws on a transient failure (a DB write returned null, a lost activation race) — Vipps then retries with backoff (2 s ×4, 60 s, 120 s, hourly, daily, up to 7 days) and holds back later webhooks until it gets a 200, which is why permanent errors must never 5xx.
 
 ### Agreement events
 | Event | Handler | Effect |
 |---|---|---|
-| `recurring.agreement-activated.v1` | `handleAgreementActivated` | **Activates** PaymentAgreement. If linked Subscription → `handleSubscriptionActivation` (activate sub + `generateFirstOrder`). If no subscription (one-time) → `handleOneTimeOrderCreation` (order from `provider_metadata.order_defaults`). |
+| `recurring.agreement-activated.v1` | `handleAgreementActivated` | **Activates** PaymentAgreement (guarded `pending → active`; `active` = duplicate delivery, `stopped`/`expired` = ignored). If linked Subscription → `handleSubscriptionActivation` (guarded `pending_payment → active` + `generateFirstOrder`). If no subscription (one-time) → `handleOneTimeOrderCreation` (order from `provider_metadata.order_defaults`). Idempotent end to end: a duplicate or retried delivery re-uses the existing first order. |
 | `recurring.agreement-rejected.v1` | `handleAgreementRejected` | Stop PaymentAgreement, cancel linked Subscription. |
 | `recurring.agreement-stopped.v1` | `handleAgreementStopped` | If actor `MERCHANT`: skip (already handled in-app). Else stop agreement + cancel subscription. RESERVED charges are **not** auto-cancelled. |
 | `recurring.agreement-expired.v1` | `handleAgreementExpired` | Expire PaymentAgreement + Subscription. |
 
-`generateFirstOrder`: validates `first_pickup_date` from `order_defaults`, creates Order (`pickup_scheduled` if a cleaner is assigned, else `pending_assignment`), sets `delivery_date = pickup_date + DAYS_PICKUP_TO_DELIVERY` (2 days).
+`generateFirstOrder`: first checks `getOrderByPaymentAgreementId` — the first order is the only one carrying `payment_agreement_id`, so a hit means an earlier delivery already created it (skip the insert, still record the idempotent promo redemption). Otherwise validates `first_pickup_date` from `order_defaults`, creates Order (`pickup_scheduled` if a cleaner is assigned, else `pending_assignment`), sets `delivery_date = pickup_date + DAYS_PICKUP_TO_DELIVERY` (2 days), and throws (→ 500 → Vipps retry) if the insert fails.
 
 ---
 
@@ -117,11 +118,11 @@ Driver actions: `src/app/dashboard/driver/actions.ts`. Cleaner actions: `src/app
 
 ## 8. Database layer (signatures)
 
-**`lib/database/payment-agreements.ts`** — `createPaymentAgreement`, `getPaymentAgreementById`, `getPaymentAgreementByProviderId` (Vipps id lookup), `getPaymentAgreementsByCustomerId`, `activatePaymentAgreement`, `stopPaymentAgreement`, `expirePaymentAgreement`, `getSubscriptionByPaymentAgreementId`.
+**`lib/database/payment-agreements.ts`** — `createPaymentAgreement`, `getPaymentAgreementById`, `getPaymentAgreementByProviderId` (Vipps id lookup), `getPaymentAgreementsByCustomerId`, `activatePaymentAgreement` (guarded on `pending`, null when nothing matched), `stopPaymentAgreement`, `expirePaymentAgreement`, `getSubscriptionByPaymentAgreementId`.
 
-**`lib/database/subscriptions.ts`** — `createSubscription` (status `pending_payment`), `getSubscriptionById`, `getActiveSubscriptionByCustomerId`, `activateSubscriptionOnAgreementActivation`, `updateSubscription`, `cancelSubscription` (also cancels its orders), `expireSubscription`.
+**`lib/database/subscriptions.ts`** — `createSubscription` (status `pending_payment`), `getSubscriptionById`, `getActiveSubscriptionByCustomerId`, `activateSubscriptionOnAgreementActivation` (guarded on `pending_payment`, null when nothing matched), `updateSubscription`, `cancelSubscription` (also cancels its orders), `expireSubscription`.
 
-**`lib/database/orders.ts`** — `createOrder` (unique order_number; status from cleaner presence), `getOrderById`, `assignCleanerToOrder`, `updateOrderStatus` (stamps timestamps), `getUpcomingOrdersByCustomerId`, `getCompletedOrdersByCustomerId`, `updateOrderPricing`, `getOrdersByCleanerId`, `declineOrder`, `updateOrderLaundryDetails`, `cancelOrdersBySubscriptionId`.
+**`lib/database/orders.ts`** — `createOrder` (unique order_number; status from cleaner presence), `getOrderById`, `assignCleanerToOrder`, `updateOrderStatus` (stamps timestamps), `getUpcomingOrdersByCustomerId`, `getCompletedOrdersByCustomerId`, `updateOrderPricing`, `getOrdersByCleanerId`, `declineOrder`, `updateOrderLaundryDetails`, `cancelOrdersBySubscriptionId`, `getOrderByPaymentAgreementId` (first order of an agreement; throws on query error).
 
 **`lib/database/payments.ts`** — `createPayment`, `updatePayment`, `authorizePayment`, `capturePaymentWithMetadata`, `failPaymentWithMetadata`, `cancelPaymentWithMetadata`, `refundPaymentWithMetadata`, `getPaymentByReference`, `hasUnsettledVippsPaymentForSubscription`.
 

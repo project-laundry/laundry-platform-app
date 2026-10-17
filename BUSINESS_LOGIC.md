@@ -27,6 +27,7 @@
 2. **Agreement Activation Triggers First Order** (via `agreement-activated` webhook):
    - When customer approves Vipps agreement:
      - Activate PaymentAgreement: `status = 'active'`, `activated_at = now()`
+     - **Idempotent:** both activations are status-guarded (`pending → active`, `pending_payment → active`) and the first order is only inserted when no order with this `payment_agreement_id` exists yet. Vipps delivers at-least-once; a duplicate delivery changes nothing (and never moves `started_at`). An activation for an agreement that is already `stopped`/`expired` in our DB (cancelled while pending) is ignored.
      - **If subscription exists (recurring):**
        - Set subscription `status = 'active'`, `started_at = now()`
        - Read `order_defaults` from subscription
@@ -334,6 +335,7 @@ Charge creation on completion runs for both recurring and one-time orders. `crea
 1. **Recurring API Webhook:** `/api/webhooks/vipps/recurring`
    - Agreement events: activated, rejected, stopped, expired
    - Charge events: captured, canceled, refunded, failed, creation-failed
+   - Response codes: 401 bad signature; 200 for permanent conditions (unknown agreement/charge, malformed body); 500 only for transient failures (a DB write returned null, lost activation race) so Vipps retries with backoff for up to 7 days. Vipps holds back later webhooks until it gets a 200, so permanent errors must never return 5xx.
 
 **Webhook Authentication:**
 - HMAC-SHA256 signature verification

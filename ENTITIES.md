@@ -314,7 +314,7 @@
 - `subscription_id` (uuid, FK → [Subscription](#subscription).id, nullable) - Subscription reference
   - **Note:** Set if order is part of subscription, null for one-time orders
 - `payment_agreement_id` (uuid, FK → [PaymentAgreement](#paymentagreement).id, nullable) - Payment agreement reference
-  - **Note:** Set for all orders (both subscription and one-time). Used to resolve Vipps agreement for charging.
+  - **Note:** Set on the **first** order of an agreement (created by the `agreement-activated` webhook), for both subscription and one-time checkouts; rolling-window orders carry NULL and resolve the agreement through the subscription. The webhook's idempotency check (`getOrderByPaymentAgreementId`) and the checkout success page rely on this.
 - `cleaner_id` (uuid, FK → [Cleaner](#cleaner).id, nullable) - Assigned cleaner
 - `status` (enum → [OrderStatus](#orderstatus), required) - Order status
   - **Default:** `pending_assignment`

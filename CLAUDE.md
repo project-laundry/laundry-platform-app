@@ -116,7 +116,7 @@ src/
 │       ├── wash/           # Step 1: what to wash (bags, bedding, ironing)
 │       ├── pickup/         # Step 2: address + pickup date + frequency
 │       ├── confirm/        # Step 3: review + promo code + required terms/angrerett consent + Vipps handoff
-│       ├── success/        # Order success (polls agreement status)
+│       ├── success/        # Order success (polls getCheckoutStatusAction: DB agreement status + first-order presence; Vipps only as abort fallback while pending)
 │       ├── layout.tsx      # Step route guards (redirects to /orders/wash)
 │       └── actions.ts      # Server actions
 ├── assets/brand/          # Logo PNGs (primary/secondary/submerke, normal + negativ); favicons are app/icon.png + app/apple-icon.png
@@ -237,7 +237,7 @@ The platform uses Vipps Recurring API for production payments with DIRECT_CAPTUR
 - `lib/payments/vipps/service.ts` - High-level service layer orchestrating Vipps + database operations
 - `lib/payments/vipps/config.ts` - Configuration validation and environment checks
 - `app/orders/actions.ts` - Server actions including checkout flow (creates PaymentAgreement + optional Subscription)
-- `app/api/webhooks/vipps/recurring/route.ts` - **Critical** webhook handler for Recurring API events - handles agreement activation, order generation, and charge events
+- `app/api/webhooks/vipps/recurring/route.ts` - **Critical** webhook handler for Recurring API events - handles agreement activation, order generation, and charge events. Activation is idempotent (status-guarded updates + `getOrderByPaymentAgreementId` existence check — Vipps delivers at-least-once). Answers 500 only on transient failures so Vipps retries; permanent conditions (unknown agreement/charge, malformed body) get 200 because Vipps holds back later webhooks until it sees a 200
 - `lib/services/order-generation.ts` - Order generation service (calculates pickup dates based on subscription frequency)
 
 

@@ -34,6 +34,7 @@ vi.mock('@/lib/payments/vipps/config', () => ({
 vi.mock('@/lib/payments/vipps/recurring-client', () => ({ createVippsRecurringClient: vi.fn() }));
 vi.mock('@/lib/database/orders', () => ({
   getMostRecentOrderAddressByCustomerId: vi.fn(),
+  getOrderByPaymentAgreementId: vi.fn(),
   getOrderWithDetailsByIdAndCustomerId: vi.fn(),
   updateOrderStatus: vi.fn(),
 }));
@@ -42,7 +43,11 @@ vi.mock('@/app/dashboard/subscription/actions', () => ({ cancelSubscriptionActio
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getCustomerByUserId } from '@/lib/database/customers';
-import { getMostRecentOrderAddressByCustomerId, getOrderWithDetailsByIdAndCustomerId } from '@/lib/database/orders';
+import {
+  getMostRecentOrderAddressByCustomerId,
+  getOrderByPaymentAgreementId,
+  getOrderWithDetailsByIdAndCustomerId,
+} from '@/lib/database/orders';
 import { calculateCustomerEstimate } from '@/lib/config/pricing';
 import type { OrderSelection } from '@/types/order-flow';
 import { TERMS_VERSION } from '@/lib/config/terms';
@@ -399,14 +404,15 @@ describe('validatePromoCodeAction', () => {
 describe('getCheckoutStatusAction', () => {
   const getAgreement = vi.fn();
 
-  /** Authenticate a customer with one pending agreement; tests set the Vipps status. */
-  function withLatestAgreement(dbStatus = 'pending') {
+  /** Authenticate a customer whose latest agreement has the given DB status. */
+  function withLatestAgreement(dbStatus: string, providerMetadata: Record<string, unknown> | null = null) {
     getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
     m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
     m(getPaymentAgreementsByCustomerId).mockResolvedValue([
-      { id: 'pa-1', provider_agreement_id: 'agr-1', status: dbStatus },
+      { id: 'pa-1', provider_agreement_id: 'agr-1', status: dbStatus, provider_metadata: providerMetadata },
     ]);
     m(createVippsRecurringClient).mockReturnValue({ getAgreement });
+    m(getOrderByPaymentAgreementId).mockResolvedValue(null);
   }
 
   it('returns "unknown" for an unauthenticated user', async () => {
@@ -428,29 +434,65 @@ describe('getCheckoutStatusAction', () => {
     expect(await getCheckoutStatusAction()).toEqual({ status: 'unknown' });
   });
 
-  it('maps Vipps ACTIVE to "active"', async () => {
-    withLatestAgreement();
-    getAgreement.mockResolvedValue({ status: 'ACTIVE' });
+  it('reports "active" once the DB agreement is active AND the first order exists, without asking Vipps', async () => {
+    withLatestAgreement('active');
+    m(getOrderByPaymentAgreementId).mockResolvedValue({ id: 'ord-1' });
+
     expect(await getCheckoutStatusAction()).toEqual({ status: 'active', recurring: true });
+    expect(getOrderByPaymentAgreementId).toHaveBeenCalledWith('pa-1');
+    expect(getAgreement).not.toHaveBeenCalled();
+  });
+
+  it('reports "pending" while the DB agreement is active but the first order does not exist yet', async () => {
+    withLatestAgreement('active');
+    m(getOrderByPaymentAgreementId).mockResolvedValue(null);
+
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'pending', recurring: true });
+    expect(getAgreement).not.toHaveBeenCalled();
+  });
+
+  it('reports "cancelled" for a stopped DB agreement without asking Vipps', async () => {
+    withLatestAgreement('stopped');
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled', recurring: true });
+    expect(getAgreement).not.toHaveBeenCalled();
+  });
+
+  it('reports "cancelled" for an expired DB agreement without asking Vipps', async () => {
+    withLatestAgreement('expired');
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled', recurring: true });
+    expect(getAgreement).not.toHaveBeenCalled();
+  });
+
+  it('while the DB agreement is pending, maps Vipps STOPPED (user aborted) to "cancelled"', async () => {
+    withLatestAgreement('pending');
+    getAgreement.mockResolvedValue({ status: 'STOPPED' });
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled', recurring: true });
     expect(getAgreement).toHaveBeenCalledWith('agr-1');
   });
 
-  it('maps Vipps PENDING to "pending"', async () => {
-    withLatestAgreement();
+  it('while the DB agreement is pending, maps Vipps EXPIRED to "cancelled"', async () => {
+    withLatestAgreement('pending');
+    getAgreement.mockResolvedValue({ status: 'EXPIRED' });
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled', recurring: true });
+  });
+
+  it('never reports "active" from Vipps alone: DB pending + Vipps ACTIVE is "pending" (webhook not landed)', async () => {
+    withLatestAgreement('pending');
+    getAgreement.mockResolvedValue({ status: 'ACTIVE' });
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'pending', recurring: true });
+    expect(getOrderByPaymentAgreementId).not.toHaveBeenCalled();
+  });
+
+  it('while the DB agreement is pending, maps Vipps PENDING to "pending"', async () => {
+    withLatestAgreement('pending');
     getAgreement.mockResolvedValue({ status: 'PENDING' });
     expect(await getCheckoutStatusAction()).toEqual({ status: 'pending', recurring: true });
   });
 
-  it('maps Vipps STOPPED (user aborted) to "cancelled"', async () => {
-    withLatestAgreement();
-    getAgreement.mockResolvedValue({ status: 'STOPPED' });
-    expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled', recurring: true });
-  });
-
-  it('maps Vipps EXPIRED to "cancelled"', async () => {
-    withLatestAgreement();
-    getAgreement.mockResolvedValue({ status: 'EXPIRED' });
-    expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled', recurring: true });
+  it('stays "pending" when Vipps is unreachable', async () => {
+    withLatestAgreement('pending');
+    getAgreement.mockRejectedValue(new Error('network down'));
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'pending', recurring: true });
   });
 
   it('checks the most recently created agreement', async () => {
@@ -458,40 +500,21 @@ describe('getCheckoutStatusAction', () => {
     m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
     // getPaymentAgreementsByCustomerId returns newest-first; the latest is [0]
     m(getPaymentAgreementsByCustomerId).mockResolvedValue([
-      { id: 'pa-2', provider_agreement_id: 'agr-2', status: 'pending' },
-      { id: 'pa-1', provider_agreement_id: 'agr-1', status: 'active' },
+      { id: 'pa-2', provider_agreement_id: 'agr-2', status: 'pending', provider_metadata: null },
+      { id: 'pa-1', provider_agreement_id: 'agr-1', status: 'active', provider_metadata: null },
     ]);
     m(createVippsRecurringClient).mockReturnValue({ getAgreement });
     getAgreement.mockResolvedValue({ status: 'STOPPED' });
 
     expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled', recurring: true });
     expect(getAgreement).toHaveBeenCalledWith('agr-2');
+    expect(getOrderByPaymentAgreementId).not.toHaveBeenCalled();
   });
 
-  it('falls back to the DB status when Vipps is unreachable', async () => {
-    withLatestAgreement('active');
-    getAgreement.mockRejectedValue(new Error('network down'));
-    expect(await getCheckoutStatusAction()).toEqual({ status: 'active', recurring: true });
-  });
-
-  it('maps a stopped DB status to "cancelled" on the Vipps-error fallback', async () => {
-    withLatestAgreement('stopped');
-    getAgreement.mockRejectedValue(new Error('network down'));
-    expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled', recurring: true });
-  });
   it('reports a one-time checkout (order_defaults on the agreement) as not recurring', async () => {
-    getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
-    m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
-    m(getPaymentAgreementsByCustomerId).mockResolvedValue([
-      {
-        id: 'pa-1',
-        provider_agreement_id: 'agr-1',
-        status: 'pending',
-        provider_metadata: { order_defaults: { first_pickup_date: '2026-10-20' } },
-      },
-    ]);
-    m(createVippsRecurringClient).mockReturnValue({ getAgreement });
-    getAgreement.mockResolvedValue({ status: 'ACTIVE' });
+    withLatestAgreement('active', { order_defaults: { first_pickup_date: '2026-10-20' } });
+    m(getOrderByPaymentAgreementId).mockResolvedValue({ id: 'ord-1' });
+
     expect(await getCheckoutStatusAction()).toEqual({ status: 'active', recurring: false });
   });
 });

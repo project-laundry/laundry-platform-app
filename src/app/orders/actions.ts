@@ -18,7 +18,12 @@ import { getWeekdayFromDate, isWeekdayInSchedule, addDays, toISODateString } fro
 import { DAYS_PICKUP_TO_DELIVERY, MIN_DAYS_NOTICE } from "@/lib/config/order-timing";
 import { TERMS_VERSION } from "@/lib/config/terms";
 import { translateFrequency } from "@/lib/utils/i18n";
-import { getMostRecentOrderAddressByCustomerId, getOrderWithDetailsByIdAndCustomerId, updateOrderStatus } from "@/lib/database/orders";
+import {
+  getMostRecentOrderAddressByCustomerId,
+  getOrderByPaymentAgreementId,
+  getOrderWithDetailsByIdAndCustomerId,
+  updateOrderStatus,
+} from "@/lib/database/orders";
 import { geocodeAddress, validateAddress, type AddressValidationReason } from "@/lib/maps/geocoding";
 import { checkAndGenerateNextOrders } from "@/lib/services/order-generation";
 import { cancelSubscriptionAction } from "@/app/dashboard/subscription/actions";
@@ -294,19 +299,29 @@ export interface CheckoutStatusResult {
 }
 
 /**
- * Resolve the real status of the customer's latest Vipps agreement after they
- * return from the Vipps app.
+ * Resolve the status of the customer's latest checkout after they return from
+ * the Vipps app.
  *
  * Vipps redirects everyone back to the same merchantRedirectUrl regardless of
  * outcome (approved, cancelled on the landing page, or still activating) and
- * appends no status param. Per Vipps docs we must poll the agreement instead of
- * trusting the redirect: ACTIVE = approved, STOPPED/EXPIRED = aborted, PENDING =
- * activation not finished yet (caller should retry).
+ * appends no status param, so the page polls this action instead.
+ *
+ * The source of truth is OUR database, not Vipps' live agreement status: the
+ * agreement-activated webhook is what activates the agreement and creates the
+ * first order, and "Bestillingen er bekreftet" must only be shown once that
+ * has happened. Vipps saying ACTIVE while our row is still pending just means
+ * the webhook hasn't landed (yet) — report pending so the page keeps polling.
+ *
+ *   DB active  + first order exists → 'active'
+ *   DB active  + no order yet       → 'pending' (webhook mid-flight)
+ *   DB stopped / expired            → 'cancelled'
+ *   DB pending                      → ask Vipps, only to detect an abort:
+ *                                      STOPPED/EXPIRED → 'cancelled',
+ *                                      anything else or unreachable → 'pending'
  *
  * The agreement ID isn't passed back in the URL, so we look up the customer's
  * most recently created payment agreement — the one they just started checkout
- * with. Status is queried live from Vipps, falling back to the stored DB status
- * (kept in sync by the webhook) if Vipps is unreachable.
+ * with.
  */
 export async function getCheckoutStatusAction(): Promise<CheckoutStatusResult> {
   const supabase = await createClient();
@@ -331,36 +346,33 @@ export async function getCheckoutStatusAction(): Promise<CheckoutStatusResult> {
 
   const recurring = !latest.provider_metadata?.order_defaults;
 
+  if (latest.status === 'active') {
+    // The webhook flips the agreement to active before it inserts the first
+    // order; only report success once the order is really there.
+    const firstOrder = await getOrderByPaymentAgreementId(latest.id);
+    return { status: firstOrder ? 'active' : 'pending', recurring };
+  }
+
+  if (latest.status === 'stopped' || latest.status === 'expired') {
+    return { status: 'cancelled', recurring };
+  }
+
+  // Still pending in our DB. Ask Vipps only to detect an abort — a user who
+  // backs out on the Vipps landing page leaves the agreement STOPPED/EXPIRED
+  // there before (or without) any webhook reaching us.
   try {
     const vipps = createVippsRecurringClient();
     const agreement = await vipps.getAgreement(latest.provider_agreement_id);
-
-    switch (agreement.status) {
-      case 'ACTIVE':
-        return { status: 'active', recurring };
-      case 'PENDING':
-        return { status: 'pending', recurring };
-      case 'STOPPED':
-      case 'EXPIRED':
-        return { status: 'cancelled', recurring };
-      default:
-        return { status: 'unknown', recurring };
+    if (agreement.status === 'STOPPED' || agreement.status === 'EXPIRED') {
+      return { status: 'cancelled', recurring };
     }
   } catch (error) {
     console.error('Failed to fetch Vipps agreement status:', error);
-    // Fall back to the DB status (kept in sync by the webhook)
-    switch (latest.status) {
-      case 'active':
-        return { status: 'active', recurring };
-      case 'pending':
-        return { status: 'pending', recurring };
-      case 'stopped':
-      case 'expired':
-        return { status: 'cancelled', recurring };
-      default:
-        return { status: 'unknown', recurring };
-    }
   }
+
+  // Vipps PENDING, Vipps ACTIVE with the webhook not landed yet, or Vipps
+  // unreachable: keep polling.
+  return { status: 'pending', recurring };
 }
 
 export interface ValidatePromoCodeResult {
