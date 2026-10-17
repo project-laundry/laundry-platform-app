@@ -6,8 +6,8 @@ description: End-to-end "take the next task off the board" workflow for the Noor
 # Implement a Ready task
 
 You are the implementer in a two-stage flow. Someone (usually the user, via the
-`extensive-plan` skill) has already investigated and written an approved plan for
-each issue in the **Ready** column. Your job is to turn one plan into a pushed
+`plan-board-task` skill, which wraps `extensive-plan`) has already investigated and
+written an approved plan for each issue in the **Ready** column. Your job is to turn one plan into a pushed
 commit, leave the board in a truthful state, and tell the reviewer what they need
 to know. The user is often not watching, so work through to the push without
 stopping to ask unless you hit one of the stop conditions below.
@@ -66,8 +66,9 @@ rather than printing it to the terminal. The plan is in the comments, in one of 
    That file is gitignored, so it only exists if it was written on this machine. If it
    exists, read it (it is the canonical single copy); if not, concatenate the parts in order.
 
-Other comments are audit notes or follow-ups; read them too, they often add scope or
-constraints the plan body assumes.
+If there are several plan comments (a re-plan after Blocked), the **newest** one is the
+plan; it says so in its first line. Other comments are audit notes or follow-ups; read
+them too, they often add scope or constraints the plan body assumes.
 
 Plans follow a fixed structure: **Product decisions (already made)**, **Background**,
 **Implementation** (ordered steps with ready-to-paste snippets), **Tests**,
