@@ -50,7 +50,7 @@ Flow:
 5. Return Vipps checkout `redirectUrl` → user approves in the Vipps app.
 6. Back on `/orders/success` the page polls `getCheckoutStatusAction` (5 × 2 s, then a "Sjekk på nytt" button). It reads **our DB**, not Vipps: `payment_agreements.status = 'active'` **and** a first order (`getOrderByPaymentAgreementId`) → success; `stopped`/`expired` → cancelled; `pending` → asks Vipps only to detect an abort (`STOPPED`/`EXPIRED` → cancelled), otherwise keeps polling. Vipps `ACTIVE` alone never counts as success — it means the webhook hasn't landed.
 
-Test helper: `forceAcceptAgreementAction(agreementId)` (`actions.ts`) force-accepts via whitelisted phone numbers (test env only) and polls for activation.
+Test helper: `forceAcceptAgreementAction(agreementId)` (`actions.ts`) force-accepts via whitelisted phone numbers and polls for activation. Gated by `isVippsForceAcceptAllowed()` — `NEXT_PUBLIC_VIPPS_ALLOW_FORCE_ACCEPT=true` **and** the test `VIPPS_API_URL`; never by URL sniffing.
 
 Pre-pickup edit actions (all in `app/orders/actions.ts`): `updateOrderSpecialInstructionsAction`, `updateOrderIroningAction`, `updateOrderAddressAction`, `cancelOrderAction`, `updateOrderPickupDateAction` (smart cleaner reassignment).
 
@@ -133,7 +133,7 @@ Driver actions: `src/app/dashboard/driver/actions.ts`. Cleaner actions: `src/app
 - **`base-client.ts`** — `VippsBaseClient`: OAuth `authenticate()` (token cached w/ 1-min buffer), `getCommonHeaders()`, `handleVippsError()`.
 - **`recurring-client.ts`** — `VippsRecurringClient`: `listAgreements`, `createAgreement` (FLEXIBLE), `getAgreement`, `stopAgreement`, `forceAcceptAgreement` (test), `createCharge` (DIRECT_CAPTURE default), `getCharge`, `getChargeById`, `captureCharge` (RESERVE_CAPTURE only — unused), `cancelCharge`.
 - **`service.ts`** — orchestration: `createVippsAgreement`, `captureVippsCharge`, `cancelVippsAgreement`, `createChargeForCompletedOrder`.
-- **`config.ts`** — `validateVippsConfig`, `isVippsConfigured`, `getVippsEnvironment`, `isVippsTestEnvironment`.
+- **`config.ts`** — `validateVippsConfig`, `isVippsConfigured`, `getVippsApiUrl` (required, exact-match allowlist, throws otherwise), `getVippsEnvironment`, `isVippsForceAcceptAllowed`, `pickVippsTestPhone`.
 
 ---
 

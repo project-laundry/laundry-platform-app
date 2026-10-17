@@ -28,7 +28,7 @@ vi.mock('@/lib/payments/vipps/service', () => ({
   cancelVippsAgreement: vi.fn(),
 }));
 vi.mock('@/lib/payments/vipps/config', () => ({
-  isVippsTestEnvironment: vi.fn(),
+  isVippsForceAcceptAllowed: vi.fn(),
   pickVippsTestPhone: vi.fn(),
 }));
 vi.mock('@/lib/payments/vipps/recurring-client', () => ({ createVippsRecurringClient: vi.fn() }));
@@ -53,13 +53,15 @@ import type { OrderSelection } from '@/types/order-flow';
 import { TERMS_VERSION } from '@/lib/config/terms';
 import { validatePromoCode } from '@/lib/database/promo-codes';
 import { createSubscription, getActiveSubscriptionByCustomerId } from '@/lib/database/subscriptions';
-import { createPaymentAgreement, getPaymentAgreementsByCustomerId } from '@/lib/database/payment-agreements';
+import { createPaymentAgreement, getPaymentAgreementByProviderId, getPaymentAgreementsByCustomerId } from '@/lib/database/payment-agreements';
 import { findAvailableCleaner, getAvailableWeekdaysForCity } from '@/lib/database/cleaners';
 import { createVippsAgreement } from '@/lib/payments/vipps/service';
 import { createVippsRecurringClient } from '@/lib/payments/vipps/recurring-client';
+import { isVippsForceAcceptAllowed, pickVippsTestPhone } from '@/lib/payments/vipps/config';
 import { cancelSubscriptionAction } from '@/app/dashboard/subscription/actions';
 import {
   createSubscriptionAction,
+  forceAcceptAgreementAction,
   validatePromoCodeAction,
   getCheckoutStatusAction,
   getPickupPrefillAction,
@@ -516,6 +518,42 @@ describe('getCheckoutStatusAction', () => {
     m(getOrderByPaymentAgreementId).mockResolvedValue({ id: 'ord-1' });
 
     expect(await getCheckoutStatusAction()).toEqual({ status: 'active', recurring: false });
+  });
+});
+
+describe('forceAcceptAgreementAction', () => {
+  const forceAcceptAgreement = vi.fn();
+
+  it('refuses before touching auth, the DB or Vipps when force-accept is not allowed', async () => {
+    m(isVippsForceAcceptAllowed).mockReturnValue(false);
+
+    const result = await forceAcceptAgreementAction('agr-1');
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Auto-godkjenning er ikke aktivert i dette miljøet',
+    });
+    expect(getUser).not.toHaveBeenCalled();
+    expect(getPaymentAgreementByProviderId).not.toHaveBeenCalled();
+    expect(createVippsRecurringClient).not.toHaveBeenCalled();
+    expect(forceAcceptAgreement).not.toHaveBeenCalled();
+  });
+
+  it('force-accepts with the whitelisted test phone and resolves once the webhook activated the agreement', async () => {
+    m(isVippsForceAcceptAllowed).mockReturnValue(true);
+    getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
+    m(getPaymentAgreementByProviderId)
+      .mockResolvedValueOnce({ id: 'pa-1', customer_id: 'cust-1', status: 'pending' }) // ownership check
+      .mockResolvedValueOnce({ id: 'pa-1', customer_id: 'cust-1', status: 'active' }); // first poll
+    m(createVippsRecurringClient).mockReturnValue({ forceAcceptAgreement });
+    m(pickVippsTestPhone).mockReturnValue('4746170809');
+
+    const result = await forceAcceptAgreementAction('agr-1');
+
+    expect(result).toEqual({ success: true });
+    expect(pickVippsTestPhone).toHaveBeenCalledWith('cust-1');
+    expect(forceAcceptAgreement).toHaveBeenCalledWith('agr-1', '4746170809');
   });
 });
 

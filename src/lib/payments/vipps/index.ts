@@ -32,7 +32,8 @@ export {
 export {
   validateVippsConfig,
   isVippsConfigured,
+  getVippsApiUrl,
   getVippsEnvironment,
-  isVippsTestEnvironment,
+  isVippsForceAcceptAllowed,
   pickVippsTestPhone,
 } from './config';

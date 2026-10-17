@@ -1,9 +1,16 @@
 import { config } from 'dotenv';
 import { resolve } from 'path';
 import { VippsBaseClient, type VippsConfig } from '../src/lib/payments/vipps/base-client';
+import { getVippsApiUrl, getVippsEnvironment } from '../src/lib/payments/vipps/config';
 
-// Load environment variables from .env.local
-config({ path: resolve(__dirname, '../.env.local') });
+// Load environment variables. Default: .env.local (dev/staging Vipps TEST
+// credentials). To target PRODUCTION, point VIPPS_ENV_FILE at a separate,
+// git-ignored file holding the live credentials — never paste live keys into
+// .env.local (see scripts/README.md → "Target environment").
+const ENV_FILE = process.env.VIPPS_ENV_FILE
+  ? resolve(process.cwd(), process.env.VIPPS_ENV_FILE)
+  : resolve(__dirname, '../.env.local');
+config({ path: ENV_FILE });
 
 // =============================================================================
 // EVENT PRESETS
@@ -51,11 +58,12 @@ function loadVippsConfig(): VippsConfig {
     'VIPPS_CLIENT_SECRET',
     'VIPPS_SUBSCRIPTION_KEY',
     'VIPPS_MERCHANT_SERIAL_NUMBER',
+    'VIPPS_API_URL',
   ];
 
   const missing = required.filter((key) => !process.env[key]);
   if (missing.length > 0) {
-    console.error(`❌ Missing required environment variables in .env.local:\n  - ${missing.join('\n  - ')}`);
+    console.error(`❌ Missing required environment variables in ${ENV_FILE}:\n  - ${missing.join('\n  - ')}`);
     process.exit(1);
   }
 
@@ -64,7 +72,8 @@ function loadVippsConfig(): VippsConfig {
     clientSecret: process.env.VIPPS_CLIENT_SECRET!,
     subscriptionKey: process.env.VIPPS_SUBSCRIPTION_KEY!,
     merchantSerialNumber: process.env.VIPPS_MERCHANT_SERIAL_NUMBER!,
-    baseUrl: process.env.VIPPS_API_URL || 'https://apitest.vipps.no',
+    // Throws on an unknown host — there is no test-API fallback.
+    baseUrl: getVippsApiUrl(),
   };
 }
 
@@ -149,7 +158,8 @@ function getArg(args: string[], name: string): string | undefined {
 }
 
 function printUsage(): void {
-  console.log(`Manage Vipps webhooks (targets the environment in .env.local).
+  console.log(`Manage Vipps webhooks. Targets the environment in .env.local, or in
+the file named by VIPPS_ENV_FILE (use a separate git-ignored file for production).
 
 Usage:
   npm run webhooks -- list
@@ -161,6 +171,8 @@ Event presets:
 
 Examples:
   npm run webhooks -- register --url=https://test.nooracare.no/api/webhooks/vipps/recurring --events=recurring
+  VIPPS_ENV_FILE=.env.vipps-production.local npm run webhooks -- list
+  VIPPS_ENV_FILE=.env.vipps-production.local npm run webhooks -- register --url=https://nooracare.no/api/webhooks/vipps/recurring --events=recurring
 `);
 }
 
@@ -183,8 +195,9 @@ async function main(): Promise<void> {
   }
 
   const vippsConfig = loadVippsConfig();
-  const env = vippsConfig.baseUrl.includes('apitest') ? 'TEST' : 'PRODUCTION';
-  console.log(`🌍 Target: Vipps ${env} (${vippsConfig.baseUrl}), MSN ${vippsConfig.merchantSerialNumber}\n`);
+  const env = getVippsEnvironment() === 'test' ? 'TEST' : 'PRODUCTION';
+  console.log(`🌍 Target: Vipps ${env} (${vippsConfig.baseUrl}), MSN ${vippsConfig.merchantSerialNumber}`);
+  console.log(`📄 Env file: ${ENV_FILE}\n`);
 
   const client = new VippsBaseClient(vippsConfig);
 

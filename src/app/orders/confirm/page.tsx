@@ -20,7 +20,6 @@ import {
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { calculateCustomerEstimate } from '@/lib/config/pricing';
 import type { OrderSelection } from '@/types/order-flow';
-import { isNonProduction } from '@/lib/utils/environment';
 import { createClient } from '@/lib/supabase/client';
 import { withNext } from '@/lib/auth/next-path';
 import {
@@ -85,9 +84,13 @@ export default function ConfirmPage() {
   const errorRef = useRef<HTMLDivElement>(null);
   // null = not checked yet; the Vipps button stays disabled until we know.
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
-  // Auto-accept bypasses the Vipps approval flow and is only available outside
-  // production. In production this stays false so users always go through Vipps.
-  const showAutoAccept = isNonProduction();
+  // Auto-accept bypasses the Vipps approval flow. The checkbox only exists in
+  // builds made with NEXT_PUBLIC_VIPPS_ALLOW_FORCE_ACCEPT=true (local dev and
+  // staging); production never sets it. The server action re-checks the same
+  // flag plus the Vipps test API, so this is a convenience, not the gate.
+  // Keep the literal `process.env.NEXT_PUBLIC_…` read: Next.js only inlines a
+  // public var into the client bundle when it is referenced exactly like this.
+  const showAutoAccept = process.env.NEXT_PUBLIC_VIPPS_ALLOW_FORCE_ACCEPT === 'true';
   const [autoAccept, setAutoAccept] = useState(showAutoAccept);
   // Terms + angrerett consent. Deliberately not persisted in the order-flow
   // store: it resets on every visit so the consent stamped on the agreement
@@ -191,7 +194,7 @@ export default function ConfirmPage() {
       }
 
       if (autoAccept && result.agreementId) {
-        // Auto-accept flow (non-production)
+        // Auto-accept flow (opt-in flag, Vipps test API only)
         const acceptResult = await forceAcceptAgreementAction(result.agreementId);
 
         if (acceptResult.success) {
@@ -418,7 +421,7 @@ export default function ConfirmPage() {
           />
         </div>
 
-        {/* Auto-accept checkbox (non-production environments only) */}
+        {/* Auto-accept checkbox — only in builds with NEXT_PUBLIC_VIPPS_ALLOW_FORCE_ACCEPT=true */}
         {showAutoAccept && (
           <div className="mt-4 flex items-center justify-center gap-2">
             <input

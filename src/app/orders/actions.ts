@@ -12,7 +12,7 @@ import {
   getAvailableWeekdaysForCity,
 } from "@/lib/database/cleaners";
 import { createVippsAgreement } from "@/lib/payments/vipps/service";
-import { isVippsTestEnvironment, pickVippsTestPhone } from "@/lib/payments/vipps/config";
+import { isVippsForceAcceptAllowed, pickVippsTestPhone } from "@/lib/payments/vipps/config";
 import { createVippsRecurringClient } from "@/lib/payments/vipps/recurring-client";
 import { getWeekdayFromDate, isWeekdayInSchedule, addDays, toISODateString } from "@/lib/utils/date";
 import { DAYS_PICKUP_TO_DELIVERY, MIN_DAYS_NOTICE } from "@/lib/config/order-timing";
@@ -416,11 +416,13 @@ export async function validatePromoCodeAction(
 }
 
 /**
- * Force accept a Vipps agreement (TEST ENVIRONMENT ONLY)
+ * Force accept a Vipps agreement (explicit opt-in, Vipps test API only)
  * Bypasses manual approval in Vipps app for testing purposes
  *
  * Flow:
- * 1. Validates test environment
+ * 1. Checks the opt-in gate (NEXT_PUBLIC_VIPPS_ALLOW_FORCE_ACCEPT=true AND the
+ *    Vipps test API — see isVippsForceAcceptAllowed). Production never sets the
+ *    flag, so this always refuses there.
  * 2. Verifies the caller owns the agreement
  * 3. Calls Vipps forceAcceptAgreement API with a whitelisted Vipps test phone
  *    (picked deterministically per customer, see pickVippsTestPhone)
@@ -434,11 +436,11 @@ export async function forceAcceptAgreementAction(
   agreementId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // 1. Validate test environment
-    if (!isVippsTestEnvironment()) {
+    // 1. Explicit opt-in only — never inferred from a hostname or URL.
+    if (!isVippsForceAcceptAllowed()) {
       return {
         success: false,
-        error: 'Auto-godkjenning er kun tilgjengelig i testmiljø',
+        error: 'Auto-godkjenning er ikke aktivert i dette miljøet',
       };
     }
 

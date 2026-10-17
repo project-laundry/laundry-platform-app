@@ -246,12 +246,13 @@ The platform uses Vipps Recurring API for production payments with DIRECT_CAPTUR
 - `VIPPS_CLIENT_SECRET` - Vipps API client secret
 - `VIPPS_SUBSCRIPTION_KEY` - Vipps API subscription key
 - `VIPPS_MERCHANT_SERIAL_NUMBER` - Vipps merchant serial number (MSN)
-- `VIPPS_API_URL` - Vipps API base URL (test: https://apitest.vipps.no, prod: https://api.vipps.no)
+- `VIPPS_API_URL` - Vipps API base URL — **required, no default**: exactly `https://apitest.vipps.no` (test) or `https://api.vipps.no` (prod). Anything else makes `createVippsRecurringClient()` throw (fail closed, see `lib/payments/vipps/config.ts` `getVippsApiUrl`)
 - `VIPPS_WEBHOOK_SECRET` - Shared webhook secret for HMAC-SHA256 signature verification
 - `VIPPS_WEBHOOK_SECRET_RECURRING` - Optional: Recurring API webhook-specific secret (overrides VIPPS_WEBHOOK_SECRET)
+- `NEXT_PUBLIC_VIPPS_ALLOW_FORCE_ACCEPT` - Opt-in (`true`) for the test-only force-accept helper (`forceAcceptAgreementAction` + the "Auto-godkjenn avtale" checkbox on `/orders/confirm`). Honoured only together with the test `VIPPS_API_URL` (`isVippsForceAcceptAllowed`). Set locally and on Vercel Preview (`develop`); never in Production
 
 **Webhook Configuration:**
-The platform exposes a single webhook endpoint to register in the Vipps dashboard:
+The platform exposes a single webhook endpoint, registered per Vipps environment with `npm run webhooks -- register …` (`scripts/manage-webhooks.ts`; the Vipps portal only lists webhooks). Production registration + verification steps live in `ENVIRONMENTS.md` → Launch checklist:
 
 1. **Recurring API Webhook**: `https://yourdomain.com/api/webhooks/vipps/recurring`
    - Subscribe to all `recurring.charge.*` events (reserved, captured, canceled, refunded, failed, creation-failed)

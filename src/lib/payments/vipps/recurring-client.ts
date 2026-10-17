@@ -3,6 +3,7 @@
 // API Reference: /recurring/v3/*
 
 import { VippsBaseClient, type VippsConfig } from './base-client';
+import { getVippsApiUrl, validateVippsConfig } from './config';
 import type { VippsAgreementStatus, VippsChargeStatus } from '@/types/database';
 
 // =============================================================================
@@ -419,28 +420,21 @@ export class VippsRecurringClient {
 // =============================================================================
 
 /**
- * Create Vipps Recurring client with environment configuration
+ * Create Vipps Recurring client with environment configuration.
+ *
+ * Throws when any VIPPS_* variable is missing or VIPPS_API_URL is not one of
+ * the two Vipps hosts — there is deliberately no test-API fallback, so a
+ * misconfigured production deployment fails every Vipps call instead of
+ * silently talking to apitest.vipps.no (see config.ts).
  */
 export function createVippsRecurringClient(): VippsRecurringClient {
-  // Validate required environment variables
-  const requiredEnvVars = [
-    'VIPPS_CLIENT_ID',
-    'VIPPS_CLIENT_SECRET',
-    'VIPPS_SUBSCRIPTION_KEY',
-    'VIPPS_MERCHANT_SERIAL_NUMBER',
-  ];
-
-  for (const envVar of requiredEnvVars) {
-    if (!process.env[envVar]) {
-      throw new Error(`Missing required environment variable: ${envVar}`);
-    }
-  }
+  validateVippsConfig();
 
   return new VippsRecurringClient({
     clientId: process.env.VIPPS_CLIENT_ID!,
     clientSecret: process.env.VIPPS_CLIENT_SECRET!,
     subscriptionKey: process.env.VIPPS_SUBSCRIPTION_KEY!,
     merchantSerialNumber: process.env.VIPPS_MERCHANT_SERIAL_NUMBER!,
-    baseUrl: process.env.VIPPS_API_URL || 'https://apitest.vipps.no', // Default to test environment
+    baseUrl: getVippsApiUrl(),
   });
 }

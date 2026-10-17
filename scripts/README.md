@@ -320,7 +320,25 @@ Lists, registers, and deletes Vipps webhooks via the [Webhooks API](https://deve
 
 ### Target environment
 
-The script targets **whichever Vipps environment your `.env.local` points at** — it reads the same `VIPPS_*` vars as the app. It prints the resolved environment (TEST / PRODUCTION), base URL, and MSN before every action so you can confirm before changing anything. To manage production, temporarily put production credentials in `.env.local`.
+By default the script reads `.env.local` — the same `VIPPS_*` vars as the app, i.e. the Vipps **test** environment. `VIPPS_API_URL` is required and must be exactly `https://apitest.vipps.no` or `https://api.vipps.no`; the script refuses anything else. It prints the resolved environment (TEST / PRODUCTION), base URL, MSN and env file before every action so you can confirm before changing anything.
+
+To manage **production**, never edit `.env.local`. Put the live credentials in a separate file (any `.env*` name is git-ignored), e.g. `.env.vipps-production.local`:
+
+```bash
+VIPPS_API_URL=https://api.vipps.no
+VIPPS_CLIENT_ID=<production client_id>
+VIPPS_CLIENT_SECRET=<production client_secret>
+VIPPS_SUBSCRIPTION_KEY=<production Ocp-Apim-Subscription-Key>
+VIPPS_MERCHANT_SERIAL_NUMBER=<production MSN>
+```
+
+and point the script at it:
+
+```bash
+VIPPS_ENV_FILE=.env.vipps-production.local npm run webhooks -- list
+```
+
+Delete the file when you are done (`rm .env.vipps-production.local`).
 
 ### Commands
 
