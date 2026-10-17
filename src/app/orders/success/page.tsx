@@ -162,7 +162,7 @@ function SuccessView({ recurring }: { recurring: boolean }) {
         <ul className="mt-3 space-y-2.5 text-sm text-medium-gray">
           <li className="flex items-start">
             <span className="mr-2 font-serif font-semibold text-sea-green">1.</span>
-            Gjør klar vasken: Bruk NooraCare-posene du har fått utdelt. Har du ikke mottatt poser ennå, går det fint å bruke egne poser inntil videre.
+            Gjør klar vasken: Legg tøyet i egne poser. En vanlig handlepose er én pose.
           </li>
           <li className="flex items-start">
             <span className="mr-2 font-serif font-semibold text-sea-green">2.</span>

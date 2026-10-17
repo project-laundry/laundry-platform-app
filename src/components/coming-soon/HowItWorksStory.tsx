@@ -360,7 +360,7 @@ export function HowItWorksStory() {
         <div className="mt-10 flex flex-col items-center gap-5 rounded-3xl bg-fjord p-7 text-center text-sno shadow-[var(--shadow-card)] sm:mt-16 sm:flex-row sm:items-center sm:justify-between sm:p-10 sm:text-left">
           <div>
             <h3 className="font-serif text-2xl font-semibold leading-tight sm:text-3xl">Klar til å slippe klesvasken?</h3>
-            <p className="mt-2 text-sno/75">De {WAITLIST_OFFER_SPOTS} første på listen får halv pris på første vask når vi åpner.</p>
+            <p className="mt-2 text-sno/75">De {WAITLIST_OFFER_SPOTS} første på listen får en rabattkode til halv pris på første vask når vi åpner.</p>
           </div>
           <a
             href={`#${WAITLIST_ID}`}

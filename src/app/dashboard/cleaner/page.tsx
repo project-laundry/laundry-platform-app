@@ -101,11 +101,11 @@ export default async function CleanerDashboardPage() {
                 <Hourglass className="size-6" />
               </span>
               <h2 className="font-serif text-lg font-semibold text-dark-gray">
-                Profilen din venter pa godkjenning
+                Profilen din venter på godkjenning
               </h2>
               <p className="max-w-md text-medium-gray">
-                Vi gjennomgar soknaden din og gir deg beskjed via e-post nar den er behandlet.
-                Dette tar vanligvis 1-2 virkedager.
+                Vi gjennomgår søknaden din. Du ser status her i dashbordet når den er behandlet –
+                det tar vanligvis 1–2 virkedager.
               </p>
             </div>
           )}
@@ -116,10 +116,10 @@ export default async function CleanerDashboardPage() {
                 <XCircle className="size-6" />
               </span>
               <h2 className="font-serif text-lg font-semibold text-dark-gray">
-                Soknaden din ble avvist
+                Søknaden din ble avvist
               </h2>
               <p className="max-w-md text-medium-gray">
-                Dessverre ble soknaden din ikke godkjent. Ta kontakt med oss for mer informasjon.
+                Dessverre ble søknaden din ikke godkjent. Ta kontakt med oss for mer informasjon.
               </p>
             </div>
           )}

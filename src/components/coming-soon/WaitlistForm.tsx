@@ -71,7 +71,7 @@ export function WaitlistForm({ audience }: { audience: WaitlistAudience }) {
           <div>
             <p className="font-medium text-dark-gray">Du står på listen</p>
             <p className="mt-0.5 text-sm text-medium-gray">
-              Vi sender deg én e-post når vi åpner i {CITY_LABEL[city]}.
+              Vi gir deg beskjed på e-post når vi åpner i {CITY_LABEL[city]}.
             </p>
           </div>
         </div>

@@ -27,7 +27,7 @@ export default async function ComingSoonPage() {
         title="Snart slipper du"
         highlight="klesvasken."
         subtitle="En godkjent renser i området vasker tøyet ditt. Vi henter og leverer hjem til deg. Sett deg på listen, så får du beskjed først."
-        offer={{ title: 'Halv pris på første vask', detail: `for de ${WAITLIST_OFFER_SPOTS} første på listen` }}
+        offer={{ title: 'Halv pris på første vask', detail: `for de ${WAITLIST_OFFER_SPOTS} første på listen – du får rabattkoden på e-post når vi åpner` }}
         count={count}
         image={{
           src: '/images/hero-hallway.jpg',
