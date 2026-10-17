@@ -111,6 +111,9 @@ export interface Cleaner {
   updated_at: string;
   approved_at: string | null;
   suspended_at: string | null;
+  // Set by the admin «Avvis søknaden» action; both cleared again when the cleaner is approved
+  rejected_at: string | null;
+  rejection_reason: string | null;
   deleted_at: string | null;
 }
 

@@ -125,12 +125,16 @@
   - **Note:** Read only at matching time (`findAvailableCleaner`, `getAvailableWeekdaysForCity`); changing it never touches already-assigned orders.
 - `is_accepting_orders` (boolean) - Whether cleaner is accepting new assignments
   - **Default:** `true` (not asked in onboarding)
-  - **Set by:** the cleaner settings page ("Tar imot nye oppdrag") and the admin cleaner list (pause/resume button, `setCleanerAcceptingOrdersAction`).
+  - **Set by:** the cleaner settings page ("Tar imot nye oppdrag") and the admin cleaner detail page `/admin/cleaners/[cleanerId]` (pause/resume button, `setCleanerAcceptingOrdersAction`).
   - **Note:** Vacation mode. When false the cleaner is excluded from matching for new assignments only; orders already assigned proceed normally.
 - `created_at` (timestamp) - Profile creation timestamp
 - `updated_at` (timestamp) - Last update timestamp
 - `approved_at` (timestamp, nullable) - Approval timestamp
 - `suspended_at` (timestamp, nullable) - Suspension timestamp
+- `rejected_at` (timestamp, nullable) - When an admin rejected the application («Avvis søknaden» on `/admin/cleaners/[cleanerId]`, `rejectCleaner`)
+  - **Note:** Cleared, together with `rejection_reason` and `suspended_at`, when the cleaner is later approved (`setCleanerVerificationStatus('approved')`)
+- `rejection_reason` (text, nullable) - The admin's reason, shown verbatim on the cleaner dashboard's "Søknaden din ble avvist" screen
+  - **Validation:** Required when rejecting, max 500 chars (`CLEANER_REJECTION_REASON_MAX` in `lib/validation/cleaner.ts`; DB CHECK of the same size)
 - `deleted_at` (timestamp, nullable) - Soft delete timestamp
   - **Note:** Set when parent User is deleted. Preserves order history and financial records.
   - **Business Rule:** On deletion, anonymize sensitive fields (tax_id, bank_account, business_address) while keeping operational data
@@ -575,7 +579,7 @@
 
 - `pending` - Application submitted, awaiting review
 - `approved` - Verified and active
-- `rejected` - Application rejected
+- `rejected` - Application rejected by an admin with a reason (`rejected_at`, `rejection_reason`); can still be approved later
 - `suspended` - Temporarily suspended
 
 ### CleanerBusinessType

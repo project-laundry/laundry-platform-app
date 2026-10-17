@@ -4,6 +4,7 @@ import {
   monthLabel,
   nextMonthKey,
   previousMonthKey,
+  sumCleanerPayoutOre,
   sumCleanerPayoutOreForMonth,
 } from './payout';
 
@@ -56,5 +57,23 @@ describe('sumCleanerPayoutOreForMonth', () => {
   it('returns 0 when nothing was completed that month', () => {
     expect(sumCleanerPayoutOreForMonth([...orders], '2026-09')).toBe(0);
     expect(sumCleanerPayoutOreForMonth([], '2026-10')).toBe(0);
+  });
+});
+
+describe('sumCleanerPayoutOre', () => {
+  it('sums completed orders across months and skips cancelled or unpriced ones', () => {
+    expect(
+      sumCleanerPayoutOre([
+        { status: 'completed', cleaner_payout_ore: 35000 },
+        { status: 'completed', cleaner_payout_ore: 42000 },
+        { status: 'cancelled', cleaner_payout_ore: 10000 },
+        { status: 'completed', cleaner_payout_ore: null },
+        { status: 'in_cleaning', cleaner_payout_ore: 50000 },
+      ])
+    ).toBe(77000);
+  });
+
+  it('is 0 for no orders', () => {
+    expect(sumCleanerPayoutOre([])).toBe(0);
   });
 });

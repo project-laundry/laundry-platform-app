@@ -158,6 +158,19 @@ Until launch, `/` and `/bli-renser` collect a waitlist instead of taking orders 
 - *Cleaner earnings:* "minst 350 kr per oppdrag" is `CLEANER_MIN_PAYOUT_PER_ORDER_ORE` (70 % of the 500 kr order minimum, which `calculateOrderPrice` applies before the split), so it moves automatically when pricing changes. A single load (229 kr + fees) lands under the minimum, so this is also what one wash pays.
 - *Cleaner FAQ:* one source, `src/app/bli-renser/faq.ts`, shared by the coming-soon and launch pages.
 
+### Cleaner Verification
+
+A cleaner profile is created `pending` by onboarding (`createCleanerProfileAction`). Admins review it on `/admin/cleaners/[cleanerId]`, which shows every onboarding field (tax id and bank account masked behind a reveal), the base address with a map link, the washing machine, pickup weekdays, the application/approval/rejection dates, and the cleaner's orders with their stamped payout. The list at `/admin/cleaners` only links there — there is no approve button without the data in view.
+
+Transitions (`src/app/admin/cleaners/actions.ts`):
+
+- **Godkjenn** (`pending`/`rejected`/`suspended` → `approved`): sets `approved_at`, clears `suspended_at`, `rejected_at` and `rejection_reason`. Only approved cleaners are matched.
+- **Avvis søknaden** (`pending` → `rejected`): requires a reason (max 500 chars) which is stored in `rejection_reason` and shown verbatim on the cleaner dashboard together with NooraCare's e-mail and phone. Offered only for pending applications.
+- **Deaktiver** (`approved` → `suspended`): sets `suspended_at`; the cleaner keeps already-assigned orders but is excluded from matching, and their dashboard shows the contact details.
+- **Sett på pause / Gjenoppta oppdrag**: toggles `is_accepting_orders` without changing the status (see below).
+
+No e-mail is sent on any transition; the cleaner sees the outcome on `/dashboard/cleaner`.
+
 ### Cleaner Assignment & Matching
 
 **City-Based Matching (MVP):**

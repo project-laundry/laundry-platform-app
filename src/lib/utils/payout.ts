@@ -46,3 +46,14 @@ export function sumCleanerPayoutOreForMonth(
     return sum + order.cleaner_payout_ore;
   }, 0);
 }
+
+/** Sum of the stamped cleaner payout over every completed order, all months
+ *  ("Totalt opptjent" on the admin cleaner page). Same rule as the monthly sum. */
+export function sumCleanerPayoutOre(
+  orders: Pick<Order, 'status' | 'cleaner_payout_ore'>[]
+): number {
+  return orders.reduce((sum, order) => {
+    if (order.status !== 'completed' || order.cleaner_payout_ore === null) return sum;
+    return sum + order.cleaner_payout_ore;
+  }, 0);
+}

@@ -102,3 +102,10 @@ export function normalizeWeeklySchedule(
 export function hasAnyWeekday(schedule: WeeklySchedule): boolean {
   return Object.values(schedule).some(Boolean);
 }
+
+/**
+ * Max length of the reason an admin writes when rejecting a cleaner
+ * application (cleaners.rejection_reason, DB CHECK of the same size).
+ * Shared by rejectCleanerAction and the admin textarea's maxLength.
+ */
+export const CLEANER_REJECTION_REASON_MAX = 500;

@@ -297,11 +297,36 @@ export async function getAllCleanersWithUser(limit = 200): Promise<CleanerWithUs
 }
 
 /**
+ * One cleaner with the linked user record, for the admin cleaner detail page.
+ * Returns null when the id is unknown (or malformed — Postgres rejects a
+ * non-uuid, which surfaces as an error here).
+ */
+export async function getCleanerWithUserById(cleanerId: string): Promise<CleanerWithUser | null> {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from('cleaners')
+    .select(`
+      *,
+      user:users!user_id(*)
+    `)
+    .eq('id', cleanerId)
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return data as CleanerWithUser;
+}
+
+/**
  * Activate (approve) or deactivate (suspend) a cleaner.
- * Approve doubles as the approval step for 'pending' applications and
- * clears any previous suspension. Suspend removes the cleaner from all
- * matching (findAvailableCleaner and getAvailableCleanersForCity require
- * verification_status = 'approved').
+ * Approve doubles as the approval step for 'pending' applications, re-activates
+ * a suspended cleaner, and overrides an earlier rejection — it clears
+ * suspended_at, rejected_at and rejection_reason. Suspend removes the cleaner
+ * from all matching (findAvailableCleaner and getAvailableCleanersForCity
+ * require verification_status = 'approved'). Rejection is rejectCleaner below.
  */
 export async function setCleanerVerificationStatus(
   cleanerId: string,
@@ -315,6 +340,8 @@ export async function setCleanerVerificationStatus(
           verification_status: 'approved' as const,
           approved_at: new Date().toISOString(),
           suspended_at: null,
+          rejected_at: null,
+          rejection_reason: null,
         }
       : {
           verification_status: 'suspended' as const,
@@ -330,6 +357,33 @@ export async function setCleanerVerificationStatus(
 
   if (error) {
     console.error('Error updating cleaner verification status:', error);
+    return null;
+  }
+
+  return data;
+}
+
+/**
+ * Reject a cleaner application with the admin's reason. The reason is shown
+ * verbatim on the cleaner dashboard. Validation (non-empty, max length) is the
+ * caller's job (rejectCleanerAction); the column has a matching CHECK.
+ */
+export async function rejectCleaner(cleanerId: string, reason: string): Promise<Cleaner | null> {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from('cleaners')
+    .update({
+      verification_status: 'rejected' as const,
+      rejected_at: new Date().toISOString(),
+      rejection_reason: reason,
+    })
+    .eq('id', cleanerId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error rejecting cleaner:', error);
     return null;
   }
 

@@ -63,6 +63,8 @@ function baseCleaner(over: Partial<Cleaner & { user: User }> = {}): Cleaner & { 
     updated_at: '2026-01-01T00:00:00Z',
     approved_at: '2026-01-01T00:00:00Z',
     suspended_at: null,
+    rejected_at: null,
+    rejection_reason: null,
     deleted_at: null,
     user: baseUser({ id: 'user-9', full_name: 'Sofie Vask', phone: '+47 400 00 009' }),
     ...over,

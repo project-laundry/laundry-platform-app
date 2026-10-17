@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { AppHeader } from '@/components/layout/AppHeader';
-import { Ban, ChevronRight, Hourglass, Settings, XCircle } from 'lucide-react';
+import { Ban, ChevronRight, Hourglass, Mail, Phone, Settings, XCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { getCleanerByUserId } from '@/lib/database/cleaners';
 import { getUsersById } from '@/lib/database/users';
@@ -10,6 +10,28 @@ import { LogoutButton } from '@/components/ui/LogoutButton';
 import { CleanerDashboardTabs } from './components/CleanerDashboardTabs';
 import { CleanerPayoutCard } from './components/CleanerPayoutCard';
 import { formatActiveDays } from '@/lib/config/cleaner-options';
+import { COMPANY, phoneHref } from '@/lib/config/company';
+
+/** NooraCare's contact details for the rejected / suspended screens — from
+ *  lib/config/company.ts, like /kontakt and /bli-renser/success. */
+function ContactDetails() {
+  return (
+    <ul className="mt-1 space-y-2 text-sm text-dark-gray">
+      <li className="flex items-center justify-center gap-2">
+        <Mail className="size-4 text-sea-green" />
+        <a href={`mailto:${COMPANY.email}`} className="transition-colors hover:text-nordic-blue">
+          {COMPANY.email}
+        </a>
+      </li>
+      <li className="flex items-center justify-center gap-2">
+        <Phone className="size-4 text-sea-green" />
+        <a href={phoneHref()} className="transition-colors hover:text-nordic-blue">
+          {COMPANY.phoneDisplay}
+        </a>
+      </li>
+    </ul>
+  );
+}
 
 export default async function CleanerDashboardPage() {
   // Auth check
@@ -119,8 +141,22 @@ export default async function CleanerDashboardPage() {
                 Søknaden din ble avvist
               </h2>
               <p className="max-w-md text-medium-gray">
-                Dessverre ble søknaden din ikke godkjent. Ta kontakt med oss for mer informasjon.
+                Dessverre ble søknaden din ikke godkjent.
               </p>
+              {cleaner.rejection_reason && (
+                <div className="w-full max-w-md rounded-2xl bg-cream/60 px-4 py-3 text-left">
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-medium-gray">
+                    Begrunnelse
+                  </p>
+                  <p className="mt-1 whitespace-pre-line text-sm text-dark-gray">
+                    {cleaner.rejection_reason}
+                  </p>
+                </div>
+              )}
+              <p className="max-w-md text-sm text-medium-gray">
+                Har du spørsmål, eller mener du dette er feil? Ta kontakt med oss.
+              </p>
+              <ContactDetails />
             </div>
           )}
 
@@ -130,11 +166,13 @@ export default async function CleanerDashboardPage() {
                 <Ban className="size-6" />
               </span>
               <h2 className="font-serif text-lg font-semibold text-dark-gray">
-                Kontoen din er suspendert
+                Kontoen din er deaktivert
               </h2>
               <p className="max-w-md text-medium-gray">
-                Ta kontakt med NooraCare for mer informasjon.
+                Du får ingen nye oppdrag før kontoen er aktivert igjen. Ta kontakt med oss for mer
+                informasjon.
               </p>
+              <ContactDetails />
             </div>
           )}
 

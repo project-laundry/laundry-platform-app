@@ -90,7 +90,7 @@ Log in as the cleaner on `/dashboard/cleaner`.
 
 - [ ] `/bli-renser/signup` with a fresh email → confirmation → steps 1–5 in order. Jumping ahead by URL sends you back to the right step.
 - [ ] Step 1 rejects a tax id already in use.
-- [ ] Confirm → `/bli-renser/success`. Cleaner appears in `/admin/cleaners` as pending; activate it; the cleaner can now log in to `/dashboard/cleaner`.
+- [ ] Confirm → `/bli-renser/success`. Cleaner appears in `/admin/cleaners` as pending; open it, check the onboarding data, press «Godkjenn»; the cleaner can now log in to `/dashboard/cleaner`.
 
 ## 10. Role guards (2 min)
 

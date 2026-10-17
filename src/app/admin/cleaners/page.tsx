@@ -1,12 +1,11 @@
-import { Inbox } from 'lucide-react';
+import Link from 'next/link';
+import { ChevronRight, Inbox } from 'lucide-react';
 import { getAllCleanersWithUser } from '@/lib/database/cleaners';
 import { StatusBadge } from '@/components/dashboard/StatusBadge';
 import {
   CLEANER_VERIFICATION_LABELS,
   CLEANER_VERIFICATION_VARIANT,
 } from '@/lib/utils/cleaner-status';
-import { CleanerAcceptingOrdersButton } from './CleanerAcceptingOrdersButton';
-import { CleanerActivationButton } from './CleanerActivationButton';
 import { machineConditionLabel } from '@/lib/config/cleaner-options';
 
 export default async function AdminCleanersPage() {
@@ -28,44 +27,35 @@ export default async function AdminCleanersPage() {
         <div className="mt-6 overflow-hidden rounded-3xl border border-cream-dark/80 bg-warm-white/80 shadow-[var(--shadow-card)] backdrop-blur">
           <ul className="divide-y divide-cream-dark/60">
             {cleaners.map((cleaner) => (
-              <li
-                key={cleaner.id}
-                className="flex items-start justify-between gap-3 px-5 py-3.5"
-              >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-serif text-base font-semibold text-dark-gray">
-                      {cleaner.display_name}
+              <li key={cleaner.id}>
+                <Link
+                  href={`/admin/cleaners/${cleaner.id}`}
+                  className="flex items-center justify-between gap-3 px-5 py-3.5 transition-colors hover:bg-cream/50"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-serif text-base font-semibold text-dark-gray">
+                        {cleaner.display_name}
+                      </p>
+                      <StatusBadge variant={CLEANER_VERIFICATION_VARIANT[cleaner.verification_status]}>
+                        {CLEANER_VERIFICATION_LABELS[cleaner.verification_status]}
+                      </StatusBadge>
+                      {cleaner.verification_status === 'approved' && !cleaner.is_accepting_orders && (
+                        <StatusBadge variant="neutral">Tar ikke imot nye oppdrag</StatusBadge>
+                      )}
+                    </div>
+                    <p className="mt-1 truncate text-sm text-dark-gray">{cleaner.user.full_name}</p>
+                    <p className="mt-0.5 truncate text-sm text-medium-gray">
+                      {cleaner.base_city} · {cleaner.user.email} · {cleaner.user.phone}
                     </p>
-                    <StatusBadge variant={CLEANER_VERIFICATION_VARIANT[cleaner.verification_status]}>
-                      {CLEANER_VERIFICATION_LABELS[cleaner.verification_status]}
-                    </StatusBadge>
-                    {cleaner.verification_status === 'approved' && !cleaner.is_accepting_orders && (
-                      <StatusBadge variant="neutral">Tar ikke imot nye oppdrag</StatusBadge>
-                    )}
+                    <p className="mt-0.5 truncate text-sm text-medium-gray">
+                      {cleaner.machine_brand
+                        ? `${cleaner.machine_brand} · ${cleaner.machine_capacity_kg} kg · ${cleaner.machine_year} · ${machineConditionLabel(cleaner.machine_condition)}`
+                        : 'Vaskemaskin ikke registrert'}
+                    </p>
                   </div>
-                  <p className="mt-1 truncate text-sm text-dark-gray">{cleaner.user.full_name}</p>
-                  <p className="mt-0.5 truncate text-sm text-medium-gray">
-                    {cleaner.base_city} · {cleaner.user.email} · {cleaner.user.phone}
-                  </p>
-                  <p className="mt-0.5 truncate text-sm text-medium-gray">
-                    {cleaner.machine_brand
-                      ? `${cleaner.machine_brand} · ${cleaner.machine_capacity_kg} kg · ${cleaner.machine_year} · ${machineConditionLabel(cleaner.machine_condition)}`
-                      : 'Vaskemaskin ikke registrert'}
-                  </p>
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-2">
-                  <CleanerActivationButton
-                    cleanerId={cleaner.id}
-                    isActive={cleaner.verification_status === 'approved'}
-                  />
-                  {cleaner.verification_status === 'approved' && (
-                    <CleanerAcceptingOrdersButton
-                      cleanerId={cleaner.id}
-                      isAcceptingOrders={cleaner.is_accepting_orders}
-                    />
-                  )}
-                </div>
+                  <ChevronRight className="size-4 shrink-0 text-medium-gray" />
+                </Link>
               </li>
             ))}
           </ul>
