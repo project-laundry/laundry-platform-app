@@ -268,7 +268,7 @@
     - `default_needs_ironing` (boolean) - Default ironing preference for orders
     - `default_cleaner_id` (uuid, nullable) - Default cleaner assignment (orders can be reassigned)
     - `first_pickup_date` (string) - ISO date (YYYY-MM-DD) for first order pickup
-  - **Note:** All order generation settings stored here. Individual orders can have different cleaner, address, or preferences.
+  - **Note:** All order generation settings stored here. Individual orders can have different cleaner, address, or preferences. Customers edit `initial_address` (street, postal code, pickup instructions, coordinates) from `/dashboard/settings`; `location_city` and `default_cleaner_id` never change after checkout.
 - `started_at` (timestamp, nullable) - Subscription activation timestamp
   - **Note:** Set when Vipps agreement is activated. Null while `status = 'pending_payment'`.
 - `paused_at` (timestamp, nullable) - Pause timestamp

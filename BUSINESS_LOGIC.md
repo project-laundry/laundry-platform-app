@@ -75,6 +75,14 @@ Customer subscribes Dec 26, 2025:
 - When Order #2 completes → Order #3 created: Pickup Mar 7 (Fri)
 ```
 
+### Subscription Address Changes
+
+- Entry: dashboard header gear icon → `/dashboard/settings` ("Min konto"), or "Endre adresse" on `/dashboard/subscription`. Action: `updateSubscriptionAddressAction` (`app/dashboard/settings/actions.ts`). Only for `active` subscriptions.
+- The customer edits street, postal code and pickup instructions. The city is derived from the postal code and **must equal the subscription's `order_defaults.location_city`** — a move to the other service city is rejected (the default cleaner and the current order's cleaner are city-bound); the customer cancels and reorders instead. `default_cleaner_id` is never changed here.
+- The address is validated with `validateAddress` (fails open without a Maps key) and written, with its coordinates, into `order_defaults.initial_address`. Every future order inherits it through `buildOrderData` — no other code path changes.
+- By default the change is also copied onto the subscription's not-yet-picked-up orders (`pending_assignment`, `pickup_scheduled`) via `updateUpcomingOrdersAddressBySubscriptionId`; the customer can opt out with a checkbox. Orders already picked up are never touched.
+- Name and phone are edited on the same page (`updateCustomerContactAction` → `updateUserContact`); the password is changed from the browser with `supabase.auth.updateUser({ password })`. E-mail is read-only.
+
 ### Order Pricing (FLEXIBLE Model)
 
 **Core Principle:** No upfront pricing. Cleaner calculates price after weighing laundry.

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Plus, CalendarPlus, AlertCircle } from 'lucide-react';
+import { Plus, CalendarPlus, AlertCircle, Settings } from 'lucide-react';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { createClient } from '@/lib/supabase/server';
 import { getCustomerByUserId } from '@/lib/database/customers';
@@ -50,7 +50,9 @@ export default async function DashboardPage() {
   const nextOrder = upcomingOrders.length > 0 ? upcomingOrders[0] : null;
   const laterOrders = upcomingOrders.slice(1);
 
-  const userName = user.user_metadata?.full_name || 'Bruker';
+  // Read from the users row (editable on /dashboard/settings), not from the
+  // signup-time auth metadata, which would go stale after a name change.
+  const userName = dbUser?.full_name || 'Bruker';
   const firstName = userName.split(' ')[0];
 
   // Show empty state only if no subscription AND no orders
@@ -75,6 +77,13 @@ export default async function DashboardPage() {
             <span className="hidden text-sm font-medium text-medium-gray sm:block">
               {userName}
             </span>
+            <Link
+              href="/dashboard/settings"
+              aria-label="Innstillinger"
+              className="text-medium-gray transition-colors hover:text-nordic-blue"
+            >
+              <Settings className="size-5" />
+            </Link>
             <LogoutButton />
           </div>
         }

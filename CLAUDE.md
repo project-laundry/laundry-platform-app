@@ -107,7 +107,9 @@ src/
 │   │   │   ├── profile/    # Step 4: display name + experience
 │   │   │   └── confirm/    # Step 5: summary + consent → createCleanerProfileAction
 │   │   └── success/        # Application submitted
-│   ├── dashboard/          # User dashboards
+│   ├── dashboard/          # User dashboards (page.tsx = customer dashboard; header gear icon → settings/)
+│   │   ├── settings/       # Customer "Min konto": name + phone (users row via updateUserContact), password (browser supabase.auth.updateUser, links to /auth/forgot-password), subscription pickup address + instructions (rewrites order_defaults.initial_address, same city only, optionally copied onto the not-yet-picked-up order)
+│   │   ├── subscription/   # Subscription details + cancel flow
 │   │   ├── cleaner/        # Cleaner dashboard, missions & profile settings (settings/)
 │   │   └── driver/         # Driver dashboard (daily route) — dormant, driver role only
 │   └── orders/             # Customer order flow (3 steps; steps 1–2 work logged out, step 3 asks the customer to log in before Vipps)
@@ -180,6 +182,7 @@ Server actions handle mutations from the UI:
 - `app/orders/actions.ts` - Subscription creation, Vipps agreement creation, customer queries
 - `app/auth/actions.ts` - Public signup pre-check (`checkSignupAvailabilityAction`): both signup forms call it before `supabase.auth.signUp` because Supabase Auth hides which constraint failed inside `handle_new_user`; the `signUp` result is then mapped by `lib/auth/signup-errors.ts`
 - `app/bli-renser/actions.ts` - Cleaner profile creation (`createCleanerProfileAction`) and the step-1 tax id pre-check (`checkTaxIdAvailabilityAction`): `cleaners.tax_id` is UNIQUE, so the business form checks it before advancing instead of letting the final insert fail on step 5; the action also maps a `23505` from the insert to the same message as a race fallback; and the step-3 photo helper (`recognizeMachineAction`): guards with `assertRole(["cleaner"])`, validates the base64 payload, and returns `lib/ai/machine-recognition.ts`'s `{ status: 'ok' | 'no_machine' | 'unavailable' }` result for the form to pre-fill from
+- `app/dashboard/settings/actions.ts` - Customer account page: `updateCustomerContactAction` (name/phone → `updateUserContact`, phone stored as `+47` + 8 digits) and `updateSubscriptionAddressAction` (rewrites `order_defaults.initial_address` on the active subscription — city derived from the postal code must equal `location_city`; validated via `validateAddress`, coordinates replaced; optional copy onto `pending_assignment`/`pickup_scheduled` orders via `updateUpcomingOrdersAddressBySubscriptionId`). Password change is client-side (`supabase.auth.updateUser`), no action
 - `app/admin/orders/actions.ts` - Cleaner (re)assignment, admin order edits (dates, address), `retryChargeAction` (re-creates the Vipps charge for an order with no live payment — gated by `hasLivePayment` in `lib/utils/payment-status.ts`)
 - `app/admin/cleaners|drivers|admins|promo-codes/actions.ts` - Admin dashboard mutations (cleaner activation, staff account create/edit, promo code create/edit)
 

@@ -764,6 +764,40 @@ export async function cancelOrdersBySubscriptionId(
   return count;
 }
 
+export interface UpcomingOrderAddressUpdate {
+  street: string;
+  postal_code: string;
+  city: string;
+  special_instructions_address: string | null;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+/**
+ * Copy a changed subscription address onto the subscription's not-yet-picked-up
+ * orders (pending_assignment, pickup_scheduled). Orders the cleaner already
+ * holds keep the address they were picked up from. Returns false on a DB error.
+ */
+export async function updateUpcomingOrdersAddressBySubscriptionId(
+  subscriptionId: string,
+  address: UpcomingOrderAddressUpdate
+): Promise<boolean> {
+  const supabase = await createAdminClient();
+
+  const { error } = await supabase
+    .from('orders')
+    .update(address)
+    .eq('subscription_id', subscriptionId)
+    .in('status', ['pending_assignment', 'pickup_scheduled']);
+
+  if (error) {
+    console.error('[updateUpcomingOrdersAddressBySubscriptionId] Error updating orders:', error);
+    return false;
+  }
+
+  return true;
+}
+
 /**
  * Order with customer and cleaner details for the driver route.
  */
