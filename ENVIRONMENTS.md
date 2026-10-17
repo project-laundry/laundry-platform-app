@@ -51,9 +51,12 @@ Staging/production values are set **per environment** in the Vercel dashboard.
 | `NEXT_PUBLIC_VIPPS_ALLOW_FORCE_ACCEPT` | `true` (enables the "Auto-godkjenn avtale" test checkbox) | **unset** — never add it to Production |
 | `GOOGLE_MAPS_API_KEY` | Maps Platform key (Geocoding API enabled) | same, or a prod-restricted key |
 | `ANTHROPIC_API_KEY` | Anthropic API key (cleaner onboarding photo recognition; optional) | separate prod key from the Anthropic Console |
+| `CRON_SECRET` | any random string (lets you curl the digest route on staging) | a different random string — Vercel sends it on every cron call to `/api/cron/admin-digest` |
+| `RESEND_API_KEY` | Resend API key (the digest only runs on Production, but the route must work when curl-tested) | Resend API key for the verified `nooracare.no` sending domain |
+| `ADMIN_DIGEST_FROM` | optional; default `NooraCare <varsel@nooracare.no>` | same |
 
-> `CRON_SECRET` is not used anywhere in `src/` (order generation is webhook-driven).
-> It is intentionally omitted.
+> `CRON_SECRET` protects the one cron route, `GET /api/cron/admin-digest` (daily admin
+> digest, declared in `vercel.json`, Production only). Order generation is still webhook-driven.
 
 **Pre-launch gate (no env var):** `src/proxy.ts` checks the request host against
 `src/lib/prelaunch.ts`. On `nooracare.no` / `www.nooracare.no`, anonymous visitors only reach
@@ -145,6 +148,17 @@ details live — the footer, `/kontakt` and the legal pages all read from it.
    signup round trip on the `*.vercel.app` production deployment URL, as described there. Until
    this is done, confirmation mails come from `supabase.io`, in English, at a few per hour, and
    the order flow's return after e-mail confirmation (`?next=/orders/confirm`) is not allowlisted.
+
+10. **Admin digest e-mail.** The `nooracare.no` sending domain is already verified in Resend (see
+   [Supabase Auth e-mails](#supabase-auth-e-mails)). Create an API key and add to Vercel
+   Production: `CRON_SECRET` (any long random string), `RESEND_API_KEY`. Redeploy production so
+   the cron picks up the env vars. Then trigger it once by hand:
+   ```bash
+   curl -i -H "Authorization: Bearer <CRON_SECRET>" https://nooracare.no/api/cron/admin-digest
+   ```
+   must answer `200 {"sent":<number of admins>}` and every admin receives «NooraCare <dag>:
+   … å følge opp». Vercel → project → *Settings* → *Cron Jobs* lists `/api/cron/admin-digest`
+   at `0 6 * * *`.
 
 ---
 

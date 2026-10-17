@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { hasLivePayment, isOrphanPendingPayment, orphanPendingCutoffIso } from './payment-status';
+import {
+  hasLivePayment,
+  isOrphanPendingPayment,
+  orphanPendingCutoffIso,
+  stalePendingCutoffIso,
+} from './payment-status';
 
 const NOW = new Date('2026-10-16T12:00:00.000Z');
 
@@ -83,5 +88,11 @@ describe('hasLivePayment', () => {
     expect(
       hasLivePayment([{ status: 'pending', provider_reference: null, created_at: '2026-10-16T11:30:00.000Z' }], NOW)
     ).toBe(false);
+  });
+});
+
+describe('stalePendingCutoffIso', () => {
+  it('is 3 days before now', () => {
+    expect(stalePendingCutoffIso(NOW)).toBe('2026-10-13T12:00:00.000Z');
   });
 });

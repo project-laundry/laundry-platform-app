@@ -9,6 +9,7 @@ import {
   calculateNextBillingDate,
   isToday,
   todayInOslo,
+  daysBetweenISODates,
 } from './date';
 
 describe('addDays', () => {
@@ -136,5 +137,19 @@ describe('todayInOslo', () => {
 
   it('matches the UTC date in the middle of the day', () => {
     expect(todayInOslo(new Date('2026-10-16T10:00:00Z'))).toBe('2026-10-16');
+  });
+});
+
+describe('daysBetweenISODates', () => {
+  it('counts whole days forward', () => {
+    expect(daysBetweenISODates('2026-10-14', '2026-10-17')).toBe(3);
+  });
+
+  it('is negative when the second date is earlier', () => {
+    expect(daysBetweenISODates('2026-10-17', '2026-10-16')).toBe(-1);
+  });
+
+  it('is unaffected by the DST change (2026-10-25 in Norway)', () => {
+    expect(daysBetweenISODates('2026-10-24', '2026-10-26')).toBe(2);
   });
 });

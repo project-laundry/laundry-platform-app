@@ -54,6 +54,20 @@ export function isOrphanPendingPayment(
   );
 }
 
+/**
+ * A pending Vipps row WITH a charge id is normally captured (or fails) on its
+ * due date, one day after creation. One still pending this many days later
+ * never got its webhook (e.g. charge-creation-failed only logs) and needs an
+ * admin to look at it. Used by the admin attention list only; it does not
+ * change hasLivePayment.
+ */
+export const STALE_PENDING_DAYS = 3;
+
+/** ISO timestamp of "now minus STALE_PENDING_DAYS", for PostgREST filters. */
+export function stalePendingCutoffIso(now: Date = new Date()): string {
+  return new Date(now.getTime() - STALE_PENDING_DAYS * 86_400_000).toISOString();
+}
+
 /** Statuses that mean the order's money is settled or reserved at Vipps. */
 const SETTLED_PAYMENT_STATUSES: PaymentStatus[] = ['authorized', 'captured', 'refunded'];
 

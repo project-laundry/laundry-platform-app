@@ -23,3 +23,14 @@ export function getRelativeTimeLabel(date: Date | string): string {
   // For dates after tomorrow, show the weekday name
   return targetDate.toLocaleDateString('no-NO', { weekday: 'long' });
 }
+
+/**
+ * How long ago something happened, as the short Norwegian label the admin
+ * lists use: "under 1 t", "3 t", "2 d".
+ */
+export function formatAgeLabel(sinceIso: string, now: Date = new Date()): string {
+  const hours = Math.floor((now.getTime() - new Date(sinceIso).getTime()) / 3_600_000);
+  if (hours < 1) return 'under 1 t';
+  if (hours < 24) return `${hours} t`;
+  return `${Math.floor(hours / 24)} d`;
+}

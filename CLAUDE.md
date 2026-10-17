@@ -78,7 +78,7 @@ src/
 │   ├── page.tsx            # Landing page: pre-launch waitlist hero + the illustrated how-it-works story (actions.ts: joinWaitlistAction; no consent checkbox — submitting is the consent). At launch, swap the waitlist form for the order CTA; no testimonials until there are real ones
 │   ├── opengraph-image.tsx # Social share image for /, rendered by lib/og-image.tsx (bli-renser has its own)
 │   ├── not-found.tsx       # Root 404 (unmatched URLs + every notFound() call)
-│   ├── admin/              # Admin dashboard (layout = shell + role guard; page = overview with counts)
+│   ├── admin/              # Admin dashboard (layout = shell + role guard; page = overview: count tiles + attention sections «I dag» / «Forsinket» / «Venter på tildeling» / «Betalinger å følge opp» / «Ordre ikke generert» from lib/database/admin-attention.ts; a failed query shows an error, never 0 or an empty list)
 │   │   ├── orders/         # Order list + per-order detail page (edit details, cleaner (re)assignment, «Belast på nytt» retry of a failed Vipps charge, price override while nothing is charged, «Marker som hentet/klar/levert» fallbacks, pre-pickup cancel with a customer-visible reason, internal admin_notes)
 │   │   ├── cleaners/       # Cleaner list (links only) + per-cleaner detail page [cleanerId] with all onboarding data (tax id/bank account behind RevealField), orders + payout sums, and the actions: approve, reject with reason (CleanerRejectControl → rejectCleanerAction), deactivate/reactivate (verification_status), pause/resume new orders (is_accepting_orders)
 │   │   ├── customers/      # Customer list + per-customer detail
@@ -87,6 +87,8 @@ src/
 │   │   ├── drivers/        # Driver list, create/edit (account + profile) — dormant, not in AdminNav
 │   │   └── admins/         # Admin user list, create/edit
 │   ├── api/                # API routes
+│   │   ├── cron/
+│   │   │   └── admin-digest/ # Daily admin digest (Vercel cron in vercel.json, 06:00 UTC, Production only): CRON_SECRET bearer check → getAdminAttention → buildAdminDigest → Resend REST via fetch, plain text to every admin user
 │   │   └── webhooks/
 │   │       └── vipps/
 │   │           └── recurring/ # Vipps Recurring API webhooks (agreement activation, charge events)
@@ -140,6 +142,7 @@ src/
 │   │   ├── pricing.ts      # Pricing constants and both calculators: calculateOrderPrice (cleaner-binding: per 5kg load + 3 ironing groups) and calculateCustomerEstimate (customer estimate: per bag/set/piece). Ironing groups exist in the model but are NOT offered in the first version — hidden on every public surface, see BUSINESS_LOGIC.md "Ironing". CLEANER_MIN_PAYOUT_PER_ORDER_ORE is the "minst 350 kr per oppdrag" cleaner marketing leads with (70 % of the 500 kr order minimum)
 │   │   └── terms.ts        # TERMS_VERSION (ISO date of the current /salgsvilkar text, bump on every terms change) + formatTermsVersion; stamped into payment_agreements.provider_metadata.terms_consent at checkout
 │   ├── database/           # Database CRUD operations
+│   │   ├── admin-attention.ts  # Today/overdue/waiting/failed lists for /admin and the digest; every list is `T[] | null` (null = query failed). Rules: overdue pickup = scheduled_date < today (Oslo) and not picked up; ready too long = ready_for_delivery_at older than READY_TOO_LONG_DAYS; payments = failed + orphan pending + stale pending (STALE_PENDING_DAYS, lib/utils/payment-status.ts); "order not generated" = active subscription/agreement older than ACTIVATION_GRACE_MINUTES with no (active) order. delivery_date is never used for lateness
 │   │   ├── cleaners.ts     # Cleaner queries & matching
 │   │   ├── customers.ts    # Customer queries
 │   │   ├── orders.ts       # Order CRUD
@@ -155,6 +158,7 @@ src/
 │   │       ├── service.ts          # High-level Vipps service layer
 │   │       └── config.ts           # Vipps configuration validation
 │   ├── services/
+│   │   ├── admin-digest.ts      # buildAdminDigest(attention, { appUrl, now }) → { subject, text } (pure, plain text)
 │   │   ├── order-generation.ts  # Subscription to orders logic
 │   │   └── staff-accounts.ts    # Staff (driver/admin) account creation: auth user + role flip + cleanup
 │   ├── supabase/
@@ -228,6 +232,12 @@ Cleaner onboarding step 3 can pre-fill the washing machine fields from a photo. 
 - **Suggestions overwrite, nulls don't**: each of the four fields (brand/model, capacity, year, condition) is independently nullable; non-null values replace what's typed, null leaves it. The cleaner edits freely afterwards; the store is only written on submit as before.
 - **Graceful degradation**: missing key, API error, refusal, unparsable output → `unavailable`; a photo without a washing machine → `no_machine`. Both show a short message; the step is always completable manually.
 - **Env**: `ANTHROPIC_API_KEY` (optional; see `ENVIRONMENTS.md`).
+
+## Admin Digest
+
+Every day at 06:00 UTC a Vercel cron (`vercel.json` → `crons`, Production only) calls `GET /api/cron/admin-digest` with `Authorization: Bearer $CRON_SECRET`. The route e-mails the same lists `/admin` shows (`lib/database/admin-attention.ts` → `lib/services/admin-digest.ts`) as plain text to every `users` row with `role = 'admin'` and `deleted_at IS NULL`, through the Resend REST API with `fetch` (no SDK). It is sent even when there is nothing to do, so a missing e-mail means the cron or sender is broken. Instant alerts (#40, #42) are not built; the webhook's `TODO: Send admin notification` comments stand.
+
+- **Env**: `CRON_SECRET`, `RESEND_API_KEY`, optional `ADMIN_DIGEST_FROM` (see `ENVIRONMENTS.md`). The `nooracare.no` sending domain is verified in Resend (shared with the Auth e-mails).
 
 ## Payment Processing
 

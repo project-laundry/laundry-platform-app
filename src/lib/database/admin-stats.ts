@@ -3,12 +3,13 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { orphanPendingCutoffIso } from '@/lib/utils/payment-status';
 
+/** `null` = the count query failed. The page shows an error, never 0. */
 export interface AdminOverviewCounts {
-  pendingAssignmentOrders: number;
-  activeOrders: number;
-  pendingCleaners: number;
-  failedPayments: number;
-  customers: number;
+  pendingAssignmentOrders: number | null;
+  activeOrders: number | null;
+  pendingCleaners: number | null;
+  failedPayments: number | null;
+  customers: number | null;
 }
 
 const ACTIVE_ORDER_STATUSES = [
@@ -20,9 +21,18 @@ const ACTIVE_ORDER_STATUSES = [
   'out_for_delivery',
 ];
 
+/** A head-only count result → number, or null when the query errored. */
+function countOrNull(result: { count: number | null; error: unknown }, label: string): number | null {
+  if (result.error) {
+    console.error(`[Admin Stats] ${label} count failed:`, result.error);
+    return null;
+  }
+  return result.count ?? 0;
+}
+
 /**
- * Head-only count queries (no rows transferred). A failed count degrades
- * to 0 rather than failing the whole overview page.
+ * Head-only count queries (no rows transferred). A failed count is reported
+ * as null so the overview can show an error instead of a false "0".
  */
 export async function getAdminOverviewCounts(): Promise<AdminOverviewCounts> {
   const supabase = createAdminClient();
@@ -57,11 +67,14 @@ export async function getAdminOverviewCounts(): Promise<AdminOverviewCounts> {
       supabase.from('customers').select('id', { count: 'exact', head: true }),
     ]);
 
+  const failed = countOrNull(failedPayments, 'failed payments');
+  const orphan = countOrNull(orphanPendingPayments, 'orphan pending payments');
+
   return {
-    pendingAssignmentOrders: pendingAssignment.count ?? 0,
-    activeOrders: active.count ?? 0,
-    pendingCleaners: pendingCleaners.count ?? 0,
-    failedPayments: (failedPayments.count ?? 0) + (orphanPendingPayments.count ?? 0),
-    customers: customers.count ?? 0,
+    pendingAssignmentOrders: countOrNull(pendingAssignment, 'pending assignment orders'),
+    activeOrders: countOrNull(active, 'active orders'),
+    pendingCleaners: countOrNull(pendingCleaners, 'pending cleaners'),
+    failedPayments: failed === null || orphan === null ? null : failed + orphan,
+    customers: countOrNull(customers, 'customers'),
   };
 }

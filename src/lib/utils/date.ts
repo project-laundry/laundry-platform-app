@@ -159,3 +159,11 @@ export function isToday(date: Date | string): boolean {
     dateObj.getDate() === today.getDate()
   );
 }
+
+/**
+ * Whole days from one YYYY-MM-DD date to another (positive when `toISODate`
+ * is later). Both parse as UTC midnight, so DST never shifts the result.
+ */
+export function daysBetweenISODates(fromISODate: string, toISODate: string): number {
+  return Math.round((Date.parse(toISODate) - Date.parse(fromISODate)) / 86_400_000);
+}
