@@ -280,6 +280,7 @@ export interface Payment {
   captured_at: string | null;
   failed_at: string | null;
   failure_reason: string | null;
+  cancelled_at: string | null;
   refunded_at: string | null;
   refund_amount_ore: number | null;
   refund_reason: string | null;

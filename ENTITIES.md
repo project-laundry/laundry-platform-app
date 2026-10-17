@@ -409,8 +409,9 @@
 - `amount_ore` (integer, required) - Amount in øre
   - **Constraints:** >= 0
 - `status` (enum, required) - Status: `pending`, `authorized`, `captured`, `failed`, `refunded`, `cancelled`
-  - **Flow (RESERVE_CAPTURE):** pending → authorized → captured/failed
-  - **Note:** `authorized` status indicates funds are reserved but not yet captured (Vipps RESERVE_CAPTURE)
+  - **Flow (DIRECT_CAPTURE):** pending → captured / failed / cancelled; captured → refunded (full refund only — a partial refund keeps `captured` and records `refund_amount_ore`)
+  - **Note:** `authorized` is only reached with RESERVE_CAPTURE, which the platform does not use
+  - **Note:** a `pending` row with `provider_reference IS NULL` older than 15 min is an *orphan* (the Vipps call never completed); the deferred agreement stop ignores it and the admin overview counts it as failed
 - `payment_provider` (enum, required) - Provider: `vipps`, `stripe`, `manual`
 - `provider_reference` (string, nullable) - Merchant reference for webhook lookups
   - **Recurring API:** Vipps charge ID (chr_Xyz789)
@@ -422,6 +423,7 @@
 - `captured_at` (timestamp, nullable) - Capture timestamp (when funds actually captured)
 - `failed_at` (timestamp, nullable) - Failure timestamp
 - `failure_reason` (text, nullable) - Failure reason
+- `cancelled_at` (timestamp, nullable) - Cancellation timestamp (Vipps charge-canceled webhook)
 - `refunded_at` (timestamp, nullable) - Refund timestamp
 - `refund_amount_ore` (integer, nullable) - Refund amount in øre
   - **Constraints:** >= 0

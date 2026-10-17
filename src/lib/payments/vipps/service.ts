@@ -4,6 +4,8 @@
 import { createVippsRecurringClient } from "./recurring-client";
 import {
   createPayment,
+  failPaymentWithMetadata,
+  updatePayment,
 } from "@/lib/database/payments";
 
 // =============================================================================
@@ -143,6 +145,7 @@ export async function cancelVippsAgreement(
  * 2. Verify Vipps agreement exists
  * 3. Create payment record in database
  * 4. Create Vipps charge with calculated amount
+ *    (on failure: payment marked 'failed' with the error, then rethrown)
  * 5. Webhook will handle payment confirmation
  *
  * @param orderId - Order ID to create charge for
@@ -211,16 +214,28 @@ export async function createChargeForCompletedOrder(
   const dueDateString = dueDate.toISOString().split('T')[0]; // YYYY-MM-DD
 
   const vipps = createVippsRecurringClient();
-  const result = await vipps.createCharge(providerAgreementId, {
-    amount: amountOre,
-    description,
-    due: dueDateString,
-    retryDays: 3,
-    transactionType: 'DIRECT_CAPTURE',
-  });
+  let result: { chargeId: string };
+  try {
+    result = await vipps.createCharge(providerAgreementId, {
+      amount: amountOre,
+      description,
+      due: dueDateString,
+      retryDays: 3,
+      transactionType: 'DIRECT_CAPTURE',
+    });
+  } catch (error) {
+    // The payment row already exists (step 3). Leaving it `pending` with no
+    // provider_reference would hide the failure from admins and block the
+    // deferred agreement stop, so mark it failed with the Vipps error first.
+    const reason = error instanceof Error ? error.message : String(error);
+    await failPaymentWithMetadata(payment.id, `Vipps charge creation failed: ${reason}`, {
+      vipps_agreement_id: providerAgreementId,
+      vipps_status: 'CREATION_FAILED',
+    });
+    throw error;
+  }
 
   // 5. Update payment with charge ID
-  const { updatePayment } = await import('@/lib/database/payments');
   await updatePayment(payment.id, {
     provider_reference: result.chargeId,
     provider_metadata: {

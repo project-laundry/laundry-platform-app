@@ -25,7 +25,8 @@ vi.mock('@/lib/database/payments', () => ({
   getPaymentByReference: vi.fn(),
   capturePaymentWithMetadata: vi.fn(),
   failPaymentWithMetadata: vi.fn(),
-  updatePaymentWithMetadata: vi.fn(),
+  cancelPaymentWithMetadata: vi.fn(),
+  refundPaymentWithMetadata: vi.fn(),
 }));
 vi.mock('@/lib/payments/vipps/service', () => ({
   cancelVippsAgreement: vi.fn(),
@@ -51,7 +52,8 @@ import {
   getPaymentByReference,
   capturePaymentWithMetadata,
   failPaymentWithMetadata,
-  updatePaymentWithMetadata,
+  cancelPaymentWithMetadata,
+  refundPaymentWithMetadata,
 } from '@/lib/database/payments';
 import { cancelVippsAgreement, stopVippsAgreementForCancelledSubscription } from '@/lib/payments/vipps/service';
 import { createOrder } from '@/lib/database/orders';
@@ -190,22 +192,48 @@ describe('charge events', () => {
     expect(failPaymentWithMetadata).toHaveBeenCalledWith('pay-1', 'Insufficient funds', expect.objectContaining({ vipps_status: 'FAILED' }));
   });
 
-  it('records a cancellation on charge-canceled', async () => {
+  it('marks the payment cancelled on charge-canceled', async () => {
     m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', status: 'active' });
-    m(getPaymentByReference).mockResolvedValue({ id: 'pay-1' });
+    m(getPaymentByReference).mockResolvedValue({ id: 'pay-1', amount_ore: 50000 });
 
     await post(chargePayload({ eventType: 'recurring.charge-canceled.v1', amountCanceled: 50000 }));
 
-    expect(updatePaymentWithMetadata).toHaveBeenCalledWith('pay-1', expect.objectContaining({ vipps_status: 'CANCELLED' }));
+    expect(cancelPaymentWithMetadata).toHaveBeenCalledWith(
+      'pay-1',
+      expect.objectContaining({ vipps_status: 'CANCELLED', vipps_amount_canceled: 50000 })
+    );
   });
 
-  it('records a refund on charge-refunded', async () => {
+  it('marks the payment refunded on a full charge-refunded', async () => {
     m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', status: 'active' });
-    m(getPaymentByReference).mockResolvedValue({ id: 'pay-1' });
+    m(getPaymentByReference).mockResolvedValue({ id: 'pay-1', amount_ore: 50000 });
 
     await post(chargePayload({ eventType: 'recurring.charge-refunded.v1', amountRefunded: 50000 }));
 
-    expect(updatePaymentWithMetadata).toHaveBeenCalledWith('pay-1', expect.objectContaining({ vipps_status: 'REFUNDED' }));
+    expect(refundPaymentWithMetadata).toHaveBeenCalledWith(
+      'pay-1',
+      50000,
+      true,
+      expect.objectContaining({ vipps_status: 'REFUNDED' })
+    );
+  });
+
+  it('records a partial refund without flipping the status', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', status: 'active' });
+    m(getPaymentByReference).mockResolvedValue({ id: 'pay-1', amount_ore: 50000 });
+
+    await post(chargePayload({ eventType: 'recurring.charge-refunded.v1', amountRefunded: 20000 }));
+
+    expect(refundPaymentWithMetadata).toHaveBeenCalledWith('pay-1', 20000, false, expect.anything());
+  });
+
+  it('falls back to the charge amount when amountRefunded is missing', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', status: 'active' });
+    m(getPaymentByReference).mockResolvedValue({ id: 'pay-1', amount_ore: 50000 });
+
+    await post(chargePayload({ eventType: 'recurring.charge-refunded.v1' }));
+
+    expect(refundPaymentWithMetadata).toHaveBeenCalledWith('pay-1', 50000, true, expect.anything());
   });
 });
 

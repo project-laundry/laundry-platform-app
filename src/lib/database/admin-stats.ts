@@ -1,6 +1,7 @@
 // Aggregate counts for the admin overview page.
 
 import { createAdminClient } from '@/lib/supabase/admin';
+import { orphanPendingCutoffIso } from '@/lib/utils/payment-status';
 
 export interface AdminOverviewCounts {
   pendingAssignmentOrders: number;
@@ -26,7 +27,7 @@ const ACTIVE_ORDER_STATUSES = [
 export async function getAdminOverviewCounts(): Promise<AdminOverviewCounts> {
   const supabase = createAdminClient();
 
-  const [pendingAssignment, active, pendingCleaners, failedPayments, customers] =
+  const [pendingAssignment, active, pendingCleaners, failedPayments, orphanPendingPayments, customers] =
     await Promise.all([
       supabase
         .from('orders')
@@ -44,6 +45,15 @@ export async function getAdminOverviewCounts(): Promise<AdminOverviewCounts> {
         .from('payments')
         .select('id', { count: 'exact', head: true })
         .eq('status', 'failed'),
+      // Pending Vipps rows that never got a charge id: the charge was never
+      // created, so they are failures in practice. Same rule as the "Feilet"
+      // list filter in lib/database/payments.ts.
+      supabase
+        .from('payments')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending')
+        .is('provider_reference', null)
+        .lt('created_at', orphanPendingCutoffIso()),
       supabase.from('customers').select('id', { count: 'exact', head: true }),
     ]);
 
@@ -51,7 +61,7 @@ export async function getAdminOverviewCounts(): Promise<AdminOverviewCounts> {
     pendingAssignmentOrders: pendingAssignment.count ?? 0,
     activeOrders: active.count ?? 0,
     pendingCleaners: pendingCleaners.count ?? 0,
-    failedPayments: failedPayments.count ?? 0,
+    failedPayments: (failedPayments.count ?? 0) + (orphanPendingPayments.count ?? 0),
     customers: customers.count ?? 0,
   };
 }

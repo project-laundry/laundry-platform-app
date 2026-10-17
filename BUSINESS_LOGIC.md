@@ -232,7 +232,7 @@ There are two independent, customer-initiated cancellation actions, plus a Vipps
   | `completed` / `cancelled` (already terminal) | Untouched either way |
 
 - The subscription itself flips to `status = 'cancelled'` immediately in every case, which stops the rolling window from generating any further orders (`checkAndGenerateNextOrders` exits early once `status !== 'active'`).
-- **Deferred Vipps agreement stop:** if an in-flight order remains after the above, the Vipps agreement is deliberately **not** stopped yet — stopping it would cause the charge for that order (created when the cleaner marks it ready) to fail. Instead the agreement stays `active` until the order settles, then `stopVippsAgreementForCancelledSubscription` (`lib/payments/vipps/service.ts`) stops it. That function is a safe no-op unless the subscription is cancelled, its agreement is still active, no active orders remain, and **no Vipps charge for the subscription's orders is still pending/authorized** — stopping the agreement would cancel a pending charge — so it's called unconditionally from two places once either can be true: the `charge-captured` webhook handler and `completeDeliveredOrder` (`lib/services/complete-order.ts`), which runs it unconditionally on every delivery completion. Between them every ordering is covered: capture-before-delivery (webhook no-ops on the active order, completion stops), same-day delivery with the charge still pending (completion defers, the webhook stops after capture), and 0-total promo orders with no charge event (completion stops).
+- **Deferred Vipps agreement stop:** if an in-flight order remains after the above, the Vipps agreement is deliberately **not** stopped yet — stopping it would cause the charge for that order (created when the cleaner marks it ready) to fail. Instead the agreement stays `active` until the order settles, then `stopVippsAgreementForCancelledSubscription` (`lib/payments/vipps/service.ts`) stops it. That function is a safe no-op unless the subscription is cancelled, its agreement is still active, no active orders remain, and **no Vipps charge for the subscription's orders is still pending/authorized** (orphan `pending` rows — no `provider_reference`, older than 15 min — don't count; see ENTITIES.md Payment) — stopping the agreement would cancel a pending charge — so it's called unconditionally from two places once either can be true: the `charge-captured` webhook handler and `completeDeliveredOrder` (`lib/services/complete-order.ts`), which runs it unconditionally on every delivery completion. Between them every ordering is covered: capture-before-delivery (webhook no-ops on the active order, completion stops), same-day delivery with the charge still pending (completion defers, the webhook stops after capture), and 0-total promo orders with no charge event (completion stops).
 - If there's no in-flight order (nothing generated yet, or the last one already completed before cancellation), the Vipps agreement is stopped immediately as part of the same action — no deferral needed.
 - Cleaner/admin side: no explicit notification is sent. A cancelled pre-pickup order simply drops out of the cleaner's mission list (`getOrdersByCleanerId` excludes `cancelled`/`completed` orders), so it disappears on its own.
 - Already-completed, already-charged orders are never touched or refunded by subscription cancellation — the service was rendered, the charge stands.
@@ -261,7 +261,7 @@ Instead of separate audit tables, rely on entity timestamps:
 
 - **Orders:** `created_at`, `assigned_at`, `picked_up_at`, `in_cleaning_at`, `ready_for_delivery_at`, `out_for_delivery_at`, `completed_at`, `cancelled_at`
 - **Subscriptions:** `started_at`, `paused_at`, `cancelled_at`, `expires_at`
-- **Payments:** `created_at`, `authorized_at`, `captured_at`, `failed_at`, `refunded_at`
+- **Payments:** `created_at`, `authorized_at`, `captured_at`, `failed_at`, `cancelled_at`, `refunded_at`
 
 These timestamps provide sufficient audit trail for MVP compliance.
 
@@ -320,14 +320,14 @@ Charge creation on completion runs for both recurring and one-time orders. `crea
 - **STOPPED:** User cancelled subscription or agreement stopped by Vipps
 - **EXPIRED:** Agreement reached expiration date (if set)
 
-**Payment States (RESERVE_CAPTURE):**
+**Payment States:**
 
 - **PENDING:** Payment created, awaiting customer action
 - **AUTHORIZED:** Funds reserved (authorization successful), awaiting capture
 - **CAPTURED:** Funds captured (final success state)
 - **FAILED:** Payment failed (insufficient funds, card declined, etc.)
 - **CANCELLED:** Payment cancelled before completion
-- **REFUNDED:** Full refund issued after capture
+- **REFUNDED:** Full refund issued after capture (a partial refund keeps CAPTURED and records `refund_amount_ore`)
 
 **Webhook Endpoint:**
 
@@ -362,6 +362,7 @@ Charge creation on completion runs for both recurring and one-time orders. `crea
 - The next recurring checkout (`createSubscriptionAction`) automatically cancels the stale `pending_payment` subscription via `cancelSubscriptionAction` (stops the old Vipps agreement best-effort) before creating the new one — required because `idx_subscriptions_one_active_per_customer` also counts `pending_payment` rows. Only an `active` subscription blocks a new recurring checkout.
 
 **Per-Order Payment Failures:**
+- If Vipps rejects the charge creation itself (when the cleaner marks the order ready), the payment row is marked `failed` with the Vipps error in `failure_reason`; the order transition still succeeds
 - Order remains in current status
 - Payment status = `failed`
 - Cleaner or admin follows up with customer

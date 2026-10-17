@@ -1,4 +1,4 @@
-import type { PaymentStatus } from '@/types/database';
+import type { Payment, PaymentStatus } from '@/types/database';
 
 /**
  * Norwegian labels for payment statuses (admin dashboard).
@@ -26,3 +26,30 @@ export const PAYMENT_STATUS_VARIANT: Record<
   refunded: 'neutral',
   cancelled: 'neutral',
 };
+
+/**
+ * A Vipps payment row is inserted BEFORE the charge is created at Vipps and
+ * only gets its provider_reference (charge id) afterwards. If that call never
+ * completes (timeout, crash) the row stays `pending` with no reference and no
+ * webhook will ever update it. After this grace period such a row is an
+ * "orphan": it no longer blocks the deferred agreement stop and it is counted
+ * as a failed payment in the admin overview.
+ */
+export const ORPHAN_PENDING_GRACE_MINUTES = 15;
+
+/** ISO timestamp of "now minus the grace period", for PostgREST filters. */
+export function orphanPendingCutoffIso(now: Date = new Date()): string {
+  return new Date(now.getTime() - ORPHAN_PENDING_GRACE_MINUTES * 60_000).toISOString();
+}
+
+/** True for a pending row that never got a Vipps charge id and is past the grace period. */
+export function isOrphanPendingPayment(
+  payment: Pick<Payment, 'status' | 'provider_reference' | 'created_at'>,
+  now: Date = new Date()
+): boolean {
+  return (
+    payment.status === 'pending' &&
+    payment.provider_reference === null &&
+    new Date(payment.created_at).getTime() < now.getTime() - ORPHAN_PENDING_GRACE_MINUTES * 60_000
+  );
+}

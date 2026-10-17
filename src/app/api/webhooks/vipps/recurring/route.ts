@@ -38,7 +38,8 @@ import {
   getPaymentByReference,
   capturePaymentWithMetadata,
   failPaymentWithMetadata,
-  updatePaymentWithMetadata,
+  cancelPaymentWithMetadata,
+  refundPaymentWithMetadata,
 } from '@/lib/database/payments';
 import { cancelVippsAgreement, stopVippsAgreementForCancelledSubscription } from '@/lib/payments/vipps/service';
 import { createOrder } from '@/lib/database/orders';
@@ -354,8 +355,8 @@ async function handleChargeCanceled(
     return;
   }
 
-  // Update payment status to canceled
-  await updatePaymentWithMetadata(payment.id, {
+  // Flip the row to cancelled (and stamp cancelled_at); the Vipps details go in metadata.
+  await cancelPaymentWithMetadata(payment.id, {
     vipps_agreement_id: agreementId,
     vipps_charge_id: chargeId,
     vipps_status: 'CANCELLED',
@@ -369,12 +370,13 @@ async function handleChargeCanceled(
 /**
  * Handle recurring.charge-refunded.v1
  *
- * Charge was fully or partially refunded.
+ * Charge was fully or partially refunded. The status only becomes 'refunded'
+ * on a full refund; a partial refund keeps 'captured' but records the amount.
  */
 async function handleChargeRefunded(
   webhook: VippsChargeWebhookBody
 ): Promise<void> {
-  const { chargeId, agreementId, amountRefunded, occurred } = webhook;
+  const { chargeId, agreementId, amount, amountRefunded, occurred } = webhook;
 
   console.log(`[Vipps Recurring Webhook] Charge refunded: ${chargeId} (${(amountRefunded || 0)/100} refunded)`);
 
@@ -386,8 +388,11 @@ async function handleChargeRefunded(
     return;
   }
 
-  // Update payment status to refunded
-  await updatePaymentWithMetadata(payment.id, {
+  // Vipps reports the refunded total; fall back to the charge amount if absent.
+  const refundedOre = amountRefunded ?? amount;
+  const fullRefund = refundedOre >= payment.amount_ore;
+
+  await refundPaymentWithMetadata(payment.id, refundedOre, fullRefund, {
     vipps_agreement_id: agreementId,
     vipps_charge_id: chargeId,
     vipps_status: 'REFUNDED',
@@ -395,8 +400,7 @@ async function handleChargeRefunded(
     refunded_at: occurred,
   });
 
-  console.log(`[Vipps Recurring Webhook] Payment ${payment.id} marked as refunded`);
-  // TODO: Consider reversing subscription/order status if initial payment was refunded
+  console.log(`[Vipps Recurring Webhook] Payment ${payment.id} ${fullRefund ? 'marked as refunded' : 'partially refunded'}`);
 }
 
 /**

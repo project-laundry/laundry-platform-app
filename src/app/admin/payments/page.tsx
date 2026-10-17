@@ -2,7 +2,11 @@ import Link from 'next/link';
 import { Inbox } from 'lucide-react';
 import { getAllPaymentsWithDetails } from '@/lib/database/payments';
 import { StatusBadge } from '@/components/dashboard/StatusBadge';
-import { PAYMENT_STATUS_LABELS, PAYMENT_STATUS_VARIANT } from '@/lib/utils/payment-status';
+import {
+  PAYMENT_STATUS_LABELS,
+  PAYMENT_STATUS_VARIANT,
+  isOrphanPendingPayment,
+} from '@/lib/utils/payment-status';
 import { formatKr } from '@/lib/config/pricing';
 import type { PaymentStatus } from '@/types/database';
 
@@ -110,6 +114,11 @@ export default async function AdminPaymentsPage({
                     {payment.status === 'failed' && payment.failure_reason && (
                       <p className="mt-0.5 truncate text-sm text-red-700">
                         {payment.failure_reason}
+                      </p>
+                    )}
+                    {isOrphanPendingPayment(payment) && (
+                      <p className="mt-0.5 truncate text-sm text-red-700">
+                        Vipps-belastningen ble aldri opprettet
                       </p>
                     )}
                     {payment.refund_amount_ore !== null && (
