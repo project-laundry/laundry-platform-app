@@ -11,6 +11,10 @@ vi.mock('@/lib/database/orders', () => ({
 }));
 vi.mock('@/lib/services/complete-order', () => ({ completeDeliveredOrder: vi.fn() }));
 vi.mock('@/lib/database/cleaners', () => ({ getAvailableCleanersForCity: vi.fn() }));
+vi.mock('@/lib/database/payments', () => ({ getPaymentsByOrderId: vi.fn() }));
+vi.mock('@/lib/database/payment-agreements', () => ({ getPaymentAgreementById: vi.fn() }));
+vi.mock('@/lib/database/subscriptions', () => ({ getSubscriptionById: vi.fn() }));
+vi.mock('@/lib/payments/vipps/service', () => ({ createChargeForCompletedOrder: vi.fn() }));
 vi.mock('@/lib/maps/geocoding', () => ({ geocodeAddress: vi.fn() }));
 
 import { revalidatePath } from 'next/cache';
@@ -23,12 +27,17 @@ import {
 } from '@/lib/database/orders';
 import { completeDeliveredOrder } from '@/lib/services/complete-order';
 import { getAvailableCleanersForCity } from '@/lib/database/cleaners';
+import { getPaymentsByOrderId } from '@/lib/database/payments';
+import { getPaymentAgreementById } from '@/lib/database/payment-agreements';
+import { getSubscriptionById } from '@/lib/database/subscriptions';
+import { createChargeForCompletedOrder } from '@/lib/payments/vipps/service';
 import { geocodeAddress } from '@/lib/maps/geocoding';
 import {
   assignCleanerAction,
   updateOrderDetailsAction,
   adminMarkPickedUpAction,
   adminMarkDeliveredAction,
+  retryChargeAction,
   type UpdateOrderDetailsInput,
 } from './actions';
 
@@ -363,5 +372,151 @@ describe('adminMarkDeliveredAction', () => {
     const result = await adminMarkDeliveredAction('ord-1');
 
     expect(result).toEqual({ success: false, error: 'feil' });
+  });
+});
+
+describe('retryChargeAction', () => {
+  const CHARGED_ORDER = {
+    id: 'ord-1',
+    order_number: 'NC-1001',
+    status: 'ready_for_delivery',
+    total_cost_ore: 50000,
+    payment_agreement_id: 'pa-1',
+    subscription_id: null,
+  };
+  const FAILED_PAYMENT = {
+    status: 'failed',
+    provider_reference: null,
+    created_at: '2026-10-16T10:00:00.000Z',
+  };
+
+  beforeEach(() => {
+    m(getOrderById).mockResolvedValue(CHARGED_ORDER);
+    m(getPaymentsByOrderId).mockResolvedValue([FAILED_PAYMENT]);
+    m(getPaymentAgreementById).mockResolvedValue({ id: 'pa-1', status: 'active' });
+    m(createChargeForCompletedOrder).mockResolvedValue('pay-2');
+  });
+
+  it('rejects non-admins', async () => {
+    m(assertRole).mockResolvedValue({ auth: null, error: 'Ingen tilgang' });
+
+    const result = await retryChargeAction('ord-1');
+
+    expect(result).toEqual({ success: false, error: 'Ingen tilgang' });
+    expect(createChargeForCompletedOrder).not.toHaveBeenCalled();
+  });
+
+  it('errors when the order does not exist', async () => {
+    m(getOrderById).mockResolvedValue(null);
+
+    const result = await retryChargeAction('ord-x');
+
+    expect(result).toEqual({ success: false, error: 'Ordren ble ikke funnet' });
+  });
+
+  it('rejects an order that has not been marked ready yet', async () => {
+    m(getOrderById).mockResolvedValue({ ...CHARGED_ORDER, status: 'in_cleaning' });
+
+    const result = await retryChargeAction('ord-1');
+
+    expect(result.success).toBe(false);
+    expect(createChargeForCompletedOrder).not.toHaveBeenCalled();
+  });
+
+  it('rejects an order without a positive price', async () => {
+    m(getOrderById).mockResolvedValue({ ...CHARGED_ORDER, total_cost_ore: 0 });
+
+    const result = await retryChargeAction('ord-1');
+
+    expect(result).toEqual({ success: false, error: 'Ordren har ingen pris å belaste' });
+    expect(createChargeForCompletedOrder).not.toHaveBeenCalled();
+  });
+
+  it('rejects when a captured payment already exists', async () => {
+    m(getPaymentsByOrderId).mockResolvedValue([
+      FAILED_PAYMENT,
+      { status: 'captured', provider_reference: 'chr-1', created_at: '2026-10-16T10:05:00.000Z' },
+    ]);
+
+    const result = await retryChargeAction('ord-1');
+
+    expect(result.success).toBe(false);
+    expect(createChargeForCompletedOrder).not.toHaveBeenCalled();
+  });
+
+  it('rejects while a charge is still pending at Vipps (has a provider_reference)', async () => {
+    m(getPaymentsByOrderId).mockResolvedValue([
+      { status: 'pending', provider_reference: 'chr-1', created_at: '2000-01-01T00:00:00.000Z' },
+    ]);
+
+    const result = await retryChargeAction('ord-1');
+
+    expect(result.success).toBe(false);
+    expect(createChargeForCompletedOrder).not.toHaveBeenCalled();
+  });
+
+  it('allows a retry when the only pending row is an old orphan', async () => {
+    m(getPaymentsByOrderId).mockResolvedValue([
+      { status: 'pending', provider_reference: null, created_at: '2000-01-01T00:00:00.000Z' },
+    ]);
+
+    const result = await retryChargeAction('ord-1');
+
+    expect(result).toEqual({ success: true });
+    expect(createChargeForCompletedOrder).toHaveBeenCalledWith('ord-1', 50000, 'NooraCare vask #NC-1001');
+  });
+
+  it('rejects when the Vipps agreement is no longer active', async () => {
+    m(getPaymentAgreementById).mockResolvedValue({ id: 'pa-1', status: 'stopped' });
+
+    const result = await retryChargeAction('ord-1');
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Vipps-avtalen er ikke aktiv lenger — kunden kan ikke belastes via Vipps',
+    });
+    expect(createChargeForCompletedOrder).not.toHaveBeenCalled();
+  });
+
+  it("resolves a rolling-window order's agreement through its subscription", async () => {
+    m(getOrderById).mockResolvedValue({
+      ...CHARGED_ORDER,
+      status: 'completed',
+      payment_agreement_id: null,
+      subscription_id: 'sub-1',
+    });
+    m(getSubscriptionById).mockResolvedValue({ id: 'sub-1', payment_agreement_id: 'pa-9' });
+    m(getPaymentAgreementById).mockResolvedValue({ id: 'pa-9', status: 'active' });
+
+    const result = await retryChargeAction('ord-1');
+
+    expect(result).toEqual({ success: true });
+    expect(getSubscriptionById).toHaveBeenCalledWith('sub-1');
+    expect(getPaymentAgreementById).toHaveBeenCalledWith('pa-9');
+    expect(createChargeForCompletedOrder).toHaveBeenCalledWith('ord-1', 50000, 'NooraCare vask #NC-1001');
+  });
+
+  it('creates the charge with no payment rows at all and revalidates', async () => {
+    m(getPaymentsByOrderId).mockResolvedValue([]);
+
+    const result = await retryChargeAction('ord-1');
+
+    expect(result).toEqual({ success: true });
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/orders');
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/orders/ord-1');
+  });
+
+  it('returns the Vipps error when charge creation fails', async () => {
+    m(createChargeForCompletedOrder).mockRejectedValue(
+      new Error('Vipps create charge failed (500): boom')
+    );
+
+    const result = await retryChargeAction('ord-1');
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Belastningen feilet: Vipps create charge failed (500): boom',
+    });
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/orders/ord-1');
   });
 });

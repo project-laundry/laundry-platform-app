@@ -363,10 +363,10 @@ Charge creation on completion runs for both recurring and one-time orders. `crea
 
 **Per-Order Payment Failures:**
 - If Vipps rejects the charge creation itself (when the cleaner marks the order ready), the payment row is marked `failed` with the Vipps error in `failure_reason`; the order transition still succeeds
-- Order remains in current status
-- Payment status = `failed`
-- Cleaner or admin follows up with customer
-- Can retry payment or cancel order
+- Order remains in current status (a charge that fails when the cleaner marks the order ready still leaves the order `ready_for_delivery`; the cleaner delivers as normal)
+- Payment status = `failed` (set by `createChargeForCompletedOrder` on a Vipps error, or by the `charge-failed` webhook later)
+- The cleaner's order page shows "Belastningen av kunden feilet. Admin følger opp betalingen" instead of "Kunden er belastet" (`markOrderReadyForDelivery` returns `chargeFailed: true`; the page re-derives it from the payment rows)
+- Admin re-charges from `/admin/orders/[orderId]` («Belast på nytt», `retryChargeAction`): allowed when the order is `ready_for_delivery`/`out_for_delivery`/`completed`, has a price > 0, has no live payment (`hasLivePayment`: no `authorized`/`captured`/`refunded` row and no non-orphan `pending` row), and the Vipps agreement is still `active`. Each retry is a new `payments` row; the failed rows stay as history
 
 **Agreement Stopped/Cancelled:**
 - See [Cancellation](#cancellation) for the full mechanics (order-status split, deferred Vipps stop, webhook-driven vs. customer-initiated paths)

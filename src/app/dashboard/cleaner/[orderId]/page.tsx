@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/server';
 import { getCleanerByUserId } from '@/lib/database/cleaners';
 import { getUsersById } from '@/lib/database/users';
 import { getCleanerOrderDetails } from '../actions';
+import { getPaymentsByOrderId } from '@/lib/database/payments';
+import { hasLivePayment } from '@/lib/utils/payment-status';
 import { LaundryDetailsForm } from '../components/LaundryDetailsForm';
 import { OrderActions } from './OrderActions';
 import { IRONING_OFFERED, formatKr } from '@/lib/config/pricing';
@@ -127,6 +129,15 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
   const showLaundryForm =
     order.status !== 'pending_assignment' && order.status !== 'pickup_scheduled';
 
+  // After «Bekreft og belast» the charge can fail at Vipps: the order still
+  // moves on, but the cleaner must not be told the customer paid. Only orders
+  // that should carry a charge are checked (0-total promo orders never do).
+  const chargeExpected =
+    (order.status === 'ready_for_delivery' || order.status === 'out_for_delivery') &&
+    order.total_cost_ore !== null &&
+    order.total_cost_ore > 0;
+  const chargeFailed = chargeExpected && !hasLivePayment(await getPaymentsByOrderId(order.id));
+
   const orderActions = (
     <OrderActions
       orderId={order.id}
@@ -137,6 +148,7 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
       hasPrice={order.total_cost_ore !== null}
       totalCostOre={order.total_cost_ore}
       pickupDue={pickupDue}
+      chargeFailed={chargeFailed}
     />
   );
 

@@ -54,7 +54,7 @@ export async function getCleanerOrderDetails(
  */
 export async function markOrderReadyForDelivery(
   orderId: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; chargeFailed?: boolean }> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -94,13 +94,19 @@ export async function markOrderReadyForDelivery(
   // charge against the order's agreement; it has no status requirement.)
   // A 0-total order (100% promo) skips the charge — Vipps cannot charge 0; the
   // cancelled-subscription agreement stop is handled at delivery completion.
+  let chargeFailed = false;
   if (order.total_cost_ore > 0) {
     try {
       const description = `NooraCare vask #${order.order_number}`;
       await createChargeForCompletedOrder(orderId, order.total_cost_ore, description);
     } catch (error) {
-      // Log but don't fail the transition — the charge can be retried manually.
+      // The transition already happened and the laundry is clean, so the
+      // action still succeeds. The service has marked the payment row
+      // `failed`; report it so the UI never claims the customer paid. An
+      // admin re-charges from the order page («Belast på nytt»,
+      // retryChargeAction in app/admin/orders/actions.ts).
       console.error('Failed to create Vipps charge:', error);
+      chargeFailed = true;
     }
   } else {
     console.log(`Order ${order.order_number} total is 0 after discount — skipping Vipps charge`);
@@ -108,7 +114,7 @@ export async function markOrderReadyForDelivery(
 
   revalidatePath('/dashboard/cleaner');
   revalidatePath(`/dashboard/cleaner/${orderId}`);
-  return { success: true };
+  return chargeFailed ? { success: true, chargeFailed: true } : { success: true };
 }
 
 /**

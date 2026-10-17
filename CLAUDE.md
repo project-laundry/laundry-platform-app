@@ -78,7 +78,7 @@ src/
 │   ├── opengraph-image.tsx # Social share image for /, rendered by lib/og-image.tsx (bli-renser has its own)
 │   ├── not-found.tsx       # Root 404 (unmatched URLs + every notFound() call)
 │   ├── admin/              # Admin dashboard (layout = shell + role guard; page = overview with counts)
-│   │   ├── orders/         # Order list + per-order detail page (edit details, cleaner (re)assignment)
+│   │   ├── orders/         # Order list + per-order detail page (edit details, cleaner (re)assignment, «Belast på nytt» retry of a failed Vipps charge)
 │   │   ├── cleaners/       # Cleaner list, activate/deactivate (verification_status)
 │   │   ├── customers/      # Customer list + per-customer detail
 │   │   ├── payments/       # Payment list (read-only)
@@ -180,7 +180,7 @@ Server actions handle mutations from the UI:
 - `app/orders/actions.ts` - Subscription creation, Vipps agreement creation, customer queries
 - `app/auth/actions.ts` - Public signup pre-check (`checkSignupAvailabilityAction`): both signup forms call it before `supabase.auth.signUp` because Supabase Auth hides which constraint failed inside `handle_new_user`; the `signUp` result is then mapped by `lib/auth/signup-errors.ts`
 - `app/bli-renser/actions.ts` - Cleaner profile creation (`createCleanerProfileAction`) and the step-1 tax id pre-check (`checkTaxIdAvailabilityAction`): `cleaners.tax_id` is UNIQUE, so the business form checks it before advancing instead of letting the final insert fail on step 5; the action also maps a `23505` from the insert to the same message as a race fallback; and the step-3 photo helper (`recognizeMachineAction`): guards with `assertRole(["cleaner"])`, validates the base64 payload, and returns `lib/ai/machine-recognition.ts`'s `{ status: 'ok' | 'no_machine' | 'unavailable' }` result for the form to pre-fill from
-- `app/admin/orders/actions.ts` - Cleaner (re)assignment, admin order edits (dates, address)
+- `app/admin/orders/actions.ts` - Cleaner (re)assignment, admin order edits (dates, address), `retryChargeAction` (re-creates the Vipps charge for an order with no live payment — gated by `hasLivePayment` in `lib/utils/payment-status.ts`)
 - `app/admin/cleaners|drivers|admins|promo-codes/actions.ts` - Admin dashboard mutations (cleaner activation, staff account create/edit, promo code create/edit)
 
 **Note:** Vipps agreement creation uses server actions (not API routes) for consistency with the codebase pattern. API routes are only used where external services need to call in (webhooks, callbacks, cron).

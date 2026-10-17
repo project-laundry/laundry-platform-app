@@ -22,6 +22,12 @@ interface OrderActionsProps {
   totalCostOre: number | null;
   /** True from the customer's chosen pickup date onward (Norwegian time). */
   pickupDue: boolean;
+  /**
+   * True when the ready-step charge failed and no later payment replaced it:
+   * the customer has NOT paid. Computed by the page from the payment rows so
+   * it survives reloads; the action result sets it instantly on failure.
+   */
+  chargeFailed: boolean;
 }
 
 // Statuses with nothing for the cleaner to press. picked_up and
@@ -111,6 +117,7 @@ export function OrderActions({
   hasPrice,
   totalCostOre,
   pickupDue,
+  chargeFailed,
 }: OrderActionsProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -119,16 +126,18 @@ export function OrderActions({
   const [showReadyConfirm, setShowReadyConfirm] = useState(false);
   const [showDeliverConfirm, setShowDeliverConfirm] = useState(false);
   const [showDeclineConfirm, setShowDeclineConfirm] = useState(false);
+  const [chargeFailedNow, setChargeFailedNow] = useState(false);
 
   const canPickUp = currentStatus === 'pickup_scheduled';
   const canMarkReady = currentStatus === 'in_cleaning';
   const canDeliver = currentStatus === 'ready_for_delivery';
   const canDecline = currentStatus === 'pickup_scheduled';
   const statusInfo = STATUS_INFO[currentStatus];
+  const showChargeFailed = chargeFailed || chargeFailedNow;
 
   // Runs one status action; on success closes its confirm and refreshes.
   const runStatusAction = async (
-    action: (id: string) => Promise<{ success: boolean; error?: string }>,
+    action: (id: string) => Promise<{ success: boolean; error?: string; chargeFailed?: boolean }>,
     closeConfirm: () => void
   ) => {
     setIsLoading(true);
@@ -139,6 +148,9 @@ export function OrderActions({
       if (!result.success) {
         setError(result.error || 'Kunne ikke oppdatere status');
         return;
+      }
+      if (result.chargeFailed) {
+        setChargeFailedNow(true);
       }
       closeConfirm();
       router.refresh();
@@ -183,6 +195,17 @@ export function OrderActions({
         <div className="flex items-start gap-2 rounded-2xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
           <AlertCircle className="mt-0.5 size-4 shrink-0" />
           <p>{error}</p>
+        </div>
+      )}
+
+      {/* The ready-step charge failed: the customer has NOT paid. Admin re-charges. */}
+      {showChargeFailed && (
+        <div className="flex items-start gap-2 rounded-2xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
+          <AlertCircle className="mt-0.5 size-4 shrink-0" />
+          <p>
+            Belastningen av kunden feilet. Admin følger opp betalingen — du leverer tøyet som
+            normalt.
+          </p>
         </div>
       )}
 
@@ -299,7 +322,9 @@ export function OrderActions({
           {!showDeliverConfirm ? (
             <div className="space-y-3">
               <p className="text-medium-gray">
-                Kunden er belastet. Trykk når det rene tøyet er levert hos kunden.
+                {showChargeFailed
+                  ? 'Trykk når det rene tøyet er levert hos kunden.'
+                  : 'Kunden er belastet. Trykk når det rene tøyet er levert hos kunden.'}
               </p>
               <button
                 type="button"

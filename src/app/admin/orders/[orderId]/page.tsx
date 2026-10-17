@@ -5,16 +5,23 @@ import { getPaymentsByOrderId } from '@/lib/database/payments';
 import { getAvailableCleanersForCity } from '@/lib/database/cleaners';
 import { StatusBadge } from '@/components/dashboard/StatusBadge';
 import { getOrderStatusLabel, getOrderStatusVariant } from '@/lib/utils/order-status';
-import { PAYMENT_STATUS_LABELS, PAYMENT_STATUS_VARIANT } from '@/lib/utils/payment-status';
+import {
+  PAYMENT_STATUS_LABELS,
+  PAYMENT_STATUS_VARIANT,
+  hasLivePayment,
+} from '@/lib/utils/payment-status';
 import { IRONING_OFFERED, formatKr } from '@/lib/config/pricing';
 import { AssignCleanerControl, type CleanerOption } from '../AssignCleanerControl';
 import { OrderEditForm, type OrderEditability } from './OrderEditForm';
 import { AdminLogisticsControl } from './AdminLogisticsControl';
+import { RetryChargeControl } from './RetryChargeControl';
 import type { OrderStatus } from '@/types/database';
 
 /** Statuses where the admin can still (re)assign the cleaner. */
 const ASSIGNABLE_STATUSES: OrderStatus[] = ['pending_assignment', 'pickup_scheduled'];
 const TERMINAL_STATUSES: OrderStatus[] = ['completed', 'cancelled'];
+/** Statuses from which the customer has been — or should have been — charged. */
+const CHARGED_STATUSES: OrderStatus[] = ['ready_for_delivery', 'out_for_delivery', 'completed'];
 
 const cardClass =
   'rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur';
@@ -42,6 +49,13 @@ export default async function AdminOrderDetailPage({
   }
 
   const payments = await getPaymentsByOrderId(order.id);
+  // «Belast på nytt»: the charge failed (at creation or later at Vipps) and
+  // nothing replaced it. Same rule as retryChargeAction, which re-checks it.
+  const canRetryCharge =
+    CHARGED_STATUSES.includes(order.status) &&
+    order.total_cost_ore !== null &&
+    order.total_cost_ore > 0 &&
+    !hasLivePayment(payments);
 
   const assignable = ASSIGNABLE_STATUSES.includes(order.status);
   const editability: OrderEditability = TERMINAL_STATUSES.includes(order.status)
@@ -266,6 +280,11 @@ export default async function AdminOrderDetailPage({
               </li>
             ))}
           </ul>
+        )}
+        {canRetryCharge && (
+          <div className="mt-3">
+            <RetryChargeControl orderId={order.id} amountOre={order.total_cost_ore ?? 0} />
+          </div>
         )}
       </div>
 

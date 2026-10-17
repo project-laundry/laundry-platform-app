@@ -53,3 +53,28 @@ export function isOrphanPendingPayment(
     new Date(payment.created_at).getTime() < now.getTime() - ORPHAN_PENDING_GRACE_MINUTES * 60_000
   );
 }
+
+/** Statuses that mean the order's money is settled or reserved at Vipps. */
+const SETTLED_PAYMENT_STATUSES: PaymentStatus[] = ['authorized', 'captured', 'refunded'];
+
+/**
+ * True when the order already has a payment that is settled (captured,
+ * refunded), reserved (authorized) or still in flight at Vipps (pending and not
+ * an orphan — a DIRECT_CAPTURE charge sits in `pending` with a
+ * provider_reference until its due date). False when there are no rows or every
+ * row is failed, cancelled or an orphan: then the customer has not paid and an
+ * admin may create a new charge («Belast på nytt»).
+ *
+ * Single source of truth for the cleaner's "not charged" warning, the admin
+ * order page's retry button and retryChargeAction.
+ */
+export function hasLivePayment(
+  payments: Pick<Payment, 'status' | 'provider_reference' | 'created_at'>[],
+  now: Date = new Date()
+): boolean {
+  return payments.some(
+    (payment) =>
+      SETTLED_PAYMENT_STATUSES.includes(payment.status) ||
+      (payment.status === 'pending' && !isOrphanPendingPayment(payment, now))
+  );
+}

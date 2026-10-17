@@ -20,7 +20,12 @@ vi.mock('@/lib/services/complete-order', () => ({ completeDeliveredOrder: vi.fn(
 import { getCleanerByUserId } from '@/lib/database/cleaners';
 import { getOrderByIdAndCleanerId, updateOrderStatusGuarded } from '@/lib/database/orders';
 import { completeDeliveredOrder } from '@/lib/services/complete-order';
-import { markOrderPickedUpAction, markOrderDeliveredAction } from './actions';
+import { createChargeForCompletedOrder } from '@/lib/payments/vipps/service';
+import {
+  markOrderPickedUpAction,
+  markOrderDeliveredAction,
+  markOrderReadyForDelivery,
+} from './actions';
 
 const m = (fn: unknown) => fn as Mock;
 
@@ -149,5 +154,56 @@ describe('markOrderDeliveredAction', () => {
       success: false,
       error: 'Ordren kan ikke fullføres nå — last siden på nytt',
     });
+  });
+});
+
+describe('markOrderReadyForDelivery', () => {
+  const PRICED_ORDER = {
+    id: 'ord-1',
+    order_number: 'NC-1001',
+    status: 'in_cleaning',
+    wash_loads: 2,
+    total_cost_ore: 50000,
+  };
+
+  beforeEach(() => {
+    m(getOrderByIdAndCleanerId).mockResolvedValue(PRICED_ORDER);
+    m(createChargeForCompletedOrder).mockResolvedValue('pay-1');
+  });
+
+  it('moves the order to ready_for_delivery and charges the locked price', async () => {
+    const result = await markOrderReadyForDelivery('ord-1');
+
+    expect(result).toEqual({ success: true });
+    expect(updateOrderStatusGuarded).toHaveBeenCalledWith('ord-1', 'in_cleaning', 'ready_for_delivery');
+    expect(createChargeForCompletedOrder).toHaveBeenCalledWith('ord-1', 50000, 'NooraCare vask #NC-1001');
+  });
+
+  it('reports chargeFailed when the Vipps charge throws, keeping the transition', async () => {
+    m(createChargeForCompletedOrder).mockRejectedValue(new Error('Vipps create charge failed (500): boom'));
+
+    const result = await markOrderReadyForDelivery('ord-1');
+
+    expect(result).toEqual({ success: true, chargeFailed: true });
+    expect(updateOrderStatusGuarded).toHaveBeenCalledWith('ord-1', 'in_cleaning', 'ready_for_delivery');
+  });
+
+  it('skips the charge for a 0-total order', async () => {
+    m(getOrderByIdAndCleanerId).mockResolvedValue({ ...PRICED_ORDER, total_cost_ore: 0 });
+
+    const result = await markOrderReadyForDelivery('ord-1');
+
+    expect(result).toEqual({ success: true });
+    expect(createChargeForCompletedOrder).not.toHaveBeenCalled();
+  });
+
+  it('rejects an order that is not in_cleaning without charging', async () => {
+    m(getOrderByIdAndCleanerId).mockResolvedValue({ ...PRICED_ORDER, status: 'ready_for_delivery' });
+
+    const result = await markOrderReadyForDelivery('ord-1');
+
+    expect(result.success).toBe(false);
+    expect(updateOrderStatusGuarded).not.toHaveBeenCalled();
+    expect(createChargeForCompletedOrder).not.toHaveBeenCalled();
   });
 });
