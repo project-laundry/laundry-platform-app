@@ -963,3 +963,66 @@ export async function updateOrderAdminFields(
 
   return data;
 }
+
+/**
+ * Admin price override. Same fields as updateOrderLaundryDetails, without
+ * the cleaner-ownership check. The admin server action owns all status and
+ * payment gating — this is a plain write.
+ */
+export async function updateOrderPricingByAdmin(
+  orderId: string,
+  data: UpdateLaundryDetailsData
+): Promise<Order | null> {
+  const supabase = createAdminClient();
+
+  const updateData: Record<string, unknown> = {
+    wash_loads: data.wash_loads,
+    ironing_details: data.ironing_details,
+    total_cost_ore: data.total_cost_ore,
+    cleaner_payout_ore: data.cleaner_payout_ore,
+    pricing_notes: data.pricing_notes || null,
+    price_calculated_at: new Date().toISOString(),
+  };
+  if (data.promo !== undefined) {
+    updateData.promo = data.promo;
+  }
+
+  const { data: updatedOrder, error } = await supabase
+    .from('orders')
+    .update(updateData)
+    .eq('id', orderId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating order pricing (admin):', error);
+    return null;
+  }
+
+  return updatedOrder;
+}
+
+/**
+ * Write the admin's internal notes. `null` clears them. Plain write — the
+ * admin server action validates the length.
+ */
+export async function updateOrderAdminNotes(
+  orderId: string,
+  notes: string | null
+): Promise<Order | null> {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from('orders')
+    .update({ admin_notes: notes })
+    .eq('id', orderId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating order admin notes:', error);
+    return null;
+  }
+
+  return data;
+}

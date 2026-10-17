@@ -14,12 +14,12 @@ import {
 import {
   calculateOrderPrice,
   IRONING_OFFERED,
-  computeDiscountOre,
+  applyPromoDiscount,
   type LaundryDetails,
   type PriceBreakdown,
 } from '@/lib/config/pricing';
-import { createChargeForCompletedOrder } from '@/lib/payments/vipps/service';
 import { completeDeliveredOrder } from '@/lib/services/complete-order';
+import { markOrderReadyAndCharge } from '@/lib/services/ready-order';
 
 export type { OrderWithCustomer };
 
@@ -43,14 +43,11 @@ export async function getCleanerOrderDetails(
 }
 
 /**
- * Mark an order as cleaned and ready to deliver — and CHARGE the customer
- * (the service is rendered and the price locked at this moment).
- *
+ * Mark an order as cleaned and ready to deliver — and CHARGE the customer.
  * Cleaners run their own logistics: markOrderPickedUpAction before this,
- * markOrderDeliveredAction after it. Wash details and price must exist first,
- * because the charge fires here. The guarded transition runs before the
- * charge, so a double-tap can never charge twice (the second call fails the
- * from-status guard).
+ * markOrderDeliveredAction after it. The transition, its guards and the
+ * charge live in lib/services/ready-order.ts (shared with the admin
+ * fallback adminMarkReadyAction).
  */
 export async function markOrderReadyForDelivery(
   orderId: string
@@ -74,47 +71,14 @@ export async function markOrderReadyForDelivery(
     return { success: false, error: 'Ordre ikke funnet eller ikke tildelt deg' };
   }
 
-  if (order.status !== 'in_cleaning') {
-    return { success: false, error: 'Ordren kan bare gjøres klar mens den vaskes' };
-  }
-  if (order.wash_loads === 0) {
-    return { success: false, error: 'Vaskdetaljer må registreres før ordren kan gjøres klar' };
-  }
-  if (order.total_cost_ore === null) {
-    return { success: false, error: 'Pris må beregnes før ordren kan gjøres klar' };
-  }
-
-  const updated = await updateOrderStatusGuarded(orderId, 'in_cleaning', 'ready_for_delivery');
-  if (!updated) {
-    return { success: false, error: 'Kunne ikke oppdatere status' };
-  }
-
-  // Charge the customer for the locked-in price. (createChargeForCompletedOrder
-  // predates the driver flow — despite the name it simply creates the Vipps
-  // charge against the order's agreement; it has no status requirement.)
-  // A 0-total order (100% promo) skips the charge — Vipps cannot charge 0; the
-  // cancelled-subscription agreement stop is handled at delivery completion.
-  let chargeFailed = false;
-  if (order.total_cost_ore > 0) {
-    try {
-      const description = `NooraCare vask #${order.order_number}`;
-      await createChargeForCompletedOrder(orderId, order.total_cost_ore, description);
-    } catch (error) {
-      // The transition already happened and the laundry is clean, so the
-      // action still succeeds. The service has marked the payment row
-      // `failed`; report it so the UI never claims the customer paid. An
-      // admin re-charges from the order page («Belast på nytt»,
-      // retryChargeAction in app/admin/orders/actions.ts).
-      console.error('Failed to create Vipps charge:', error);
-      chargeFailed = true;
-    }
-  } else {
-    console.log(`Order ${order.order_number} total is 0 after discount — skipping Vipps charge`);
+  const result = await markOrderReadyAndCharge(order);
+  if (!result.success) {
+    return { success: false, error: result.error };
   }
 
   revalidatePath('/dashboard/cleaner');
   revalidatePath(`/dashboard/cleaner/${orderId}`);
-  return chargeFailed ? { success: true, chargeFailed: true } : { success: true };
+  return result.chargeFailed ? { success: true, chargeFailed: true } : { success: true };
 }
 
 /**
@@ -258,13 +222,10 @@ export async function saveLaundryDetails(
     return { success: false, error: 'Vaskdetaljer kan ikke endres etter at ordren er gjort klar og kunden belastet' };
   }
 
-  let totalCostOre = priceBreakdown.total_ore;
-  let promoUpdate = order.promo;
-  if (order.promo) {
-    const discountOre = computeDiscountOre(priceBreakdown.total_ore, order.promo);
-    totalCostOre = priceBreakdown.total_ore - discountOre;
-    promoUpdate = { ...order.promo, discount_ore: discountOre };
-  }
+  const { total_cost_ore: totalCostOre, promo: promoUpdate } = applyPromoDiscount(
+    priceBreakdown.total_ore,
+    order.promo
+  );
 
   // Save to database
   const result = await updateOrderLaundryDetails(orderId, cleaner.id, {

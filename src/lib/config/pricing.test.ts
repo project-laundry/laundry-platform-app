@@ -4,6 +4,7 @@ import {
   calculateOrderPrice,
   calculateCustomerEstimate,
   computeDiscountOre,
+  applyPromoDiscount,
   estimatedGarments,
   withoutUnofferedIroning,
   oreToNok,
@@ -219,5 +220,33 @@ describe('computeDiscountOre', () => {
   it('returns 0 for a non-positive total', () => {
     expect(computeDiscountOre(0, { discount_type: 'percentage', discount_value: 20, max_discount_ore: null })).toBe(0);
     expect(computeDiscountOre(-100, { discount_type: 'fixed', discount_value: 50, max_discount_ore: null })).toBe(0);
+  });
+});
+
+describe('applyPromoDiscount', () => {
+  const promo = {
+    promo_code_id: 'pc-1',
+    code: 'HALV',
+    discount_type: 'percentage' as const,
+    discount_value: 50,
+    max_discount_ore: null,
+  };
+
+  it('leaves the total untouched without a promo', () => {
+    expect(applyPromoDiscount(80930, null)).toEqual({ total_cost_ore: 80930, promo: null });
+  });
+
+  it('reduces the total and fills in discount_ore on the snapshot', () => {
+    expect(applyPromoDiscount(80930, promo)).toEqual({
+      total_cost_ore: 40465,
+      promo: { ...promo, discount_ore: 40465 },
+    });
+  });
+
+  it('can reach a 0 total with a full discount', () => {
+    expect(applyPromoDiscount(50000, { ...promo, discount_value: 100 })).toEqual({
+      total_cost_ore: 0,
+      promo: { ...promo, discount_value: 100, discount_ore: 50000 },
+    });
   });
 });

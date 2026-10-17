@@ -263,6 +263,8 @@ export interface Order {
   completed_at: string | null;
   cancelled_at: string | null;
   cancellation_reason: string | null;
+  // Internal admin notes — admin dashboard only, never shown to customers or cleaners
+  admin_notes: string | null;
   mission_accepted_at: string | null;
   created_at: string;
   updated_at: string;

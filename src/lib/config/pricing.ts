@@ -2,6 +2,7 @@
 // All prices are stored in øre (1 NOK = 100 øre)
 
 import type { OrderSelection } from '@/types/order-flow';
+import type { OrderPromo } from '@/types/database';
 
 // Ironing groups (cleaner-binding pricing and customer estimate share these)
 export type IroningGroup = 'everyday' | 'shirts_dresses' | 'bedding';
@@ -349,4 +350,23 @@ export function computeDiscountOre(
   }
 
   return Math.max(0, Math.min(discount, totalOre));
+}
+
+/**
+ * Apply an order's locked promo snapshot to the full service price.
+ * Returns the amount the customer is charged and the snapshot with
+ * `discount_ore` filled in; a null promo leaves the total untouched.
+ * The discount is platform-absorbed — callers stamp `cleaner_payout_ore`
+ * from the FULL breakdown, never from this total.
+ *
+ * Shared by the cleaner's saveLaundryDetails and the admin price override
+ * (overrideOrderPriceAction) so the two pricing paths cannot drift.
+ */
+export function applyPromoDiscount(
+  fullTotalOre: number,
+  promo: OrderPromo | null
+): { total_cost_ore: number; promo: OrderPromo | null } {
+  if (!promo) return { total_cost_ore: fullTotalOre, promo: null };
+  const discount_ore = computeDiscountOre(fullTotalOre, promo);
+  return { total_cost_ore: fullTotalOre - discount_ore, promo: { ...promo, discount_ore } };
 }

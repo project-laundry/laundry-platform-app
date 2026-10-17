@@ -107,6 +107,8 @@ Customer subscribes Dec 26, 2025:
 
 **Note:** No fixed plan prices - fully flexible based on actual laundry volume and services.
 
+**Admin price override:** on `/admin/orders/[orderId]` an admin can set or correct the price while the order is `in_cleaning` or `ready_for_delivery` **and** no payment is live (`hasLivePayment` false — nothing captured, reserved or pending at Vipps). `overrideOrderPriceAction` takes the wash count and runs the cleaner's exact formula (`calculateOrderPrice` → `applyPromoDiscount` with the order's locked promo snapshot → `cleaner_payout_ore` from the full price), so the three pricing fields never diverge from a cleaner-set price. In `ready_for_delivery` the admin then charges the corrected amount with «Belast på nytt». Once a payment is live the price is frozen for everyone.
+
 ### Cleaner Payout
 
 **What is owed:** `orders.cleaner_payout_ore` — stamped when the cleaner prices the order (`updateOrderLaundryDetails`), equal to `calculateOrderPrice().cleaner_payout_ore` (`PRICING.cleaner_payout_percent` of the full service price, before any platform-absorbed promo discount). It is frozen with the price when the order is marked ready, so a later change to `PRICING` never rewrites what a cleaner was promised. A payout is owed only for orders that reach `completed`. Orders can only be cancelled before pickup, so a priced order is never cancelled.
@@ -213,7 +215,7 @@ Assignment happens at subscription creation.
    - **Who:** Cleaner («Jeg har hentet tøyet»); admin fallback «Marker som hentet»
    - **Action:** Picks up laundry at the customer's door; one guarded write stamps `picked_up_at` and `in_cleaning_at`. Before the pickup date the cleaner sees a warning, but an early pickup agreed with the customer is allowed.
 2. `in_cleaning` → `ready_for_delivery`
-   - **Who:** Cleaner only («Marker som klar»)
+   - **Who:** Cleaner («Marker som klar»); admin fallback «Marker som klar» on the order page (exit for an order stuck in `in_cleaning` — the admin sets the price with the override first if the cleaner never did). Both go through `markOrderReadyAndCharge` in `lib/services/ready-order.ts`.
    - **Guard + charge:** rejected until wash details are registered (`wash_loads > 0`) and the price is set (`total_cost_ore`). Confirming this step **creates the Vipps charge** — the customer pays when the laundry is finished, not at delivery.
 3. `ready_for_delivery` → `completed`
    - **Who:** Cleaner («Levert til kunden»); admin fallback «Marker som levert»
@@ -236,6 +238,12 @@ There are two independent, customer-initiated cancellation actions, plus a Vipps
   - **Cancel this order only** — the order is cancelled; if the subscription is still `active`, the rolling window immediately generates a replacement upcoming order (`checkAndGenerateNextOrders`), so the subscription keeps going.
   - **Cancel the subscription** — hands off to subscription cancellation (below) instead.
 - A one-time order (no subscription) just cancels, with nothing further to reconcile.
+
+**1b. Admin Order Cancellation:**
+- Entry: `/admin/orders/[orderId]` → «Kanseller ordre». Action: `cancelOrderAdminAction` (`app/admin/orders/actions.ts`).
+- Same status split as the customer (only `pending_assignment` / `pickup_scheduled`), but **no 24-hour rule** — admins override for no-shows, fraud and duplicates. The write is status-guarded, so an order the cleaner picks up meanwhile is not cancelled.
+- A reason is required and stored in `orders.cancellation_reason`; the customer's order page shows it ("Bestillingen ble kansellert … <reason>"), so the admin UI labels it "vises til kunden". Internal remarks go in `orders.admin_notes` instead.
+- Never touches the subscription: an `active` subscription gets its replacement order immediately (`checkAndGenerateNextOrders`), exactly like "Kanseller kun denne bestillingen".
 
 **2. Subscription Cancellation:**
 - Entry: dashboard subscription strip → `/dashboard/subscription` (details) → `/dashboard/subscription/cancel` (confirmation) → success page. Action: `cancelSubscriptionAction` (`app/dashboard/subscription/actions.ts`).

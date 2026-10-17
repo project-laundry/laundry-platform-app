@@ -109,6 +109,7 @@ function makeOrder(over: Partial<DriverRouteOrder> = {}): DriverRouteOrder {
     completed_at: null,
     cancelled_at: null,
     cancellation_reason: null,
+    admin_notes: null,
     mission_accepted_at: null,
     created_at: '2026-08-20T00:00:00Z',
     updated_at: '2026-08-20T00:00:00Z',

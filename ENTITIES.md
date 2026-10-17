@@ -372,7 +372,11 @@
   - `completed_at` (timestamp, nullable) - Order completion timestamp
   - `cancelled_at` (timestamp, nullable) - Cancellation timestamp
   - `cancellation_reason` (text, nullable) - Reason for cancellation
-    - **Validation:** Required if status = `cancelled`, max 500 chars
+    - **Validation:** Max 500 chars
+    - **Note:** Written by admin cancellation (`cancelOrderAdminAction`, required there) and shown to the customer on the order page; customer cancellation leaves it `NULL`
+  - `admin_notes` (text, nullable) - Internal admin notes (`/admin/orders/[orderId]` → "Interne notater")
+    - **Validation:** Max 2000 chars
+    - **Note:** Admin dashboard only — never rendered on a customer or cleaner surface
   - `mission_accepted_at` (timestamp, nullable) - When cleaner accepted the order
   - `created_at` (timestamp) - Order creation timestamp
   - `updated_at` (timestamp) - Last update timestamp
