@@ -286,6 +286,7 @@ The webhook uses HMAC-SHA256 signature verification with `VIPPS_WEBHOOK_SECRET` 
 - `orders.payment_agreement_id` - FK to `payment_agreements` (for one-time orders without subscription)
 - `orders.customer_estimate` - (JSONB, nullable) Customer's self-reported selection from checkout: `{bags, bedding_sets, iron_everyday_items, iron_formal_items, iron_bedding, estimated_total_ore}`. Informational — the binding price is set by the cleaner
 - `orders.total_cost_ore` - **NULLABLE** (NULL until cleaner sets price)
+- `orders.cleaner_payout_ore` - **NULLABLE** cleaner's share in øre, stamped with `total_cost_ore` at pricing time from `calculateOrderPrice().cleaner_payout_ore` (full price, before promo); frozen with the price. Paid monthly by manual bank transfer by the 10th of the next month — the sentence cleaners see is `CLEANER_PAYOUT_TERMS_TEXT` in `lib/config/pricing.ts`; monthly sums in `lib/utils/payout.ts`
 - `orders.actual_weight_kg` - Actual weight after pickup
 - `orders.pricing_notes` - Cleaner's pricing explanation
 - `orders.price_calculated_at` - When cleaner calculated price
@@ -295,7 +296,7 @@ The webhook uses HMAC-SHA256 signature verification with `VIPPS_WEBHOOK_SECRET` 
 **Promo Codes (first-order discounts):**
 - **New Tables:** `promo_codes` (shared codes: percentage/fixed, optional cap, validity window, optional global redemption cap) and `promo_code_redemptions` (ledger; `UNIQUE(promo_code_id, customer_id)` enforces once-per-customer)
 - **New Field:** `orders.promo` (JSONB) - locked discount snapshot stamped onto the **first** order only; `discount_ore` filled in when the cleaner prices the order
-- Flow: customer enters code at checkout → validated + snapshot locked into `payment_agreements.provider_metadata.promo` → stamped onto first order + redemption recorded in the agreement-activated webhook → discount applied when cleaner prices the order (`total_cost_ore` = full − discount; **platform-absorbed**, cleaner payout unchanged; charge can fall below the 500 kr minimum, and a 0 total skips the Vipps charge)
+- Flow: customer enters code at checkout → validated + snapshot locked into `payment_agreements.provider_metadata.promo` → stamped onto first order + redemption recorded in the agreement-activated webhook → discount applied when cleaner prices the order (`total_cost_ore` = full − discount; **platform-absorbed**, `cleaner_payout_ore` stays the share of the full price; charge can fall below the 500 kr minimum, and a 0 total skips the Vipps charge)
 - See `lib/database/promo-codes.ts`, `computeDiscountOre` in `lib/config/pricing.ts`, and [BUSINESS_LOGIC.md](./BUSINESS_LOGIC.md#promo-codes--discounts)
 
 **Subscription Cancellation:**

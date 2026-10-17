@@ -352,11 +352,15 @@
     - **Default:** `NULL` (cleaner sets after weighing)
     - **Note:** Cleaner calculates based on weight, ironing, and other factors
     - **Note:** When a promo is applied, this stores the **discounted** amount actually charged (can be below the order minimum, or `0` for a fully-discounted order)
+  - `cleaner_payout_ore` (integer, nullable) - The cleaner's share of the order in øre
+    - **Default:** `NULL` (stamped together with `total_cost_ore` when the cleaner prices the order; frozen with the price)
+    - **Note:** `calculateOrderPrice().cleaner_payout_ore` — `cleaner_payout_percent` (70 %) of the **full** service price, i.e. **before** any promo discount; a promo never lowers it
+    - **Note:** Owed only once the order is `completed`; paid monthly by bank transfer (see [BUSINESS_LOGIC.md → Cleaner Payout](./BUSINESS_LOGIC.md#cleaner-payout))
   - `promo` (jsonb, nullable) - Locked promo-code snapshot, set on the **first** order of an agreement only
     - **Default:** `NULL` (no promo)
     - **Shape:** `{ promo_code_id, code, discount_type, discount_value, max_discount_ore, discount_ore? }`
     - **Note:** Discount terms are captured at checkout (so the deal survives if the code is later changed/deactivated); `discount_ore` is filled in when the cleaner prices the order
-    - **Note:** Discount is **platform-absorbed** — it reduces `total_cost_ore` but not the cleaner payout
+    - **Note:** Discount is **platform-absorbed** — it reduces `total_cost_ore` but not `cleaner_payout_ore`
 - **Other:**
   - `declined_by_cleaner_ids` (uuid[], nullable) - Array of cleaner IDs who declined this order
     - **Note:** Used during reassignment to prevent offering order to same cleaner again
@@ -383,7 +387,7 @@
 
 **Notes:**
 
-- **FLEXIBLE Pricing:** Orders created with `total_cost_ore = NULL`. Cleaner weighs laundry after pickup and calculates price.
+- **FLEXIBLE Pricing:** Orders created with `total_cost_ore = NULL` and `cleaner_payout_ore = NULL`. Cleaner registers the loads after pickup; both are stamped in the same write.
 - **Single Address Model:** Pickup and delivery use same address (simplified from previous two-address model).
 - **No Plan Reference:** Removed subscription_plans table - pricing is fully flexible.
 

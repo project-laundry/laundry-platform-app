@@ -62,10 +62,13 @@ export function CleanerHistoryTab({ orders }: CleanerHistoryTabProps) {
                     : ''}
               </p>
             </div>
-            {order.total_cost_ore && (
-              <p className="shrink-0 font-serif text-lg font-semibold tabular-nums text-dark-gray">
-                {formatNok(order.total_cost_ore)} kr
-              </p>
+            {order.cleaner_payout_ore !== null && (
+              <div className="shrink-0 text-right">
+                <p className="font-serif text-lg font-semibold tabular-nums text-dark-gray">
+                  {formatNok(order.cleaner_payout_ore)} kr
+                </p>
+                <p className="text-xs text-medium-gray">Din andel</p>
+              </div>
             )}
           </Link>
         ))}

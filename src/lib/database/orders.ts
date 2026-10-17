@@ -505,6 +505,8 @@ export interface UpdateLaundryDetailsData {
   wash_loads: number;
   ironing_details: OrderIroningDetails | null;
   total_cost_ore: number;
+  // Cleaner's share of the FULL price (before promo) — stamped with the price
+  cleaner_payout_ore: number;
   pricing_notes?: string;
   // Updated promo snapshot with discount_ore filled in (if a promo was applied)
   promo?: OrderPromo | null;
@@ -544,6 +546,7 @@ export async function updateOrderLaundryDetails(
     wash_loads: data.wash_loads,
     ironing_details: data.ironing_details,
     total_cost_ore: data.total_cost_ore,
+    cleaner_payout_ore: data.cleaner_payout_ore,
     pricing_notes: data.pricing_notes || null,
     price_calculated_at: new Date().toISOString(),
   };

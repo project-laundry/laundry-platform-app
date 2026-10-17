@@ -8,6 +8,7 @@ import { getUsersById } from '@/lib/database/users';
 import { getOrdersByCleanerId, getCompletedOrdersByCleanerId } from '@/lib/database/orders';
 import { LogoutButton } from '@/components/ui/LogoutButton';
 import { CleanerDashboardTabs } from './components/CleanerDashboardTabs';
+import { CleanerPayoutCard } from './components/CleanerPayoutCard';
 import { formatActiveDays } from '@/lib/config/cleaner-options';
 
 export default async function CleanerDashboardPage() {
@@ -160,6 +161,7 @@ export default async function CleanerDashboardPage() {
                 </div>
                 <ChevronRight className="size-4 shrink-0 text-medium-gray" />
               </Link>
+              <CleanerPayoutCard orders={historyOrders} />
               <CleanerDashboardTabs
                 activeOrders={activeOrders}
                 historyOrders={historyOrders}

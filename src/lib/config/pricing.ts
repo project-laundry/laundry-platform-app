@@ -106,6 +106,16 @@ export const CLEANER_MIN_PAYOUT_PER_ORDER_ORE = Math.round(
   (PRICING.minimum_order_ore * PRICING.cleaner_payout_percent) / 100
 );
 
+/** When and how cleaners are paid. One source for every surface that states it
+ *  (cleaner FAQ, onboarding bank-account step, settings, dashboard) so the
+ *  promise can't drift. Payout itself is a manual bank transfer. */
+export const CLEANER_PAYOUT_TERMS = {
+  /** The previous month's completed orders are on the cleaner's account by this day of the month. */
+  paid_by_day_of_month: 10,
+} as const;
+
+export const CLEANER_PAYOUT_TERMS_TEXT = `Din andel av oppdragene du fullfører i løpet av en måned utbetales samlet til kontonummeret ditt innen den ${CLEANER_PAYOUT_TERMS.paid_by_day_of_month}. i måneden etter. Det er ingen minstebeløp.`;
+
 /** Whole-krone formatting with unit — estimates read cleaner without decimals. */
 export function formatKr(ore: number): string {
   return `${Math.round(ore / 100).toLocaleString('nb-NO')} kr`;

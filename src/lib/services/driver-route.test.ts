@@ -98,6 +98,7 @@ function makeOrder(over: Partial<DriverRouteOrder> = {}): DriverRouteOrder {
     pricing_notes: null,
     price_calculated_at: null,
     total_cost_ore: null,
+    cleaner_payout_ore: null,
     promo: null,
     declined_by_cleaner_ids: null,
     assigned_at: null,

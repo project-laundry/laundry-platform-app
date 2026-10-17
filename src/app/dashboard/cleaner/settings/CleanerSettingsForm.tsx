@@ -15,6 +15,7 @@ import {
   WEEKDAY_OPTIONS,
 } from '@/lib/config/cleaner-options';
 import { validateBankAccount, validateYear } from '@/lib/validation/cleaner';
+import { CLEANER_PAYOUT_TERMS_TEXT } from '@/lib/config/pricing';
 import type {
   Cleaner,
   CleanerExperienceLevel,
@@ -357,6 +358,7 @@ export function CleanerSettingsForm({ cleaner }: { cleaner: Cleaner }) {
             required
             error={errors.bankAccount}
           />
+          <p className="mt-1.5 text-sm text-medium-gray">{CLEANER_PAYOUT_TERMS_TEXT}</p>
         </div>
       </section>
 

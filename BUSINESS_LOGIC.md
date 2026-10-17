@@ -94,7 +94,7 @@ Customer subscribes Dec 26, 2025:
 3. **Cleaner Weighs & Prices:**
    - Cleaner weighs laundry, records `actual_weight_kg`
    - Calculates price based on weight, ironing preference, and other factors
-   - Sets `total_cost_ore` and optional `pricing_notes`
+   - Sets `total_cost_ore` (after any promo discount) and `cleaner_payout_ore` (the cleaner's share of the full price, before the discount) and optional `pricing_notes`
    - Records `price_calculated_at` timestamp
 4. **Payment Creation:** Cleaner creates Vipps charge for the calculated amount
 5. **Customer Payment:** Customer pays via Vipps for actual service provided
@@ -106,6 +106,12 @@ Customer subscribes Dec 26, 2025:
 - Cleaner's individual pricing model
 
 **Note:** No fixed plan prices - fully flexible based on actual laundry volume and services.
+
+### Cleaner Payout
+
+**What is owed:** `orders.cleaner_payout_ore` — stamped when the cleaner prices the order (`updateOrderLaundryDetails`), equal to `calculateOrderPrice().cleaner_payout_ore` (`PRICING.cleaner_payout_percent` of the full service price, before any platform-absorbed promo discount). It is frozen with the price when the order is marked ready, so a later change to `PRICING` never rewrites what a cleaner was promised. A payout is owed only for orders that reach `completed`. Orders can only be cancelled before pickup, so a priced order is never cancelled.
+
+**When and how (the contract shown to cleaners):** all orders a cleaner completed (`completed_at`, Norwegian calendar month) in one month are paid together by bank transfer to `cleaners.bank_account`, on the account by the **10th of the following month**. No minimum amount. Payout is a manual bank transfer for now; the admin report that lists what to pay is a separate issue. The sentence cleaners see is `CLEANER_PAYOUT_TERMS_TEXT` in `src/lib/config/pricing.ts` (day of month in `CLEANER_PAYOUT_TERMS`), rendered unchanged on the cleaner FAQ (`payment`), the onboarding bank-account step, the settings page and the cleaner dashboard's "Utbetaling" card. The dashboard card sums `cleaner_payout_ore` for the previous and current month (`lib/utils/payout.ts`), and the history tab shows "Din andel" per order.
 
 ### Ironing (not in the first version)
 

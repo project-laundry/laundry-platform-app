@@ -248,6 +248,9 @@ export interface Order {
   pricing_notes: string | null;
   price_calculated_at: string | null;
   total_cost_ore: number | null;
+  // Cleaner's share in øre, stamped with total_cost_ore at pricing time (before any
+  // platform-absorbed promo discount). NULL until priced. Owed once completed.
+  cleaner_payout_ore: number | null;
   // Promo code applied at checkout (first order only); null if none
   promo: OrderPromo | null;
   // Other

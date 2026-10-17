@@ -244,7 +244,8 @@ export async function saveLaundryDetails(
   const priceBreakdown = calculateOrderPrice(details);
 
   // Apply promo discount (if any) to the amount charged to the customer.
-  // The discount is platform-absorbed: it reduces total_cost_ore but NOT the cleaner payout.
+  // The discount is platform-absorbed: it reduces total_cost_ore but NOT
+  // cleaner_payout_ore, which is stamped from the full-price breakdown below.
   const order = await getOrderByIdAndCleanerId(orderId, cleaner.id);
   if (!order) {
     return { success: false, error: 'Ordre ikke funnet eller ikke tildelt deg' };
@@ -270,6 +271,7 @@ export async function saveLaundryDetails(
     wash_loads: details.wash_loads,
     ironing_details: details.ironing_details,
     total_cost_ore: totalCostOre,
+    cleaner_payout_ore: priceBreakdown.cleaner_payout_ore,
     pricing_notes: notes,
     promo: promoUpdate,
   });

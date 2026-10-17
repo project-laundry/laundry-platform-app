@@ -18,13 +18,18 @@ vi.mock('@/lib/payments/vipps/service', () => ({ createChargeForCompletedOrder: 
 vi.mock('@/lib/services/complete-order', () => ({ completeDeliveredOrder: vi.fn() }));
 
 import { getCleanerByUserId } from '@/lib/database/cleaners';
-import { getOrderByIdAndCleanerId, updateOrderStatusGuarded } from '@/lib/database/orders';
+import {
+  getOrderByIdAndCleanerId,
+  updateOrderLaundryDetails,
+  updateOrderStatusGuarded,
+} from '@/lib/database/orders';
 import { completeDeliveredOrder } from '@/lib/services/complete-order';
 import { createChargeForCompletedOrder } from '@/lib/payments/vipps/service';
 import {
   markOrderPickedUpAction,
   markOrderDeliveredAction,
   markOrderReadyForDelivery,
+  saveLaundryDetails,
 } from './actions';
 
 const m = (fn: unknown) => fn as Mock;
@@ -205,5 +210,66 @@ describe('markOrderReadyForDelivery', () => {
     expect(result.success).toBe(false);
     expect(updateOrderStatusGuarded).not.toHaveBeenCalled();
     expect(createChargeForCompletedOrder).not.toHaveBeenCalled();
+  });
+});
+
+describe('saveLaundryDetails', () => {
+  beforeEach(() => {
+    m(updateOrderLaundryDetails).mockResolvedValue({ data: { id: 'ord-1' }, error: null });
+  });
+
+  it('stamps the cleaner payout next to the price', async () => {
+    m(getOrderByIdAndCleanerId).mockResolvedValue({ id: 'ord-1', status: 'in_cleaning', promo: null });
+
+    const result = await saveLaundryDetails('ord-1', { wash_loads: 3, ironing_details: null });
+
+    expect(result.success).toBe(true);
+    // 3 × 22900 + 10400 + 1830 = 80930; 70 % = 56651
+    expect(updateOrderLaundryDetails).toHaveBeenCalledWith(
+      'ord-1',
+      'cl-1',
+      expect.objectContaining({
+        wash_loads: 3,
+        total_cost_ore: 80930,
+        cleaner_payout_ore: 56651,
+        promo: null,
+      })
+    );
+  });
+
+  it('keeps the payout on the full price when a promo reduces the charge', async () => {
+    m(getOrderByIdAndCleanerId).mockResolvedValue({
+      id: 'ord-1',
+      status: 'in_cleaning',
+      promo: {
+        promo_code_id: 'pc-1',
+        code: 'HALV',
+        discount_type: 'percentage',
+        discount_value: 50,
+        max_discount_ore: null,
+      },
+    });
+
+    const result = await saveLaundryDetails('ord-1', { wash_loads: 3, ironing_details: null });
+
+    expect(result.success).toBe(true);
+    expect(updateOrderLaundryDetails).toHaveBeenCalledWith(
+      'ord-1',
+      'cl-1',
+      expect.objectContaining({
+        total_cost_ore: 40465,
+        cleaner_payout_ore: 56651,
+        promo: expect.objectContaining({ code: 'HALV', discount_ore: 40465 }),
+      })
+    );
+  });
+
+  it('refuses once the order is no longer in_cleaning', async () => {
+    m(getOrderByIdAndCleanerId).mockResolvedValue({ id: 'ord-1', status: 'ready_for_delivery', promo: null });
+
+    const result = await saveLaundryDetails('ord-1', { wash_loads: 3, ironing_details: null });
+
+    expect(result.success).toBe(false);
+    expect(updateOrderLaundryDetails).not.toHaveBeenCalled();
   });
 });

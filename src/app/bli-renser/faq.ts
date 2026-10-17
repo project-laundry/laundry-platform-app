@@ -1,4 +1,9 @@
-import { PRICING, CLEANER_MIN_PAYOUT_PER_ORDER_ORE, formatKr } from '@/lib/config/pricing';
+import {
+  PRICING,
+  CLEANER_MIN_PAYOUT_PER_ORDER_ORE,
+  CLEANER_PAYOUT_TERMS_TEXT,
+  formatKr,
+} from '@/lib/config/pricing';
 import { PICKUP_TIME_RANGE } from '@/lib/config/pickup-times';
 
 /** Cleaner FAQ, shared by the coming-soon page (a subset) and the full
@@ -34,7 +39,7 @@ export const CLEANER_FAQ = {
   },
   payment: {
     q: 'Hvordan får jeg betalt?',
-    a: 'Kunden betaler med Vipps når du markerer oppdraget som klart. Din andel utbetales til kontonummeret du oppgir ved registrering.',
+    a: `Kunden betaler med Vipps når du markerer oppdraget som klart. ${CLEANER_PAYOUT_TERMS_TEXT} Hvert fullførte oppdrag og din andel av det ser du under Historikk i dashbordet ditt.`,
   },
   approval: {
     q: 'Hvordan blir jeg godkjent?',

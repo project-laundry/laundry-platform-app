@@ -13,6 +13,10 @@ interface PriceSummaryProps {
   showCleanerPayout?: boolean;
   promoCode?: string | null;
   discountOre?: number;
+  /** The persisted orders.cleaner_payout_ore. When given (price locked), it is
+   *  shown instead of the live recomputation so a later PRICING change can't
+   *  rewrite what the cleaner was told. */
+  cleanerPayoutOre?: number | null;
 }
 
 export function PriceSummary({
@@ -20,8 +24,10 @@ export function PriceSummary({
   showCleanerPayout = true,
   promoCode = null,
   discountOre = 0,
+  cleanerPayoutOre = null,
 }: PriceSummaryProps) {
   const hasDiscount = discountOre > 0;
+  const payoutOre = cleanerPayoutOre ?? breakdown.cleaner_payout_ore;
   const customerPaysOre = Math.max(0, breakdown.total_ore - discountOre);
   return (
     <section className="rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur">
@@ -111,7 +117,7 @@ export function PriceSummary({
             <p className="text-xs text-medium-gray">Etter plattformavgift</p>
           </div>
           <p className="font-serif text-2xl font-semibold tabular-nums text-nordic-blue">
-            {formatNok(breakdown.cleaner_payout_ore)} kr
+            {formatNok(payoutOre)} kr
           </p>
         </div>
       )}

@@ -341,6 +341,7 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
             initialNotes={order.pricing_notes}
             isEditable={isEditable}
             promo={order.promo}
+            cleanerPayoutOre={order.cleaner_payout_ore}
           />
         )}
 
