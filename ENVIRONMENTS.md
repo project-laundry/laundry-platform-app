@@ -56,7 +56,8 @@ Staging/production values are set **per environment** in the Vercel dashboard.
 
 **Pre-launch gate (no env var):** `src/proxy.ts` checks the request host against
 `src/lib/prelaunch.ts`. On `nooracare.no` / `www.nooracare.no`, anonymous visitors only reach
-the coming-soon pages, legal/contact pages, the price calculator and `/admin`; login, signup,
+the coming-soon pages, legal/contact pages, the price calculator, `/admin`, the auth callback and
+the password-reset pages (`/auth/forgot-password`, `/auth/reset-password`); login, signup,
 the order flow and the parked `/bli-renser/lansering` page redirect to `/`. `test.nooracare.no`,
 localhost and Vercel previews are never gated, so the full app is tested on staging. Delete
 the gate at launch. Note that this also blocks `/auth/login` on production, so admins cannot

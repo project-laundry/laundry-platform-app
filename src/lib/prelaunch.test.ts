@@ -28,6 +28,8 @@ describe('isPublicPrelaunchPath', () => {
       '/pris-kalkulator',
       '/auth/callback',
       '/auth/error',
+      '/auth/forgot-password',
+      '/auth/reset-password',
       '/api/webhooks/vipps/recurring',
       '/admin',
       '/admin/orders/123',

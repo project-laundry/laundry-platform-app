@@ -18,9 +18,9 @@ export const EMAIL_AND_PHONE_TAKEN_MESSAGE =
 const TRIGGER_FAILURE_MESSAGE =
   'Kunne ikke opprette kontoen. Telefonnummeret eller e-postadressen kan allerede være i bruk. Har du konto fra før? Logg inn i stedet.';
 
-const WEAK_PASSWORD_MESSAGE = 'Passordet er for svakt. Velg et lengre eller mer variert passord.';
+export const WEAK_PASSWORD_MESSAGE = 'Passordet er for svakt. Velg et lengre eller mer variert passord.';
 
-const RATE_LIMIT_MESSAGE = 'For mange forsøk. Vent litt og prøv igjen.';
+export const RATE_LIMIT_MESSAGE = 'For mange forsøk. Vent litt og prøv igjen.';
 
 const GENERIC_MESSAGE = 'Kunne ikke opprette kontoen. Prøv igjen om litt.';
 

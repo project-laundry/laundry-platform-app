@@ -91,9 +91,11 @@ src/
 │   │           └── recurring/ # Vipps Recurring API webhooks (agreement activation, charge events)
 │   ├── auth/               # Authentication flow
 │   │   ├── address/        # Address input step
-│   │   ├── callback/       # Supabase auth callback
-│   │   ├── error/          # Invalid/expired confirmation link (callback redirects here)
-│   │   ├── login/          # Login page (honors ?next= for same-site paths — the order flow sends anonymous customers here from step 3)
+│   │   ├── callback/       # Supabase e-mail link landing: `?token_hash=&type=` (verifyOtp) or PKCE `?code=` (exchangeCodeForSession); sanitizes ?next=; recovery links (type=recovery or next=/auth/reset-password) always go to reset-password, failures to forgot-password?expired=1
+│   │   ├── error/          # Invalid/expired confirmation link (callback redirects here for non-recovery links)
+│   │   ├── forgot-password/ # Password reset step 1: e-mail → resetPasswordForEmail (redirectTo = callback?next=/auth/reset-password); always shows "sent"; ?expired=1 shows the expired-link note
+│   │   ├── login/          # Login page (honors ?next= for same-site paths — the order flow sends anonymous customers here from step 3); "Glemt passord?" → forgot-password
+│   │   ├── reset-password/ # Password reset step 2: server page requires a session (else → forgot-password?expired=1), ResetPasswordForm calls updateUser({ password }) then → /dashboard
 │   │   ├── signup/         # Sign up page (passes ?next= through to the confirmation callback)
 │   │   └── success/        # Registration success
 │   ├── bli-renser/         # Cleaner coming-soon page + waitlist; real cleaner landing parked at bli-renser/lansering; onboarding flow below. faq.ts = the cleaner FAQ shared by both pages (coming-soon picks a subset via pickFaq)
@@ -128,7 +130,7 @@ src/
 ├── hooks/                  # Custom React hooks (empty)
 ├── lib/                    # Core utilities and business logic
 │   ├── ai/                 # Claude integration: machine-recognition.ts (photo → machine suggestion, never throws), config.ts (ANTHROPIC_API_KEY)
-│   ├── auth/               # requireRole/assertRole guards (require-role.ts); signup error mapping (signup-errors.ts)
+│   ├── auth/               # requireRole/assertRole guards (require-role.ts); signup error mapping (signup-errors.ts); password-reset paths + error mapping (password-reset.ts); ?next= sanitizing (next-path.ts)
 │   ├── config/
 │   │   └── pricing.ts      # Pricing constants and both calculators: calculateOrderPrice (cleaner-binding: per 5kg load + 3 ironing groups) and calculateCustomerEstimate (customer estimate: per bag/set/piece). Ironing groups exist in the model but are NOT offered in the first version — hidden on every public surface, see BUSINESS_LOGIC.md "Ironing". CLEANER_MIN_PAYOUT_PER_ORDER_ORE is the "minst 350 kr per oppdrag" cleaner marketing leads with (70 % of the 500 kr order minimum)
 │   ├── database/           # Database CRUD operations
@@ -199,7 +201,7 @@ All database operations use dedicated functions in `lib/database/`:
 
 ### Middleware
 
-`src/proxy.ts` (Next 16 proxy convention) refreshes Supabase auth sessions on every request and applies the **pre-launch gate** (`src/lib/prelaunch.ts`), keyed on the hostname: on `nooracare.no` / `www.nooracare.no`, anonymous visitors only reach `/`, `/bli-renser`, the legal/contact pages, the price calculator, `/admin` and `/auth/callback`; login, signup, the order flow and the parked `/bli-renser/lansering` page redirect to `/`. `test.nooracare.no`, localhost and previews are never gated — the full app lives on staging until launch. Signed-in users pass. Delete the gate at launch. Role guards live in `src/lib/auth/require-role.ts` (`requireRole` for pages/layouts, `assertRole` for server actions); privileged roles (`admin`, `driver`) can never be chosen at signup — the `handle_new_user` trigger only honors `customer`/`cleaner` metadata.
+`src/proxy.ts` (Next 16 proxy convention) refreshes Supabase auth sessions on every request and applies the **pre-launch gate** (`src/lib/prelaunch.ts`), keyed on the hostname: on `nooracare.no` / `www.nooracare.no`, anonymous visitors only reach `/`, `/bli-renser`, the legal/contact pages, the price calculator, `/admin`, `/auth/callback`, `/auth/error` and the password-reset pages (`/auth/forgot-password`, `/auth/reset-password` — the recovery e-mail must work before launch); login, signup, the order flow and the parked `/bli-renser/lansering` page redirect to `/`. `test.nooracare.no`, localhost and previews are never gated — the full app lives on staging until launch. Signed-in users pass. Delete the gate at launch. Role guards live in `src/lib/auth/require-role.ts` (`requireRole` for pages/layouts, `assertRole` for server actions); privileged roles (`admin`, `driver`) can never be chosen at signup — the `handle_new_user` trigger only honors `customer`/`cleaner` metadata.
 
 ## Maps & Geocoding
 

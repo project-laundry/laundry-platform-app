@@ -234,12 +234,12 @@ function LoginForm() {
             </label>
 
             <div className="flex justify-end">
-              <a
-                href="#"
+              <Link
+                href="/auth/forgot-password"
                 className="text-sm font-medium text-sea-green underline-offset-2 hover:underline"
               >
                 Glemt passord?
-              </a>
+              </Link>
             </div>
 
             <button
