@@ -18,17 +18,19 @@ parking spot for a task whose plan no longer matches the code (section 8). Issue
 stay **open** while in review (the user closes them after reviewing), so never write
 `Closes #N` or `Fixes #N` in a commit message.
 
-All board and issue operations go through `scripts/board.sh` (next to this file).
+All board and issue operations go through `board.sh` (in `scripts/` next to this file).
 It hard-codes the project and field IDs so you never have to discover them:
 
 ```bash
-scripts/board.sh ready                  # Ready issues sorted by priority (P0 first), then number
-scripts/board.sh status <n>             # which column issue n is in
-scripts/board.sh move <n> "In progress" # also: Ready | Blocked | "In review" | Backlog | Done
-scripts/board.sh plan <n>               # issue body + all comments, oldest first
+B=.claude/skills/implement-ready-task/scripts/board.sh   # run from the repo root; every call needs the full path
+$B ready                   # Ready issues sorted by priority (P0 first), then number
+$B status <n>              # which column issue n is in
+$B move <n> "In progress"  # also: Ready | Blocked | "In review" | Backlog | Done
+$B plan <n> <file>         # issue body + all comments written to <file>; prints size + headings
 ```
 
-Run it from the repo root as `.claude/skills/implement-ready-task/scripts/board.sh`.
+Each Bash call is a fresh shell, so spell out the full path every time (`$B` above is
+only shorthand for this document).
 
 ## 0. Preconditions
 
@@ -38,23 +40,25 @@ Before touching the board:
   `git status --porcelain` is empty, and `git pull --ff-only` succeeds. A dirty tree or a
   diverged branch means someone else's work is in flight — stop and report instead of
   building on top of it.
-- `scripts/board.sh ready` works (proves `gh` is authenticated against github.com).
+- `board.sh ready` works (proves `gh` is authenticated against github.com).
 
 ## 1. Pick the task and claim it
 
 - If the user named an issue, use that one. Check it is actually in `Ready`; if it is in
   another column, say so and ask before proceeding — moving a Backlog issue straight to
   In progress skips the planning stage, and an In-progress one may be half-done elsewhere.
-- Otherwise take the **first line** of `scripts/board.sh ready` (highest priority, then
-  lowest number). Tell the user which one you picked and why in one line. If the Ready
-  column is empty, say so and stop.
-- Move it: `scripts/board.sh move <n> "In progress"`. Do this before reading the plan in
-  depth, so the board reflects reality while you work.
+- Otherwise take the **first line** of `board.sh ready` (highest priority, then lowest
+  number). Say which one you picked and why in one line (in your running output, or in
+  the final report when nobody is watching). If the Ready column is empty, say so and stop.
+- Move it: `board.sh move <n> "In progress"`. Do this before reading the plan in depth,
+  so the board reflects reality while you work.
 
 ## 2. Read the plan — all of it
 
-`scripts/board.sh plan <n>` prints the issue body followed by every comment. The plan
-is in the comments, in one of two shapes:
+`board.sh plan <n> <scratch-file>` writes the issue body followed by every comment to a
+file and prints its headings with line numbers. Plans run 30–60 KB, far past what a
+tool result shows in one go, so read the file in sections (by heading line numbers)
+rather than printing it to the terminal. The plan is in the comments, in one of two shapes:
 
 1. A comment starting with `# Plan: …` holds the complete plan.
 2. Comments titled `**Plan (part 1/2)**`, `**Plan (part 2/2)**` … are one plan split
@@ -76,6 +80,11 @@ the whole planning stage. Technical details are yours to adapt when the code has
 symbol and read the current code; follow the plan's intent, not its line numbers. If a
 step is already done (another issue landed it), skip it and mention that in the review
 note.
+
+**Plans give exact "replace this with that" snippets.** Apply those with an exact-match
+replace that asserts the old text occurs exactly once (the Edit tool does this; so does a
+short script). A miss is not a formatting nuisance, it is the drift detector: stop and
+look at why the code differs before adapting the snippet.
 
 **Do a sync check before writing any code.** Walk the plan's Background and
 Implementation sections and confirm, by reading the current code, that every file,
@@ -118,12 +127,42 @@ npm run lint        # eslint --max-warnings 0, so warnings fail
 npm test            # vitest run
 ```
 
-Then walk the plan's **Verification checklist**. Items you can check from the terminal
-(a grep, a test, a type check) you check. Items that need a browser or a Vipps test
+Then walk the plan's **Verification checklist**; it adds to the three commands above
+(for example `npm run build`, or greps proving a stale comment is gone) and whatever it
+lists is required. Items you can check from the terminal (a grep, a test, a type check)
+you check. Items that need a browser or a Vipps test
 account you leave for the reviewer and list them explicitly in the review note. Never
 claim a manual check you did not do.
 
-## 5. Hand over: review note, then move to In review
+## 5. Commit and push to develop
+
+One commit per task, directly on `develop` (that is how this repo works — no feature
+branch, no PR; the review happens on the board). Commit and push **before** posting the
+review note, so the note carries the final sha: a push rejected because develop moved
+means a rebase, and a rebase rewrites the sha.
+
+- Stage only what belongs to the task (`git add -A` is fine if `git status` shows only
+  your files; otherwise add paths explicitly). `PLAN_*.md` is gitignored, so it won't
+  be staged by accident.
+- Subject line: imperative, what the change does for the product, with the issue in
+  parentheses at the end. Match the existing history:
+
+  ```
+  Add password reset flow (issue #72)
+  Sync payment status for cancelled/refunded charges and orphan pending rows (issue #93)
+  ```
+
+  Then a short body with the non-obvious decisions, and the `Co-Authored-By` trailer
+  from your session instructions. No `Closes`/`Fixes` keyword.
+- `git push origin develop`. If the push is rejected because develop moved, `git pull
+  --rebase`, re-run the three checks from step 4, and push again.
+- **Run commit, push, comment and move as separate Bash calls.** Pushing to `develop`
+  deploys migrations to staging, so the permission layer treats a chained
+  `commit && comment && move && push` as one deploy action and may refuse the whole
+  chain — and then nothing ran, not even the commit. One side effect per call keeps
+  each step reviewable and lets the rest proceed if one is denied.
+
+## 6. Hand over: review note, then move to In review
 
 Post **one** comment on the issue with `gh issue comment <n> --repo project-laundry/laundry-platform-app --body-file <file>`.
 Write it for someone who will read the diff cold. Keep it short and only include sections
@@ -132,7 +171,7 @@ that have content:
 ```markdown
 ## Implemented — ready for review
 
-**Commit:** `<short sha>` on `develop` (filled in after the commit; amend the comment with `gh issue comment --edit-last` if you post first)
+**Commit:** `<short sha>` on `develop`
 
 **Deviations from the plan**
 - <what you did differently and why — moved line, renamed helper, skipped a step that was already done>
@@ -150,33 +189,11 @@ that have content:
 If there is genuinely nothing to say beyond "implemented as planned, all checks green",
 say exactly that in one line — a reviewer trusts a short honest note more than padding.
 
-Then `scripts/board.sh move <n> "In review"`.
+Then `board.sh move <n> "In review"`.
 
 Order matters: comment first, then move. If the comment fails, the issue stays in
 In progress and the user sees something is off; a silent move with no note would look
 finished when it isn't.
-
-## 6. Commit and push to develop
-
-One commit per task, directly on `develop` (that is how this repo works — no feature
-branch, no PR; the review happens on the board).
-
-- Stage only what belongs to the task (`git add -A` is fine if `git status` shows only
-  your files; otherwise add paths explicitly). `PLAN_*.md` is gitignored, so it won't
-  be staged by accident.
-- Subject line: imperative, what the change does for the product, with the issue in
-  parentheses at the end. Match the existing history:
-
-  ```
-  Add password reset flow (issue #72)
-  Sync payment status for cancelled/refunded charges and orphan pending rows (issue #93)
-  ```
-
-  Then a short body with the non-obvious decisions, and the `Co-Authored-By` trailer
-  from your session instructions. No `Closes`/`Fixes` keyword.
-- `git push origin develop`. If the push is rejected because develop moved, `git pull
-  --rebase`, re-run the three checks from step 4, and push again.
-- If you posted the review note before committing, edit it so the commit sha is right.
 
 ## 7. Report
 
@@ -194,7 +211,7 @@ or in the working tree would be worse than nothing.
 
 1. **Stop editing.** Don't try to "finish the parts that still fit".
 2. **Revert everything.** The tree was clean at step 0, so everything that differs is
-   yours:
+   yours (this happens before step 5, so nothing is committed or pushed yet):
 
    ```bash
    git status --porcelain          # look at what you're about to discard
@@ -203,9 +220,8 @@ or in the working tree would be worse than nothing.
    git status --porcelain          # must be empty
    ```
 
-   Nothing has been committed or pushed at this point, so nothing else is needed. (If you
-   somehow already committed, `git reset --hard origin/develop` — but never push a revert
-   on top of something you pushed; stop and tell the user instead.)
+   (If you somehow already committed, `git reset --hard origin/develop` — but never push a
+   revert on top of something you pushed; stop and tell the user instead.)
 3. **Comment on the issue** so the next planning pass starts from facts, not from your
    memory. Use `gh issue comment <n> --repo project-laundry/laundry-platform-app --body-file <file>`:
 
@@ -230,7 +246,7 @@ or in the working tree would be worse than nothing.
    Be concrete: file paths, symbol names, the commit that introduced the drift
    (`git log -S'<symbol>' --oneline` finds it). Vague "the code has changed" comments
    force the planner to redo your investigation.
-4. **Move the issue:** `scripts/board.sh move <n> Blocked`.
+4. **Move the issue:** `board.sh move <n> Blocked`.
 5. **Report to the user** in a few lines: the issue, the core mismatch, and that the tree
    is clean. Don't pick another task unless the user asked you to keep going.
 

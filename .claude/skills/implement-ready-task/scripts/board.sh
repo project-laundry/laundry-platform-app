@@ -5,7 +5,8 @@
 #   board.sh ready                 list issues in the Ready column (number, priority, title)
 #   board.sh status <issue>        print the column an issue is in
 #   board.sh move <issue> <column> move an issue; column = Backlog | Ready | "In progress" | Blocked | "In review" | Done
-#   board.sh plan <issue>          print the issue body followed by every comment, oldest first
+#   board.sh plan <issue> [file]   issue body + every comment, oldest first. With [file]: write there and
+#                                  print only the headings (plans are 30-60 KB; read the file in sections)
 #
 # IDs are hard-coded on purpose: they never change for this board, and looking them
 # up costs several gh calls per run. If a command fails with "field not found",
@@ -80,9 +81,19 @@ print("issue not on the board", file=sys.stderr); sys.exit(1)
     echo "#$n -> $col"
     ;;
   plan)
-    n="${1:?issue number}"
-    gh issue view "$n" --repo "$REPO" --json number,title,body,labels,comments \
-      --jq '"# #\(.number) \(.title)\nLabels: \([.labels[].name] | join(", "))\n\n## Issue body\n\(.body)\n" + ([.comments[] | "\n---\n## Comment by \(.author.login) at \(.createdAt)\n\(.body)"] | join("\n"))'
+    n="${1:?issue number}"; out="${2:-}"
+    render() {
+      gh issue view "$n" --repo "$REPO" --json number,title,body,labels,comments \
+        --jq '"# #\(.number) \(.title)\nLabels: \([.labels[].name] | join(", "))\n\n## Issue body\n\(.body)\n" + ([.comments[] | "\n---\n## Comment by \(.author.login) at \(.createdAt)\n\(.body)"] | join("\n"))'
+    }
+    if [ -z "$out" ]; then
+      render
+    else
+      render > "$out"
+      echo "wrote $(wc -c < "$out" | tr -d ' ') bytes, $(wc -l < "$out" | tr -d ' ') lines to $out"
+      echo "--- headings (line: text) ---"
+      grep -n '^#\{1,3\} ' "$out"
+    fi
     ;;
   *)
     sed -n '2,8p' "$0"; exit 1 ;;
