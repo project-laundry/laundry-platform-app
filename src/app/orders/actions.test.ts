@@ -45,6 +45,7 @@ import { getCustomerByUserId } from '@/lib/database/customers';
 import { getMostRecentOrderAddressByCustomerId, getOrderWithDetailsByIdAndCustomerId } from '@/lib/database/orders';
 import { calculateCustomerEstimate } from '@/lib/config/pricing';
 import type { OrderSelection } from '@/types/order-flow';
+import { TERMS_VERSION } from '@/lib/config/terms';
 import { validatePromoCode } from '@/lib/database/promo-codes';
 import { createSubscription, getActiveSubscriptionByCustomerId } from '@/lib/database/subscriptions';
 import { createPaymentAgreement, getPaymentAgreementsByCustomerId } from '@/lib/database/payment-agreements';
@@ -91,6 +92,7 @@ const baseInput: CreateSubscriptionInput = {
     country: 'Norge',
     specialInstructions: 'Ring på',
   },
+  termsAccepted: true,
 };
 
 /** Wire the common happy-path return values; individual tests override as needed. */
@@ -151,6 +153,68 @@ describe('createSubscriptionAction — promo handling', () => {
   });
 });
 
+describe('createSubscriptionAction — terms consent', () => {
+  it('rejects a checkout without consent before touching Vipps or the database', async () => {
+    happyPathMocks();
+
+    const result = await createSubscriptionAction({ ...baseInput, termsAccepted: false });
+
+    expect(result.displayError).toBe('Du må akseptere salgsvilkårene for å fortsette');
+    expect(result.error).toBe('Terms not accepted');
+    expect(validatePromoCode).not.toHaveBeenCalled();
+    expect(createVippsAgreement).not.toHaveBeenCalled();
+    expect(createPaymentAgreement).not.toHaveBeenCalled();
+    expect(createSubscription).not.toHaveBeenCalled();
+  });
+
+  it('rejects a truthy non-boolean consent value (strict check, never trust the client)', async () => {
+    happyPathMocks();
+
+    const result = await createSubscriptionAction({
+      ...baseInput,
+      termsAccepted: 'yes' as unknown as boolean,
+    });
+
+    expect(result.error).toBe('Terms not accepted');
+    expect(createVippsAgreement).not.toHaveBeenCalled();
+  });
+
+  it('stamps terms_consent with the server version, a server timestamp and the early-start request', async () => {
+    happyPathMocks();
+    const before = Date.now();
+
+    await createSubscriptionAction(baseInput);
+
+    const metadata = m(createPaymentAgreement).mock.calls[0][0].provider_metadata as {
+      terms_consent: { terms_version: string; accepted_at: string; early_start_requested: boolean };
+    };
+    expect(metadata.terms_consent.terms_version).toBe(TERMS_VERSION);
+    expect(metadata.terms_consent.early_start_requested).toBe(true);
+    // ISO-8601 round-trip proves it is a real timestamp, taken now, by the server
+    const acceptedAt = new Date(metadata.terms_consent.accepted_at);
+    expect(acceptedAt.toISOString()).toBe(metadata.terms_consent.accepted_at);
+    expect(acceptedAt.getTime()).toBeGreaterThanOrEqual(before);
+    expect(acceptedAt.getTime()).toBeLessThanOrEqual(Date.now());
+  });
+
+  it('keeps terms_consent alongside order_defaults and promo on a one-time checkout', async () => {
+    happyPathMocks();
+    m(validatePromoCode).mockResolvedValue({ valid: true, promo: PROMO });
+
+    await createSubscriptionAction({ ...baseInput, isRecurring: false, frequency: undefined, promoCode: 'WELCOME' });
+
+    expect(createPaymentAgreement).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider_metadata: expect.objectContaining({
+          terms_consent: expect.objectContaining({ terms_version: TERMS_VERSION, early_start_requested: true }),
+          order_defaults: expect.objectContaining({ location_city: 'Oslo' }),
+          promo: PROMO,
+        }),
+      })
+    );
+  });
+});
+
 describe('createSubscriptionAction — recurring orders', () => {
   it('blocks a second active subscription', async () => {
     happyPathMocks();
@@ -193,8 +257,16 @@ describe('createSubscriptionAction — recurring orders', () => {
 
     expect(createVippsAgreement).toHaveBeenCalledWith(expect.objectContaining({ frequency: 'weekly' }));
     expect(createPaymentAgreement).toHaveBeenCalledWith(
-      expect.objectContaining({ customer_id: 'cust-1', provider_agreement_id: 'agr-1', provider_metadata: null })
+      expect.objectContaining({
+        customer_id: 'cust-1',
+        provider_agreement_id: 'agr-1',
+        provider_metadata: expect.objectContaining({
+          terms_consent: expect.objectContaining({ terms_version: TERMS_VERSION }),
+        }),
+      })
     );
+    // Recurring checkouts keep order_defaults on the subscription, not the agreement
+    expect(m(createPaymentAgreement).mock.calls[0][0].provider_metadata).not.toHaveProperty('order_defaults');
     expect(createSubscription).toHaveBeenCalledWith(
       expect.objectContaining({
         customer_id: 'cust-1',

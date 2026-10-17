@@ -16,6 +16,7 @@ import { isVippsTestEnvironment, pickVippsTestPhone } from "@/lib/payments/vipps
 import { createVippsRecurringClient } from "@/lib/payments/vipps/recurring-client";
 import { getWeekdayFromDate, isWeekdayInSchedule, addDays, toISODateString } from "@/lib/utils/date";
 import { DAYS_PICKUP_TO_DELIVERY, MIN_DAYS_NOTICE } from "@/lib/config/order-timing";
+import { TERMS_VERSION } from "@/lib/config/terms";
 import { translateFrequency } from "@/lib/utils/i18n";
 import { getMostRecentOrderAddressByCustomerId, getOrderWithDetailsByIdAndCustomerId, updateOrderStatus } from "@/lib/database/orders";
 import { geocodeAddress, validateAddress, type AddressValidationReason } from "@/lib/maps/geocoding";
@@ -29,6 +30,7 @@ import type {
   CustomerEstimate,
   OrderStatus,
   OrderPromo,
+  TermsConsent,
 } from "@/types/database";
 import type { OrderSelection } from "@/types/order-flow";
 
@@ -46,6 +48,10 @@ export interface CreateSubscriptionInput {
     specialInstructions?: string;
   };
   promoCode?: string;
+  /** The customer ticked the checkout consent box (sales terms + privacy policy
+   *  + express request to start within the withdrawal period). Must be exactly
+   *  `true`; the action rejects anything else. */
+  termsAccepted: boolean;
 }
 
 /** Clamp a count to a sane integer range — never trust client input. */
@@ -79,7 +85,7 @@ export interface CreateSubscriptionResult {
  * Flow:
  * 1. Create PaymentAgreement record (required for all checkouts)
  * 2. If recurring: create Subscription linked to PaymentAgreement
- * 3. If one-time: store order_defaults on PaymentAgreement.provider_metadata
+ * 3. Store terms_consent (always), and order_defaults if one-time, on PaymentAgreement.provider_metadata
  * 4. Create Vipps recurring agreement
  * 5. Return Vipps checkout URL for user to approve
  * 6. Webhook activates agreement and creates orders
@@ -103,6 +109,21 @@ export async function createSubscriptionAction(
   if (!customer) {
     return { error: "Customer not found" };
   }
+
+  // Consent is required before anything else happens — strict boolean check,
+  // never trust the client. The snapshot uses the server clock and the server's
+  // TERMS_VERSION so a tampered or stale client cannot forge either value.
+  if (input.termsAccepted !== true) {
+    return {
+      displayError: "Du må akseptere salgsvilkårene for å fortsette",
+      error: "Terms not accepted",
+    };
+  }
+  const termsConsent: TermsConsent = {
+    terms_version: TERMS_VERSION,
+    accepted_at: new Date().toISOString(),
+    early_start_requested: true,
+  };
 
   // Sanitize the customer's selection and recompute the estimate server-side —
   // never trust a client-supplied total.
@@ -218,9 +239,12 @@ export async function createSubscriptionAction(
   };
 
   // Build payment agreement metadata.
+  // - terms_consent (always): what the customer accepted at checkout and when
   // - one-time orders: store order_defaults here (no subscription to hold them)
   // - promo snapshot (if any): stored here so the discount survives until first-order generation
-  const providerMetadata: Record<string, unknown> = {};
+  const providerMetadata: Record<string, unknown> = {
+    terms_consent: termsConsent,
+  };
   if (!isRecurring) {
     providerMetadata.order_defaults = orderDefaults;
   }
@@ -232,7 +256,7 @@ export async function createSubscriptionAction(
   const paymentAgreement = await createPaymentAgreement({
     customer_id: customer.id,
     provider_agreement_id: agreementResponse.agreementId,
-    provider_metadata: Object.keys(providerMetadata).length > 0 ? providerMetadata : null,
+    provider_metadata: providerMetadata,
   });
 
   if (!paymentAgreement) {

@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { MarketingNav } from '@/components/landing/MarketingNav';
 import { Footer } from "@/components/landing/Footer";
+import { formatTermsVersion } from "@/lib/config/terms";
 
 export const metadata: Metadata = {
   title: "Salgsvilkår | NooraCare",
@@ -33,7 +34,7 @@ export default function SalgsvilkarPage() {
                 Salgsvilkår
               </h1>
               <p className="text-sm text-medium-gray">
-                Sist oppdatert: 16.10.2026
+                Sist oppdatert: {formatTermsVersion()}
               </p>
             </header>
 
@@ -165,10 +166,8 @@ export default function SalgsvilkarPage() {
               </h2>
               <p className="leading-relaxed text-dark-gray">
                 Bestilling skjer ved å fullføre bestillingsflyten på
-                nettstedet. Bindende avtale anses inngått når du har godkjent
-                betaling i Vipps og NooraCare har bekreftet bestillingen ved
-                å sende bekreftelse til den e-postadressen du oppga ved
-                registrering.
+                nettstedet. Bindende avtale anses inngått når betalingsavtalen
+                er godkjent i Vipps og bestillingen vises i dashbordet ditt.
               </p>
             </section>
 

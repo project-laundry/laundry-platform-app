@@ -17,6 +17,7 @@
    - Selects preferences (needs_ironing)
    - Provides service address and first pickup date
    - **Optionally enters a promo code** (validated inline, then re-validated server-side at checkout). On success the locked discount snapshot is stored in `payment_agreements.provider_metadata.promo`. See [Promo Codes & Discounts](#promo-codes--discounts).
+   - **Ticks the required consent checkbox** on the confirm step: accepts `/salgsvilkar` and `/personvern`, and expressly requests that the service start within the 14-day withdrawal period, acknowledging that the right lapses once the wash is completed (angrerettloven § 22 c). The server action rejects checkouts without it (never trusts the client) and stores `{ terms_version, accepted_at, early_start_requested: true }` in `payment_agreements.provider_metadata.terms_consent`. `terms_version` is the ISO-date constant `TERMS_VERSION` (`src/lib/config/terms.ts`), which also renders the "Sist oppdatert" date on `/salgsvilkar` — bump it whenever the terms text changes.
    - System creates:
      - **PaymentAgreement** (always): `status = 'pending'`, linked to Vipps agreement
      - **Subscription** (recurring only): `status = 'pending_payment'`, `payment_agreement_id` set, `order_defaults` populated

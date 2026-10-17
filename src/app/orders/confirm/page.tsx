@@ -30,6 +30,7 @@ import {
 } from '../actions';
 import { OrderFlowShell } from '@/components/order-flow/OrderFlowShell';
 import { Breakdown, PriceDisclaimer } from '@/components/order-flow/primitives';
+import { FormCheckbox } from '@/components/forms/FormCheckbox';
 
 const RETURN_PATH = '/orders/confirm';
 
@@ -88,6 +89,10 @@ export default function ConfirmPage() {
   // production. In production this stays false so users always go through Vipps.
   const showAutoAccept = isNonProduction();
   const [autoAccept, setAutoAccept] = useState(showAutoAccept);
+  // Terms + angrerett consent. Deliberately not persisted in the order-flow
+  // store: it resets on every visit so the consent stamped on the agreement
+  // was given by the signed-in customer in this session.
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   // Promo code state. The field stays folded behind a link unless a code is
   // already applied — a prominent code box sends people off to hunt for one.
@@ -174,6 +179,7 @@ export default function ConfirmPage() {
           specialInstructions: orderData.address!.specialInstructions || undefined,
         },
         promoCode: promoStatus === 'valid' ? promoInput.trim() || undefined : undefined,
+        termsAccepted,
       });
 
       if (result.error) {
@@ -217,7 +223,8 @@ export default function ConfirmPage() {
         signedIn === true &&
         price.hasItems &&
         !!orderData?.city &&
-        !!orderData?.firstPickupDate
+        !!orderData?.firstPickupDate &&
+        termsAccepted
       }
       onAdvance={handleSubmit}
       isSubmitting={isSubmitting}
@@ -374,6 +381,41 @@ export default function ConfirmPage() {
               )}
             </div>
           )}
+        </div>
+
+        {/* Required consent: sales terms + privacy policy + the express request
+            to start within the angrefrist (angrerettloven § 22 c). The Vipps
+            button stays disabled until this is ticked; the server action
+            rejects a checkout without it. */}
+        <div className="mt-6">
+          <FormCheckbox
+            checked={termsAccepted}
+            onChange={setTermsAccepted}
+            label={
+              <>
+                Jeg aksepterer{' '}
+                <Link
+                  href="/salgsvilkar"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-nordic-blue underline-offset-2 hover:underline"
+                >
+                  salgsvilkårene
+                </Link>{' '}
+                og{' '}
+                <Link
+                  href="/personvern"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-nordic-blue underline-offset-2 hover:underline"
+                >
+                  personvernerklæringen
+                </Link>
+                , og ber om at tjenesten starter før angrefristen på 14 dager er ute. Jeg er
+                klar over at angreretten faller bort når vasken er fullført.
+              </>
+            }
+          />
         </div>
 
         {/* Auto-accept checkbox (non-production environments only) */}

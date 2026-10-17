@@ -325,6 +325,20 @@ export interface OrderPromo {
 }
 
 // =============================================================================
+/**
+ * Checkout consent stored in payment_agreements.provider_metadata.terms_consent.
+ * Written once by createSubscriptionAction (server clock, server-side version
+ * constant) and never updated. early_start_requested records that the customer
+ * expressly asked for the service to start within the 14-day withdrawal period
+ * and acknowledged the right lapses once the wash is completed (angrerettloven
+ * § 22 c); the action rejects checkouts without it, so it is always true here.
+ */
+export interface TermsConsent {
+  terms_version: string; // TERMS_VERSION (ISO date) at acceptance time
+  accepted_at: string; // ISO timestamp, server clock
+  early_start_requested: true;
+}
+
 // HELPER TYPES FOR RELATIONSHIPS
 // =============================================================================
 

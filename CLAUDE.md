@@ -115,7 +115,7 @@ src/
 │       ├── details/        # Customer order details
 │       ├── wash/           # Step 1: what to wash (bags, bedding, ironing)
 │       ├── pickup/         # Step 2: address + pickup date + frequency
-│       ├── confirm/        # Step 3: review + promo code + Vipps handoff
+│       ├── confirm/        # Step 3: review + promo code + required terms/angrerett consent + Vipps handoff
 │       ├── success/        # Order success (polls agreement status)
 │       ├── layout.tsx      # Step route guards (redirects to /orders/wash)
 │       └── actions.ts      # Server actions
@@ -132,7 +132,8 @@ src/
 │   ├── ai/                 # Claude integration: machine-recognition.ts (photo → machine suggestion, never throws), config.ts (ANTHROPIC_API_KEY)
 │   ├── auth/               # requireRole/assertRole guards (require-role.ts); signup error mapping (signup-errors.ts); password-reset paths + error mapping (password-reset.ts); ?next= sanitizing (next-path.ts)
 │   ├── config/
-│   │   └── pricing.ts      # Pricing constants and both calculators: calculateOrderPrice (cleaner-binding: per 5kg load + 3 ironing groups) and calculateCustomerEstimate (customer estimate: per bag/set/piece). Ironing groups exist in the model but are NOT offered in the first version — hidden on every public surface, see BUSINESS_LOGIC.md "Ironing". CLEANER_MIN_PAYOUT_PER_ORDER_ORE is the "minst 350 kr per oppdrag" cleaner marketing leads with (70 % of the 500 kr order minimum)
+│   │   ├── pricing.ts      # Pricing constants and both calculators: calculateOrderPrice (cleaner-binding: per 5kg load + 3 ironing groups) and calculateCustomerEstimate (customer estimate: per bag/set/piece). Ironing groups exist in the model but are NOT offered in the first version — hidden on every public surface, see BUSINESS_LOGIC.md "Ironing". CLEANER_MIN_PAYOUT_PER_ORDER_ORE is the "minst 350 kr per oppdrag" cleaner marketing leads with (70 % of the 500 kr order minimum)
+│   │   └── terms.ts        # TERMS_VERSION (ISO date of the current /salgsvilkar text, bump on every terms change) + formatTermsVersion; stamped into payment_agreements.provider_metadata.terms_consent at checkout
 │   ├── database/           # Database CRUD operations
 │   │   ├── cleaners.ts     # Cleaner queries & matching
 │   │   ├── customers.ts    # Customer queries
@@ -266,7 +267,7 @@ The webhook uses HMAC-SHA256 signature verification with `VIPPS_WEBHOOK_SECRET` 
 - **New Table:** `payment_agreements` - Decoupled Vipps agreement lifecycle from subscriptions
   - `provider_agreement_id` - Vipps agreement ID (unique)
   - `status` - pending/active/stopped/expired
-  - `provider_metadata` - For one-time orders, stores `order_defaults`
+  - `provider_metadata` - Always stores `terms_consent` (`{ terms_version, accepted_at, early_start_requested }`, written by `createSubscriptionAction`; `TERMS_VERSION` lives in `lib/config/terms.ts` and also renders the "Sist oppdatert" date on `/salgsvilkar`); for one-time orders also stores `order_defaults`; `promo` when a code was applied
 - **Removed Tables:** `subscription_plans`, `bag_deliveries` (FLEXIBLE pricing eliminated need for plans)
 - **Removed Fields:** `subscriptions.provider_agreement_id` (moved to `payment_agreements`), `subscriptions.next_billing_date`, `subscriptions.billing_cost_ore`, `subscriptions.recurring_weekday`, `subscriptions.expires_at`, `orders.plan_id`, `orders.extra_kg`, `orders.delicate_items_count`
 - `subscriptions.payment_agreement_id` - FK to `payment_agreements` (replaces `provider_agreement_id`)

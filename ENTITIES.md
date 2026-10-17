@@ -216,6 +216,8 @@
   - **Default:** `'pending'`
 - `provider_metadata` (jsonb, nullable) - Provider-specific metadata
   - **Note:** For one-time orders, stores `order_defaults` (address, preferences, pickup date) since there's no subscription to hold them.
+  - **Note:** `promo` holds the locked promo snapshot when a code was applied at checkout.
+  - **Note:** `terms_consent` (always written at checkout) records what the customer accepted: `{ terms_version, accepted_at, early_start_requested: true }`. `terms_version` is `TERMS_VERSION` from `src/lib/config/terms.ts` (an ISO date bumped whenever `/salgsvilkar` changes), `accepted_at` is the server timestamp, and `early_start_requested` records the express request to start the service within the 14-day withdrawal period (angrerettloven § 22 c). Written once, never updated.
 - `created_at` (timestamp) - Creation timestamp
 - `activated_at` (timestamp, nullable) - When agreement was activated by user
 - `stopped_at` (timestamp, nullable) - When agreement was stopped
