@@ -45,6 +45,7 @@ const baseData: CleanerOnboardingData = {
   machineCondition: 'good',
   displayName: 'Test Renser',
   experienceLevel: 'some',
+  weeklySchedule: { mon: true, tue: true, wed: true, thu: true, fri: true, sat: false, sun: false },
   termsAccepted: true,
   privacyAccepted: true,
   informationAccuracyConfirmed: true,
@@ -160,6 +161,47 @@ describe('createCleanerProfileAction', () => {
         machine_condition: 'good',
       })
     );
+  });
+
+  it('stores the chosen pickup weekdays instead of hard-coding all seven', async () => {
+    await createCleanerProfileAction({
+      ...baseData,
+      weeklySchedule: { mon: false, tue: true, wed: false, thu: true, fri: false, sat: true, sun: false },
+    });
+
+    expect(createCleaner).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({
+        weekly_schedule: { mon: false, tue: true, wed: false, thu: true, fri: false, sat: true, sun: false },
+      })
+    );
+    const payload = m(createCleaner).mock.calls[0][1];
+    expect('is_accepting_orders' in payload).toBe(false);
+  });
+
+  it('rejects a schedule with no pickup weekdays, before any lookup', async () => {
+    const result = await createCleanerProfileAction({
+      ...baseData,
+      weeklySchedule: { mon: false, tue: false, wed: false, thu: false, fri: false, sat: false, sun: false },
+    });
+
+    expect(result).toEqual({ success: false, error: 'Velg minst én dag du tar imot henting' });
+    expect(getCleanerByUserId).not.toHaveBeenCalled();
+    expect(geocodeAddress).not.toHaveBeenCalled();
+    expect(createCleaner).not.toHaveBeenCalled();
+  });
+
+  it('rejects a stale session that has no schedule at all', async () => {
+    // A session persisted before step 4 asked for weekdays has no key at all.
+    const withoutSchedule: Record<string, unknown> = { ...baseData };
+    delete withoutSchedule.weeklySchedule;
+
+    const result = await createCleanerProfileAction(
+      withoutSchedule as unknown as CleanerOnboardingData
+    );
+
+    expect(result).toEqual({ success: false, error: 'Velg minst én dag du tar imot henting' });
+    expect(createCleaner).not.toHaveBeenCalled();
   });
 
   it('rejects a non-integer machine capacity', async () => {

@@ -5,6 +5,7 @@ import {
   CLEANER_VERIFICATION_LABELS,
   CLEANER_VERIFICATION_VARIANT,
 } from '@/lib/utils/cleaner-status';
+import { CleanerAcceptingOrdersButton } from './CleanerAcceptingOrdersButton';
 import { CleanerActivationButton } from './CleanerActivationButton';
 import { machineConditionLabel } from '@/lib/config/cleaner-options';
 
@@ -40,7 +41,7 @@ export default async function AdminCleanersPage() {
                       {CLEANER_VERIFICATION_LABELS[cleaner.verification_status]}
                     </StatusBadge>
                     {cleaner.verification_status === 'approved' && !cleaner.is_accepting_orders && (
-                      <StatusBadge variant="neutral">Tar ikke imot ordre</StatusBadge>
+                      <StatusBadge variant="neutral">Tar ikke imot nye oppdrag</StatusBadge>
                     )}
                   </div>
                   <p className="mt-1 truncate text-sm text-dark-gray">{cleaner.user.full_name}</p>
@@ -53,10 +54,18 @@ export default async function AdminCleanersPage() {
                       : 'Vaskemaskin ikke registrert'}
                   </p>
                 </div>
-                <CleanerActivationButton
-                  cleanerId={cleaner.id}
-                  isActive={cleaner.verification_status === 'approved'}
-                />
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                  <CleanerActivationButton
+                    cleanerId={cleaner.id}
+                    isActive={cleaner.verification_status === 'approved'}
+                  />
+                  {cleaner.verification_status === 'approved' && (
+                    <CleanerAcceptingOrdersButton
+                      cleanerId={cleaner.id}
+                      isAcceptingOrders={cleaner.is_accepting_orders}
+                    />
+                  )}
+                </div>
               </li>
             ))}
           </ul>

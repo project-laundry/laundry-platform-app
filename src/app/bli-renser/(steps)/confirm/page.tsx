@@ -7,7 +7,11 @@ import { AlertCircle, ListChecks } from 'lucide-react';
 import { useCleanerOnboardingStore } from '@/stores/cleaner-onboarding-store';
 import { CleanerFlowSection, CleanerFlowShell } from '@/components/cleaner-flow/CleanerFlowShell';
 import { FormCheckbox } from '@/components/forms/FormCheckbox';
-import { experienceLevelLabel, machineConditionLabel } from '@/lib/config/cleaner-options';
+import {
+  experienceLevelLabel,
+  formatActiveDays,
+  machineConditionLabel,
+} from '@/lib/config/cleaner-options';
 import { createCleanerProfileAction } from '../../actions';
 import type { CleanerOnboardingData } from '@/types/cleaner-flow';
 
@@ -125,6 +129,10 @@ function ConfirmForm() {
           <SummaryRow
             label="Erfaring"
             value={cleanerData.experienceLevel ? experienceLevelLabel(cleanerData.experienceLevel) : ''}
+          />
+          <SummaryRow
+            label="Dager"
+            value={cleanerData.weeklySchedule ? formatActiveDays(cleanerData.weeklySchedule) : ''}
           />
         </SummaryGroup>
       </section>

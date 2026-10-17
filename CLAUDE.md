@@ -79,7 +79,7 @@ src/
 │   ├── not-found.tsx       # Root 404 (unmatched URLs + every notFound() call)
 │   ├── admin/              # Admin dashboard (layout = shell + role guard; page = overview with counts)
 │   │   ├── orders/         # Order list + per-order detail page (edit details, cleaner (re)assignment, «Belast på nytt» retry of a failed Vipps charge)
-│   │   ├── cleaners/       # Cleaner list, activate/deactivate (verification_status)
+│   │   ├── cleaners/       # Cleaner list, activate/deactivate (verification_status), pause/resume new orders (is_accepting_orders)
 │   │   ├── customers/      # Customer list + per-customer detail
 │   │   ├── payments/       # Payment list (read-only)
 │   │   ├── promo-codes/    # Promo code list, create/edit, redemptions per code
@@ -104,13 +104,13 @@ src/
 │   │   │   ├── business/   # Step 1: business type, tax id (uniqueness pre-check), bank account
 │   │   │   ├── services/   # Step 2: base address (where the cleaner washes)
 │   │   │   ├── equipment/  # Step 3: washing machine (stored on cleaners.machine_*); optional photo → recognizeMachineAction pre-fills the fields (resize-image.ts is the browser-side JPEG downscale)
-│   │   │   ├── profile/    # Step 4: display name + experience
+│   │   │   ├── profile/    # Step 4: display name + experience + pickup weekdays (default Mon–Fri; is_accepting_orders is not asked)
 │   │   │   └── confirm/    # Step 5: summary + consent → createCleanerProfileAction
 │   │   └── success/        # Application submitted
 │   ├── dashboard/          # User dashboards (page.tsx = customer dashboard; header gear icon → settings/)
 │   │   ├── settings/       # Customer "Min konto": name + phone (users row via updateUserContact), password (browser supabase.auth.updateUser, links to /auth/forgot-password), subscription pickup address + instructions (rewrites order_defaults.initial_address, same city only, optionally copied onto the not-yet-picked-up order)
 │   │   ├── subscription/   # Subscription details + cancel flow
-│   │   ├── cleaner/        # Cleaner dashboard, missions & profile settings (settings/)
+│   │   ├── cleaner/        # Cleaner dashboard, missions & profile settings (settings/ — incl. availability: is_accepting_orders + weekly_schedule)
 │   │   └── driver/         # Driver dashboard (daily route) — dormant, driver role only
 │   └── orders/             # Customer order flow (3 steps; steps 1–2 work logged out, step 3 asks the customer to log in before Vipps)
 │       ├── [orderId]/      # Order cancel/reschedule

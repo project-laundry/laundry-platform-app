@@ -8,7 +8,7 @@ import { getUsersById } from '@/lib/database/users';
 import { getOrdersByCleanerId, getCompletedOrdersByCleanerId } from '@/lib/database/orders';
 import { LogoutButton } from '@/components/ui/LogoutButton';
 import { CleanerDashboardTabs } from './components/CleanerDashboardTabs';
-import type { WeeklySchedule } from '@/types/database';
+import { formatActiveDays } from '@/lib/config/cleaner-options';
 
 export default async function CleanerDashboardPage() {
   // Auth check
@@ -41,24 +41,7 @@ export default async function CleanerDashboardPage() {
   const isSuspended = cleaner.verification_status === 'suspended';
 
   // Availability summary for the dashboard strip (approved cleaners only).
-  const WEEKDAY_LABELS: { key: keyof WeeklySchedule; label: string }[] = [
-    { key: 'mon', label: 'Man' },
-    { key: 'tue', label: 'Tir' },
-    { key: 'wed', label: 'Ons' },
-    { key: 'thu', label: 'Tor' },
-    { key: 'fri', label: 'Fre' },
-    { key: 'sat', label: 'Lør' },
-    { key: 'sun', label: 'Søn' },
-  ];
-  const activeDays = WEEKDAY_LABELS.filter(({ key }) => cleaner.weekly_schedule[key]).map(
-    ({ label }) => label
-  );
-  const activeDaysLabel =
-    activeDays.length === 7
-      ? 'Alle dager'
-      : activeDays.length > 0
-        ? activeDays.join(', ')
-        : 'Ingen dager valgt';
+  const activeDaysLabel = formatActiveDays(cleaner.weekly_schedule);
 
   // Get orders for approved cleaners
   const activeOrders = isApproved ? await getOrdersByCleanerId(cleaner.id) : [];

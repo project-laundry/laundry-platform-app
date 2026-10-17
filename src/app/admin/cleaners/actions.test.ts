@@ -3,12 +3,15 @@ import type { Mock } from 'vitest';
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 vi.mock('@/lib/auth/require-role', () => ({ assertRole: vi.fn() }));
-vi.mock('@/lib/database/cleaners', () => ({ setCleanerVerificationStatus: vi.fn() }));
+vi.mock('@/lib/database/cleaners', () => ({
+  setCleanerVerificationStatus: vi.fn(),
+  updateCleanerProfile: vi.fn(),
+}));
 
 import { revalidatePath } from 'next/cache';
 import { assertRole } from '@/lib/auth/require-role';
-import { setCleanerVerificationStatus } from '@/lib/database/cleaners';
-import { setCleanerActivationAction } from './actions';
+import { setCleanerVerificationStatus, updateCleanerProfile } from '@/lib/database/cleaners';
+import { setCleanerAcceptingOrdersAction, setCleanerActivationAction } from './actions';
 
 const m = (fn: unknown) => fn as Mock;
 
@@ -16,6 +19,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   m(assertRole).mockResolvedValue({ auth: { authUserId: 'admin-1' }, error: null });
   m(setCleanerVerificationStatus).mockResolvedValue({ id: 'cl-1' });
+  m(updateCleanerProfile).mockResolvedValue({ id: 'cl-1' });
 });
 
 describe('setCleanerActivationAction', () => {
@@ -47,6 +51,42 @@ describe('setCleanerActivationAction', () => {
     m(setCleanerVerificationStatus).mockResolvedValue(null);
 
     const result = await setCleanerActivationAction('cl-1', true);
+
+    expect(result).toEqual({ success: false, error: 'Kunne ikke oppdatere renseren' });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe('setCleanerAcceptingOrdersAction', () => {
+  it('rejects when the caller is not an admin', async () => {
+    m(assertRole).mockResolvedValue({ auth: null, error: 'Ingen tilgang' });
+
+    const result = await setCleanerAcceptingOrdersAction('cl-1', false);
+
+    expect(result).toEqual({ success: false, error: 'Ingen tilgang' });
+    expect(updateCleanerProfile).not.toHaveBeenCalled();
+  });
+
+  it('pauses by writing only is_accepting_orders = false', async () => {
+    const result = await setCleanerAcceptingOrdersAction('cl-1', false);
+
+    expect(result).toEqual({ success: true });
+    expect(updateCleanerProfile).toHaveBeenCalledWith('cl-1', { is_accepting_orders: false });
+    expect(setCleanerVerificationStatus).not.toHaveBeenCalled();
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/cleaners');
+  });
+
+  it('resumes by writing is_accepting_orders = true', async () => {
+    const result = await setCleanerAcceptingOrdersAction('cl-1', true);
+
+    expect(result).toEqual({ success: true });
+    expect(updateCleanerProfile).toHaveBeenCalledWith('cl-1', { is_accepting_orders: true });
+  });
+
+  it('errors when the update fails', async () => {
+    m(updateCleanerProfile).mockResolvedValue(null);
+
+    const result = await setCleanerAcceptingOrdersAction('cl-1', false);
 
     expect(result).toEqual({ success: false, error: 'Kunne ikke oppdatere renseren' });
     expect(revalidatePath).not.toHaveBeenCalled();

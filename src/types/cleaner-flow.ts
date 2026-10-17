@@ -2,6 +2,7 @@ import type {
   CleanerBusinessType,
   CleanerExperienceLevel,
   CleanerMachineCondition,
+  WeeklySchedule,
 } from './database';
 
 export interface CleanerOnboardingData {
@@ -25,9 +26,10 @@ export interface CleanerOnboardingData {
   machineYear: string;
   machineCondition: CleanerMachineCondition;
 
-  // Step 4: profile
+  // Step 4: profile + pickup weekdays (defaults to Mon–Fri in the form)
   displayName: string;
   experienceLevel: CleanerExperienceLevel;
+  weeklySchedule: WeeklySchedule;
 
   // Step 5: confirmation
   termsAccepted: boolean;

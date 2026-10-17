@@ -241,7 +241,7 @@ export async function saveCleanerCoords(
 }
 
 /**
- * Update a cleaner's own editable profile fields (settings page).
+ * Update a cleaner's editable profile fields (cleaner settings page; admin pause/resume toggle).
  * Pass only the fields being changed; returns the updated row or null on error.
  */
 export async function updateCleanerProfile(

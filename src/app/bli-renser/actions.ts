@@ -16,6 +16,8 @@ import {
 } from "@/lib/ai/machine-recognition";
 import { getCityFromPostalCode } from "@/lib/config/postal-codes";
 import {
+  hasAnyWeekday,
+  normalizeWeeklySchedule,
   taxIdTakenMessage,
   validateBankAccount,
   validateTaxId,
@@ -177,6 +179,14 @@ export async function createCleanerProfileAction(
       return { success: false, error: "Velg tilstand på vaskemaskinen" };
     }
 
+    // Step 4 asks for pickup weekdays (default Mon–Fri). Rebuild key-by-key so
+    // nothing but real booleans reaches the jsonb column, and require at least
+    // one day — the same rule as the settings page.
+    const weeklySchedule = normalizeWeeklySchedule(data.weeklySchedule);
+    if (!hasAnyWeekday(weeklySchedule)) {
+      return { success: false, error: "Velg minst én dag du tar imot henting" };
+    }
+
     // 3. Check if user already has a cleaner profile
     const existingCleaner = await getCleanerByUserId(user.id);
     if (existingCleaner) {
@@ -223,15 +233,7 @@ export async function createCleanerProfileAction(
       machine_capacity_kg: machineCapacityKg,
       machine_year: machineYear,
       machine_condition: data.machineCondition,
-      weekly_schedule: {
-        mon: true,
-        tue: true,
-        wed: true,
-        thu: true,
-        fri: true,
-        sat: true,
-        sun: true,
-      },
+      weekly_schedule: weeklySchedule,
     });
 
     if (createError || !cleaner) {

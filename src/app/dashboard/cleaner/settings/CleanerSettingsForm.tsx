@@ -9,7 +9,11 @@ import {
   isValidPostalCodeFormat,
   type SupportedCity,
 } from '@/lib/config/postal-codes';
-import { EXPERIENCE_LEVEL_OPTIONS, MACHINE_CONDITION_OPTIONS } from '@/lib/config/cleaner-options';
+import {
+  EXPERIENCE_LEVEL_OPTIONS,
+  MACHINE_CONDITION_OPTIONS,
+  WEEKDAY_OPTIONS,
+} from '@/lib/config/cleaner-options';
 import { validateBankAccount, validateYear } from '@/lib/validation/cleaner';
 import type {
   Cleaner,
@@ -20,16 +24,6 @@ import type {
 import { updateCleanerSettingsAction } from './actions';
 
 const isWholePositive = (value: string) => /^\d+$/.test(value) && Number(value) > 0;
-
-const WEEKDAYS: { key: keyof WeeklySchedule; label: string }[] = [
-  { key: 'mon', label: 'Mandag' },
-  { key: 'tue', label: 'Tirsdag' },
-  { key: 'wed', label: 'Onsdag' },
-  { key: 'thu', label: 'Torsdag' },
-  { key: 'fri', label: 'Fredag' },
-  { key: 'sat', label: 'Lørdag' },
-  { key: 'sun', label: 'Søndag' },
-];
 
 const sectionClass =
   'mt-5 rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur';
@@ -203,7 +197,7 @@ export function CleanerSettingsForm({ cleaner }: { cleaner: Cleaner }) {
               Dager du tar imot henting
             </span>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {WEEKDAYS.map(({ key, label }) => {
+              {WEEKDAY_OPTIONS.map(({ key, label }) => {
                 const checked = weeklySchedule[key];
                 return (
                   <label

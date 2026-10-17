@@ -7,6 +7,8 @@ import { geocodeAddress } from '@/lib/maps/geocoding';
 import { getCityFromPostalCode } from '@/lib/config/postal-codes';
 import { EXPERIENCE_LEVEL_OPTIONS, MACHINE_CONDITION_OPTIONS } from '@/lib/config/cleaner-options';
 import {
+  hasAnyWeekday,
+  normalizeWeeklySchedule,
   validateBankAccount,
   validatePostalCode,
   validateYear,
@@ -109,17 +111,9 @@ export async function updateCleanerSettingsAction(
       return { success: false, error: 'Velg tilstand' };
     }
     // Rebuild the schedule key-by-key so extra/missing client keys can't reach
-    // the jsonb column, and coerce to real booleans.
-    const weeklySchedule: WeeklySchedule = {
-      mon: input.weeklySchedule?.mon === true,
-      tue: input.weeklySchedule?.tue === true,
-      wed: input.weeklySchedule?.wed === true,
-      thu: input.weeklySchedule?.thu === true,
-      fri: input.weeklySchedule?.fri === true,
-      sat: input.weeklySchedule?.sat === true,
-      sun: input.weeklySchedule?.sun === true,
-    };
-    if (!Object.values(weeklySchedule).some(Boolean)) {
+    // the jsonb column, and require at least one day (same rule as onboarding).
+    const weeklySchedule = normalizeWeeklySchedule(input.weeklySchedule);
+    if (!hasAnyWeekday(weeklySchedule)) {
       return { success: false, error: 'Velg minst én dag du tar imot henting' };
     }
 

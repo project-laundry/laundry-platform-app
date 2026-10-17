@@ -170,6 +170,8 @@ Assignment happens at subscription creation.
 
 **Edge Case - No Available Cleaners:** If no cleaner matches the criteria, orders are created with `status = 'pending_assignment'` for manual admin resolution via admin dashboard.
 
+**Availability is a matching-time filter only.** `is_accepting_orders` and `weekly_schedule` are read when a cleaner is chosen — first order of a new agreement, rolling-window next order, and customer reschedule (`updateOrderPickupDateAction` keeps the current cleaner if they work on the new weekday, otherwise runs matching again). A cleaner who pauses ("Tar imot nye oppdrag" off in settings, or the admin's «Sett på pause» button) or removes a weekday keeps every order already assigned to them; nothing is cancelled or reassigned. Cleaners set their weekdays in onboarding step 4 (default Mon–Fri) and change both fields on `/dashboard/cleaner/settings`.
+
 **Reassignment Flow:** If a cleaner declines or becomes unavailable:
 1. Add cleaner to `Order.declined_by_cleaner_ids`
 2. Find next available cleaner using matching criteria

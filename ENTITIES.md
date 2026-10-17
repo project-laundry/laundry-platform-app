@@ -118,13 +118,15 @@
   - **Validation:** 1900–2100 (DB); onboarding requires ≤ current year
 - `machine_condition` (enum → [CleanerMachineCondition](#cleanermachinecondition), nullable) - Self-reported machine condition
   - **Note:** All four machine fields are `NULL` for profiles created before they were stored (migration `20260916120000`).
-- `weekly_schedule` (jsonb, required) - Weekly availability pattern
+- `weekly_schedule` (jsonb, required) - Weekdays the cleaner takes pickups
   - **Format:** `{"mon": true, "tue": true, "wed": true, "thu": true, "fri": true, "sat": false, "sun": false}`
-  - **Default:** `{"mon": true, "tue": true, "wed": true, "thu": true, "fri": true, "sat": false, "sun": false}`
-  - **Note:** Defines which weekdays cleaner accepts orders. Must be set before cleaner can receive order assignments.
-- `is_accepting_orders` (boolean) - Whether cleaner is accepting new orders
-  - **Default:** `true`
-  - **Note:** Vacation mode toggle. When false, cleaner receives no new assignments.
+  - **Default:** Mon–Fri (`DEFAULT_WEEKLY_SCHEDULE` in `lib/config/cleaner-options.ts`, same as the column default)
+  - **Set by:** onboarding step 4 (pre-selected Mon–Fri, at least one day required) and the cleaner settings page. Validated by `normalizeWeeklySchedule` + `hasAnyWeekday` in `lib/validation/cleaner.ts`.
+  - **Note:** Read only at matching time (`findAvailableCleaner`, `getAvailableWeekdaysForCity`); changing it never touches already-assigned orders.
+- `is_accepting_orders` (boolean) - Whether cleaner is accepting new assignments
+  - **Default:** `true` (not asked in onboarding)
+  - **Set by:** the cleaner settings page ("Tar imot nye oppdrag") and the admin cleaner list (pause/resume button, `setCleanerAcceptingOrdersAction`).
+  - **Note:** Vacation mode. When false the cleaner is excluded from matching for new assignments only; orders already assigned proceed normally.
 - `created_at` (timestamp) - Profile creation timestamp
 - `updated_at` (timestamp) - Last update timestamp
 - `approved_at` (timestamp, nullable) - Approval timestamp
