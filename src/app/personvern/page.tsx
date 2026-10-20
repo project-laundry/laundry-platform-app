@@ -35,7 +35,7 @@ export default function PersonvernPage() {
                 Personvernerklæring
               </h1>
               <p className="text-sm text-medium-gray">
-                Sist oppdatert: 16.10.2026
+                Sist oppdatert: 20.10.2026
               </p>
               <p className="text-sm text-medium-gray mt-2">
                 Denne erklæringen gjelder for kunder. Er du tilknyttet
@@ -71,21 +71,22 @@ export default function PersonvernPage() {
                 <p className="leading-relaxed text-dark-gray">
                   Melder du deg på ventelisten vår (som kunde eller renser),
                   lagrer vi e-postadressen din, byen du velger og tidspunktet
-                  for påmeldingen. Vi bruker dette til å gi deg beskjed når
-                  NooraCare åpner, sende deg lanseringstilbudet og sende deg
-                  nyhetsbrev fra NooraCare. Rettslig grunnlag er samtykket
-                  ditt (GDPR art. 6 nr. 1 bokstav a), som du kan trekke
-                  tilbake når som helst – via avmeldingslenken i e-postene
-                  våre eller ved å skrive til{" "}
+                  for påmeldingen. Vi bruker dette til én ting: å sende deg én
+                  e-post når NooraCare åpner i byen din. Er du kunde og blant de
+                  første på listen, inneholder den e-posten også
+                  lanseringstilbudet. Vi sender ikke nyhetsbrev eller annen
+                  markedsføring til ventelisten. Rettslig grunnlag er samtykket
+                  ditt (GDPR art. 6 nr. 1 bokstav a), som du kan trekke tilbake
+                  når som helst ved å skrive til{" "}
                   <a
                     href="mailto:post@nooracare.no"
                     className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
                   >
                     post@nooracare.no
                   </a>
-                  . Melder du deg av, sletter vi adressen din. Vi deler den
-                  ikke med andre, og vi sletter adressen senest seks måneder
-                  etter lansering med mindre du fortsatt vil ha nyhetsbrevet.
+                  {" "}– da sletter vi adressen din med en gang. Vi deler den
+                  ikke med andre, og vi sletter alle adressene på ventelisten
+                  senest seks måneder etter lansering.
                 </p>
               </div>
             </section>

@@ -549,12 +549,14 @@
 - `email` (varchar(255), required) - Lowercased, trimmed
 - `audience` (text, required) - `customer` | `cleaner`
 - `city` (text, required) - `bergen` | `oslo`
-- `created_at` (timestamp) - Signup time (also the consent timestamp — there is no checkbox; submitting the form is the consent, and the line under the button states exactly what it covers: one email when we open, no newsletter)
+- `created_at` (timestamp) - Signup time (also the consent timestamp — there is no checkbox; submitting the form is the consent, and the line under the button states exactly what it covers: one e-mail when we open, no newsletter)
+- `offer_eligible` (boolean, required, default false) - `true` on the first `WAITLIST_OFFER_SPOTS` (50) customer signups, set by the `waitlist_signups_mark_offer_eligible` BEFORE INSERT trigger (advisory-locked count of eligible rows) and never recomputed; cleaner rows are always `false`. The launch promo code goes to `WHERE offer_eligible`. The cap is mirrored in `src/components/coming-soon/launch.ts` — change both together
 
 **Notes:**
 
 - Written only by `joinWaitlistAction` (`app/actions.ts`) via the service role; RLS is enabled with no policies.
 - Signing up twice is a silent no-op (`UNIQUE(email, audience)` + upsert ignoring duplicates), so the form never reveals whether an email is already listed.
+- Deleting an eligible row (consent withdrawn) frees the spot for the next *new* customer signup; the existing 51st row is not promoted.
 
 **Indexes:**
 

@@ -79,12 +79,17 @@ details live — the footer, `/kontakt` and the legal pages all read from it.
    to `src/app/bli-renser/page.tsx`; drop their `robots: { index: false }`; delete the coming-soon
    pages and `src/components/coming-soon/` (keep `launch.ts` only if something still imports it).
 3. Create the promo code behind the waitlist offer (first `WAITLIST_OFFER_SPOTS` customer signups get
-   the first wash at half price — `src/components/coming-soon/launch.ts`) and email it to those rows
-   of `waitlist_signups` ordered by `created_at`; everyone else gets the plain "we're open" email.
+   the first wash at half price — `src/components/coming-soon/launch.ts`) and put it in the launch
+   e-mail to the rows the database already marked:
+   ```sql
+   select email, city, created_at from public.waitlist_signups where offer_eligible order by created_at;
+   ```
+   Everyone else on the list gets the plain "we're open" e-mail. Each signup gets exactly one e-mail —
+   that is all the consent covers (`/personvern#venteliste`).
 4. Update the share images (`src/app/opengraph-image.tsx`, `src/app/bli-renser/opengraph-image.tsx`)
    from "Snart slipper du …" to launch copy.
-5. Delete `waitlist_signups` rows no later than six months after launch, except people who still
-   want the newsletter; unsubscribes are deleted right away (`/personvern#venteliste`).
+5. Delete all `waitlist_signups` rows no later than six months after launch; a withdrawn consent
+   (e-mail to post@nooracare.no) is deleted right away (`/personvern#venteliste`).
 6. **Vipps production credentials in Vercel** — in `portal.vippsmobilepay.com` → *For developers* →
    toggle **Production** → the sales unit → *Show keys*. Add to Vercel **Production only**
    (dashboard: Settings → Environment Variables → Add → tick only *Production*; or CLI):

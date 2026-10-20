@@ -136,8 +136,11 @@ export function WaitlistForm({ audience }: { audience: WaitlistAudience }) {
         {!pending && <ArrowRight className="size-4" />}
       </button>
 
-      {/* Submitting is the consent; /personvern#venteliste says what it covers. */}
+      {/* Submitting is the consent: this line states exactly what it covers
+          (one launch e-mail, no newsletter), and /personvern#venteliste says
+          the same in full. Keep the two in sync. */}
       <p className="text-center text-xs text-medium-gray">
+        Vi sender deg én e-post når vi åpner – ingen nyhetsbrev.{' '}
         <Link
           href="/personvern#venteliste"
           className="underline underline-offset-2 hover:text-nordic-blue"

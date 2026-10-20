@@ -6,6 +6,9 @@
 export const LAUNCH_WINDOW_LABEL = 'i vinter';
 
 /** Cap on the waitlist launch offer (first wash at half price). At launch this
- *  maps to a promo code sent to the first N signups — see BUSINESS_LOGIC.md
- *  "Promo codes & discounts". */
+ *  maps to a promo code e-mailed to the rows with
+ *  `waitlist_signups.offer_eligible = true` — a database trigger sets that on
+ *  the first N customer signups, and the same N is hard-coded in the trigger
+ *  (supabase/migrations/20261019120000_add_waitlist_offer_eligible.sql);
+ *  change both together. See BUSINESS_LOGIC.md "Pre-launch Waitlist". */
 export const WAITLIST_OFFER_SPOTS = 50;
