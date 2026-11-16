@@ -33,6 +33,11 @@ export interface PriceBreakdown {
   platform_share_ore: number;
 }
 
+/** Most loads a cleaner can register on one order. Marking the order ready
+ *  charges the customer automatically, so this stops a typo ("22" for "2")
+ *  from becoming a charge. Larger orders go through the admin price override. */
+export const MAX_WASH_LOADS_PER_ORDER = 15;
+
 export const PRICING = {
   // Cleaner-binding pricing: per-load (5kg load)
   price_per_load_ore: 22900, // 229.00 NOK per 5kg load

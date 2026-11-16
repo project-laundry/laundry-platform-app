@@ -7,8 +7,10 @@ import {
   CLEANER_VERIFICATION_VARIANT,
 } from '@/lib/utils/cleaner-status';
 import { machineConditionLabel } from '@/lib/config/cleaner-options';
+import { requireRole } from '@/lib/auth/require-role';
 
 export default async function AdminCleanersPage() {
+  await requireRole(['admin']);
   const cleaners = await getAllCleanersWithUser();
 
   return (

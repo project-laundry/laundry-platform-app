@@ -23,6 +23,7 @@ import { daysBetweenISODates } from '@/lib/utils/date';
 import { getOrderStatusLabel } from '@/lib/utils/order-status';
 import { formatAgeLabel } from '@/lib/utils/relative-time';
 import { getSubscriptionFrequencyLabel } from '@/lib/utils/subscription-status';
+import { requireRole } from '@/lib/auth/require-role';
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('no-NO', { day: 'numeric', month: 'short' });
@@ -49,6 +50,7 @@ function mapRows<T>(items: T[] | null, toRow: (item: T) => AttentionRow): Attent
 }
 
 export default async function AdminOverviewPage() {
+  await requireRole(['admin']);
   const now = new Date();
   const [counts, attention] = await Promise.all([getAdminOverviewCounts(), getAdminAttention(now)]);
 

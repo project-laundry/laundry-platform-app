@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { BackLink } from '@/components/layout/AppHeader';
 import { getPromoCodeWithRedemptions } from '@/lib/database/promo-codes';
 import { PromoCodeForm } from '../PromoCodeForm';
+import { requireRole } from '@/lib/auth/require-role';
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('no-NO', {
@@ -16,6 +17,7 @@ export default async function EditPromoCodePage({
 }: {
   params: Promise<{ promoCodeId: string }>;
 }) {
+  await requireRole(['admin']);
   const { promoCodeId } = await params;
 
   const promo = await getPromoCodeWithRedemptions(promoCodeId);

@@ -224,6 +224,28 @@ describe('charge events', () => {
     expect(failPaymentWithMetadata).toHaveBeenCalledWith('pay-1', 'Insufficient funds', expect.objectContaining({ vipps_status: 'FAILED' }));
   });
 
+  it('marks the payment failed on charge-creation-failed so it can be retried', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', status: 'active' });
+    m(getPaymentByReference).mockResolvedValue({ id: 'pay-1' });
+
+    const res = await post(
+      chargePayload({ eventType: 'recurring.charge-creation-failed.v1', failureReason: 'Amount too high', failureCode: 7 })
+    );
+
+    expect(res.status).toBe(200);
+    expect(failPaymentWithMetadata).toHaveBeenCalledWith('pay-1', 'Amount too high', expect.objectContaining({ vipps_status: 'FAILED' }));
+  });
+
+  it('acknowledges (200) a charge-creation-failed with no payment row', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', status: 'active' });
+    m(getPaymentByReference).mockResolvedValue(null);
+
+    const res = await post(chargePayload({ eventType: 'recurring.charge-creation-failed.v1' }));
+
+    expect(res.status).toBe(200);
+    expect(failPaymentWithMetadata).not.toHaveBeenCalled();
+  });
+
   it('acknowledges (200) a captured charge with no payment row — a retry cannot fix that', async () => {
     m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', status: 'active' });
     m(getPaymentByReference).mockResolvedValue(null);

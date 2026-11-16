@@ -2,12 +2,14 @@ import { notFound } from 'next/navigation';
 import { BackLink } from '@/components/layout/AppHeader';
 import { getDriverWithUserById } from '@/lib/database/drivers';
 import { DriverForm } from '../DriverForm';
+import { requireRole } from '@/lib/auth/require-role';
 
 export default async function EditDriverPage({
   params,
 }: {
   params: Promise<{ driverId: string }>;
 }) {
+  await requireRole(['admin']);
   const { driverId } = await params;
 
   const driver = await getDriverWithUserById(driverId);

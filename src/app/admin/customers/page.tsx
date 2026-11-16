@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ChevronRight, Inbox } from 'lucide-react';
 import { getAllCustomersWithUser } from '@/lib/database/customers';
+import { requireRole } from '@/lib/auth/require-role';
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('no-NO', {
@@ -11,6 +12,7 @@ function formatDate(dateStr: string): string {
 }
 
 export default async function AdminCustomersPage() {
+  await requireRole(['admin']);
   const customers = await getAllCustomersWithUser();
 
   return (

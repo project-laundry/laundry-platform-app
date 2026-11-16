@@ -77,7 +77,9 @@ export async function createVippsAgreement(
     interval,
     merchantRedirectUrl:
       `${process.env.NEXT_PUBLIC_APP_URL}/orders/success`,
-    merchantAgreementUrl: `https://laundry-landing-page-rho.vercel.app`,
+    // Where Vipps sends the customer to manage the agreement (redirects to
+    // /dashboard for one-time orders, which have no subscription).
+    merchantAgreementUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/subscription`,
   });
 
   return {

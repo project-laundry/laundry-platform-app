@@ -25,6 +25,7 @@ import {
 } from '@/lib/database/orders';
 import { completeDeliveredOrder } from '@/lib/services/complete-order';
 import { createChargeForCompletedOrder } from '@/lib/payments/vipps/service';
+import { MAX_WASH_LOADS_PER_ORDER } from '@/lib/config/pricing';
 import {
   markOrderPickedUpAction,
   markOrderDeliveredAction,
@@ -271,5 +272,29 @@ describe('saveLaundryDetails', () => {
 
     expect(result.success).toBe(false);
     expect(updateOrderLaundryDetails).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['more loads than the per-order maximum', MAX_WASH_LOADS_PER_ORDER + 1],
+    ['a fractional load count', 2.5],
+    ['NaN', Number.NaN],
+  ])('rejects %s without saving a price', async (_label, washLoads) => {
+    m(getOrderByIdAndCleanerId).mockResolvedValue({ id: 'ord-1', status: 'in_cleaning', promo: null });
+
+    const result = await saveLaundryDetails('ord-1', { wash_loads: washLoads, ironing_details: null });
+
+    expect(result.success).toBe(false);
+    expect(updateOrderLaundryDetails).not.toHaveBeenCalled();
+  });
+
+  it('accepts exactly the per-order maximum', async () => {
+    m(getOrderByIdAndCleanerId).mockResolvedValue({ id: 'ord-1', status: 'in_cleaning', promo: null });
+
+    const result = await saveLaundryDetails('ord-1', {
+      wash_loads: MAX_WASH_LOADS_PER_ORDER,
+      ironing_details: null,
+    });
+
+    expect(result.success).toBe(true);
   });
 });

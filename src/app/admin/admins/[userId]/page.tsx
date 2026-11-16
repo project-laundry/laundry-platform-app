@@ -2,12 +2,14 @@ import { notFound } from 'next/navigation';
 import { BackLink } from '@/components/layout/AppHeader';
 import { getUserByIdAsAdmin } from '@/lib/database/users';
 import { AdminUserForm } from '../AdminUserForm';
+import { requireRole } from '@/lib/auth/require-role';
 
 export default async function EditAdminPage({
   params,
 }: {
   params: Promise<{ userId: string }>;
 }) {
+  await requireRole(['admin']);
   const { userId } = await params;
 
   const user = await getUserByIdAsAdmin(userId);

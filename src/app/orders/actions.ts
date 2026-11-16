@@ -14,7 +14,8 @@ import {
 import { createVippsAgreement } from "@/lib/payments/vipps/service";
 import { isVippsForceAcceptAllowed, pickVippsTestPhone } from "@/lib/payments/vipps/config";
 import { createVippsRecurringClient } from "@/lib/payments/vipps/recurring-client";
-import { getWeekdayFromDate, isWeekdayInSchedule, addDays, toISODateString } from "@/lib/utils/date";
+import { getWeekdayFromDate, isWeekdayInSchedule, addDays, toISODateString, todayInOslo } from "@/lib/utils/date";
+import { validateCheckoutInput } from "@/lib/validation/checkout";
 import { DAYS_PICKUP_TO_DELIVERY, MIN_DAYS_NOTICE } from "@/lib/config/order-timing";
 import { TERMS_VERSION } from "@/lib/config/terms";
 import { translateFrequency } from "@/lib/utils/i18n";
@@ -130,6 +131,22 @@ export async function createSubscriptionAction(
     early_start_requested: true,
   };
 
+  // Address, service area and pickup date: the webhook builds the order from
+  // these after the customer has approved in Vipps, so reject bad values now.
+  const inputError = validateCheckoutInput(input, todayInOslo());
+  if (inputError) {
+    return { displayError: inputError, error: "Invalid checkout input" };
+  }
+  const availableWeekdays = await getAvailableWeekdaysForCity(input.location);
+  if (!availableWeekdays.includes(getWeekdayFromDate(input.firstPickupDate))) {
+    return {
+      displayError: "Ingen rensere er tilgjengelige denne dagen. Velg en ny hentedato.",
+      error: "No cleaner available on pickup weekday",
+    };
+  }
+  const street = input.pickupAddress.street.trim();
+  const specialInstructions = input.pickupAddress.specialInstructions?.trim() || undefined;
+
   // Sanitize the customer's selection and recompute the estimate server-side —
   // never trust a client-supplied total.
   const selection = sanitizeSelection(input.selection);
@@ -220,7 +237,7 @@ export async function createSubscriptionAction(
   // Geocode the pickup address once here so the coordinates propagate onto every
   // generated order (the generator copies initial_address). Null on failure.
   const pickupCoords = await geocodeAddress({
-    street: input.pickupAddress.street,
+    street,
     postal_code: input.pickupAddress.postalCode,
     city: input.pickupAddress.city,
     country: input.pickupAddress.country,
@@ -228,11 +245,11 @@ export async function createSubscriptionAction(
 
   const orderDefaults: SubscriptionOrderDefaults = {
     initial_address: {
-      street: input.pickupAddress.street,
+      street,
       postal_code: input.pickupAddress.postalCode,
       city: input.pickupAddress.city,
       country: input.pickupAddress.country,
-      special_instructions: input.pickupAddress.specialInstructions,
+      special_instructions: specialInstructions,
       latitude: pickupCoords?.latitude ?? null,
       longitude: pickupCoords?.longitude ?? null,
     },

@@ -1,8 +1,10 @@
 import Link from 'next/link';
 import { ChevronRight, Inbox, Plus } from 'lucide-react';
 import { getAllDriversWithUser } from '@/lib/database/drivers';
+import { requireRole } from '@/lib/auth/require-role';
 
 export default async function AdminDriversPage() {
+  await requireRole(['admin']);
   const drivers = await getAllDriversWithUser();
 
   return (

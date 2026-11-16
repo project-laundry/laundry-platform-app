@@ -9,6 +9,7 @@ import {
 } from '@/lib/utils/payment-status';
 import { formatKr } from '@/lib/config/pricing';
 import type { PaymentStatus } from '@/types/database';
+import { requireRole } from '@/lib/auth/require-role';
 
 const STATUS_KEYS: PaymentStatus[] = [
   'pending',
@@ -32,6 +33,7 @@ export default async function AdminPaymentsPage({
 }: {
   searchParams: Promise<{ status?: string }>;
 }) {
+  await requireRole(['admin']);
   const { status } = await searchParams;
   const statusFilter = STATUS_KEYS.includes(status as PaymentStatus)
     ? (status as PaymentStatus)

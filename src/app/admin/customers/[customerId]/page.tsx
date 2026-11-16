@@ -17,6 +17,7 @@ import {
 } from '@/lib/utils/subscription-status';
 import { IRONING_OFFERED, formatKr } from '@/lib/config/pricing';
 import type { OrderWithRelations } from '@/types/database';
+import { requireRole } from '@/lib/auth/require-role';
 
 const HISTORY_LIMIT = 10;
 
@@ -63,6 +64,7 @@ export default async function AdminCustomerDetailPage({
 }: {
   params: Promise<{ customerId: string }>;
 }) {
+  await requireRole(['admin']);
   const { customerId } = await params;
 
   const customer = await getCustomerWithUserById(customerId);

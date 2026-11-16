@@ -14,6 +14,7 @@ import {
 import {
   calculateOrderPrice,
   IRONING_OFFERED,
+  MAX_WASH_LOADS_PER_ORDER,
   applyPromoDiscount,
   type LaundryDetails,
   type PriceBreakdown,
@@ -193,12 +194,23 @@ export async function saveLaundryDetails(
   }
 
   // Validate loads
-  if (details.wash_loads < 0) {
+  if (!Number.isFinite(details.wash_loads) || details.wash_loads < 0) {
     return { success: false, error: 'Antall vask kan ikke være negativt' };
   }
 
   if (details.wash_loads === 0) {
     return { success: false, error: 'Du må registrere minst ett vask' };
+  }
+
+  if (!Number.isInteger(details.wash_loads)) {
+    return { success: false, error: 'Antall vask må være et helt tall' };
+  }
+
+  if (details.wash_loads > MAX_WASH_LOADS_PER_ORDER) {
+    return {
+      success: false,
+      error: `Du kan registrere maks ${MAX_WASH_LOADS_PER_ORDER} vask på én ordre. Kontakt NooraCare hvis ordren er større.`,
+    };
   }
 
   // Ironing isn't offered yet: never price or store it, whatever the client sent.

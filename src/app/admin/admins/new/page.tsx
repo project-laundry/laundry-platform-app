@@ -1,7 +1,9 @@
 import { BackLink } from '@/components/layout/AppHeader';
 import { AdminUserForm } from '../AdminUserForm';
+import { requireRole } from '@/lib/auth/require-role';
 
-export default function NewAdminPage() {
+export default async function NewAdminPage() {
+  await requireRole(['admin']);
   return (
     <div className="mx-auto max-w-2xl animate-in fade-in slide-in-from-bottom-3 duration-500">
       <div className="mb-4">

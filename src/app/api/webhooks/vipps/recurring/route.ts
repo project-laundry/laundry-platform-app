@@ -477,7 +477,7 @@ async function handleChargeCreationFailed(
   webhook: VippsChargeWebhookBody,
   paymentAgreement: PaymentAgreement
 ): Promise<void> {
-  const { chargeId, agreementId, failureReason, failureCode } = webhook;
+  const { chargeId, agreementId, failureReason, failureCode, occurred } = webhook;
 
   console.error(`[Vipps Recurring Webhook] Charge creation failed: ${chargeId} - ${failureReason} (code: ${failureCode})`);
 
@@ -489,6 +489,32 @@ async function handleChargeCreationFailed(
     failureReason,
     paymentAgreementId: paymentAgreement.id,
   });
+
+  // Vipps will never charge this one. Mark the row failed so it stops counting
+  // as a live payment (hasLivePayment) — otherwise «Belast på nytt» and the
+  // price override stay blocked forever — and so it shows up under
+  // «Betalinger å følge opp» right away.
+  const payment = await getPaymentByReference(chargeId);
+  if (!payment) {
+    console.error(`[Vipps Recurring Webhook] Payment not found for charge ${chargeId} that failed to be created`);
+    return;
+  }
+
+  const failed = await failPaymentWithMetadata(
+    payment.id,
+    failureReason || `Charge creation failed (code: ${failureCode})`,
+    {
+      vipps_agreement_id: agreementId,
+      vipps_charge_id: chargeId,
+      vipps_status: 'FAILED',
+      vipps_failure_code: failureCode,
+      vipps_failure_reason: failureReason,
+      failed_at: occurred,
+    }
+  );
+  if (!failed) {
+    throw new Error(`Failed to mark payment ${payment.id} as failed`);
+  }
 
   // TODO: Send admin notification about charge creation failure
 }

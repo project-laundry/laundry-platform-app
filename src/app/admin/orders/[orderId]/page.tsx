@@ -19,6 +19,7 @@ import { CancelOrderControl } from './CancelOrderControl';
 import { PriceOverrideForm } from './PriceOverrideForm';
 import { AdminNotesForm } from './AdminNotesForm';
 import type { OrderStatus } from '@/types/database';
+import { requireRole } from '@/lib/auth/require-role';
 
 /** Statuses where the admin can still (re)assign the cleaner. */
 const ASSIGNABLE_STATUSES: OrderStatus[] = ['pending_assignment', 'pickup_scheduled'];
@@ -48,6 +49,7 @@ export default async function AdminOrderDetailPage({
 }: {
   params: Promise<{ orderId: string }>;
 }) {
+  await requireRole(['admin']);
   const { orderId } = await params;
 
   const order = await getAdminOrderById(orderId);

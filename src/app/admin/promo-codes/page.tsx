@@ -6,6 +6,7 @@ import {
 } from '@/lib/database/promo-codes';
 import { StatusBadge } from '@/components/dashboard/StatusBadge';
 import { formatKr } from '@/lib/config/pricing';
+import { requireRole } from '@/lib/auth/require-role';
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('no-NO', {
@@ -50,6 +51,7 @@ function statusFor(code: PromoCodeWithRedemptionCount): {
 }
 
 export default async function AdminPromoCodesPage() {
+  await requireRole(['admin']);
   const codes = await getAllPromoCodesWithRedemptionCount();
 
   return (

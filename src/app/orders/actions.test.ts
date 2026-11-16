@@ -80,6 +80,11 @@ const PROMO = {
   max_discount_ore: null,
 };
 
+const ALL_PICKUP_WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
+/** A pickup date the checkout validation accepts: a few days from now. */
+const PICKUP_DATE = new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10);
+
 const baseInput: CreateSubscriptionInput = {
   location: 'Oslo',
   selection: {
@@ -91,7 +96,7 @@ const baseInput: CreateSubscriptionInput = {
   },
   isRecurring: true,
   frequency: 'weekly',
-  firstPickupDate: '2030-01-04',
+  firstPickupDate: PICKUP_DATE,
   pickupAddress: {
     street: 'Storgata 1',
     postalCode: '0150',
@@ -107,6 +112,7 @@ function happyPathMocks() {
   getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
   m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
   m(getActiveSubscriptionByCustomerId).mockResolvedValue(null);
+  m(getAvailableWeekdaysForCity).mockResolvedValue([...ALL_PICKUP_WEEKDAYS]);
   m(findAvailableCleaner).mockResolvedValue({ id: 'cleaner-1', display_name: 'Kari' });
   m(createVippsAgreement).mockResolvedValue({
     agreementId: 'agr-1',
@@ -133,6 +139,58 @@ describe('createSubscriptionAction — auth & customer guards', () => {
     m(getCustomerByUserId).mockResolvedValue(null);
     const result = await createSubscriptionAction(baseInput);
     expect(result.error).toBe('Customer not found');
+  });
+});
+
+describe('createSubscriptionAction — address and date validation', () => {
+  const withAddress = (pickupAddress: Partial<CreateSubscriptionInput['pickupAddress']>) => ({
+    ...baseInput,
+    pickupAddress: { ...baseInput.pickupAddress, ...pickupAddress },
+  });
+
+  it.each([
+    ['a malformed postal code', withAddress({ postalCode: '01500' })],
+    ['a postal code outside the service area', withAddress({ postalCode: '7010' })],
+    ['a postal code in the other city', withAddress({ postalCode: '5003' })],
+    ['a too-short street', withAddress({ street: ' A ' })],
+    ['too-long pickup instructions', withAddress({ specialInstructions: 'x'.repeat(501) })],
+    ['an unparseable date', { ...baseInput, firstPickupDate: 'i morgen' }],
+    ['a pickup date in the past', { ...baseInput, firstPickupDate: '2020-01-06' }],
+    ['a pickup date today', { ...baseInput, firstPickupDate: new Date().toISOString().slice(0, 10) }],
+    ['an unknown city', { ...baseInput, location: 'Trondheim' as 'Oslo' }],
+  ])('rejects %s before any Vipps agreement is created', async (_label, input) => {
+    happyPathMocks();
+
+    const result = await createSubscriptionAction(input);
+
+    expect(result.error).toBe('Invalid checkout input');
+    expect(result.displayError).toBeTruthy();
+    expect(createVippsAgreement).not.toHaveBeenCalled();
+    expect(createPaymentAgreement).not.toHaveBeenCalled();
+  });
+
+  it('rejects a weekday no cleaner in the city works', async () => {
+    happyPathMocks();
+    m(getAvailableWeekdaysForCity).mockResolvedValue([]);
+
+    const result = await createSubscriptionAction(baseInput);
+
+    expect(result.error).toBe('No cleaner available on pickup weekday');
+    expect(createVippsAgreement).not.toHaveBeenCalled();
+  });
+
+  it('stores the trimmed street', async () => {
+    happyPathMocks();
+
+    await createSubscriptionAction(withAddress({ street: '  Storgata 1  ' }));
+
+    expect(createSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({
+        order_defaults: expect.objectContaining({
+          initial_address: expect.objectContaining({ street: 'Storgata 1' }),
+        }),
+      })
+    );
   });
 });
 
@@ -280,7 +338,7 @@ describe('createSubscriptionAction — recurring orders', () => {
         frequency: 'weekly',
         payment_agreement_id: 'pa-1',
         order_defaults: expect.objectContaining({
-          first_pickup_date: '2030-01-04',
+          first_pickup_date: PICKUP_DATE,
           default_cleaner_id: 'cleaner-1',
           // Ironing isn't offered yet: the 3 formal items are dropped
           default_needs_ironing: false,

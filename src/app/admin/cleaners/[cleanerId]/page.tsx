@@ -37,6 +37,7 @@ import { CleanerActivationButton } from '../CleanerActivationButton';
 import { CleanerAcceptingOrdersButton } from '../CleanerAcceptingOrdersButton';
 import { CleanerRejectControl } from './CleanerRejectControl';
 import { RevealField } from './RevealField';
+import { requireRole } from '@/lib/auth/require-role';
 
 const HISTORY_LIMIT = 10;
 
@@ -95,6 +96,7 @@ export default async function AdminCleanerDetailPage({
 }: {
   params: Promise<{ cleanerId: string }>;
 }) {
+  await requireRole(['admin']);
   const { cleanerId } = await params;
 
   const cleaner = await getCleanerWithUserById(cleanerId);

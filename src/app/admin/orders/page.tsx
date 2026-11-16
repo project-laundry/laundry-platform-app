@@ -5,6 +5,7 @@ import { StatusBadge } from '@/components/dashboard/StatusBadge';
 import { getOrderStatusLabel, getOrderStatusVariant } from '@/lib/utils/order-status';
 import { formatKr } from '@/lib/config/pricing';
 import type { OrderStatus } from '@/types/database';
+import { requireRole } from '@/lib/auth/require-role';
 
 const ACTIVE_STATUSES: OrderStatus[] = [
   'pending_assignment',
@@ -35,6 +36,7 @@ export default async function AdminOrdersPage({
 }: {
   searchParams: Promise<{ status?: string }>;
 }) {
+  await requireRole(['admin']);
   const { status } = await searchParams;
   const filterKey = status && status in FILTERS ? status : 'aktive';
   const filter = FILTERS[filterKey];
