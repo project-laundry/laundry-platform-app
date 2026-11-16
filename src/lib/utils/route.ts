@@ -1,5 +1,5 @@
 // Route helpers for the driver dashboard — PURE functions, no React, no I/O.
-// Adapted from src/app/prototype/kjoreplan/routeUtils.ts, extended with:
+// Extended with:
 //  - stops that may lack coordinates (geocoding can fail; they are deferred)
 //  - precedence constraints (a cleaner drop-off can't precede its pickups)
 

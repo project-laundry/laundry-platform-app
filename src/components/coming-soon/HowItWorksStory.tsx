@@ -8,8 +8,8 @@ import { WAITLIST_OFFER_SPOTS } from '@/components/coming-soon/launch';
 
 // "Slik virker det" as a zig-zag story: five illustrated steps, a dashed flow
 // line between them, and a closing CTA back up to the waitlist form. Every
-// claim here must hold for a neighbor washing in a home machine and a driver
-// doing the pickup — no turnaround promises, no product claims, and the
+// claim here must hold for a neighbor washing in a home machine who also does
+// the pickup and delivery — no turnaround promises, no product claims, and the
 // per-bag price never without the order minimum (CLAUDE.md).
 
 const MOCKUP_BAGS = 5;
@@ -189,7 +189,7 @@ function Doormat() {
   return <span className="absolute inset-x-[70px] bottom-[46px] h-4 rounded-full bg-fjord/10" />;
 }
 
-/** Step 3: the bag by the door, the driver on the way. */
+/** Step 3: the bag by the door, the cleaner on the way. */
 function PickupScene() {
   return (
     <>
@@ -207,7 +207,7 @@ function PickupScene() {
       <Doormat />
       <Chip tone="light" className="right-6 top-12">
         <span className="size-2 rounded-full bg-sol" />
-        Sjåføren er på vei
+        Renseren er på vei
       </Chip>
     </>
   );
@@ -341,7 +341,7 @@ export function HowItWorksStory() {
         <Connector flip />
 
         <Step index={2} title="Tøyet hentes på døren" visual={<PickupScene />}>
-          <p>Sjåføren vår henter posene hjemme hos deg på dagen du valgte.</p>
+          <p>Renseren henter posene hjemme hos deg på dagen du valgte.</p>
         </Step>
 
         <Connector />
@@ -360,7 +360,7 @@ export function HowItWorksStory() {
         <div className="mt-10 flex flex-col items-center gap-5 rounded-3xl bg-fjord p-7 text-center text-sno shadow-[var(--shadow-card)] sm:mt-16 sm:flex-row sm:items-center sm:justify-between sm:p-10 sm:text-left">
           <div>
             <h3 className="font-serif text-2xl font-semibold leading-tight sm:text-3xl">Klar til å slippe klesvasken?</h3>
-            <p className="mt-2 text-sno/75">De {WAITLIST_OFFER_SPOTS} første på listen får halv pris på første vask når vi åpner.</p>
+            <p className="mt-2 text-sno/75">De {WAITLIST_OFFER_SPOTS} første på listen får en rabattkode til halv pris på første vask når vi åpner.</p>
           </div>
           <a
             href={`#${WAITLIST_ID}`}

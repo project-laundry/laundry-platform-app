@@ -17,6 +17,7 @@
    - Selects preferences (needs_ironing)
    - Provides service address and first pickup date
    - **Optionally enters a promo code** (validated inline, then re-validated server-side at checkout). On success the locked discount snapshot is stored in `payment_agreements.provider_metadata.promo`. See [Promo Codes & Discounts](#promo-codes--discounts).
+   - **Ticks the required consent checkbox** on the confirm step: accepts `/salgsvilkar` and `/personvern`, and expressly requests that the service start within the 14-day withdrawal period, acknowledging that the right lapses once the wash is completed (angrerettloven § 22 c). The server action rejects checkouts without it (never trusts the client) and stores `{ terms_version, accepted_at, early_start_requested: true }` in `payment_agreements.provider_metadata.terms_consent`. `terms_version` is the ISO-date constant `TERMS_VERSION` (`src/lib/config/terms.ts`), which also renders the "Sist oppdatert" date on `/salgsvilkar` — bump it whenever the terms text changes.
    - System creates:
      - **PaymentAgreement** (always): `status = 'pending'`, linked to Vipps agreement
      - **Subscription** (recurring only): `status = 'pending_payment'`, `payment_agreement_id` set, `order_defaults` populated
@@ -26,6 +27,7 @@
 2. **Agreement Activation Triggers First Order** (via `agreement-activated` webhook):
    - When customer approves Vipps agreement:
      - Activate PaymentAgreement: `status = 'active'`, `activated_at = now()`
+     - **Idempotent:** both activations are status-guarded (`pending → active`, `pending_payment → active`) and the first order is only inserted when no order with this `payment_agreement_id` exists yet. Vipps delivers at-least-once; a duplicate delivery changes nothing (and never moves `started_at`). An activation for an agreement that is already `stopped`/`expired` in our DB (cancelled while pending) is ignored.
      - **If subscription exists (recurring):**
        - Set subscription `status = 'active'`, `started_at = now()`
        - Read `order_defaults` from subscription
@@ -73,6 +75,14 @@ Customer subscribes Dec 26, 2025:
 - When Order #2 completes → Order #3 created: Pickup Mar 7 (Fri)
 ```
 
+### Subscription Address Changes
+
+- Entry: dashboard header gear icon → `/dashboard/settings` ("Min konto"), or "Endre adresse" on `/dashboard/subscription`. Action: `updateSubscriptionAddressAction` (`app/dashboard/settings/actions.ts`). Only for `active` subscriptions.
+- The customer edits street, postal code and pickup instructions. The city is derived from the postal code and **must equal the subscription's `order_defaults.location_city`** — a move to the other service city is rejected (the default cleaner and the current order's cleaner are city-bound); the customer cancels and reorders instead. `default_cleaner_id` is never changed here.
+- The address is validated with `validateAddress` (fails open without a Maps key) and written, with its coordinates, into `order_defaults.initial_address`. Every future order inherits it through `buildOrderData` — no other code path changes.
+- By default the change is also copied onto the subscription's not-yet-picked-up orders (`pending_assignment`, `pickup_scheduled`) via `updateUpcomingOrdersAddressBySubscriptionId`; the customer can opt out with a checkbox. Orders already picked up are never touched.
+- Name and phone are edited on the same page (`updateCustomerContactAction` → `updateUserContact`); the password is changed from the browser with `supabase.auth.updateUser({ password })`. E-mail is read-only.
+
 ### Order Pricing (FLEXIBLE Model)
 
 **Core Principle:** No upfront pricing. Cleaner calculates price after weighing laundry.
@@ -80,11 +90,11 @@ Customer subscribes Dec 26, 2025:
 **Workflow:**
 
 1. **Order Created:** `total_cost_ore = NULL`
-2. **Pickup:** Driver delivers laundry to cleaner
+2. **Pickup:** Cleaner picks up the laundry at the customer's door
 3. **Cleaner Weighs & Prices:**
    - Cleaner weighs laundry, records `actual_weight_kg`
    - Calculates price based on weight, ironing preference, and other factors
-   - Sets `total_cost_ore` and optional `pricing_notes`
+   - Sets `total_cost_ore` (after any promo discount) and `cleaner_payout_ore` (the cleaner's share of the full price, before the discount) and optional `pricing_notes`
    - Records `price_calculated_at` timestamp
 4. **Payment Creation:** Cleaner creates Vipps charge for the calculated amount
 5. **Customer Payment:** Customer pays via Vipps for actual service provided
@@ -97,9 +107,17 @@ Customer subscribes Dec 26, 2025:
 
 **Note:** No fixed plan prices - fully flexible based on actual laundry volume and services.
 
+**Admin price override:** on `/admin/orders/[orderId]` an admin can set or correct the price while the order is `in_cleaning` or `ready_for_delivery` **and** no payment is live (`hasLivePayment` false — nothing captured, reserved or pending at Vipps). `overrideOrderPriceAction` takes the wash count and runs the cleaner's exact formula (`calculateOrderPrice` → `applyPromoDiscount` with the order's locked promo snapshot → `cleaner_payout_ore` from the full price), so the three pricing fields never diverge from a cleaner-set price. In `ready_for_delivery` the admin then charges the corrected amount with «Belast på nytt». Once a payment is live the price is frozen for everyone.
+
+### Cleaner Payout
+
+**What is owed:** `orders.cleaner_payout_ore` — stamped when the cleaner prices the order (`updateOrderLaundryDetails`), equal to `calculateOrderPrice().cleaner_payout_ore` (`PRICING.cleaner_payout_percent` of the full service price, before any platform-absorbed promo discount). It is frozen with the price when the order is marked ready, so a later change to `PRICING` never rewrites what a cleaner was promised. A payout is owed only for orders that reach `completed`. Orders can only be cancelled before pickup, so a priced order is never cancelled.
+
+**When and how (the contract shown to cleaners):** all orders a cleaner completed (`completed_at`, Norwegian calendar month) in one month are paid together by bank transfer to `cleaners.bank_account`, on the account by the **10th of the following month**. No minimum amount. Payout is a manual bank transfer for now; the admin report that lists what to pay is a separate issue. The sentence cleaners see is `CLEANER_PAYOUT_TERMS_TEXT` in `src/lib/config/pricing.ts` (day of month in `CLEANER_PAYOUT_TERMS`), rendered unchanged on the cleaner FAQ (`payment`), the onboarding bank-account step, the settings page and the cleaner dashboard's "Utbetaling" card. The dashboard card sums `cleaner_payout_ore` for the previous and current month (`lib/utils/payout.ts`), and the history tab shows "Din andel" per order.
+
 ### Ironing (not in the first version)
 
-Ironing (stryking) is **not offered at launch**. The pricing model, `calculateOrderPrice`, `orders.customer_estimate` and the cleaner dashboard still carry the three ironing groups so the feature can be switched on later without a schema change, but no customer-facing surface shows it: the landing pages, the cleaner FAQ, the price calculator, the order flow (`/orders/wash`) and the customer's order edit all go through `SelectionEditor`, whose ironing section is off by default (`showIroning`). Ironing counts therefore stay 0, `needs_ironing` is always false, and the cleaner never sees ironing to register. Before ironing goes live: flip the `showIroning` default, add it back to the cleaner payout box and FAQ, and confirm cleaners are vetted for it in onboarding.
+Ironing (stryking) is **not offered at launch**. The pricing model, `calculateOrderPrice`, `orders.customer_estimate` and the cleaner dashboard still carry the three ironing groups so the feature can be switched on later without a schema change, but no customer-facing surface shows it: the landing pages, the cleaner FAQ, the price calculator, the order flow (`/orders/wash`) and the customer's order edit all go through `SelectionEditor`, whose ironing section follows the `IRONING_OFFERED` flag in `lib/config/pricing.ts` (false). The same flag drives `withoutUnofferedIroning`, which zeroes ironing counts in the checkout/order-edit server actions, in the persisted order-flow store (v2 migration — browsers that saved a selection before ironing was hidden) and when an existing order's estimate is loaded for editing, so stale counts never show up in a customer's estimate. Ironing counts therefore stay 0, `needs_ironing` is always false, and the cleaner never sees ironing to register. The contact page, sales terms and privacy policy don't mention ironing either. Before ironing goes live: flip `IRONING_OFFERED`, add it back to the cleaner payout box, FAQ and the legal/contact copy, and confirm cleaners are vetted for it in onboarding.
 
 ### Promo Codes & Discounts
 
@@ -128,17 +146,30 @@ Ironing (stryking) is **not offered at launch**. The pricing model, `calculateOr
 
 ### Pre-launch Waitlist
 
-Until launch, `/` and `/bli-renser` collect a waitlist instead of taking orders or signups (the real pages are parked at `*/lansering` and gated on the production host — see [ENVIRONMENTS.md](./ENVIRONMENTS.md#launch-checklist)).
+Until launch, `/` and `/bli-renser` collect a waitlist instead of taking orders or signups (the real cleaner landing page is parked at `/bli-renser/lansering` and gated on the production host — see [ENVIRONMENTS.md](./ENVIRONMENTS.md#launch-checklist)).
 
-**What we store:** email, audience (`customer` | `cleaner`), city (`bergen` | `oslo`) and the signup time — nothing else. See [WaitlistSignup](./ENTITIES.md#waitlistsignup).
+**What we store:** email, audience (`customer` | `cleaner`), city (`bergen` | `oslo`), the signup time and `offer_eligible` (set by a trigger, see below) — nothing else. See [WaitlistSignup](./ENTITIES.md#waitlistsignup).
 
-**Consent model:** no checkbox. Submitting is the consent (GDPR art. 6(1)(a)); the form links to `/personvern#venteliste`, which states the whole deal. Consequences: the waitlist may be used for the launch email, the launch offer and a NooraCare newsletter — every email needs an unsubscribe link, unsubscribing deletes the row, the list is never shared, and rows are deleted within six months of launch unless the person still wants the newsletter.
+**Consent model:** no checkbox. Submitting is the consent (GDPR art. 6(1)(a)); the line under the button says exactly what it covers — "Vi sender deg én e-post når vi åpner – ingen nyhetsbrev" — and `/personvern#venteliste` states the same in full. Consequences: the waitlist may be used for **one** launch e-mail per signup (for customers inside the offer cap, that e-mail also carries the promo code) and nothing else — no newsletter, no other marketing; withdrawing consent (e-mail to post@nooracare.no) deletes the row right away; the list is never shared; every row is deleted within six months of launch. Widening the scope later needs new copy on the form *and* in the privacy statement, and does not cover rows collected under the current wording.
 
 **What we promise on the pages (keep the code and the copy in sync):**
 - *Launch window:* `LAUNCH_WINDOW_LABEL` in `src/components/coming-soon/launch.ts` ("Åpner i Bergen og Oslo i vinter").
-- *Customer offer:* the first `WAITLIST_OFFER_SPOTS` (50) customer signups get their **first wash at half price**. This is fulfilled at launch with a promo code (percentage 50, first order only, platform-absorbed — the cleaner is still paid 70 % of the full price, see above) sent to those rows ordered by `created_at`.
+- *Customer offer:* the first `WAITLIST_OFFER_SPOTS` (50) customer signups get their **first wash at half price**. The pages say this arrives as a discount code by e-mail when we open — never as an automatic discount — because it is fulfilled at launch with a promo code (percentage 50, first order only, platform-absorbed — the cleaner is still paid 70 % of the full price, see above) e-mailed inside the one launch e-mail to `WHERE offer_eligible`. A BEFORE INSERT trigger stamps `waitlist_signups.offer_eligible = true` on those rows (the cap is hard-coded as `50` in the trigger too — change both together).
 - *Cleaner earnings:* "minst 350 kr per oppdrag" is `CLEANER_MIN_PAYOUT_PER_ORDER_ORE` (70 % of the 500 kr order minimum, which `calculateOrderPrice` applies before the split), so it moves automatically when pricing changes. A single load (229 kr + fees) lands under the minimum, so this is also what one wash pays.
 - *Cleaner FAQ:* one source, `src/app/bli-renser/faq.ts`, shared by the coming-soon and launch pages.
+
+### Cleaner Verification
+
+A cleaner profile is created `pending` by onboarding (`createCleanerProfileAction`). Admins review it on `/admin/cleaners/[cleanerId]`, which shows every onboarding field (tax id and bank account masked behind a reveal), the base address with a map link, the washing machine, pickup weekdays, the application/approval/rejection dates, and the cleaner's orders with their stamped payout. The list at `/admin/cleaners` only links there — there is no approve button without the data in view.
+
+Transitions (`src/app/admin/cleaners/actions.ts`):
+
+- **Godkjenn** (`pending`/`rejected`/`suspended` → `approved`): sets `approved_at`, clears `suspended_at`, `rejected_at` and `rejection_reason`. Only approved cleaners are matched.
+- **Avvis søknaden** (`pending` → `rejected`): requires a reason (max 500 chars) which is stored in `rejection_reason` and shown verbatim on the cleaner dashboard together with NooraCare's e-mail and phone. Offered only for pending applications.
+- **Deaktiver** (`approved` → `suspended`): sets `suspended_at`; the cleaner keeps already-assigned orders but is excluded from matching, and their dashboard shows the contact details.
+- **Sett på pause / Gjenoppta oppdrag**: toggles `is_accepting_orders` without changing the status (see below).
+
+No e-mail is sent on any transition; the cleaner sees the outcome on `/dashboard/cleaner`.
 
 ### Cleaner Assignment & Matching
 
@@ -159,6 +190,8 @@ Assignment happens at subscription creation.
 5. Orders are created with `status = 'pickup_scheduled'` (cleaner already assigned)
 
 **Edge Case - No Available Cleaners:** If no cleaner matches the criteria, orders are created with `status = 'pending_assignment'` for manual admin resolution via admin dashboard.
+
+**Availability is a matching-time filter only.** `is_accepting_orders` and `weekly_schedule` are read when a cleaner is chosen — first order of a new agreement, rolling-window next order, and customer reschedule (`updateOrderPickupDateAction` keeps the current cleaner if they work on the new weekday, otherwise runs matching again). A cleaner who pauses ("Tar imot nye oppdrag" off in settings, or the admin's «Sett på pause» button) or removes a weekday keeps every order already assigned to them; nothing is cancelled or reassigned. Cleaners set their weekdays in onboarding step 4 (default Mon–Fri) and change both fields on `/dashboard/cleaner/settings`.
 
 **Reassignment Flow:** If a cleaner declines or becomes unavailable:
 1. Add cleaner to `Order.declined_by_cleaner_ids`
@@ -187,37 +220,23 @@ Assignment happens at subscription creation.
 
 ### Pickup/Delivery Operations (MVP)
 
-**Complete Order Workflow:**
+**Who does the logistics:** In the first version the assigned cleaner picks up and delivers, within the customer's pickup window (`lib/config/pickup-times.ts`). Dedicated drivers are built but dormant: `/dashboard/driver` only admits the `driver` role (admins are kept out so they can't move orders into driver-only statuses), and no UI links to it or to `/admin/drivers`. To bring drivers back: add `admin` back to the driver dashboard guards, restore the admin entry points (AdminNav pill, overview tile, «Kjøreplan» link), the onboarding «Beskjed til sjåføren» field and the driver progress steps, and rewrite the cleaner copy.
 
-1. `pickup_scheduled` → `picked_up`
-   - **Who:** Admin/Driver
-   - **Action:** Picks up laundry from customer
-   - **Timestamp:** `picked_up_at`
+**Complete Order Workflow (cleaner-run):**
 
-2. `picked_up` → `in_cleaning`
-   - **Who:** Admin/Driver
-   - **Action:** Delivers laundry to cleaner
-   - **Timestamp:** `in_cleaning_at`
-
-3. `in_cleaning` → `ready_for_delivery`
-   - **Who:** Cleaner
-   - **Action:** Marks laundry as cleaned and ready
-   - **Timestamp:** `ready_for_delivery_at`
+1. `pickup_scheduled` → `in_cleaning`
+   - **Who:** Cleaner («Jeg har hentet tøyet»); admin fallback «Marker som hentet»
+   - **Action:** Picks up laundry at the customer's door; one guarded write stamps `picked_up_at` and `in_cleaning_at`. Before the pickup date the cleaner sees a warning, but an early pickup agreed with the customer is allowed.
+2. `in_cleaning` → `ready_for_delivery`
+   - **Who:** Cleaner («Marker som klar»); admin fallback «Marker som klar» on the order page (exit for an order stuck in `in_cleaning` — the admin sets the price with the override first if the cleaner never did). Both go through `markOrderReadyAndCharge` in `lib/services/ready-order.ts`.
    - **Guard + charge:** rejected until wash details are registered (`wash_loads > 0`) and the price is set (`total_cost_ore`). Confirming this step **creates the Vipps charge** — the customer pays when the laundry is finished, not at delivery.
+3. `ready_for_delivery` → `completed`
+   - **Who:** Cleaner («Levert til kunden»); admin fallback «Marker som levert»
+   - **Action:** `completeDeliveredOrder(orderId, 'ready_for_delivery')` stamps `delivery_date` to the actual date (Norwegian time), generates the next order (recurring) and runs the cancelled-subscription agreement stop.
 
-4. `ready_for_delivery` → `out_for_delivery`
-   - **Who:** Admin/Driver
-   - **Action:** Collects clean laundry from cleaner
-   - **Timestamp:** `out_for_delivery_at`
+**Customer not home:** the cleaner calls the customer (phone shown on the order), who can move the pickup date. Declining is only for "can't take this order" — it blacklists the cleaner for that order.
 
-5. `out_for_delivery` → `completed`
-   - **Who:** Admin/Driver
-   - **Action:** Delivers clean laundry to customer
-   - **Timestamp:** `completed_at`
-
-Drivers work from the driver dashboard (`/dashboard/driver`, one fixed city per driver profile; admins can cover any city), which builds an optimized route of these legs; steps 1–2 and 4–5 are the driver's, step 3 is the cleaner's. An order enters the driver's collection route the moment the cleaner marks it ready — `delivery_date` is an estimate shown to the customer, never a gate or deadline; finishing earlier than the estimate is desirable. Completing step 5 stamps `delivery_date` to the actual delivery date.
-
-**Dashboard Specifications:** See [DASHBOARDS.md](./DASHBOARDS.md) for Admin Driver Dashboard, Cleaner Dashboard, and other role-based UI specifications.
+`picked_up` and `out_for_delivery` stay in the status enum for the dormant driver flow (driver: `pickup_scheduled → picked_up → in_cleaning`, `ready_for_delivery → out_for_delivery → completed`) and are never entered in the cleaner-run flow; the customer progress bar does not show them. `delivery_date` is an estimate shown to the customer, never a gate or deadline; finishing earlier than the estimate is desirable.
 
 ### Cancellation
 
@@ -233,6 +252,12 @@ There are two independent, customer-initiated cancellation actions, plus a Vipps
   - **Cancel the subscription** — hands off to subscription cancellation (below) instead.
 - A one-time order (no subscription) just cancels, with nothing further to reconcile.
 
+**1b. Admin Order Cancellation:**
+- Entry: `/admin/orders/[orderId]` → «Kanseller ordre». Action: `cancelOrderAdminAction` (`app/admin/orders/actions.ts`).
+- Same status split as the customer (only `pending_assignment` / `pickup_scheduled`), but **no 24-hour rule** — admins override for no-shows, fraud and duplicates. The write is status-guarded, so an order the cleaner picks up meanwhile is not cancelled.
+- A reason is required and stored in `orders.cancellation_reason`; the customer's order page shows it ("Bestillingen ble kansellert … <reason>"), so the admin UI labels it "vises til kunden". Internal remarks go in `orders.admin_notes` instead.
+- Never touches the subscription: an `active` subscription gets its replacement order immediately (`checkAndGenerateNextOrders`), exactly like "Kanseller kun denne bestillingen".
+
 **2. Subscription Cancellation:**
 - Entry: dashboard subscription strip → `/dashboard/subscription` (details) → `/dashboard/subscription/cancel` (confirmation) → success page. Action: `cancelSubscriptionAction` (`app/dashboard/subscription/actions.ts`).
 - Allowed for `pending_payment` or `active` subscriptions.
@@ -245,7 +270,7 @@ There are two independent, customer-initiated cancellation actions, plus a Vipps
   | `completed` / `cancelled` (already terminal) | Untouched either way |
 
 - The subscription itself flips to `status = 'cancelled'` immediately in every case, which stops the rolling window from generating any further orders (`checkAndGenerateNextOrders` exits early once `status !== 'active'`).
-- **Deferred Vipps agreement stop:** if an in-flight order remains after the above, the Vipps agreement is deliberately **not** stopped yet — stopping it would cause the charge for that order (created when the cleaner marks it ready) to fail. Instead the agreement stays `active` until the order settles, then `stopVippsAgreementForCancelledSubscription` (`lib/payments/vipps/service.ts`) stops it. That function is a safe no-op unless the subscription is cancelled, its agreement is still active, no active orders remain, and **no Vipps charge for the subscription's orders is still pending/authorized** — stopping the agreement would cancel a pending charge — so it's called unconditionally from two places once either can be true: the `charge-captured` webhook handler and `completeDeliveredOrder` (`lib/services/complete-order.ts`), which runs it unconditionally on every delivery completion. Between them every ordering is covered: capture-before-delivery (webhook no-ops on the active order, completion stops), same-day delivery with the charge still pending (completion defers, the webhook stops after capture), and 0-total promo orders with no charge event (completion stops).
+- **Deferred Vipps agreement stop:** if an in-flight order remains after the above, the Vipps agreement is deliberately **not** stopped yet — stopping it would cause the charge for that order (created when the cleaner marks it ready) to fail. Instead the agreement stays `active` until the order settles, then `stopVippsAgreementForCancelledSubscription` (`lib/payments/vipps/service.ts`) stops it. That function is a safe no-op unless the subscription is cancelled, its agreement is still active, no active orders remain, and **no Vipps charge for the subscription's orders is still pending/authorized** (orphan `pending` rows — no `provider_reference`, older than 15 min — don't count; see ENTITIES.md Payment) — stopping the agreement would cancel a pending charge — so it's called unconditionally from two places once either can be true: the `charge-captured` webhook handler and `completeDeliveredOrder` (`lib/services/complete-order.ts`), which runs it unconditionally on every delivery completion. Between them every ordering is covered: capture-before-delivery (webhook no-ops on the active order, completion stops), same-day delivery with the charge still pending (completion defers, the webhook stops after capture), and 0-total promo orders with no charge event (completion stops).
 - If there's no in-flight order (nothing generated yet, or the last one already completed before cancellation), the Vipps agreement is stopped immediately as part of the same action — no deferral needed.
 - Cleaner/admin side: no explicit notification is sent. A cancelled pre-pickup order simply drops out of the cleaner's mission list (`getOrdersByCleanerId` excludes `cancelled`/`completed` orders), so it disappears on its own.
 - Already-completed, already-charged orders are never touched or refunded by subscription cancellation — the service was rendered, the charge stands.
@@ -274,7 +299,7 @@ Instead of separate audit tables, rely on entity timestamps:
 
 - **Orders:** `created_at`, `assigned_at`, `picked_up_at`, `in_cleaning_at`, `ready_for_delivery_at`, `out_for_delivery_at`, `completed_at`, `cancelled_at`
 - **Subscriptions:** `started_at`, `paused_at`, `cancelled_at`, `expires_at`
-- **Payments:** `created_at`, `authorized_at`, `captured_at`, `failed_at`, `refunded_at`
+- **Payments:** `created_at`, `authorized_at`, `captured_at`, `failed_at`, `cancelled_at`, `refunded_at`
 
 These timestamps provide sufficient audit trail for MVP compliance.
 
@@ -312,7 +337,7 @@ These timestamps provide sufficient audit trail for MVP compliance.
 **Per-Order Payment Flow (FLEXIBLE):**
 
 1. **Order Created:** `total_cost_ore = NULL`, no payment yet
-2. **Driver Picks Up:** Delivers laundry to cleaner
+2. **Cleaner Picks Up:** Collects the laundry at the customer's door
 3. **Cleaner Weighs & Prices:**
    - Records `actual_weight_kg`
    - Calculates price based on weight, ironing, etc.
@@ -322,7 +347,7 @@ These timestamps provide sufficient audit trail for MVP compliance.
    - `recurring.charge-captured.v1` → Payment status = 'captured'
    - DIRECT_CAPTURE means no separate authorize/capture step
 5. **Cleaner Processes:** Cleaner completes laundry service
-6. **Next Order Generated:** When the driver completes the delivery, the rolling window generates the next order (recurring only)
+6. **Next Order Generated:** When the cleaner (or an admin) marks the order delivered, the rolling window generates the next order (recurring only)
 
 Charge creation on completion runs for both recurring and one-time orders. `createChargeForCompletedOrder` resolves the Vipps agreement from the subscription (recurring) or directly from `order.payment_agreement_id` (one-time).
 
@@ -333,20 +358,21 @@ Charge creation on completion runs for both recurring and one-time orders. `crea
 - **STOPPED:** User cancelled subscription or agreement stopped by Vipps
 - **EXPIRED:** Agreement reached expiration date (if set)
 
-**Payment States (RESERVE_CAPTURE):**
+**Payment States:**
 
 - **PENDING:** Payment created, awaiting customer action
 - **AUTHORIZED:** Funds reserved (authorization successful), awaiting capture
 - **CAPTURED:** Funds captured (final success state)
 - **FAILED:** Payment failed (insufficient funds, card declined, etc.)
 - **CANCELLED:** Payment cancelled before completion
-- **REFUNDED:** Full refund issued after capture
+- **REFUNDED:** Full refund issued after capture (a partial refund keeps CAPTURED and records `refund_amount_ore`)
 
 **Webhook Endpoint:**
 
 1. **Recurring API Webhook:** `/api/webhooks/vipps/recurring`
    - Agreement events: activated, rejected, stopped, expired
    - Charge events: captured, canceled, refunded, failed, creation-failed
+   - Response codes: 401 bad signature; 200 for permanent conditions (unknown agreement/charge, malformed body); 500 only for transient failures (a DB write returned null, lost activation race) so Vipps retries with backoff for up to 7 days. Vipps holds back later webhooks until it gets a 200, so permanent errors must never return 5xx.
 
 **Webhook Authentication:**
 - HMAC-SHA256 signature verification
@@ -375,10 +401,11 @@ Charge creation on completion runs for both recurring and one-time orders. `crea
 - The next recurring checkout (`createSubscriptionAction`) automatically cancels the stale `pending_payment` subscription via `cancelSubscriptionAction` (stops the old Vipps agreement best-effort) before creating the new one — required because `idx_subscriptions_one_active_per_customer` also counts `pending_payment` rows. Only an `active` subscription blocks a new recurring checkout.
 
 **Per-Order Payment Failures:**
-- Order remains in current status
-- Payment status = `failed`
-- Cleaner or admin follows up with customer
-- Can retry payment or cancel order
+- If Vipps rejects the charge creation itself (when the cleaner marks the order ready), the payment row is marked `failed` with the Vipps error in `failure_reason`; the order transition still succeeds
+- Order remains in current status (a charge that fails when the cleaner marks the order ready still leaves the order `ready_for_delivery`; the cleaner delivers as normal)
+- Payment status = `failed` (set by `createChargeForCompletedOrder` on a Vipps error, or by the `charge-failed` webhook later)
+- The cleaner's order page shows "Belastningen av kunden feilet. Admin følger opp betalingen" instead of "Kunden er belastet" (`markOrderReadyForDelivery` returns `chargeFailed: true`; the page re-derives it from the payment rows)
+- Admin re-charges from `/admin/orders/[orderId]` («Belast på nytt», `retryChargeAction`): allowed when the order is `ready_for_delivery`/`out_for_delivery`/`completed`, has a price > 0, has no live payment (`hasLivePayment`: no `authorized`/`captured`/`refunded` row and no non-orphan `pending` row), and the Vipps agreement is still `active`. Each retry is a new `payments` row; the failed rows stay as history
 
 **Agreement Stopped/Cancelled:**
 - See [Cancellation](#cancellation) for the full mechanics (order-status split, deferred Vipps stop, webhook-driven vs. customer-initiated paths)

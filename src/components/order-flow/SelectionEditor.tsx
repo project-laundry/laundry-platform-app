@@ -8,6 +8,7 @@ import { BedDouble, ShoppingBag, Sparkles } from 'lucide-react';
 import {
   estimatedGarments,
   formatKr,
+  IRONING_OFFERED,
   PRICING,
 } from '@/lib/config/pricing';
 import type { OrderSelection } from '@/types/order-flow';
@@ -15,7 +16,6 @@ import {
   BagVisual,
   clamp,
   clampPieces,
-  Explainer,
   IroningToggle,
   MAX_PIECES,
   PieceRow,
@@ -26,12 +26,12 @@ import {
 export function SelectionEditor({
   selection: sel,
   onChange,
-  showIroning = false,
+  showIroning = IRONING_OFFERED,
 }: {
   selection: OrderSelection;
   onChange: (next: OrderSelection) => void;
-  /** Ironing is not part of the first version, so the section is off
-   *  everywhere (BUSINESS_LOGIC.md "Ironing"). Flip the default when it ships. */
+  /** Follows IRONING_OFFERED — off everywhere in the first version
+   *  (BUSINESS_LOGIC.md "Ironing"). */
   showIroning?: boolean;
 }) {
   const setBags = (n: number) => onChange({ ...sel, bags: clamp(n) });
@@ -71,13 +71,8 @@ export function SelectionEditor({
         delay={80}
         icon={<ShoppingBag className="size-5" />}
         title="Klær"
-        subtitle="Hvor mange poser sender du?"
+        subtitle="Hvor mange poser sender du? Én pose er omtrent en vanlig handlepose."
       >
-        <Explainer>
-          <span className="font-medium text-dark-gray">1 pose</span> tilsvarer
-          omtrent én standard pose fra dagligvarebutikken.
-        </Explainer>
-
         <Stepper
           value={sel.bags}
           onChange={setBags}
@@ -92,14 +87,8 @@ export function SelectionEditor({
         delay={140}
         icon={<BedDouble className="size-5" />}
         title="Sengetøy"
-        subtitle="Vil du sende med sengetøy?"
+        subtitle="Vil du sende med sengetøy? Hvert sett vaskes for seg."
       >
-        <Explainer>
-          Sengetøy vaskes for seg.{' '}
-          <span className="font-medium text-dark-gray">Hvert sett</span> teller
-          som én egen vask.
-        </Explainer>
-
         <Stepper
           value={sel.beddingSets}
           onChange={setBedding}

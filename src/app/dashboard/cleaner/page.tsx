@@ -1,12 +1,37 @@
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { AppHeader } from '@/components/layout/AppHeader';
-import { Ban, Hourglass, XCircle } from 'lucide-react';
+import { Ban, ChevronRight, Hourglass, Mail, Phone, Settings, XCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { getCleanerByUserId } from '@/lib/database/cleaners';
 import { getUsersById } from '@/lib/database/users';
 import { getOrdersByCleanerId, getCompletedOrdersByCleanerId } from '@/lib/database/orders';
 import { LogoutButton } from '@/components/ui/LogoutButton';
 import { CleanerDashboardTabs } from './components/CleanerDashboardTabs';
+import { CleanerPayoutCard } from './components/CleanerPayoutCard';
+import { formatActiveDays } from '@/lib/config/cleaner-options';
+import { COMPANY, phoneHref } from '@/lib/config/company';
+
+/** NooraCare's contact details for the rejected / suspended screens — from
+ *  lib/config/company.ts, like /kontakt and /bli-renser/success. */
+function ContactDetails() {
+  return (
+    <ul className="mt-1 space-y-2 text-sm text-dark-gray">
+      <li className="flex items-center justify-center gap-2">
+        <Mail className="size-4 text-sea-green" />
+        <a href={`mailto:${COMPANY.email}`} className="transition-colors hover:text-nordic-blue">
+          {COMPANY.email}
+        </a>
+      </li>
+      <li className="flex items-center justify-center gap-2">
+        <Phone className="size-4 text-sea-green" />
+        <a href={phoneHref()} className="transition-colors hover:text-nordic-blue">
+          {COMPANY.phoneDisplay}
+        </a>
+      </li>
+    </ul>
+  );
+}
 
 export default async function CleanerDashboardPage() {
   // Auth check
@@ -38,6 +63,9 @@ export default async function CleanerDashboardPage() {
   const isRejected = cleaner.verification_status === 'rejected';
   const isSuspended = cleaner.verification_status === 'suspended';
 
+  // Availability summary for the dashboard strip (approved cleaners only).
+  const activeDaysLabel = formatActiveDays(cleaner.weekly_schedule);
+
   // Get orders for approved cleaners
   const activeOrders = isApproved ? await getOrdersByCleanerId(cleaner.id) : [];
   const historyOrders = isApproved ? await getCompletedOrdersByCleanerId(cleaner.id) : [];
@@ -60,6 +88,13 @@ export default async function CleanerDashboardPage() {
         right={
           <div className="flex items-center gap-4">
             <span className="text-sm text-medium-gray">{displayName}</span>
+            <Link
+              href="/dashboard/cleaner/settings"
+              aria-label="Innstillinger"
+              className="text-medium-gray transition-colors hover:text-nordic-blue"
+            >
+              <Settings className="size-5" />
+            </Link>
             <LogoutButton />
           </div>
         }
@@ -88,11 +123,11 @@ export default async function CleanerDashboardPage() {
                 <Hourglass className="size-6" />
               </span>
               <h2 className="font-serif text-lg font-semibold text-dark-gray">
-                Profilen din venter pa godkjenning
+                Profilen din venter på godkjenning
               </h2>
               <p className="max-w-md text-medium-gray">
-                Vi gjennomgar soknaden din og gir deg beskjed via e-post nar den er behandlet.
-                Dette tar vanligvis 1-2 virkedager.
+                Vi gjennomgår søknaden din. Du ser status her i dashbordet når den er behandlet –
+                det tar vanligvis 1–2 virkedager.
               </p>
             </div>
           )}
@@ -103,11 +138,25 @@ export default async function CleanerDashboardPage() {
                 <XCircle className="size-6" />
               </span>
               <h2 className="font-serif text-lg font-semibold text-dark-gray">
-                Soknaden din ble avvist
+                Søknaden din ble avvist
               </h2>
               <p className="max-w-md text-medium-gray">
-                Dessverre ble soknaden din ikke godkjent. Ta kontakt med oss for mer informasjon.
+                Dessverre ble søknaden din ikke godkjent.
               </p>
+              {cleaner.rejection_reason && (
+                <div className="w-full max-w-md rounded-2xl bg-cream/60 px-4 py-3 text-left">
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-medium-gray">
+                    Begrunnelse
+                  </p>
+                  <p className="mt-1 whitespace-pre-line text-sm text-dark-gray">
+                    {cleaner.rejection_reason}
+                  </p>
+                </div>
+              )}
+              <p className="max-w-md text-sm text-medium-gray">
+                Har du spørsmål, eller mener du dette er feil? Ta kontakt med oss.
+              </p>
+              <ContactDetails />
             </div>
           )}
 
@@ -117,19 +166,45 @@ export default async function CleanerDashboardPage() {
                 <Ban className="size-6" />
               </span>
               <h2 className="font-serif text-lg font-semibold text-dark-gray">
-                Kontoen din er suspendert
+                Kontoen din er deaktivert
               </h2>
               <p className="max-w-md text-medium-gray">
-                Ta kontakt med NooraCare for mer informasjon.
+                Du får ingen nye oppdrag før kontoen er aktivert igjen. Ta kontakt med oss for mer
+                informasjon.
               </p>
+              <ContactDetails />
             </div>
           )}
 
           {isApproved && (
-            <CleanerDashboardTabs
-              activeOrders={activeOrders}
-              historyOrders={historyOrders}
-            />
+            <>
+              <Link
+                href="/dashboard/cleaner/settings"
+                className="mb-5 flex items-center justify-between gap-3 rounded-2xl border border-cream-dark bg-white px-4 py-3 transition-colors hover:border-sea-green/50"
+              >
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`size-2.5 shrink-0 rounded-full ${
+                      cleaner.is_accepting_orders ? 'bg-sea-green' : 'bg-amber-500'
+                    }`}
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-dark-gray">
+                      {cleaner.is_accepting_orders
+                        ? 'Tar imot nye oppdrag'
+                        : 'Tar ikke imot nye oppdrag'}
+                    </p>
+                    <p className="text-sm text-medium-gray">{activeDaysLabel}</p>
+                  </div>
+                </div>
+                <ChevronRight className="size-4 shrink-0 text-medium-gray" />
+              </Link>
+              <CleanerPayoutCard orders={historyOrders} />
+              <CleanerDashboardTabs
+                activeOrders={activeOrders}
+                historyOrders={historyOrders}
+              />
+            </>
           )}
         </div>
       </main>

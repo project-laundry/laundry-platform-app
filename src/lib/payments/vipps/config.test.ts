@@ -2,12 +2,13 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import {
   validateVippsConfig,
   isVippsConfigured,
+  getVippsApiUrl,
   getVippsEnvironment,
-  isVippsTestEnvironment,
+  isVippsForceAcceptAllowed,
   pickVippsTestPhone,
 } from './config';
 
-const REQUIRED = [
+const REQUIRED_CREDENTIALS = [
   'VIPPS_CLIENT_ID',
   'VIPPS_CLIENT_SECRET',
   'VIPPS_SUBSCRIPTION_KEY',
@@ -15,7 +16,8 @@ const REQUIRED = [
 ];
 
 function stubAllRequired() {
-  for (const key of REQUIRED) vi.stubEnv(key, 'test-value');
+  for (const key of REQUIRED_CREDENTIALS) vi.stubEnv(key, 'test-value');
+  vi.stubEnv('VIPPS_API_URL', 'https://apitest.vipps.no');
 }
 
 afterEach(() => {
@@ -35,13 +37,57 @@ describe('validateVippsConfig', () => {
     expect(() => validateVippsConfig()).toThrow(/VIPPS_CLIENT_SECRET/);
     expect(isVippsConfigured()).toBe(false);
   });
+
+  it('treats VIPPS_API_URL as required', () => {
+    stubAllRequired();
+    vi.stubEnv('VIPPS_API_URL', '');
+    expect(() => validateVippsConfig()).toThrow(/Missing required Vipps environment variables: VIPPS_API_URL/);
+    expect(isVippsConfigured()).toBe(false);
+  });
+
+  it('rejects a VIPPS_API_URL that is not a Vipps host', () => {
+    stubAllRequired();
+    vi.stubEnv('VIPPS_API_URL', 'https://api.vipps.com');
+    expect(() => validateVippsConfig()).toThrow(/must be exactly/);
+    expect(isVippsConfigured()).toBe(false);
+  });
+});
+
+describe('getVippsApiUrl', () => {
+  it('throws when VIPPS_API_URL is unset — no test-API fallback', () => {
+    // stubbing to `undefined` deletes the var (vs '' which sets an empty string)
+    vi.stubEnv('VIPPS_API_URL', undefined);
+    expect(() => getVippsApiUrl()).toThrow(/VIPPS_API_URL is not set/);
+  });
+
+  it('throws when VIPPS_API_URL is empty', () => {
+    vi.stubEnv('VIPPS_API_URL', '');
+    expect(() => getVippsApiUrl()).toThrow(/VIPPS_API_URL is not set/);
+  });
+
+  it('rejects anything but the two Vipps hosts', () => {
+    vi.stubEnv('VIPPS_API_URL', 'https://apitest.vipps.no.evil.example');
+    expect(() => getVippsApiUrl()).toThrow(/must be exactly/);
+    vi.stubEnv('VIPPS_API_URL', 'http://api.vipps.no');
+    expect(() => getVippsApiUrl()).toThrow(/must be exactly/);
+    vi.stubEnv('VIPPS_API_URL', 'https://api.vipps.no/recurring');
+    expect(() => getVippsApiUrl()).toThrow(/must be exactly/);
+  });
+
+  it('returns the known hosts, tolerating whitespace and a trailing slash', () => {
+    vi.stubEnv('VIPPS_API_URL', 'https://api.vipps.no');
+    expect(getVippsApiUrl()).toBe('https://api.vipps.no');
+    vi.stubEnv('VIPPS_API_URL', 'https://apitest.vipps.no/');
+    expect(getVippsApiUrl()).toBe('https://apitest.vipps.no');
+    vi.stubEnv('VIPPS_API_URL', ' https://api.vipps.no ');
+    expect(getVippsApiUrl()).toBe('https://api.vipps.no');
+  });
 });
 
 describe('getVippsEnvironment', () => {
-  it('defaults to test when no API URL is set', () => {
+  it('throws instead of defaulting to test when no API URL is set', () => {
     vi.stubEnv('VIPPS_API_URL', '');
-    expect(getVippsEnvironment()).toBe('test');
-    expect(isVippsTestEnvironment()).toBe(true);
+    expect(() => getVippsEnvironment()).toThrow(/VIPPS_API_URL/);
   });
 
   it('detects the test API URL', () => {
@@ -52,7 +98,40 @@ describe('getVippsEnvironment', () => {
   it('detects the production API URL', () => {
     vi.stubEnv('VIPPS_API_URL', 'https://api.vipps.no');
     expect(getVippsEnvironment()).toBe('production');
-    expect(isVippsTestEnvironment()).toBe(false);
+  });
+});
+
+describe('isVippsForceAcceptAllowed', () => {
+  it('is false when the flag is unset, even against the test API', () => {
+    vi.stubEnv('NEXT_PUBLIC_VIPPS_ALLOW_FORCE_ACCEPT', undefined);
+    vi.stubEnv('VIPPS_API_URL', 'https://apitest.vipps.no');
+    expect(isVippsForceAcceptAllowed()).toBe(false);
+  });
+
+  it('requires the literal string "true"', () => {
+    vi.stubEnv('VIPPS_API_URL', 'https://apitest.vipps.no');
+    vi.stubEnv('NEXT_PUBLIC_VIPPS_ALLOW_FORCE_ACCEPT', '1');
+    expect(isVippsForceAcceptAllowed()).toBe(false);
+    vi.stubEnv('NEXT_PUBLIC_VIPPS_ALLOW_FORCE_ACCEPT', 'TRUE');
+    expect(isVippsForceAcceptAllowed()).toBe(false);
+  });
+
+  it('is false against the production API even when the flag is set', () => {
+    vi.stubEnv('NEXT_PUBLIC_VIPPS_ALLOW_FORCE_ACCEPT', 'true');
+    vi.stubEnv('VIPPS_API_URL', 'https://api.vipps.no');
+    expect(isVippsForceAcceptAllowed()).toBe(false);
+  });
+
+  it('is false (not an exception) when VIPPS_API_URL is missing', () => {
+    vi.stubEnv('NEXT_PUBLIC_VIPPS_ALLOW_FORCE_ACCEPT', 'true');
+    vi.stubEnv('VIPPS_API_URL', '');
+    expect(isVippsForceAcceptAllowed()).toBe(false);
+  });
+
+  it('is true only with the flag set and the test API', () => {
+    vi.stubEnv('NEXT_PUBLIC_VIPPS_ALLOW_FORCE_ACCEPT', 'true');
+    vi.stubEnv('VIPPS_API_URL', 'https://apitest.vipps.no');
+    expect(isVippsForceAcceptAllowed()).toBe(true);
   });
 });
 

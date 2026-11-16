@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { AlertCircle, ArrowRight, Check, CheckCircle2, Share2 } from 'lucide-react';
 import { joinWaitlistAction } from '@/app/actions';
 import { isValidEmail } from '@/lib/utils/email';
-import { INSTAGRAM_URL } from '@/components/coming-soon/launch';
+import { COMPANY } from '@/lib/config/company';
 import type { WaitlistAudience, WaitlistCity } from '@/types/database';
 
 const CITIES: { value: WaitlistCity; label: string }[] = [
@@ -71,7 +71,7 @@ export function WaitlistForm({ audience }: { audience: WaitlistAudience }) {
           <div>
             <p className="font-medium text-dark-gray">Du står på listen</p>
             <p className="mt-0.5 text-sm text-medium-gray">
-              Vi sender deg én e-post når vi åpner i {CITY_LABEL[city]}.
+              Vi gir deg beskjed på e-post når vi åpner i {CITY_LABEL[city]}.
             </p>
           </div>
         </div>
@@ -136,8 +136,11 @@ export function WaitlistForm({ audience }: { audience: WaitlistAudience }) {
         {!pending && <ArrowRight className="size-4" />}
       </button>
 
-      {/* Submitting is the consent; /personvern#venteliste says what it covers. */}
+      {/* Submitting is the consent: this line states exactly what it covers
+          (one launch e-mail, no newsletter), and /personvern#venteliste says
+          the same in full. Keep the two in sync. */}
       <p className="text-center text-xs text-medium-gray">
+        Vi sender deg én e-post når vi åpner – ingen nyhetsbrev.{' '}
         <Link
           href="/personvern#venteliste"
           className="underline underline-offset-2 hover:text-nordic-blue"
@@ -182,7 +185,7 @@ function ShareRow({ text, title, path }: { text: string; title: string; path: st
           {copied ? 'Lenke kopiert' : 'Del lenken'}
         </button>
         <a
-          href={INSTAGRAM_URL}
+          href={COMPANY.instagramUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-2 rounded-full border border-cream-dark bg-white px-5 py-2.5 text-sm font-medium text-nordic-blue transition-all hover:border-sea-green hover:text-sea-green"

@@ -77,7 +77,7 @@ export function EditableSpecialInstructions({
             onChange={(e) => setInstructions(e.target.value)}
             disabled={isLoading}
             rows={4}
-            placeholder="Legg til instruksjoner for henting..."
+            placeholder="F.eks. vask på 30 grader eller ikke tørketrommel…"
             className="w-full resize-none rounded-2xl border border-cream-dark bg-white px-4 py-3 text-dark-gray outline-none transition-colors placeholder:text-medium-gray/60 focus:border-sea-green focus:ring-2 focus:ring-sea-green/20 disabled:bg-cream/50"
           />
           <div className="flex gap-2">

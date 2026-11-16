@@ -2,6 +2,7 @@ import type {
   CleanerBusinessType,
   CleanerExperienceLevel,
   CleanerMachineCondition,
+  WeeklySchedule,
 } from './database';
 
 export interface CleanerOnboardingData {
@@ -12,7 +13,7 @@ export interface CleanerOnboardingData {
   businessAddress?: string;
   bankAccount: string; // digits only, 11
 
-  // Step 2: base address (where the cleaner washes; drivers deliver/collect here)
+  // Step 2: base address (where the cleaner washes). baseSpecialInstructions is not asked while cleaners run their own pickup/delivery — kept for a future driver flow
   baseStreet: string;
   basePostalCode: string;
   baseCity: string;
@@ -25,9 +26,10 @@ export interface CleanerOnboardingData {
   machineYear: string;
   machineCondition: CleanerMachineCondition;
 
-  // Step 4: profile
+  // Step 4: profile + pickup weekdays (defaults to Mon–Fri in the form)
   displayName: string;
   experienceLevel: CleanerExperienceLevel;
+  weeklySchedule: WeeklySchedule;
 
   // Step 5: confirmation
   termsAccepted: boolean;

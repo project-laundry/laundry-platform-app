@@ -2,9 +2,9 @@
 
 // Step 2 — where we pick up and when.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, CalendarDays, MapPin, RefreshCw } from 'lucide-react';
+import { AlertCircle, CalendarDays, Info, MapPin, RefreshCw } from 'lucide-react';
 import {
   getCityFromPostalCode,
   isValidPostalCodeFormat,
@@ -29,6 +29,22 @@ const FREQUENCY_LABELS: Record<Frequency, string> = {
   biweekly: 'Annenhver uke',
   monthly: 'Månedlig',
 };
+
+/** "Hentes hver onsdag" — the chosen date fixes the weekday for every later
+ *  pickup, which the frequency chips alone don't say. */
+function recurringSummary(frequency: Frequency, pickupDate: string): string | null {
+  if (!pickupDate) return null;
+  const [y, m, d] = pickupDate.split('-').map(Number);
+  const weekday = new Date(y, m - 1, d).toLocaleDateString('nb-NO', { weekday: 'long' });
+  switch (frequency) {
+    case 'weekly':
+      return `Hentes hver ${weekday}.`;
+    case 'biweekly':
+      return `Hentes annenhver ${weekday}.`;
+    case 'monthly':
+      return `Hentes én gang i måneden, på en ${weekday}.`;
+  }
+}
 
 export default function PickupPage() {
   // Mount the form only after the store has rehydrated, so its initial state
@@ -59,6 +75,15 @@ function PickupForm() {
   } | null>(null);
   const [validating, setValidating] = useState(false);
   const [addressError, setAddressError] = useState<string | null>(null);
+  const addressErrorRef = useRef<HTMLDivElement>(null);
+
+  // The address is validated when the sticky button at the bottom is tapped,
+  // but the error renders up by the postal code — bring it into view.
+  useEffect(() => {
+    if (addressError) {
+      addressErrorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [addressError]);
 
   const derivedCity: SupportedCity | null = isValidPostalCodeFormat(postalCode)
     ? getCityFromPostalCode(postalCode)
@@ -250,7 +275,10 @@ function PickupForm() {
           )}
 
           {addressError && (
-            <div className="flex items-start gap-2 rounded-2xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
+            <div
+              ref={addressErrorRef}
+              className="flex items-start gap-2 rounded-2xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700"
+            >
               <AlertCircle className="mt-0.5 size-4 shrink-0" />
               <span>{addressError}</span>
             </div>
@@ -292,7 +320,10 @@ function PickupForm() {
             Ingen ledige hentedager i {derivedCity} ennå. Prøv igjen senere.
           </p>
         ) : (
-          <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          // The row scrolls sideways with the scrollbar hidden; the fade on the
+          // right edge is what tells a phone user there are more dates.
+          <div className="relative after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-12 after:bg-gradient-to-l after:from-warm-white after:to-transparent">
+          <div className="flex gap-2 overflow-x-auto pb-1 pr-10 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {dateChips.map((d) => {
               const active = pickupDate === d.iso;
               return (
@@ -313,6 +344,7 @@ function PickupForm() {
                 </button>
               );
             })}
+          </div>
           </div>
         )}
       </Section>
@@ -339,24 +371,35 @@ function PickupForm() {
         </div>
 
         {isRecurring && (
-          <div className="mt-3 grid grid-cols-3 gap-2 animate-in fade-in slide-in-from-top-1 duration-300">
-            {(Object.keys(FREQUENCY_LABELS) as Frequency[]).map((f) => {
-              const active = frequency === f;
-              return (
-                <button
-                  key={f}
-                  type="button"
-                  onClick={() => setFrequency(f)}
-                  className={`rounded-xl border px-2 py-2.5 text-sm font-medium transition-all ${
-                    active
-                      ? 'border-sea-green bg-sea-green/10 text-sea-green'
-                      : 'border-cream-dark bg-white text-dark-gray hover:border-sea-green/50'
-                  }`}
-                >
-                  {FREQUENCY_LABELS[f]}
-                </button>
-              );
-            })}
+          <div className="animate-in fade-in slide-in-from-top-1 duration-300">
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {(Object.keys(FREQUENCY_LABELS) as Frequency[]).map((f) => {
+                const active = frequency === f;
+                return (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setFrequency(f)}
+                    className={`rounded-xl border px-2 py-2.5 text-sm font-medium transition-all ${
+                      active
+                        ? 'border-sea-green bg-sea-green/10 text-sea-green'
+                        : 'border-cream-dark bg-white text-dark-gray hover:border-sea-green/50'
+                    }`}
+                  >
+                    {FREQUENCY_LABELS[f]}
+                  </button>
+                );
+              })}
+            </div>
+            {/* Say what "fast henting" actually means, and repeat the landing
+                page's "ingen binding" where the commitment is made. */}
+            <div className="mt-3 flex items-start gap-2 rounded-2xl bg-cream/70 px-3.5 py-2.5 text-sm text-medium-gray">
+              <Info className="mt-0.5 size-4 shrink-0 text-sea-green" />
+              <p>
+                {recurringSummary(frequency, pickupDate) ?? 'Velg første hentedato over.'}{' '}
+                Ingen binding – du kan avslutte når du vil.
+              </p>
+            </div>
           </div>
         )}
       </Section>

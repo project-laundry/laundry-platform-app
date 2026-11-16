@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="no">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Innloggingslenken din</title>
+  </head>
+  <body style="margin:0;padding:0;background-color:#F7F5F0;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#F7F5F0;">
+      <tr>
+        <td align="center" style="padding:32px 16px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:520px;background-color:#FDFCFA;border:1px solid #E9E1D3;border-radius:24px;">
+            <tr>
+              <td style="padding:32px 28px;font-family:Jost,'Helvetica Neue',Arial,sans-serif;color:#1E3A4C;">
+                <p style="margin:0 0 12px;font-size:12px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:#3D6A7B;">NooraCare</p>
+                <h1 style="margin:0 0 16px;font-family:Fraunces,Georgia,'Times New Roman',serif;font-size:26px;font-weight:600;line-height:1.25;color:#1E3A4C;">Logg inn med ett trykk</h1>
+                <p style="margin:0 0 24px;font-size:16px;line-height:1.6;color:#1E3A4C;">Trykk på knappen for å logge inn på NooraCare-kontoen din.</p>
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                  <tr>
+                    <td style="border-radius:999px;background-color:#1E3A4C;">
+                      <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 28px;font-family:Jost,'Helvetica Neue',Arial,sans-serif;font-size:16px;font-weight:500;color:#FFFFFF;text-decoration:none;border-radius:999px;">Logg inn</a>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:#586974;">Fungerer ikke knappen? Kopier denne lenken inn i nettleseren:<br /><a href="{{ .ConfirmationURL }}" style="color:#3D6A7B;word-break:break-all;">{{ .ConfirmationURL }}</a></p>
+                <p style="margin:16px 0 0;font-size:14px;line-height:1.6;color:#586974;">Lenken er gyldig i én time og kan bare brukes én gang. Har du ikke bedt om en innloggingslenke, kan du se bort fra denne e-posten.</p>
+              </td>
+            </tr>
+          </table>
+          <p style="margin:20px 0 0;font-family:Jost,'Helvetica Neue',Arial,sans-serif;font-size:12px;line-height:1.6;color:#586974;">NooraCare · Spørsmål? Skriv til <a href="mailto:post@nooracare.no" style="color:#3D6A7B;">post@nooracare.no</a><br /><a href="{{ .SiteURL }}" style="color:#3D6A7B;">{{ .SiteURL }}</a></p>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

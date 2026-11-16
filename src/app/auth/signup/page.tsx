@@ -1,17 +1,30 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { AppHeader } from '@/components/layout/AppHeader';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AlertCircle, ChevronLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { validateNorwegianPhone } from '@/lib/validation/cleaner';
 import { checkSignupAvailabilityAction } from '@/app/auth/actions';
 import { getSignUpErrorMessage, getTakenFieldsMessage } from '@/lib/auth/signup-errors';
+import { safeNextPath, withNext } from '@/lib/auth/next-path';
 
+// useSearchParams needs a Suspense boundary above it.
 export default function SignupPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignupForm />
+    </Suspense>
+  );
+}
+
+function SignupForm() {
   const router = useRouter();
+  // Carried through the confirmation e-mail: /auth/callback sends the new
+  // customer here once the link is clicked (the order flow uses it).
+  const next = safeNextPath(useSearchParams().get('next'));
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -83,7 +96,7 @@ export default function SignupPage() {
       email,
       password: formData.password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${window.location.origin}${withNext('/auth/callback', next)}`,
         data: {
           full_name: formData.name.trim(),
           phone,
@@ -275,7 +288,7 @@ export default function SignupPage() {
             <p className="text-sm text-medium-gray">
               Har du allerede konto?{' '}
               <Link
-                href="/auth/login"
+                href={withNext('/auth/login', next)}
                 className="font-medium text-nordic-blue underline-offset-2 hover:underline"
               >
                 Logg inn

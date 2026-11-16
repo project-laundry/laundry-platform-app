@@ -113,7 +113,7 @@ export function RescheduleForm({
                 </p>
               </div>
               <div>
-                <p className="text-medium-gray">Levering</p>
+                <p className="text-medium-gray">Estimert levering</p>
                 <p className="font-medium capitalize text-dark-gray">
                   {formatDate(newDeliveryDate)}
                 </p>
@@ -158,7 +158,7 @@ export function RescheduleForm({
 
       {/* Info text */}
       <p className="text-center text-xs text-medium-gray">
-        Levering skjer 2 dager etter henting. Ved endring kan renser bli byttet ut hvis nåværende renser ikke er tilgjengelig.
+        Leveringsdatoen er et estimat – {DAYS_PICKUP_TO_DELIVERY} dager etter henting. Ved endring kan renser bli byttet ut hvis nåværende renser ikke er tilgjengelig.
       </p>
     </div>
   );

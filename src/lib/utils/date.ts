@@ -45,6 +45,16 @@ export function toISODateString(date: Date): string {
 }
 
 /**
+ * Today's date in Norway as YYYY-MM-DD. The server runs in UTC, so
+ * toISODateString(new Date()) is still "yesterday" between 00:00 and
+ * 01:00/02:00 Norwegian time. Use this wherever "today" means the
+ * customer's or cleaner's day.
+ */
+export function todayInOslo(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Oslo' }).format(now);
+}
+
+/**
  * Check if a weekday is available in a weekly schedule
  * @param schedule - The weekly schedule object
  * @param weekday - The weekday to check
@@ -148,4 +158,12 @@ export function isToday(date: Date | string): boolean {
     dateObj.getMonth() === today.getMonth() &&
     dateObj.getDate() === today.getDate()
   );
+}
+
+/**
+ * Whole days from one YYYY-MM-DD date to another (positive when `toISODate`
+ * is later). Both parse as UTC midnight, so DST never shifts the result.
+ */
+export function daysBetweenISODates(fromISODate: string, toISODate: string): number {
+  return Math.round((Date.parse(toISODate) - Date.parse(fromISODate)) / 86_400_000);
 }

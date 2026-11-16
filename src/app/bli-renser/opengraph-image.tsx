@@ -9,6 +9,6 @@ export default function Image() {
   return renderOgImage({
     title: 'Tjen penger på',
     highlight: 'vaskemaskinen din.',
-    tagline: `Minst ${formatKr(CLEANER_MIN_PAYOUT_PER_ORDER_ORE)} per oppdrag. Vi henter og leverer.`,
+    tagline: `Minst ${formatKr(CLEANER_MIN_PAYOUT_PER_ORDER_ORE)} per oppdrag. Vi finner kundene.`,
   });
 }

@@ -13,11 +13,14 @@ import {
 } from '@/lib/database/orders';
 import {
   calculateOrderPrice,
-  computeDiscountOre,
+  IRONING_OFFERED,
+  MAX_WASH_LOADS_PER_ORDER,
+  applyPromoDiscount,
   type LaundryDetails,
   type PriceBreakdown,
 } from '@/lib/config/pricing';
-import { createChargeForCompletedOrder } from '@/lib/payments/vipps/service';
+import { completeDeliveredOrder } from '@/lib/services/complete-order';
+import { markOrderReadyAndCharge } from '@/lib/services/ready-order';
 
 export type { OrderWithCustomer };
 
@@ -41,17 +44,53 @@ export async function getCleanerOrderDetails(
 }
 
 /**
- * Mark an order as cleaned and ready for the driver to collect — and CHARGE
- * the customer (decision 5: the service is rendered and the price locked at
- * this moment; the driver never touches money).
- *
- * This is the ONLY status transition a cleaner performs
- * (in_cleaning → ready_for_delivery); the driver handles every other leg.
- * Wash details and price must exist first, because the charge fires here.
- * The guarded transition runs before the charge, so a double-tap can never
- * charge twice (the second call fails the from-status guard).
+ * Mark an order as cleaned and ready to deliver — and CHARGE the customer.
+ * Cleaners run their own logistics: markOrderPickedUpAction before this,
+ * markOrderDeliveredAction after it. The transition, its guards and the
+ * charge live in lib/services/ready-order.ts (shared with the admin
+ * fallback adminMarkReadyAction).
  */
 export async function markOrderReadyForDelivery(
+  orderId: string
+): Promise<{ success: boolean; error?: string; chargeFailed?: boolean }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: 'Ikke autentisert' };
+  }
+
+  const cleaner = await getCleanerByUserId(user.id);
+  if (!cleaner) {
+    return { success: false, error: 'Renserprofil ikke funnet' };
+  }
+
+  const order = await getOrderByIdAndCleanerId(orderId, cleaner.id);
+  if (!order) {
+    return { success: false, error: 'Ordre ikke funnet eller ikke tildelt deg' };
+  }
+
+  const result = await markOrderReadyAndCharge(order);
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  revalidatePath('/dashboard/cleaner');
+  revalidatePath(`/dashboard/cleaner/${orderId}`);
+  return result.chargeFailed ? { success: true, chargeFailed: true } : { success: true };
+}
+
+/**
+ * The cleaner has collected the bags at the customer's door. Cleaners do
+ * their own pickup (no drivers in this version) and the bags go straight
+ * into their machine, so this jumps pickup_scheduled → in_cleaning in ONE
+ * guarded write, stamping picked_up_at next to in_cleaning_at.
+ * No date check: the UI warns before the pickup date, but an early pickup
+ * agreed with the customer is allowed.
+ */
+export async function markOrderPickedUpAction(
   orderId: string
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient();
@@ -73,42 +112,64 @@ export async function markOrderReadyForDelivery(
     return { success: false, error: 'Ordre ikke funnet eller ikke tildelt deg' };
   }
 
-  if (order.status !== 'in_cleaning') {
-    return { success: false, error: 'Ordren kan bare gjøres klar mens den vaskes' };
-  }
-  if (order.wash_loads === 0) {
-    return { success: false, error: 'Vaskdetaljer må registreres før ordren kan gjøres klar' };
-  }
-  if (order.total_cost_ore === null) {
-    return { success: false, error: 'Pris må beregnes før ordren kan gjøres klar' };
+  if (order.status !== 'pickup_scheduled') {
+    return { success: false, error: 'Ordren er allerede hentet' };
   }
 
-  const updated = await updateOrderStatusGuarded(orderId, 'in_cleaning', 'ready_for_delivery');
+  const updated = await updateOrderStatusGuarded(orderId, 'pickup_scheduled', 'in_cleaning', {
+    picked_up_at: new Date().toISOString(),
+  });
   if (!updated) {
-    return { success: false, error: 'Kunne ikke oppdatere status' };
-  }
-
-  // Charge the customer for the locked-in price. (createChargeForCompletedOrder
-  // predates the driver flow — despite the name it simply creates the Vipps
-  // charge against the order's agreement; it has no status requirement.)
-  // A 0-total order (100% promo) skips the charge — Vipps cannot charge 0; the
-  // cancelled-subscription agreement stop is handled at delivery completion.
-  if (order.total_cost_ore > 0) {
-    try {
-      const description = `NooraCare vask #${order.order_number}`;
-      await createChargeForCompletedOrder(orderId, order.total_cost_ore, description);
-    } catch (error) {
-      // Log but don't fail the transition — the charge can be retried manually.
-      console.error('Failed to create Vipps charge:', error);
-    }
-  } else {
-    console.log(`Order ${order.order_number} total is 0 after discount — skipping Vipps charge`);
+    return { success: false, error: 'Kunne ikke oppdatere status — last siden på nytt' };
   }
 
   revalidatePath('/dashboard/cleaner');
   revalidatePath(`/dashboard/cleaner/${orderId}`);
   return { success: true };
 }
+
+/**
+ * The cleaner has handed the clean laundry back to the customer. The charge
+ * already happened at "ready"; completion stamps the actual delivery date,
+ * fires the rolling window and the cancelled-subscription agreement stop
+ * (all inside completeDeliveredOrder).
+ */
+export async function markOrderDeliveredAction(
+  orderId: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: 'Ikke autentisert' };
+  }
+
+  const cleaner = await getCleanerByUserId(user.id);
+  if (!cleaner) {
+    return { success: false, error: 'Renserprofil ikke funnet' };
+  }
+
+  const order = await getOrderByIdAndCleanerId(orderId, cleaner.id);
+  if (!order) {
+    return { success: false, error: 'Ordre ikke funnet eller ikke tildelt deg' };
+  }
+
+  if (order.status !== 'ready_for_delivery') {
+    return { success: false, error: 'Ordren kan bare leveres når den er markert som klar' };
+  }
+
+  const result = await completeDeliveredOrder(orderId, 'ready_for_delivery');
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  revalidatePath('/dashboard/cleaner');
+  revalidatePath(`/dashboard/cleaner/${orderId}`);
+  return { success: true };
+}
+
 
 /**
  * Save laundry details (loads, ironing) and calculate price
@@ -133,7 +194,7 @@ export async function saveLaundryDetails(
   }
 
   // Validate loads
-  if (details.wash_loads < 0) {
+  if (!Number.isFinite(details.wash_loads) || details.wash_loads < 0) {
     return { success: false, error: 'Antall vask kan ikke være negativt' };
   }
 
@@ -141,11 +202,26 @@ export async function saveLaundryDetails(
     return { success: false, error: 'Du må registrere minst ett vask' };
   }
 
+  if (!Number.isInteger(details.wash_loads)) {
+    return { success: false, error: 'Antall vask må være et helt tall' };
+  }
+
+  if (details.wash_loads > MAX_WASH_LOADS_PER_ORDER) {
+    return {
+      success: false,
+      error: `Du kan registrere maks ${MAX_WASH_LOADS_PER_ORDER} vask på én ordre. Kontakt NooraCare hvis ordren er større.`,
+    };
+  }
+
+  // Ironing isn't offered yet: never price or store it, whatever the client sent.
+  if (!IRONING_OFFERED) details = { ...details, ironing_details: null };
+
   // Calculate service price (full price; the cleaner's payout is based on this)
   const priceBreakdown = calculateOrderPrice(details);
 
   // Apply promo discount (if any) to the amount charged to the customer.
-  // The discount is platform-absorbed: it reduces total_cost_ore but NOT the cleaner payout.
+  // The discount is platform-absorbed: it reduces total_cost_ore but NOT
+  // cleaner_payout_ore, which is stamped from the full-price breakdown below.
   const order = await getOrderByIdAndCleanerId(orderId, cleaner.id);
   if (!order) {
     return { success: false, error: 'Ordre ikke funnet eller ikke tildelt deg' };
@@ -158,19 +234,17 @@ export async function saveLaundryDetails(
     return { success: false, error: 'Vaskdetaljer kan ikke endres etter at ordren er gjort klar og kunden belastet' };
   }
 
-  let totalCostOre = priceBreakdown.total_ore;
-  let promoUpdate = order.promo;
-  if (order.promo) {
-    const discountOre = computeDiscountOre(priceBreakdown.total_ore, order.promo);
-    totalCostOre = priceBreakdown.total_ore - discountOre;
-    promoUpdate = { ...order.promo, discount_ore: discountOre };
-  }
+  const { total_cost_ore: totalCostOre, promo: promoUpdate } = applyPromoDiscount(
+    priceBreakdown.total_ore,
+    order.promo
+  );
 
   // Save to database
   const result = await updateOrderLaundryDetails(orderId, cleaner.id, {
     wash_loads: details.wash_loads,
     ironing_details: details.ironing_details,
     total_cost_ore: totalCostOre,
+    cleaner_payout_ore: priceBreakdown.cleaner_payout_ore,
     pricing_notes: notes,
     promo: promoUpdate,
   });

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Check, Mail, Phone } from 'lucide-react';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { useCleanerOnboardingStore } from '@/stores/cleaner-onboarding-store';
+import { COMPANY, phoneHref } from '@/lib/config/company';
 
 export default function RegistrationSuccessPage() {
   const resetCleanerData = useCleanerOnboardingStore((state) => state.resetCleanerData);
@@ -99,14 +100,14 @@ export default function RegistrationSuccessPage() {
           <ul className="mt-3 space-y-2 text-sm text-dark-gray">
             <li className="flex items-center gap-2">
               <Mail className="size-4 text-sea-green" />
-              <a href="mailto:post@nooracare.no" className="transition-colors hover:text-nordic-blue">
-                post@nooracare.no
+              <a href={`mailto:${COMPANY.email}`} className="transition-colors hover:text-nordic-blue">
+                {COMPANY.email}
               </a>
             </li>
             <li className="flex items-center gap-2">
               <Phone className="size-4 text-sea-green" />
-              <a href="tel:+4797616468" className="transition-colors hover:text-nordic-blue">
-                +47 976 16 468
+              <a href={phoneHref()} className="transition-colors hover:text-nordic-blue">
+                {COMPANY.phoneDisplay}
               </a>
             </li>
           </ul>

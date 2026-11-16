@@ -34,8 +34,3 @@ export function getAppEnvironment(): AppEnvironment {
 
   return 'staging';
 }
-
-/** True for any non-production environment. */
-export function isNonProduction(): boolean {
-  return getAppEnvironment() !== 'production';
-}

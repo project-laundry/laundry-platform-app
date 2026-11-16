@@ -2,6 +2,8 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { MarketingNav } from '@/components/landing/MarketingNav';
 import { Footer } from "@/components/landing/Footer";
+import { CompanyContactCard } from "@/components/legal/CompanyContactCard";
+import { COMPANY } from "@/lib/config/company";
 
 export const metadata: Metadata = {
   title: "Personvernerklæring | NooraCare",
@@ -33,7 +35,7 @@ export default function PersonvernPage() {
                 Personvernerklæring
               </h1>
               <p className="text-sm text-medium-gray">
-                Sist oppdatert: 01.10.2026
+                Sist oppdatert: 20.10.2026
               </p>
               <p className="text-sm text-medium-gray mt-2">
                 Denne erklæringen gjelder for kunder. Er du tilknyttet
@@ -51,7 +53,7 @@ export default function PersonvernPage() {
             {/* Intro */}
             <section className="mb-10">
               <p className="leading-relaxed text-dark-gray">
-                NooraCare AS behandler personopplysninger om deg når du
+                {COMPANY.legalName} behandler personopplysninger om deg når du
                 bruker tjenestene våre. Denne erklæringen forklarer hvilke
                 opplysninger vi samler inn, hvorfor, hvor lenge vi
                 oppbevarer dem, hvem vi deler dem med og hvilke rettigheter
@@ -69,21 +71,22 @@ export default function PersonvernPage() {
                 <p className="leading-relaxed text-dark-gray">
                   Melder du deg på ventelisten vår (som kunde eller renser),
                   lagrer vi e-postadressen din, byen du velger og tidspunktet
-                  for påmeldingen. Vi bruker dette til å gi deg beskjed når
-                  NooraCare åpner, sende deg lanseringstilbudet og sende deg
-                  nyhetsbrev fra NooraCare. Rettslig grunnlag er samtykket
-                  ditt (GDPR art. 6 nr. 1 bokstav a), som du kan trekke
-                  tilbake når som helst – via avmeldingslenken i e-postene
-                  våre eller ved å skrive til{" "}
+                  for påmeldingen. Vi bruker dette til én ting: å sende deg én
+                  e-post når NooraCare åpner i byen din. Er du kunde og blant de
+                  første på listen, inneholder den e-posten også
+                  lanseringstilbudet. Vi sender ikke nyhetsbrev eller annen
+                  markedsføring til ventelisten. Rettslig grunnlag er samtykket
+                  ditt (GDPR art. 6 nr. 1 bokstav a), som du kan trekke tilbake
+                  når som helst ved å skrive til{" "}
                   <a
                     href="mailto:post@nooracare.no"
                     className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
                   >
                     post@nooracare.no
                   </a>
-                  . Melder du deg av, sletter vi adressen din. Vi deler den
-                  ikke med andre, og vi sletter adressen senest seks måneder
-                  etter lansering med mindre du fortsatt vil ha nyhetsbrevet.
+                  {" "}– da sletter vi adressen din med en gang. Vi deler den
+                  ikke med andre, og vi sletter alle adressene på ventelisten
+                  senest seks måneder etter lansering.
                 </p>
               </div>
             </section>
@@ -94,48 +97,10 @@ export default function PersonvernPage() {
                 1. Behandlingsansvarlig
               </h2>
               <p className="leading-relaxed text-dark-gray mb-4">
-                NooraCare AS er behandlingsansvarlig for behandlingen av
+                {COMPANY.legalName} er behandlingsansvarlig for behandlingen av
                 personopplysningene som beskrives her.
               </p>
-              <div className="rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-6 shadow-[var(--shadow-card)] backdrop-blur">
-                <p className="mb-3 text-sm font-medium text-medium-gray">
-                  Kontaktopplysninger:
-                </p>
-                <ul className="space-y-1.5 text-sm text-dark-gray">
-                  <li>
-                    <span className="font-medium">Selskapsnavn:</span>{" "}
-                    NooraCare AS
-                  </li>
-                  <li>
-                    <span className="font-medium">Organisasjonsnummer:</span>{" "}
-                    836 788 842
-                  </li>
-                  {/* TODO: replace with real postal address before production – keep in sync with Footer.tsx */}
-                  <li>
-                    <span className="font-medium">Postadresse:</span> Breimyra
-                    232, 5134 Flaktveit
-                  </li>
-                  {/* TODO: replace with real phone number before production – keep in sync with Footer.tsx */}
-                  <li>
-                    <span className="font-medium">Telefon:</span>{" "}
-                    <a
-                      href="tel:+4797616468"
-                      className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
-                    >
-                      +47 976 16 468
-                    </a>
-                  </li>
-                  <li>
-                    <span className="font-medium">E-post:</span>{" "}
-                    <a
-                      href="mailto:post@nooracare.no"
-                      className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
-                    >
-                      post@nooracare.no
-                    </a>
-                  </li>
-                </ul>
-              </div>
+              <CompanyContactCard label="Kontaktopplysninger:" />
             </section>
 
             {/* 2. What we process */}
@@ -157,10 +122,9 @@ export default function PersonvernPage() {
                 <li>
                   <span className="font-medium">Bestillingsopplysninger:</span>{" "}
                   henteadresse (gateadresse, postnummer, by, land),
-                  spesielle instruksjoner for henting og levering, ønske om
-                  stryking, planlagte hente- og leveringsdatoer, mengde
-                  vask (for eksempel mørke/lyse vasker og strykedetaljer),
-                  faktisk vekt og notater fra renseren.
+                  spesielle instruksjoner for henting og levering, planlagte
+                  hente- og leveringsdatoer, mengde vask (for eksempel
+                  mørke/lyse vasker), faktisk vekt og notater fra renseren.
                 </li>
                 <li>
                   <span className="font-medium">Betalingsopplysninger:</span>{" "}
@@ -248,8 +212,10 @@ export default function PersonvernPage() {
                   <span className="font-medium">
                     Rensere tilknyttet plattformen
                   </span>{" "}
-                  – får tilgang til navn, henteadresse og henteinstruksjoner
-                  for det konkrete oppdraget de utfører for deg. Renserne er
+                  – får tilgang til navn, telefonnummer, henteadresse,
+                  henteinstruksjoner og vaskeinstruksjoner for det konkrete
+                  oppdraget de utfører for deg, slik at de kan hente og
+                  levere tøyet. Renserne er
                   selvstendige tjenesteytere og opptrer som databehandler
                   for NooraCare i den utstrekning de behandler dine
                   opplysninger på vegne av oss.

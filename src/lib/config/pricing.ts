@@ -2,6 +2,7 @@
 // All prices are stored in øre (1 NOK = 100 øre)
 
 import type { OrderSelection } from '@/types/order-flow';
+import type { OrderPromo } from '@/types/database';
 
 // Ironing groups (cleaner-binding pricing and customer estimate share these)
 export type IroningGroup = 'everyday' | 'shirts_dresses' | 'bedding';
@@ -31,6 +32,11 @@ export interface PriceBreakdown {
   cleaner_payout_ore: number;
   platform_share_ore: number;
 }
+
+/** Most loads a cleaner can register on one order. Marking the order ready
+ *  charges the customer automatically, so this stops a typo ("22" for "2")
+ *  from becoming a charge. Larger orders go through the admin price override. */
+export const MAX_WASH_LOADS_PER_ORDER = 15;
 
 export const PRICING = {
   // Cleaner-binding pricing: per-load (5kg load)
@@ -105,6 +111,16 @@ export function formatNokWhole(ore: number): string {
 export const CLEANER_MIN_PAYOUT_PER_ORDER_ORE = Math.round(
   (PRICING.minimum_order_ore * PRICING.cleaner_payout_percent) / 100
 );
+
+/** When and how cleaners are paid. One source for every surface that states it
+ *  (cleaner FAQ, onboarding bank-account step, settings, dashboard) so the
+ *  promise can't drift. Payout itself is a manual bank transfer. */
+export const CLEANER_PAYOUT_TERMS = {
+  /** The previous month's completed orders are on the cleaner's account by this day of the month. */
+  paid_by_day_of_month: 10,
+} as const;
+
+export const CLEANER_PAYOUT_TERMS_TEXT = `Din andel av oppdragene du fullfører i løpet av en måned utbetales samlet til kontonummeret ditt innen den ${CLEANER_PAYOUT_TERMS.paid_by_day_of_month}. i måneden etter. Det er ingen minstebeløp.`;
 
 /** Whole-krone formatting with unit — estimates read cleaner without decimals. */
 export function formatKr(ore: number): string {
@@ -194,6 +210,20 @@ export interface PriceResult {
   subtotalOre: number; // everything before the minimum kicks in
   minimumApplied: boolean;
   totalOre: number;
+}
+
+/** Ironing is not offered in the first version (BUSINESS_LOGIC.md "Ironing").
+ *  Flip this when it ships: it un-hides the ironing section and stops
+ *  `withoutUnofferedIroning` from zeroing the counts. */
+export const IRONING_OFFERED = false;
+
+/** Zero the ironing part of a customer selection while ironing isn't offered.
+ *  Guards against stale counts — a browser that persisted the order flow
+ *  before ironing was hidden, or a hand-crafted request — so they never reach
+ *  the estimate, the stored `customer_estimate` or `needs_ironing`. */
+export function withoutUnofferedIroning(sel: OrderSelection): OrderSelection {
+  if (IRONING_OFFERED) return sel;
+  return { ...sel, everydayItems: 0, formalItems: 0, ironBedding: false };
 }
 
 /** Estimated number of garments to iron for a given number of bags. Used to
@@ -325,4 +355,23 @@ export function computeDiscountOre(
   }
 
   return Math.max(0, Math.min(discount, totalOre));
+}
+
+/**
+ * Apply an order's locked promo snapshot to the full service price.
+ * Returns the amount the customer is charged and the snapshot with
+ * `discount_ore` filled in; a null promo leaves the total untouched.
+ * The discount is platform-absorbed — callers stamp `cleaner_payout_ore`
+ * from the FULL breakdown, never from this total.
+ *
+ * Shared by the cleaner's saveLaundryDetails and the admin price override
+ * (overrideOrderPriceAction) so the two pricing paths cannot drift.
+ */
+export function applyPromoDiscount(
+  fullTotalOre: number,
+  promo: OrderPromo | null
+): { total_cost_ore: number; promo: OrderPromo | null } {
+  if (!promo) return { total_cost_ore: fullTotalOre, promo: null };
+  const discount_ore = computeDiscountOre(fullTotalOre, promo);
+  return { total_cost_ore: fullTotalOre - discount_ore, promo: { ...promo, discount_ore } };
 }

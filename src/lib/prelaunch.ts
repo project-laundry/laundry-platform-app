@@ -31,6 +31,8 @@ const PUBLIC_PAGES = [
   '/pris-kalkulator',
   '/auth/callback',
   '/auth/error',
+  '/auth/forgot-password',
+  '/auth/reset-password',
 ];
 
 /** Trees that stay public (the path itself or anything below it). */

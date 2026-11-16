@@ -98,9 +98,15 @@ export async function getActiveSubscriptionByCustomerId(
 }
 
 /**
- * Activate subscription when Vipps agreement is activated
- * Sets status to active and started_at to now
+ * Activate subscription when Vipps agreement is activated — guarded on
+ * status = 'pending_payment'. Sets status to active and started_at to now.
  * Uses admin client to bypass RLS (no UPDATE policy on subscriptions table)
+ *
+ * Returns the updated row, or null when nothing was updated: the subscription
+ * was not pending_payment (a duplicate Vipps delivery already activated it —
+ * this guard is what keeps started_at from being moved — or it was cancelled
+ * meanwhile) or the update failed. The webhook treats null as "fail this
+ * delivery and let Vipps retry".
  */
 export async function activateSubscriptionOnAgreementActivation(
   subscriptionId: string
@@ -116,8 +122,9 @@ export async function activateSubscriptionOnAgreementActivation(
       started_at: now.toISOString(),
     })
     .eq('id', subscriptionId)
+    .eq('status', 'pending_payment')
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
     console.error('Error activating subscription on agreement activation:', error);

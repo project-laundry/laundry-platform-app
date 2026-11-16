@@ -115,8 +115,18 @@ export default async function SubscriptionPage() {
               {address && (
                 <div className="flex justify-between gap-4">
                   <span className="text-medium-gray">Adresse</span>
-                  <span className="text-right font-medium text-dark-gray">
-                    {address.street}, {address.postal_code} {address.city}
+                  <span className="text-right">
+                    <span className="block font-medium text-dark-gray">
+                      {address.street}, {address.postal_code} {address.city}
+                    </span>
+                    {subscription.status === 'active' && (
+                      <Link
+                        href="/dashboard/settings"
+                        className="text-sm font-medium text-nordic-blue underline-offset-2 hover:underline"
+                      >
+                        Endre adresse
+                      </Link>
+                    )}
                   </span>
                 </div>
               )}

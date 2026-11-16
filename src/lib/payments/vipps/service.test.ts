@@ -3,13 +3,17 @@ import type { Mock } from 'vitest';
 
 // --- Mock every dependency stopVippsAgreementForCancelledSubscription reaches ---
 const stopAgreement = vi.fn();
+const createCharge = vi.fn();
 vi.mock('./recurring-client', () => ({
-  createVippsRecurringClient: vi.fn(() => ({ stopAgreement })),
+  createVippsRecurringClient: vi.fn(() => ({ stopAgreement, createCharge })),
 }));
 vi.mock('@/lib/database/payments', () => ({
   createPayment: vi.fn(),
+  updatePayment: vi.fn(),
+  failPaymentWithMetadata: vi.fn(),
   hasUnsettledVippsPaymentForSubscription: vi.fn(),
 }));
+vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: vi.fn() }));
 vi.mock('@/lib/database/subscriptions', () => ({ getSubscriptionById: vi.fn() }));
 vi.mock('@/lib/database/payment-agreements', () => ({
   getPaymentAgreementById: vi.fn(),
@@ -20,8 +24,14 @@ vi.mock('@/lib/database/orders', () => ({ getActiveOrdersBySubscriptionId: vi.fn
 import { getSubscriptionById } from '@/lib/database/subscriptions';
 import { getPaymentAgreementById, stopPaymentAgreement } from '@/lib/database/payment-agreements';
 import { getActiveOrdersBySubscriptionId } from '@/lib/database/orders';
-import { hasUnsettledVippsPaymentForSubscription } from '@/lib/database/payments';
-import { stopVippsAgreementForCancelledSubscription } from './service';
+import {
+  createPayment,
+  updatePayment,
+  failPaymentWithMetadata,
+  hasUnsettledVippsPaymentForSubscription,
+} from '@/lib/database/payments';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { createChargeForCompletedOrder, stopVippsAgreementForCancelledSubscription } from './service';
 
 const m = (fn: unknown) => fn as Mock;
 
@@ -124,5 +134,52 @@ describe('stopVippsAgreementForCancelledSubscription', () => {
 
     expect(stopAgreement).not.toHaveBeenCalled();
     expect(stopPaymentAgreement).not.toHaveBeenCalled();
+  });
+});
+
+describe('createChargeForCompletedOrder', () => {
+  /** The order lookup is the only query this function runs through the admin client. */
+  function mockOrderLookup() {
+    const single = vi.fn().mockResolvedValue({
+      data: {
+        id: 'ord-1',
+        customer_id: 'cust-1',
+        payment_agreements: { provider_agreement_id: 'agr-1' },
+        subscriptions: null,
+      },
+      error: null,
+    });
+    const eq = vi.fn(() => ({ single }));
+    const select = vi.fn(() => ({ eq }));
+    m(createAdminClient).mockReturnValue({ from: vi.fn(() => ({ select })) });
+  }
+
+  beforeEach(() => {
+    mockOrderLookup();
+    m(createPayment).mockResolvedValue({ id: 'pay-1' });
+  });
+
+  it('stores the Vipps charge id on the payment when the charge is created', async () => {
+    createCharge.mockResolvedValue({ chargeId: 'chr-1' });
+
+    const paymentId = await createChargeForCompletedOrder('ord-1', 50000, 'NooraCare vask #1');
+
+    expect(paymentId).toBe('pay-1');
+    expect(createCharge).toHaveBeenCalledWith('agr-1', expect.objectContaining({ amount: 50000, transactionType: 'DIRECT_CAPTURE' }));
+    expect(updatePayment).toHaveBeenCalledWith('pay-1', expect.objectContaining({ provider_reference: 'chr-1' }));
+    expect(failPaymentWithMetadata).not.toHaveBeenCalled();
+  });
+
+  it('marks the payment failed with the Vipps error and rethrows when charge creation fails', async () => {
+    createCharge.mockRejectedValue(new Error('Vipps create charge failed (500): boom'));
+
+    await expect(createChargeForCompletedOrder('ord-1', 50000, 'NooraCare vask #1')).rejects.toThrow('boom');
+
+    expect(failPaymentWithMetadata).toHaveBeenCalledWith(
+      'pay-1',
+      'Vipps charge creation failed: Vipps create charge failed (500): boom',
+      expect.objectContaining({ vipps_agreement_id: 'agr-1', vipps_status: 'CREATION_FAILED' })
+    );
+    expect(updatePayment).not.toHaveBeenCalled();
   });
 });

@@ -5,8 +5,9 @@ import { LAUNCH_WINDOW_LABEL, WAITLIST_OFFER_SPOTS } from '@/components/coming-s
 import { CLEANER_MIN_PAYOUT_PER_ORDER_ORE, formatKr } from '@/lib/config/pricing';
 import { getWaitlistCount } from '@/lib/database/waitlist';
 
-// Pre-launch landing page. The full landing page is parked at /lansering;
-// at launch, move src/app/lansering/page.tsx back here.
+// Pre-launch landing page: waitlist + the illustrated how-it-works story. At
+// launch, swap the waitlist form for the order CTA — the old launch landing
+// page was deleted, this is the landing page.
 // The description comes from the root layout.
 export const metadata: Metadata = {
   title: 'NooraCare – Slipp klesvasken. En nabo tar den.',
@@ -26,7 +27,7 @@ export default async function ComingSoonPage() {
         title="Snart slipper du"
         highlight="klesvasken."
         subtitle="En godkjent renser i området vasker tøyet ditt. Vi henter og leverer hjem til deg. Sett deg på listen, så får du beskjed først."
-        offer={{ title: 'Halv pris på første vask', detail: `for de ${WAITLIST_OFFER_SPOTS} første på listen` }}
+        offer={{ title: 'Halv pris på første vask', detail: `for de ${WAITLIST_OFFER_SPOTS} første på listen – du får rabattkoden på e-post når vi åpner` }}
         count={count}
         image={{
           src: '/images/hero-hallway.jpg',

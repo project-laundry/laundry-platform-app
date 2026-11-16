@@ -1,3 +1,5 @@
+import type { WeeklySchedule } from '@/types/database';
+
 /**
  * Validates Norwegian phone number format
  * Accepts: +47 followed by 8 digits, or just 8 digits
@@ -75,3 +77,35 @@ export function taxIdTakenMessage(type: 'individual' | 'business'): string {
     ? 'Fødselsnummeret er allerede registrert på en annen renserkonto. Ta kontakt med oss hvis du mener dette er feil.'
     : 'Organisasjonsnummeret er allerede registrert på en annen renserkonto. Ta kontakt med oss hvis du mener dette er feil.';
 }
+
+/**
+ * Rebuild a client-supplied weekly schedule key-by-key so extra/missing keys
+ * never reach the jsonb column, and coerce every value to a real boolean.
+ * Accepts anything (undefined, null, partial object) — a missing key is false.
+ * Used by createCleanerProfileAction and updateCleanerSettingsAction.
+ */
+export function normalizeWeeklySchedule(
+  input: Partial<Record<keyof WeeklySchedule, unknown>> | null | undefined
+): WeeklySchedule {
+  return {
+    mon: input?.mon === true,
+    tue: input?.tue === true,
+    wed: input?.wed === true,
+    thu: input?.thu === true,
+    fri: input?.fri === true,
+    sat: input?.sat === true,
+    sun: input?.sun === true,
+  };
+}
+
+/** True when at least one weekday is selected. */
+export function hasAnyWeekday(schedule: WeeklySchedule): boolean {
+  return Object.values(schedule).some(Boolean);
+}
+
+/**
+ * Max length of the reason an admin writes when rejecting a cleaner
+ * application (cleaners.rejection_reason, DB CHECK of the same size).
+ * Shared by rejectCleanerAction and the admin textarea's maxLength.
+ */
+export const CLEANER_REJECTION_REASON_MAX = 500;

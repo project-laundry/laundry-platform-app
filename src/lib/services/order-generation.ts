@@ -7,6 +7,7 @@ import type {
 import type { CreateOrderData } from '@/lib/database/orders';
 import { getNextOccurrenceOfWeekday, addDays, toISODateString, getWeekdayFromDate } from '@/lib/utils/date';
 import { DAYS_PICKUP_TO_DELIVERY } from '@/lib/config/order-timing';
+import { IRONING_OFFERED } from '@/lib/config/pricing';
 
 /**
  * Per-order parameters that vary between the first order (created on agreement
@@ -43,7 +44,7 @@ export function buildOrderData(
     status: cleanerId ? 'pickup_scheduled' : 'pending_assignment',
     scheduled_date: toISODateString(params.pickupDate),
     delivery_date: toISODateString(params.deliveryDate),
-    needs_ironing: orderDefaults.default_needs_ironing,
+    needs_ironing: IRONING_OFFERED && orderDefaults.default_needs_ironing,
     customer_estimate: orderDefaults.customer_estimate ?? null,
     total_cost_ore: null, // Cleaner sets price after pickup
     // Address from order defaults

@@ -28,12 +28,13 @@ vi.mock('@/lib/payments/vipps/service', () => ({
   cancelVippsAgreement: vi.fn(),
 }));
 vi.mock('@/lib/payments/vipps/config', () => ({
-  isVippsTestEnvironment: vi.fn(),
+  isVippsForceAcceptAllowed: vi.fn(),
   pickVippsTestPhone: vi.fn(),
 }));
 vi.mock('@/lib/payments/vipps/recurring-client', () => ({ createVippsRecurringClient: vi.fn() }));
 vi.mock('@/lib/database/orders', () => ({
   getMostRecentOrderAddressByCustomerId: vi.fn(),
+  getOrderByPaymentAgreementId: vi.fn(),
   getOrderWithDetailsByIdAndCustomerId: vi.fn(),
   updateOrderStatus: vi.fn(),
 }));
@@ -42,18 +43,25 @@ vi.mock('@/app/dashboard/subscription/actions', () => ({ cancelSubscriptionActio
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getCustomerByUserId } from '@/lib/database/customers';
-import { getMostRecentOrderAddressByCustomerId, getOrderWithDetailsByIdAndCustomerId } from '@/lib/database/orders';
+import {
+  getMostRecentOrderAddressByCustomerId,
+  getOrderByPaymentAgreementId,
+  getOrderWithDetailsByIdAndCustomerId,
+} from '@/lib/database/orders';
 import { calculateCustomerEstimate } from '@/lib/config/pricing';
 import type { OrderSelection } from '@/types/order-flow';
+import { TERMS_VERSION } from '@/lib/config/terms';
 import { validatePromoCode } from '@/lib/database/promo-codes';
 import { createSubscription, getActiveSubscriptionByCustomerId } from '@/lib/database/subscriptions';
-import { createPaymentAgreement, getPaymentAgreementsByCustomerId } from '@/lib/database/payment-agreements';
+import { createPaymentAgreement, getPaymentAgreementByProviderId, getPaymentAgreementsByCustomerId } from '@/lib/database/payment-agreements';
 import { findAvailableCleaner, getAvailableWeekdaysForCity } from '@/lib/database/cleaners';
 import { createVippsAgreement } from '@/lib/payments/vipps/service';
 import { createVippsRecurringClient } from '@/lib/payments/vipps/recurring-client';
+import { isVippsForceAcceptAllowed, pickVippsTestPhone } from '@/lib/payments/vipps/config';
 import { cancelSubscriptionAction } from '@/app/dashboard/subscription/actions';
 import {
   createSubscriptionAction,
+  forceAcceptAgreementAction,
   validatePromoCodeAction,
   getCheckoutStatusAction,
   getPickupPrefillAction,
@@ -72,6 +80,11 @@ const PROMO = {
   max_discount_ore: null,
 };
 
+const ALL_PICKUP_WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
+/** A pickup date the checkout validation accepts: a few days from now. */
+const PICKUP_DATE = new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10);
+
 const baseInput: CreateSubscriptionInput = {
   location: 'Oslo',
   selection: {
@@ -83,7 +96,7 @@ const baseInput: CreateSubscriptionInput = {
   },
   isRecurring: true,
   frequency: 'weekly',
-  firstPickupDate: '2030-01-04',
+  firstPickupDate: PICKUP_DATE,
   pickupAddress: {
     street: 'Storgata 1',
     postalCode: '0150',
@@ -91,6 +104,7 @@ const baseInput: CreateSubscriptionInput = {
     country: 'Norge',
     specialInstructions: 'Ring på',
   },
+  termsAccepted: true,
 };
 
 /** Wire the common happy-path return values; individual tests override as needed. */
@@ -98,6 +112,7 @@ function happyPathMocks() {
   getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
   m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
   m(getActiveSubscriptionByCustomerId).mockResolvedValue(null);
+  m(getAvailableWeekdaysForCity).mockResolvedValue([...ALL_PICKUP_WEEKDAYS]);
   m(findAvailableCleaner).mockResolvedValue({ id: 'cleaner-1', display_name: 'Kari' });
   m(createVippsAgreement).mockResolvedValue({
     agreementId: 'agr-1',
@@ -127,6 +142,58 @@ describe('createSubscriptionAction — auth & customer guards', () => {
   });
 });
 
+describe('createSubscriptionAction — address and date validation', () => {
+  const withAddress = (pickupAddress: Partial<CreateSubscriptionInput['pickupAddress']>) => ({
+    ...baseInput,
+    pickupAddress: { ...baseInput.pickupAddress, ...pickupAddress },
+  });
+
+  it.each([
+    ['a malformed postal code', withAddress({ postalCode: '01500' })],
+    ['a postal code outside the service area', withAddress({ postalCode: '7010' })],
+    ['a postal code in the other city', withAddress({ postalCode: '5003' })],
+    ['a too-short street', withAddress({ street: ' A ' })],
+    ['too-long pickup instructions', withAddress({ specialInstructions: 'x'.repeat(501) })],
+    ['an unparseable date', { ...baseInput, firstPickupDate: 'i morgen' }],
+    ['a pickup date in the past', { ...baseInput, firstPickupDate: '2020-01-06' }],
+    ['a pickup date today', { ...baseInput, firstPickupDate: new Date().toISOString().slice(0, 10) }],
+    ['an unknown city', { ...baseInput, location: 'Trondheim' as 'Oslo' }],
+  ])('rejects %s before any Vipps agreement is created', async (_label, input) => {
+    happyPathMocks();
+
+    const result = await createSubscriptionAction(input);
+
+    expect(result.error).toBe('Invalid checkout input');
+    expect(result.displayError).toBeTruthy();
+    expect(createVippsAgreement).not.toHaveBeenCalled();
+    expect(createPaymentAgreement).not.toHaveBeenCalled();
+  });
+
+  it('rejects a weekday no cleaner in the city works', async () => {
+    happyPathMocks();
+    m(getAvailableWeekdaysForCity).mockResolvedValue([]);
+
+    const result = await createSubscriptionAction(baseInput);
+
+    expect(result.error).toBe('No cleaner available on pickup weekday');
+    expect(createVippsAgreement).not.toHaveBeenCalled();
+  });
+
+  it('stores the trimmed street', async () => {
+    happyPathMocks();
+
+    await createSubscriptionAction(withAddress({ street: '  Storgata 1  ' }));
+
+    expect(createSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({
+        order_defaults: expect.objectContaining({
+          initial_address: expect.objectContaining({ street: 'Storgata 1' }),
+        }),
+      })
+    );
+  });
+});
+
 describe('createSubscriptionAction — promo handling', () => {
   it('aborts checkout when the promo code is invalid', async () => {
     happyPathMocks();
@@ -147,6 +214,68 @@ describe('createSubscriptionAction — promo handling', () => {
 
     expect(createPaymentAgreement).toHaveBeenCalledWith(
       expect.objectContaining({ provider_metadata: expect.objectContaining({ promo: PROMO }) })
+    );
+  });
+});
+
+describe('createSubscriptionAction — terms consent', () => {
+  it('rejects a checkout without consent before touching Vipps or the database', async () => {
+    happyPathMocks();
+
+    const result = await createSubscriptionAction({ ...baseInput, termsAccepted: false });
+
+    expect(result.displayError).toBe('Du må akseptere salgsvilkårene for å fortsette');
+    expect(result.error).toBe('Terms not accepted');
+    expect(validatePromoCode).not.toHaveBeenCalled();
+    expect(createVippsAgreement).not.toHaveBeenCalled();
+    expect(createPaymentAgreement).not.toHaveBeenCalled();
+    expect(createSubscription).not.toHaveBeenCalled();
+  });
+
+  it('rejects a truthy non-boolean consent value (strict check, never trust the client)', async () => {
+    happyPathMocks();
+
+    const result = await createSubscriptionAction({
+      ...baseInput,
+      termsAccepted: 'yes' as unknown as boolean,
+    });
+
+    expect(result.error).toBe('Terms not accepted');
+    expect(createVippsAgreement).not.toHaveBeenCalled();
+  });
+
+  it('stamps terms_consent with the server version, a server timestamp and the early-start request', async () => {
+    happyPathMocks();
+    const before = Date.now();
+
+    await createSubscriptionAction(baseInput);
+
+    const metadata = m(createPaymentAgreement).mock.calls[0][0].provider_metadata as {
+      terms_consent: { terms_version: string; accepted_at: string; early_start_requested: boolean };
+    };
+    expect(metadata.terms_consent.terms_version).toBe(TERMS_VERSION);
+    expect(metadata.terms_consent.early_start_requested).toBe(true);
+    // ISO-8601 round-trip proves it is a real timestamp, taken now, by the server
+    const acceptedAt = new Date(metadata.terms_consent.accepted_at);
+    expect(acceptedAt.toISOString()).toBe(metadata.terms_consent.accepted_at);
+    expect(acceptedAt.getTime()).toBeGreaterThanOrEqual(before);
+    expect(acceptedAt.getTime()).toBeLessThanOrEqual(Date.now());
+  });
+
+  it('keeps terms_consent alongside order_defaults and promo on a one-time checkout', async () => {
+    happyPathMocks();
+    m(validatePromoCode).mockResolvedValue({ valid: true, promo: PROMO });
+
+    await createSubscriptionAction({ ...baseInput, isRecurring: false, frequency: undefined, promoCode: 'WELCOME' });
+
+    expect(createPaymentAgreement).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider_metadata: expect.objectContaining({
+          terms_consent: expect.objectContaining({ terms_version: TERMS_VERSION, early_start_requested: true }),
+          order_defaults: expect.objectContaining({ location_city: 'Oslo' }),
+          promo: PROMO,
+        }),
+      })
     );
   });
 });
@@ -193,24 +322,32 @@ describe('createSubscriptionAction — recurring orders', () => {
 
     expect(createVippsAgreement).toHaveBeenCalledWith(expect.objectContaining({ frequency: 'weekly' }));
     expect(createPaymentAgreement).toHaveBeenCalledWith(
-      expect.objectContaining({ customer_id: 'cust-1', provider_agreement_id: 'agr-1', provider_metadata: null })
+      expect.objectContaining({
+        customer_id: 'cust-1',
+        provider_agreement_id: 'agr-1',
+        provider_metadata: expect.objectContaining({
+          terms_consent: expect.objectContaining({ terms_version: TERMS_VERSION }),
+        }),
+      })
     );
+    // Recurring checkouts keep order_defaults on the subscription, not the agreement
+    expect(m(createPaymentAgreement).mock.calls[0][0].provider_metadata).not.toHaveProperty('order_defaults');
     expect(createSubscription).toHaveBeenCalledWith(
       expect.objectContaining({
         customer_id: 'cust-1',
         frequency: 'weekly',
         payment_agreement_id: 'pa-1',
         order_defaults: expect.objectContaining({
-          first_pickup_date: '2030-01-04',
+          first_pickup_date: PICKUP_DATE,
           default_cleaner_id: 'cleaner-1',
-          // Ironing is implied by the selection (3 formal items)
-          default_needs_ironing: true,
+          // Ironing isn't offered yet: the 3 formal items are dropped
+          default_needs_ironing: false,
           customer_estimate: expect.objectContaining({
             bags: 2,
             bedding_sets: 1,
-            iron_formal_items: 3,
-            // 2*11900 + 1*22900 + 3*4900 + 10400 + 1830 = 73630
-            estimated_total_ore: 73630,
+            iron_formal_items: 0,
+            // 2*11900 + 1*22900 + 10400 + 1830 = 58930
+            estimated_total_ore: 58930,
           }),
         }),
       })
@@ -327,14 +464,15 @@ describe('validatePromoCodeAction', () => {
 describe('getCheckoutStatusAction', () => {
   const getAgreement = vi.fn();
 
-  /** Authenticate a customer with one pending agreement; tests set the Vipps status. */
-  function withLatestAgreement(dbStatus = 'pending') {
+  /** Authenticate a customer whose latest agreement has the given DB status. */
+  function withLatestAgreement(dbStatus: string, providerMetadata: Record<string, unknown> | null = null) {
     getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
     m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
     m(getPaymentAgreementsByCustomerId).mockResolvedValue([
-      { id: 'pa-1', provider_agreement_id: 'agr-1', status: dbStatus },
+      { id: 'pa-1', provider_agreement_id: 'agr-1', status: dbStatus, provider_metadata: providerMetadata },
     ]);
     m(createVippsRecurringClient).mockReturnValue({ getAgreement });
+    m(getOrderByPaymentAgreementId).mockResolvedValue(null);
   }
 
   it('returns "unknown" for an unauthenticated user', async () => {
@@ -356,29 +494,65 @@ describe('getCheckoutStatusAction', () => {
     expect(await getCheckoutStatusAction()).toEqual({ status: 'unknown' });
   });
 
-  it('maps Vipps ACTIVE to "active"', async () => {
-    withLatestAgreement();
-    getAgreement.mockResolvedValue({ status: 'ACTIVE' });
-    expect(await getCheckoutStatusAction()).toEqual({ status: 'active' });
+  it('reports "active" once the DB agreement is active AND the first order exists, without asking Vipps', async () => {
+    withLatestAgreement('active');
+    m(getOrderByPaymentAgreementId).mockResolvedValue({ id: 'ord-1' });
+
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'active', recurring: true });
+    expect(getOrderByPaymentAgreementId).toHaveBeenCalledWith('pa-1');
+    expect(getAgreement).not.toHaveBeenCalled();
+  });
+
+  it('reports "pending" while the DB agreement is active but the first order does not exist yet', async () => {
+    withLatestAgreement('active');
+    m(getOrderByPaymentAgreementId).mockResolvedValue(null);
+
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'pending', recurring: true });
+    expect(getAgreement).not.toHaveBeenCalled();
+  });
+
+  it('reports "cancelled" for a stopped DB agreement without asking Vipps', async () => {
+    withLatestAgreement('stopped');
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled', recurring: true });
+    expect(getAgreement).not.toHaveBeenCalled();
+  });
+
+  it('reports "cancelled" for an expired DB agreement without asking Vipps', async () => {
+    withLatestAgreement('expired');
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled', recurring: true });
+    expect(getAgreement).not.toHaveBeenCalled();
+  });
+
+  it('while the DB agreement is pending, maps Vipps STOPPED (user aborted) to "cancelled"', async () => {
+    withLatestAgreement('pending');
+    getAgreement.mockResolvedValue({ status: 'STOPPED' });
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled', recurring: true });
     expect(getAgreement).toHaveBeenCalledWith('agr-1');
   });
 
-  it('maps Vipps PENDING to "pending"', async () => {
-    withLatestAgreement();
-    getAgreement.mockResolvedValue({ status: 'PENDING' });
-    expect(await getCheckoutStatusAction()).toEqual({ status: 'pending' });
-  });
-
-  it('maps Vipps STOPPED (user aborted) to "cancelled"', async () => {
-    withLatestAgreement();
-    getAgreement.mockResolvedValue({ status: 'STOPPED' });
-    expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled' });
-  });
-
-  it('maps Vipps EXPIRED to "cancelled"', async () => {
-    withLatestAgreement();
+  it('while the DB agreement is pending, maps Vipps EXPIRED to "cancelled"', async () => {
+    withLatestAgreement('pending');
     getAgreement.mockResolvedValue({ status: 'EXPIRED' });
-    expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled' });
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled', recurring: true });
+  });
+
+  it('never reports "active" from Vipps alone: DB pending + Vipps ACTIVE is "pending" (webhook not landed)', async () => {
+    withLatestAgreement('pending');
+    getAgreement.mockResolvedValue({ status: 'ACTIVE' });
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'pending', recurring: true });
+    expect(getOrderByPaymentAgreementId).not.toHaveBeenCalled();
+  });
+
+  it('while the DB agreement is pending, maps Vipps PENDING to "pending"', async () => {
+    withLatestAgreement('pending');
+    getAgreement.mockResolvedValue({ status: 'PENDING' });
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'pending', recurring: true });
+  });
+
+  it('stays "pending" when Vipps is unreachable', async () => {
+    withLatestAgreement('pending');
+    getAgreement.mockRejectedValue(new Error('network down'));
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'pending', recurring: true });
   });
 
   it('checks the most recently created agreement', async () => {
@@ -386,26 +560,58 @@ describe('getCheckoutStatusAction', () => {
     m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
     // getPaymentAgreementsByCustomerId returns newest-first; the latest is [0]
     m(getPaymentAgreementsByCustomerId).mockResolvedValue([
-      { id: 'pa-2', provider_agreement_id: 'agr-2', status: 'pending' },
-      { id: 'pa-1', provider_agreement_id: 'agr-1', status: 'active' },
+      { id: 'pa-2', provider_agreement_id: 'agr-2', status: 'pending', provider_metadata: null },
+      { id: 'pa-1', provider_agreement_id: 'agr-1', status: 'active', provider_metadata: null },
     ]);
     m(createVippsRecurringClient).mockReturnValue({ getAgreement });
     getAgreement.mockResolvedValue({ status: 'STOPPED' });
 
-    expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled' });
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled', recurring: true });
     expect(getAgreement).toHaveBeenCalledWith('agr-2');
+    expect(getOrderByPaymentAgreementId).not.toHaveBeenCalled();
   });
 
-  it('falls back to the DB status when Vipps is unreachable', async () => {
-    withLatestAgreement('active');
-    getAgreement.mockRejectedValue(new Error('network down'));
-    expect(await getCheckoutStatusAction()).toEqual({ status: 'active' });
+  it('reports a one-time checkout (order_defaults on the agreement) as not recurring', async () => {
+    withLatestAgreement('active', { order_defaults: { first_pickup_date: '2026-10-20' } });
+    m(getOrderByPaymentAgreementId).mockResolvedValue({ id: 'ord-1' });
+
+    expect(await getCheckoutStatusAction()).toEqual({ status: 'active', recurring: false });
+  });
+});
+
+describe('forceAcceptAgreementAction', () => {
+  const forceAcceptAgreement = vi.fn();
+
+  it('refuses before touching auth, the DB or Vipps when force-accept is not allowed', async () => {
+    m(isVippsForceAcceptAllowed).mockReturnValue(false);
+
+    const result = await forceAcceptAgreementAction('agr-1');
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Auto-godkjenning er ikke aktivert i dette miljøet',
+    });
+    expect(getUser).not.toHaveBeenCalled();
+    expect(getPaymentAgreementByProviderId).not.toHaveBeenCalled();
+    expect(createVippsRecurringClient).not.toHaveBeenCalled();
+    expect(forceAcceptAgreement).not.toHaveBeenCalled();
   });
 
-  it('maps a stopped DB status to "cancelled" on the Vipps-error fallback', async () => {
-    withLatestAgreement('stopped');
-    getAgreement.mockRejectedValue(new Error('network down'));
-    expect(await getCheckoutStatusAction()).toEqual({ status: 'cancelled' });
+  it('force-accepts with the whitelisted test phone and resolves once the webhook activated the agreement', async () => {
+    m(isVippsForceAcceptAllowed).mockReturnValue(true);
+    getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
+    m(getPaymentAgreementByProviderId)
+      .mockResolvedValueOnce({ id: 'pa-1', customer_id: 'cust-1', status: 'pending' }) // ownership check
+      .mockResolvedValueOnce({ id: 'pa-1', customer_id: 'cust-1', status: 'active' }); // first poll
+    m(createVippsRecurringClient).mockReturnValue({ forceAcceptAgreement });
+    m(pickVippsTestPhone).mockReturnValue('4746170809');
+
+    const result = await forceAcceptAgreementAction('agr-1');
+
+    expect(result).toEqual({ success: true });
+    expect(pickVippsTestPhone).toHaveBeenCalledWith('cust-1');
+    expect(forceAcceptAgreement).toHaveBeenCalledWith('agr-1', '4746170809');
   });
 });
 
@@ -521,22 +727,22 @@ describe('updateOrderSelectionAction', () => {
     expect(updateMock).not.toHaveBeenCalled();
   });
 
-  it('writes needs_ironing and the recomputed estimate together', async () => {
+  it('writes needs_ironing and the recomputed estimate together, dropping unoffered ironing', async () => {
     withEditableOrder();
 
     const result = await updateOrderSelectionAction('order-1', selection);
 
     expect(result).toEqual({ success: true });
     expect(updateMock).toHaveBeenCalledWith({
-      // Ironing is implied by the selection (3 formal items)
-      needs_ironing: true,
+      // Ironing isn't offered yet: the 3 formal items are dropped
+      needs_ironing: false,
       customer_estimate: {
         bags: 2,
         bedding_sets: 1,
         iron_everyday_items: 0,
-        iron_formal_items: 3,
+        iron_formal_items: 0,
         iron_bedding: false,
-        estimated_total_ore: calculateCustomerEstimate(selection).totalOre,
+        estimated_total_ore: calculateCustomerEstimate({ ...selection, formalItems: 0 }).totalOre,
       },
     });
     expect(eqMock).toHaveBeenCalledWith('id', 'order-1');
@@ -574,7 +780,7 @@ describe('updateOrderSelectionAction', () => {
 
     expect(updateMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        customer_estimate: expect.objectContaining({ bags: 0, iron_everyday_items: 120 }),
+        customer_estimate: expect.objectContaining({ bags: 0, bedding_sets: 1, iron_everyday_items: 0 }),
       })
     );
   });

@@ -48,8 +48,9 @@ Flow:
    - **One-time:** store `order_defaults` in `provider_metadata` (no subscription created).
    - **Recurring:** insert `Subscription` (status `pending_payment`) linked to the PaymentAgreement, with `order_defaults`.
 5. Return Vipps checkout `redirectUrl` → user approves in the Vipps app.
+6. Back on `/orders/success` the page polls `getCheckoutStatusAction` (5 × 2 s, then a "Sjekk på nytt" button). It reads **our DB**, not Vipps: `payment_agreements.status = 'active'` **and** a first order (`getOrderByPaymentAgreementId`) → success; `stopped`/`expired` → cancelled; `pending` → asks Vipps only to detect an abort (`STOPPED`/`EXPIRED` → cancelled), otherwise keeps polling. Vipps `ACTIVE` alone never counts as success — it means the webhook hasn't landed.
 
-Test helper: `forceAcceptAgreementAction(agreementId)` (`actions.ts`) force-accepts via whitelisted phone numbers (test env only) and polls for activation.
+Test helper: `forceAcceptAgreementAction(agreementId)` (`actions.ts`) force-accepts via whitelisted phone numbers and polls for activation. Gated by `isVippsForceAcceptAllowed()` — `NEXT_PUBLIC_VIPPS_ALLOW_FORCE_ACCEPT=true` **and** the test `VIPPS_API_URL`; never by URL sniffing.
 
 Pre-pickup edit actions (all in `app/orders/actions.ts`): `updateOrderSpecialInstructionsAction`, `updateOrderIroningAction`, `updateOrderAddressAction`, `cancelOrderAction`, `updateOrderPickupDateAction` (smart cleaner reassignment).
 
@@ -57,17 +58,17 @@ Pre-pickup edit actions (all in `app/orders/actions.ts`): `updateOrderSpecialIns
 
 ## 4. Activation — webhook turns approval into an order
 
-Handler: `POST src/app/api/webhooks/vipps/recurring/route.ts`. HMAC-SHA256 verified (`lib/payments/vipps/webhook-auth.ts`).
+Handler: `POST src/app/api/webhooks/vipps/recurring/route.ts`. HMAC-SHA256 verified (`lib/payments/vipps/webhook-auth.ts`). **Response codes:** 401 bad signature; **200** for anything a retry can never fix (unknown agreement, unknown charge id, malformed body, activation of a `stopped`/`expired` agreement); **500** when a handler throws on a transient failure (a DB write returned null, a lost activation race) — Vipps then retries with backoff (2 s ×4, 60 s, 120 s, hourly, daily, up to 7 days) and holds back later webhooks until it gets a 200, which is why permanent errors must never 5xx.
 
 ### Agreement events
 | Event | Handler | Effect |
 |---|---|---|
-| `recurring.agreement-activated.v1` | `handleAgreementActivated` | **Activates** PaymentAgreement. If linked Subscription → `handleSubscriptionActivation` (activate sub + `generateFirstOrder`). If no subscription (one-time) → `handleOneTimeOrderCreation` (order from `provider_metadata.order_defaults`). |
+| `recurring.agreement-activated.v1` | `handleAgreementActivated` | **Activates** PaymentAgreement (guarded `pending → active`; `active` = duplicate delivery, `stopped`/`expired` = ignored). If linked Subscription → `handleSubscriptionActivation` (guarded `pending_payment → active` + `generateFirstOrder`). If no subscription (one-time) → `handleOneTimeOrderCreation` (order from `provider_metadata.order_defaults`). Idempotent end to end: a duplicate or retried delivery re-uses the existing first order. |
 | `recurring.agreement-rejected.v1` | `handleAgreementRejected` | Stop PaymentAgreement, cancel linked Subscription. |
 | `recurring.agreement-stopped.v1` | `handleAgreementStopped` | If actor `MERCHANT`: skip (already handled in-app). Else stop agreement + cancel subscription. RESERVED charges are **not** auto-cancelled. |
 | `recurring.agreement-expired.v1` | `handleAgreementExpired` | Expire PaymentAgreement + Subscription. |
 
-`generateFirstOrder`: validates `first_pickup_date` from `order_defaults`, creates Order (`pickup_scheduled` if a cleaner is assigned, else `pending_assignment`), sets `delivery_date = pickup_date + DAYS_PICKUP_TO_DELIVERY` (2 days).
+`generateFirstOrder`: first checks `getOrderByPaymentAgreementId` — the first order is the only one carrying `payment_agreement_id`, so a hit means an earlier delivery already created it (skip the insert, still record the idempotent promo redemption). Otherwise validates `first_pickup_date` from `order_defaults`, creates Order (`pickup_scheduled` if a cleaner is assigned, else `pending_assignment`), sets `delivery_date = pickup_date + DAYS_PICKUP_TO_DELIVERY` (2 days), and throws (→ 500 → Vipps retry) if the insert fails.
 
 ---
 
@@ -77,11 +78,11 @@ Driver actions: `src/app/dashboard/driver/actions.ts`. Cleaner actions: `src/app
 
 1. **Driver legs** (`completeDriverStopAction`, status-guarded via `updateOrderStatusGuarded` in `lib/database/orders.ts`, each stamping its timestamp column): `pickup_scheduled → picked_up` (pickup at customer) → `picked_up → in_cleaning` (drop-off at cleaner) → `ready_for_delivery → out_for_delivery` (collect at cleaner — available the moment the cleaner marks ready; `delivery_date` is an estimate, never a gate) → `out_for_delivery → completed` (delivery at customer). All but the final leg can be reversed with `undoDriverStopAction`.
 2. **Set price (cleaner):** `saveLaundryDetails(orderId, details, notes)` — cleaner enters `wash_loads`, `ironing_details`; `calculateOrderPrice()` computes the total; persisted via `updateOrderLaundryDetails` → sets `total_cost_ore`. Only allowed while the order is `in_cleaning` — marking it ready charges the customer at the saved total, so the price is locked from then on.
-3. **Ready + CHARGE (cleaner):** `markOrderReadyForDelivery(orderId)` — the cleaner's only status transition (`in_cleaning → ready_for_delivery`); rejected until `wash_loads > 0` and `total_cost_ore` is set. After the guarded transition it calls `createChargeForCompletedOrder(orderId, total_cost_ore, "NooraCare vask #<order_number>")` (`service.ts` — name is historical) → creates a Vipps charge (due **+1 day**, retryDays 3, **DIRECT_CAPTURE**) and a `Payment` (status `pending`) with `provider_reference` + charge metadata. Runs for **both** recurring and one-time orders. A 0-total order (100% promo) skips the charge. The from-status guard means a double-tap can never charge twice; a charge failure is logged, not fatal (manual retry). Price edits are locked from this point (`saveLaundryDetails` requires `in_cleaning`). *(Note: the doc's current §5 says the charge is due "+2 days" — that was already wrong; `service.ts` sets due to +1 day. Correct it in this rewrite.)*
+3. **Ready + CHARGE (cleaner):** `markOrderReadyForDelivery(orderId)` — the cleaner's «Marker som klar», sharing `markOrderReadyAndCharge` (`lib/services/ready-order.ts`) with the admin fallback `adminMarkReadyAction` (`in_cleaning → ready_for_delivery`); rejected until `wash_loads > 0` and `total_cost_ore` is set. After the guarded transition it calls `createChargeForCompletedOrder(orderId, total_cost_ore, "NooraCare vask #<order_number>")` (`service.ts` — name is historical) → creates a Vipps charge (due **+1 day**, retryDays 3, **DIRECT_CAPTURE**) and a `Payment` (status `pending`) with `provider_reference` + charge metadata. Runs for **both** recurring and one-time orders. A 0-total order (100% promo) skips the charge. The from-status guard means a double-tap can never charge twice; a Vipps failure marks the Payment `failed` with the error in `failure_reason` and is logged, not fatal (the action returns `chargeFailed: true`, the cleaner's page shows a "not charged" warning, and an admin re-charges from the order page — «Belast på nytt», `retryChargeAction`). Price edits are locked from this point (`saveLaundryDetails` requires `in_cleaning`). *(Note: the doc's current §5 says the charge is due "+2 days" — that was already wrong; `service.ts` sets due to +1 day. Correct it in this rewrite.)*
 4. **Delivery completion (driver):** the `customer_delivery` branch of `completeDriverStopAction` calls `completeDeliveredOrder(orderId)` (`lib/services/complete-order.ts`) — no money involved:
    - Guarded update `out_for_delivery → completed`, stamping the **actual** `delivery_date` in the same write.
    - Triggers `checkAndGenerateNextOrders()` (rolling window).
-   - Runs `stopVippsAgreementForCancelledSubscription` unconditionally (safe no-op). The function refuses while any Vipps charge for the subscription is still pending/authorized — stopping would cancel it — so on a same-day delivery it defers and the charge-captured webhook re-triggers it once the charge settles; when the charge captured before delivery (webhook no-op'd on the active order), completion performs the stop; a 0-total promo order (no charge event ever) stops here too.
+   - Runs `stopVippsAgreementForCancelledSubscription` unconditionally (safe no-op). The function refuses while any Vipps charge for the subscription is still pending/authorized (orphan pending rows older than 15 min with no provider_reference are ignored) — stopping would cancel it — so on a same-day delivery it defers and the charge-captured webhook re-triggers it once the charge settles; when the charge captured before delivery (webhook no-op'd on the active order), completion performs the stop; a 0-total promo order (no charge event ever) stops here too.
 
 `declineCleanerOrder(orderId)` (`cleaner/actions.ts`) resets the order to `pending_assignment` and appends the cleaner to `declined_by_cleaner_ids` so they aren't reassigned.
 
@@ -94,9 +95,9 @@ Driver actions: `src/app/dashboard/driver/actions.ts`. Cleaner actions: `src/app
 |---|---|---|
 | `recurring.charge-reserved.v1` | — | **Not handled** (DIRECT_CAPTURE emits charge-captured instead). |
 | `recurring.charge-captured.v1` | `handleChargeCaptured` | Payment → `captured`. No order generation here (orders are pre-generated on activation / completion). |
-| `recurring.charge-canceled.v1` | `handleChargeCanceled` | Payment metadata CANCELLED. |
-| `recurring.charge-refunded.v1` | `handleChargeRefunded` | Payment metadata REFUNDED. (TODO: reverse sub/order.) |
-| `recurring.charge-failed.v1` | `handleChargeFailed` | Payment → `failed` + reason/code. (TODO: notify + retry.) |
+| `recurring.charge-canceled.v1` | `handleChargeCanceled` | Payment → `cancelled` + `cancelled_at`. |
+| `recurring.charge-refunded.v1` | `handleChargeRefunded` | Records `refund_amount_ore` + `refunded_at`; status → `refunded` only on a full refund. |
+| `recurring.charge-failed.v1` | `handleChargeFailed` | Payment → `failed` + reason/code. Admin re-charges via «Belast på nytt» on the order page; notification is #40. |
 | `recurring.charge-creation-failed.v1` | `handleChargeCreationFailed` | Log only. (TODO: admin notify.) |
 
 > **Note:** All charges — for both recurring and one-time orders — flow through the Recurring API agreement and these `recurring.charge-*` events. There is no separate one-time payment API in use.
@@ -117,13 +118,13 @@ Driver actions: `src/app/dashboard/driver/actions.ts`. Cleaner actions: `src/app
 
 ## 8. Database layer (signatures)
 
-**`lib/database/payment-agreements.ts`** — `createPaymentAgreement`, `getPaymentAgreementById`, `getPaymentAgreementByProviderId` (Vipps id lookup), `getPaymentAgreementsByCustomerId`, `activatePaymentAgreement`, `stopPaymentAgreement`, `expirePaymentAgreement`, `getSubscriptionByPaymentAgreementId`.
+**`lib/database/payment-agreements.ts`** — `createPaymentAgreement`, `getPaymentAgreementById`, `getPaymentAgreementByProviderId` (Vipps id lookup), `getPaymentAgreementsByCustomerId`, `activatePaymentAgreement` (guarded on `pending`, null when nothing matched), `stopPaymentAgreement`, `expirePaymentAgreement`, `getSubscriptionByPaymentAgreementId`.
 
-**`lib/database/subscriptions.ts`** — `createSubscription` (status `pending_payment`), `getSubscriptionById`, `getActiveSubscriptionByCustomerId`, `activateSubscriptionOnAgreementActivation`, `updateSubscription`, `cancelSubscription` (also cancels its orders), `expireSubscription`.
+**`lib/database/subscriptions.ts`** — `createSubscription` (status `pending_payment`), `getSubscriptionById`, `getActiveSubscriptionByCustomerId`, `activateSubscriptionOnAgreementActivation` (guarded on `pending_payment`, null when nothing matched), `updateSubscription`, `cancelSubscription` (also cancels its orders), `expireSubscription`.
 
-**`lib/database/orders.ts`** — `createOrder` (unique order_number; status from cleaner presence), `getOrderById`, `assignCleanerToOrder`, `updateOrderStatus` (stamps timestamps), `getUpcomingOrdersByCustomerId`, `getCompletedOrdersByCustomerId`, `updateOrderPricing`, `getOrdersByCleanerId`, `declineOrder`, `updateOrderLaundryDetails`, `cancelOrdersBySubscriptionId`.
+**`lib/database/orders.ts`** — `createOrder` (unique order_number; status from cleaner presence), `getOrderById`, `assignCleanerToOrder`, `updateOrderStatus` (stamps timestamps), `getUpcomingOrdersByCustomerId`, `getCompletedOrdersByCustomerId`, `updateOrderPricing`, `getOrdersByCleanerId`, `declineOrder`, `updateOrderLaundryDetails`, `cancelOrdersBySubscriptionId`, `getOrderByPaymentAgreementId` (first order of an agreement; throws on query error).
 
-**`lib/database/payments.ts`** — `createPayment`, `updatePayment`, `updatePaymentWithMetadata`, `authorizePayment`, `capturePaymentWithMetadata`, `failPaymentWithMetadata`, `getPaymentByReference`.
+**`lib/database/payments.ts`** — `createPayment`, `updatePayment`, `authorizePayment`, `capturePaymentWithMetadata`, `failPaymentWithMetadata`, `cancelPaymentWithMetadata`, `refundPaymentWithMetadata`, `getPaymentByReference`, `hasUnsettledVippsPaymentForSubscription`.
 
 ---
 
@@ -132,7 +133,7 @@ Driver actions: `src/app/dashboard/driver/actions.ts`. Cleaner actions: `src/app
 - **`base-client.ts`** — `VippsBaseClient`: OAuth `authenticate()` (token cached w/ 1-min buffer), `getCommonHeaders()`, `handleVippsError()`.
 - **`recurring-client.ts`** — `VippsRecurringClient`: `listAgreements`, `createAgreement` (FLEXIBLE), `getAgreement`, `stopAgreement`, `forceAcceptAgreement` (test), `createCharge` (DIRECT_CAPTURE default), `getCharge`, `getChargeById`, `captureCharge` (RESERVE_CAPTURE only — unused), `cancelCharge`.
 - **`service.ts`** — orchestration: `createVippsAgreement`, `captureVippsCharge`, `cancelVippsAgreement`, `createChargeForCompletedOrder`.
-- **`config.ts`** — `validateVippsConfig`, `isVippsConfigured`, `getVippsEnvironment`, `isVippsTestEnvironment`.
+- **`config.ts`** — `validateVippsConfig`, `isVippsConfigured`, `getVippsApiUrl` (required, exact-match allowlist, throws otherwise), `getVippsEnvironment`, `isVippsForceAcceptAllowed`, `pickVippsTestPhone`.
 
 ---
 

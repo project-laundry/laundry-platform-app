@@ -105,8 +105,14 @@ export async function getPaymentAgreementsByCustomerId(
 }
 
 /**
- * Activate a payment agreement
- * Sets status to 'active' and activated_at to now
+ * Activate a payment agreement — guarded on status = 'pending'.
+ * Sets status to 'active' and activated_at to now.
+ *
+ * Returns the updated row, or null when nothing was updated: either the
+ * agreement was not pending (a duplicate Vipps delivery already activated it,
+ * or it was stopped/expired meanwhile) or the update failed. The webhook
+ * treats null as "fail this delivery and let Vipps retry"; the retry reads the
+ * then-current status and routes accordingly.
  */
 export async function activatePaymentAgreement(
   id: string
@@ -120,8 +126,9 @@ export async function activatePaymentAgreement(
       activated_at: new Date().toISOString(),
     })
     .eq('id', id)
+    .eq('status', 'pending')
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
     console.error('Error activating payment agreement:', error);

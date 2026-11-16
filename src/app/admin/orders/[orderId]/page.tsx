@@ -5,15 +5,31 @@ import { getPaymentsByOrderId } from '@/lib/database/payments';
 import { getAvailableCleanersForCity } from '@/lib/database/cleaners';
 import { StatusBadge } from '@/components/dashboard/StatusBadge';
 import { getOrderStatusLabel, getOrderStatusVariant } from '@/lib/utils/order-status';
-import { PAYMENT_STATUS_LABELS, PAYMENT_STATUS_VARIANT } from '@/lib/utils/payment-status';
-import { formatKr } from '@/lib/config/pricing';
+import {
+  PAYMENT_STATUS_LABELS,
+  PAYMENT_STATUS_VARIANT,
+  hasLivePayment,
+} from '@/lib/utils/payment-status';
+import { IRONING_OFFERED, formatKr } from '@/lib/config/pricing';
 import { AssignCleanerControl, type CleanerOption } from '../AssignCleanerControl';
 import { OrderEditForm, type OrderEditability } from './OrderEditForm';
+import { AdminLogisticsControl } from './AdminLogisticsControl';
+import { RetryChargeControl } from './RetryChargeControl';
+import { CancelOrderControl } from './CancelOrderControl';
+import { PriceOverrideForm } from './PriceOverrideForm';
+import { AdminNotesForm } from './AdminNotesForm';
 import type { OrderStatus } from '@/types/database';
+import { requireRole } from '@/lib/auth/require-role';
 
 /** Statuses where the admin can still (re)assign the cleaner. */
 const ASSIGNABLE_STATUSES: OrderStatus[] = ['pending_assignment', 'pickup_scheduled'];
 const TERMINAL_STATUSES: OrderStatus[] = ['completed', 'cancelled'];
+/** Statuses from which the customer has been — or should have been — charged. */
+const CHARGED_STATUSES: OrderStatus[] = ['ready_for_delivery', 'out_for_delivery', 'completed'];
+/** Statuses where the admin may set or override the price (if nothing was charged). */
+const PRICEABLE_STATUSES: OrderStatus[] = ['in_cleaning', 'ready_for_delivery'];
+/** Statuses the admin may cancel — the same pre-pickup split as customer cancellation. */
+const CANCELLABLE_STATUSES: OrderStatus[] = ['pending_assignment', 'pickup_scheduled'];
 
 const cardClass =
   'rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur';
@@ -33,6 +49,7 @@ export default async function AdminOrderDetailPage({
 }: {
   params: Promise<{ orderId: string }>;
 }) {
+  await requireRole(['admin']);
   const { orderId } = await params;
 
   const order = await getAdminOrderById(orderId);
@@ -41,6 +58,18 @@ export default async function AdminOrderDetailPage({
   }
 
   const payments = await getPaymentsByOrderId(order.id);
+  // «Belast på nytt»: the charge failed (at creation or later at Vipps) and
+  // nothing replaced it. Same rule as retryChargeAction, which re-checks it.
+  const canRetryCharge =
+    CHARGED_STATUSES.includes(order.status) &&
+    order.total_cost_ore !== null &&
+    order.total_cost_ore > 0 &&
+    !hasLivePayment(payments);
+  // Price override: same gate as overrideOrderPriceAction, which re-checks it.
+  const canOverridePrice =
+    PRICEABLE_STATUSES.includes(order.status) && !hasLivePayment(payments);
+  const cancellable = CANCELLABLE_STATUSES.includes(order.status);
+  const priced = order.wash_loads > 0 && order.total_cost_ore !== null;
 
   const assignable = ASSIGNABLE_STATUSES.includes(order.status);
   const editability: OrderEditability = TERMINAL_STATUSES.includes(order.status)
@@ -111,6 +140,24 @@ export default async function AdminOrderDetailPage({
         )}
       </div>
 
+      {(order.status === 'pickup_scheduled' ||
+        order.status === 'in_cleaning' ||
+        order.status === 'ready_for_delivery') && (
+        <div className={`mt-4 ${cardClass}`}>
+          <h2 className="text-sm font-medium uppercase tracking-[0.18em] text-sea-green">
+            Henting og levering
+          </h2>
+          <div className="mt-2">
+            <AdminLogisticsControl
+              orderId={order.id}
+              status={order.status}
+              priced={priced}
+              amountOre={order.total_cost_ore}
+            />
+          </div>
+        </div>
+      )}
+
       <div className={`mt-4 ${cardClass}`}>
         <h2 className="text-sm font-medium uppercase tracking-[0.18em] text-sea-green">Pris</h2>
         <p className="mt-2 text-dark-gray">
@@ -145,6 +192,22 @@ export default async function AdminOrderDetailPage({
             </div>
           )}
         </dl>
+        {canOverridePrice && (
+          <div className="mt-4 border-t border-cream-dark/60 pt-4">
+            <p className="mb-3 text-sm text-medium-gray">
+              {order.total_cost_ore === null
+                ? 'Renseren har ikke satt pris. Sett antall vask her for å prise ordren.'
+                : 'Overstyr prisen hvis renseren har priset feil. Kunden er ikke belastet ennå.'}
+            </p>
+            <PriceOverrideForm
+              orderId={order.id}
+              initialWashLoads={order.wash_loads}
+              initialNotes={order.pricing_notes}
+              ironingDetails={IRONING_OFFERED ? order.ironing_details : null}
+              promo={order.promo}
+            />
+          </div>
+        )}
       </div>
 
       <div className={`mt-4 ${cardClass}`}>
@@ -171,28 +234,34 @@ export default async function AdminOrderDetailPage({
         </h2>
         <dl className="mt-2 space-y-1.5 text-sm">
           <div>
-            <dt className="text-medium-gray">Adressedetaljer</dt>
+            <dt className="text-medium-gray">Henteinstruksjoner</dt>
             <dd className="text-dark-gray">{order.special_instructions_address || '—'}</dd>
           </div>
           <div>
-            <dt className="text-medium-gray">Hentedetaljer</dt>
+            <dt className="text-medium-gray">Vaskeinstruksjoner</dt>
             <dd className="text-dark-gray">{order.special_instructions || '—'}</dd>
           </div>
-          <div>
-            <dt className="text-medium-gray">Stryking</dt>
-            <dd className="text-dark-gray">{order.needs_ironing ? 'Ja' : 'Nei'}</dd>
-          </div>
+          {IRONING_OFFERED && (
+            <div>
+              <dt className="text-medium-gray">Stryking</dt>
+              <dd className="text-dark-gray">{order.needs_ironing ? 'Ja' : 'Nei'}</dd>
+            </div>
+          )}
           {order.customer_estimate && (
             <div>
               <dt className="text-medium-gray">Bestilling (kundens valg)</dt>
               <dd className="text-dark-gray">
                 {order.customer_estimate.bags} poser · {order.customer_estimate.bedding_sets}{' '}
                 sengetøysett
-                {order.customer_estimate.iron_everyday_items > 0 &&
-                  ` · ${order.customer_estimate.iron_everyday_items} hverdagsplagg strykes`}
-                {order.customer_estimate.iron_formal_items > 0 &&
-                  ` · ${order.customer_estimate.iron_formal_items} skjorter/kjoler strykes`}
-                {order.customer_estimate.iron_bedding && ' · sengetøy strykes'}
+                {IRONING_OFFERED && (
+                  <>
+                    {order.customer_estimate.iron_everyday_items > 0 &&
+                      ` · ${order.customer_estimate.iron_everyday_items} hverdagsplagg strykes`}
+                    {order.customer_estimate.iron_formal_items > 0 &&
+                      ` · ${order.customer_estimate.iron_formal_items} skjorter/kjoler strykes`}
+                    {order.customer_estimate.iron_bedding && ' · sengetøy strykes'}
+                  </>
+                )}
               </dd>
             </div>
           )}
@@ -249,6 +318,31 @@ export default async function AdminOrderDetailPage({
             ))}
           </ul>
         )}
+        {canRetryCharge && (
+          <div className="mt-3">
+            <RetryChargeControl orderId={order.id} amountOre={order.total_cost_ore ?? 0} />
+          </div>
+        )}
+      </div>
+
+      {cancellable && (
+        <div className={`mt-4 ${cardClass}`}>
+          <h2 className="text-sm font-medium uppercase tracking-[0.18em] text-sea-green">
+            Kanseller ordre
+          </h2>
+          <div className="mt-2">
+            <CancelOrderControl orderId={order.id} hasSubscription={order.subscription_id !== null} />
+          </div>
+        </div>
+      )}
+
+      <div className={`mt-4 ${cardClass}`}>
+        <h2 className="text-sm font-medium uppercase tracking-[0.18em] text-sea-green">
+          Interne notater
+        </h2>
+        <div className="mt-2">
+          <AdminNotesForm orderId={order.id} initialNotes={order.admin_notes} />
+        </div>
       </div>
 
       <p className="mt-4 text-sm text-medium-gray">

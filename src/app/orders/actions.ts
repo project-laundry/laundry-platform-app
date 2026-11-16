@@ -6,18 +6,25 @@ import { createSubscription, getActiveSubscriptionByCustomerId, getSubscriptionB
 import { createPaymentAgreement, getPaymentAgreementByProviderId, getPaymentAgreementsByCustomerId } from "@/lib/database/payment-agreements";
 import { getCustomerByUserId } from "@/lib/database/customers";
 import { validatePromoCode } from "@/lib/database/promo-codes";
-import { calculateCustomerEstimate, oreToNok } from "@/lib/config/pricing";
+import { calculateCustomerEstimate, oreToNok, withoutUnofferedIroning } from "@/lib/config/pricing";
 import {
   findAvailableCleaner,
   getAvailableWeekdaysForCity,
 } from "@/lib/database/cleaners";
 import { createVippsAgreement } from "@/lib/payments/vipps/service";
-import { isVippsTestEnvironment, pickVippsTestPhone } from "@/lib/payments/vipps/config";
+import { isVippsForceAcceptAllowed, pickVippsTestPhone } from "@/lib/payments/vipps/config";
 import { createVippsRecurringClient } from "@/lib/payments/vipps/recurring-client";
-import { getWeekdayFromDate, isWeekdayInSchedule, addDays, toISODateString } from "@/lib/utils/date";
+import { getWeekdayFromDate, isWeekdayInSchedule, addDays, toISODateString, todayInOslo } from "@/lib/utils/date";
+import { validateCheckoutInput } from "@/lib/validation/checkout";
 import { DAYS_PICKUP_TO_DELIVERY, MIN_DAYS_NOTICE } from "@/lib/config/order-timing";
+import { TERMS_VERSION } from "@/lib/config/terms";
 import { translateFrequency } from "@/lib/utils/i18n";
-import { getMostRecentOrderAddressByCustomerId, getOrderWithDetailsByIdAndCustomerId, updateOrderStatus } from "@/lib/database/orders";
+import {
+  getMostRecentOrderAddressByCustomerId,
+  getOrderByPaymentAgreementId,
+  getOrderWithDetailsByIdAndCustomerId,
+  updateOrderStatus,
+} from "@/lib/database/orders";
 import { geocodeAddress, validateAddress, type AddressValidationReason } from "@/lib/maps/geocoding";
 import { checkAndGenerateNextOrders } from "@/lib/services/order-generation";
 import { cancelSubscriptionAction } from "@/app/dashboard/subscription/actions";
@@ -29,6 +36,7 @@ import type {
   CustomerEstimate,
   OrderStatus,
   OrderPromo,
+  TermsConsent,
 } from "@/types/database";
 import type { OrderSelection } from "@/types/order-flow";
 
@@ -46,6 +54,10 @@ export interface CreateSubscriptionInput {
     specialInstructions?: string;
   };
   promoCode?: string;
+  /** The customer ticked the checkout consent box (sales terms + privacy policy
+   *  + express request to start within the withdrawal period). Must be exactly
+   *  `true`; the action rejects anything else. */
+  termsAccepted: boolean;
 }
 
 /** Clamp a count to a sane integer range — never trust client input. */
@@ -56,13 +68,13 @@ function sanitizeCount(value: number, max: number): number {
 
 function sanitizeSelection(sel: OrderSelection): OrderSelection {
   const beddingSets = sanitizeCount(sel.beddingSets, 12);
-  return {
+  return withoutUnofferedIroning({
     bags: sanitizeCount(sel.bags, 12),
     beddingSets,
     everydayItems: sanitizeCount(sel.everydayItems, 120),
     formalItems: sanitizeCount(sel.formalItems, 120),
     ironBedding: beddingSets > 0 && sel.ironBedding === true,
-  };
+  });
 }
 
 export interface CreateSubscriptionResult {
@@ -79,7 +91,7 @@ export interface CreateSubscriptionResult {
  * Flow:
  * 1. Create PaymentAgreement record (required for all checkouts)
  * 2. If recurring: create Subscription linked to PaymentAgreement
- * 3. If one-time: store order_defaults on PaymentAgreement.provider_metadata
+ * 3. Store terms_consent (always), and order_defaults if one-time, on PaymentAgreement.provider_metadata
  * 4. Create Vipps recurring agreement
  * 5. Return Vipps checkout URL for user to approve
  * 6. Webhook activates agreement and creates orders
@@ -103,6 +115,37 @@ export async function createSubscriptionAction(
   if (!customer) {
     return { error: "Customer not found" };
   }
+
+  // Consent is required before anything else happens — strict boolean check,
+  // never trust the client. The snapshot uses the server clock and the server's
+  // TERMS_VERSION so a tampered or stale client cannot forge either value.
+  if (input.termsAccepted !== true) {
+    return {
+      displayError: "Du må akseptere salgsvilkårene for å fortsette",
+      error: "Terms not accepted",
+    };
+  }
+  const termsConsent: TermsConsent = {
+    terms_version: TERMS_VERSION,
+    accepted_at: new Date().toISOString(),
+    early_start_requested: true,
+  };
+
+  // Address, service area and pickup date: the webhook builds the order from
+  // these after the customer has approved in Vipps, so reject bad values now.
+  const inputError = validateCheckoutInput(input, todayInOslo());
+  if (inputError) {
+    return { displayError: inputError, error: "Invalid checkout input" };
+  }
+  const availableWeekdays = await getAvailableWeekdaysForCity(input.location);
+  if (!availableWeekdays.includes(getWeekdayFromDate(input.firstPickupDate))) {
+    return {
+      displayError: "Ingen rensere er tilgjengelige denne dagen. Velg en ny hentedato.",
+      error: "No cleaner available on pickup weekday",
+    };
+  }
+  const street = input.pickupAddress.street.trim();
+  const specialInstructions = input.pickupAddress.specialInstructions?.trim() || undefined;
 
   // Sanitize the customer's selection and recompute the estimate server-side —
   // never trust a client-supplied total.
@@ -194,7 +237,7 @@ export async function createSubscriptionAction(
   // Geocode the pickup address once here so the coordinates propagate onto every
   // generated order (the generator copies initial_address). Null on failure.
   const pickupCoords = await geocodeAddress({
-    street: input.pickupAddress.street,
+    street,
     postal_code: input.pickupAddress.postalCode,
     city: input.pickupAddress.city,
     country: input.pickupAddress.country,
@@ -202,11 +245,11 @@ export async function createSubscriptionAction(
 
   const orderDefaults: SubscriptionOrderDefaults = {
     initial_address: {
-      street: input.pickupAddress.street,
+      street,
       postal_code: input.pickupAddress.postalCode,
       city: input.pickupAddress.city,
       country: input.pickupAddress.country,
-      special_instructions: input.pickupAddress.specialInstructions,
+      special_instructions: specialInstructions,
       latitude: pickupCoords?.latitude ?? null,
       longitude: pickupCoords?.longitude ?? null,
     },
@@ -218,9 +261,12 @@ export async function createSubscriptionAction(
   };
 
   // Build payment agreement metadata.
+  // - terms_consent (always): what the customer accepted at checkout and when
   // - one-time orders: store order_defaults here (no subscription to hold them)
   // - promo snapshot (if any): stored here so the discount survives until first-order generation
-  const providerMetadata: Record<string, unknown> = {};
+  const providerMetadata: Record<string, unknown> = {
+    terms_consent: termsConsent,
+  };
   if (!isRecurring) {
     providerMetadata.order_defaults = orderDefaults;
   }
@@ -232,7 +278,7 @@ export async function createSubscriptionAction(
   const paymentAgreement = await createPaymentAgreement({
     customer_id: customer.id,
     provider_agreement_id: agreementResponse.agreementId,
-    provider_metadata: Object.keys(providerMetadata).length > 0 ? providerMetadata : null,
+    provider_metadata: providerMetadata,
   });
 
   if (!paymentAgreement) {
@@ -263,22 +309,36 @@ export type CheckoutStatus = 'active' | 'pending' | 'cancelled' | 'unknown';
 
 export interface CheckoutStatusResult {
   status: CheckoutStatus;
+  /** Whether the checkout set up a recurring subscription (vs. a one-time
+   *  order). One-time agreements carry their order_defaults in
+   *  provider_metadata; recurring ones keep them on the subscription. */
+  recurring?: boolean;
 }
 
 /**
- * Resolve the real status of the customer's latest Vipps agreement after they
- * return from the Vipps app.
+ * Resolve the status of the customer's latest checkout after they return from
+ * the Vipps app.
  *
  * Vipps redirects everyone back to the same merchantRedirectUrl regardless of
  * outcome (approved, cancelled on the landing page, or still activating) and
- * appends no status param. Per Vipps docs we must poll the agreement instead of
- * trusting the redirect: ACTIVE = approved, STOPPED/EXPIRED = aborted, PENDING =
- * activation not finished yet (caller should retry).
+ * appends no status param, so the page polls this action instead.
+ *
+ * The source of truth is OUR database, not Vipps' live agreement status: the
+ * agreement-activated webhook is what activates the agreement and creates the
+ * first order, and "Bestillingen er bekreftet" must only be shown once that
+ * has happened. Vipps saying ACTIVE while our row is still pending just means
+ * the webhook hasn't landed (yet) — report pending so the page keeps polling.
+ *
+ *   DB active  + first order exists → 'active'
+ *   DB active  + no order yet       → 'pending' (webhook mid-flight)
+ *   DB stopped / expired            → 'cancelled'
+ *   DB pending                      → ask Vipps, only to detect an abort:
+ *                                      STOPPED/EXPIRED → 'cancelled',
+ *                                      anything else or unreachable → 'pending'
  *
  * The agreement ID isn't passed back in the URL, so we look up the customer's
  * most recently created payment agreement — the one they just started checkout
- * with. Status is queried live from Vipps, falling back to the stored DB status
- * (kept in sync by the webhook) if Vipps is unreachable.
+ * with.
  */
 export async function getCheckoutStatusAction(): Promise<CheckoutStatusResult> {
   const supabase = await createClient();
@@ -301,36 +361,35 @@ export async function getCheckoutStatusAction(): Promise<CheckoutStatusResult> {
     return { status: 'unknown' };
   }
 
+  const recurring = !latest.provider_metadata?.order_defaults;
+
+  if (latest.status === 'active') {
+    // The webhook flips the agreement to active before it inserts the first
+    // order; only report success once the order is really there.
+    const firstOrder = await getOrderByPaymentAgreementId(latest.id);
+    return { status: firstOrder ? 'active' : 'pending', recurring };
+  }
+
+  if (latest.status === 'stopped' || latest.status === 'expired') {
+    return { status: 'cancelled', recurring };
+  }
+
+  // Still pending in our DB. Ask Vipps only to detect an abort — a user who
+  // backs out on the Vipps landing page leaves the agreement STOPPED/EXPIRED
+  // there before (or without) any webhook reaching us.
   try {
     const vipps = createVippsRecurringClient();
     const agreement = await vipps.getAgreement(latest.provider_agreement_id);
-
-    switch (agreement.status) {
-      case 'ACTIVE':
-        return { status: 'active' };
-      case 'PENDING':
-        return { status: 'pending' };
-      case 'STOPPED':
-      case 'EXPIRED':
-        return { status: 'cancelled' };
-      default:
-        return { status: 'unknown' };
+    if (agreement.status === 'STOPPED' || agreement.status === 'EXPIRED') {
+      return { status: 'cancelled', recurring };
     }
   } catch (error) {
     console.error('Failed to fetch Vipps agreement status:', error);
-    // Fall back to the DB status (kept in sync by the webhook)
-    switch (latest.status) {
-      case 'active':
-        return { status: 'active' };
-      case 'pending':
-        return { status: 'pending' };
-      case 'stopped':
-      case 'expired':
-        return { status: 'cancelled' };
-      default:
-        return { status: 'unknown' };
-    }
   }
+
+  // Vipps PENDING, Vipps ACTIVE with the webhook not landed yet, or Vipps
+  // unreachable: keep polling.
+  return { status: 'pending', recurring };
 }
 
 export interface ValidatePromoCodeResult {
@@ -374,11 +433,13 @@ export async function validatePromoCodeAction(
 }
 
 /**
- * Force accept a Vipps agreement (TEST ENVIRONMENT ONLY)
+ * Force accept a Vipps agreement (explicit opt-in, Vipps test API only)
  * Bypasses manual approval in Vipps app for testing purposes
  *
  * Flow:
- * 1. Validates test environment
+ * 1. Checks the opt-in gate (NEXT_PUBLIC_VIPPS_ALLOW_FORCE_ACCEPT=true AND the
+ *    Vipps test API — see isVippsForceAcceptAllowed). Production never sets the
+ *    flag, so this always refuses there.
  * 2. Verifies the caller owns the agreement
  * 3. Calls Vipps forceAcceptAgreement API with a whitelisted Vipps test phone
  *    (picked deterministically per customer, see pickVippsTestPhone)
@@ -392,11 +453,11 @@ export async function forceAcceptAgreementAction(
   agreementId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // 1. Validate test environment
-    if (!isVippsTestEnvironment()) {
+    // 1. Explicit opt-in only — never inferred from a hostname or URL.
+    if (!isVippsForceAcceptAllowed()) {
       return {
         success: false,
-        error: 'Auto-godkjenning er kun tilgjengelig i testmiljø',
+        error: 'Auto-godkjenning er ikke aktivert i dette miljøet',
       };
     }
 

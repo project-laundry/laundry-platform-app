@@ -505,6 +505,8 @@ export interface UpdateLaundryDetailsData {
   wash_loads: number;
   ironing_details: OrderIroningDetails | null;
   total_cost_ore: number;
+  // Cleaner's share of the FULL price (before promo) — stamped with the price
+  cleaner_payout_ore: number;
   pricing_notes?: string;
   // Updated promo snapshot with discount_ore filled in (if a promo was applied)
   promo?: OrderPromo | null;
@@ -544,6 +546,7 @@ export async function updateOrderLaundryDetails(
     wash_loads: data.wash_loads,
     ironing_details: data.ironing_details,
     total_cost_ore: data.total_cost_ore,
+    cleaner_payout_ore: data.cleaner_payout_ore,
     pricing_notes: data.pricing_notes || null,
     price_calculated_at: new Date().toISOString(),
   };
@@ -662,6 +665,38 @@ export async function getActiveOrdersBySubscriptionId(
   return (data as Order[]) || [];
 }
 
+/**
+ * The order generated for a payment agreement on activation, or null if the
+ * activation webhook hasn't created it (yet). Only the first order of an
+ * agreement carries payment_agreement_id — rolling-window orders resolve the
+ * agreement through the subscription (see buildOrderData's callers) — so a hit
+ * means the activation webhook already generated the first order. Used as the
+ * idempotency check in that webhook and by the checkout success page.
+ *
+ * Unlike the other helpers in this file this THROWS on a query error: neither
+ * caller may act (insert a duplicate / report success) when it cannot tell.
+ */
+export async function getOrderByPaymentAgreementId(
+  paymentAgreementId: string
+): Promise<Order | null> {
+  const supabase = await createAdminClient();
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('payment_agreement_id', paymentAgreementId)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[getOrderByPaymentAgreementId] Error fetching order:', error);
+    throw new Error(`Failed to look up orders for payment agreement ${paymentAgreementId}`);
+  }
+
+  return data;
+}
+
 export interface RecentOrderAddress {
   street: string;
   postal_code: string;
@@ -730,6 +765,40 @@ export async function cancelOrdersBySubscriptionId(
   const count = data?.length || 0;
   console.log(`[cancelOrdersBySubscriptionId] Cancelled ${count} orders`);
   return count;
+}
+
+export interface UpcomingOrderAddressUpdate {
+  street: string;
+  postal_code: string;
+  city: string;
+  special_instructions_address: string | null;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+/**
+ * Copy a changed subscription address onto the subscription's not-yet-picked-up
+ * orders (pending_assignment, pickup_scheduled). Orders the cleaner already
+ * holds keep the address they were picked up from. Returns false on a DB error.
+ */
+export async function updateUpcomingOrdersAddressBySubscriptionId(
+  subscriptionId: string,
+  address: UpcomingOrderAddressUpdate
+): Promise<boolean> {
+  const supabase = await createAdminClient();
+
+  const { error } = await supabase
+    .from('orders')
+    .update(address)
+    .eq('subscription_id', subscriptionId)
+    .in('status', ['pending_assignment', 'pickup_scheduled']);
+
+  if (error) {
+    console.error('[updateUpcomingOrdersAddressBySubscriptionId] Error updating orders:', error);
+    return false;
+  }
+
+  return true;
 }
 
 /**
@@ -889,6 +958,69 @@ export async function updateOrderAdminFields(
 
   if (error) {
     console.error('Error updating order (admin):', error);
+    return null;
+  }
+
+  return data;
+}
+
+/**
+ * Admin price override. Same fields as updateOrderLaundryDetails, without
+ * the cleaner-ownership check. The admin server action owns all status and
+ * payment gating — this is a plain write.
+ */
+export async function updateOrderPricingByAdmin(
+  orderId: string,
+  data: UpdateLaundryDetailsData
+): Promise<Order | null> {
+  const supabase = createAdminClient();
+
+  const updateData: Record<string, unknown> = {
+    wash_loads: data.wash_loads,
+    ironing_details: data.ironing_details,
+    total_cost_ore: data.total_cost_ore,
+    cleaner_payout_ore: data.cleaner_payout_ore,
+    pricing_notes: data.pricing_notes || null,
+    price_calculated_at: new Date().toISOString(),
+  };
+  if (data.promo !== undefined) {
+    updateData.promo = data.promo;
+  }
+
+  const { data: updatedOrder, error } = await supabase
+    .from('orders')
+    .update(updateData)
+    .eq('id', orderId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating order pricing (admin):', error);
+    return null;
+  }
+
+  return updatedOrder;
+}
+
+/**
+ * Write the admin's internal notes. `null` clears them. Plain write — the
+ * admin server action validates the length.
+ */
+export async function updateOrderAdminNotes(
+  orderId: string,
+  notes: string | null
+): Promise<Order | null> {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from('orders')
+    .update({ admin_notes: notes })
+    .eq('id', orderId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating order admin notes:', error);
     return null;
   }
 

@@ -28,6 +28,8 @@ describe('isPublicPrelaunchPath', () => {
       '/pris-kalkulator',
       '/auth/callback',
       '/auth/error',
+      '/auth/forgot-password',
+      '/auth/reset-password',
       '/api/webhooks/vipps/recurring',
       '/admin',
       '/admin/orders/123',
@@ -47,10 +49,8 @@ describe('isPublicPrelaunchPath', () => {
       '/bli-renser/signup/success',
       '/bli-renser/lansering',
       '/bli-renser/business',
-      '/lansering',
       '/orders/wash',
       '/dashboard',
-      '/prototype',
     ]) {
       expect(isPublicPrelaunchPath(p), p).toBe(false);
     }
@@ -62,7 +62,7 @@ describe('shouldRedirectToComingSoon', () => {
 
   it('redirects anonymous production visitors away from blocked paths', () => {
     expect(shouldRedirectToComingSoon({ ...prod, pathname: '/auth/login' })).toBe(true);
-    expect(shouldRedirectToComingSoon({ ...prod, pathname: '/lansering' })).toBe(true);
+    expect(shouldRedirectToComingSoon({ ...prod, pathname: '/orders/wash' })).toBe(true);
   });
 
   it('lets anonymous production visitors see public paths', () => {

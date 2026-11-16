@@ -107,7 +107,7 @@
 - `base_country` (string, required) - Base operation country
   - **Default:** `'Norway'`
   - **Validation:** Max 100 chars
-- `base_special_instructions` (text, nullable) - Permanent access instructions for base location (optional "Beskjed til sjåføren" field in onboarding step 2; shown on the driver route)
+- `base_special_instructions` (text, nullable) - Permanent access instructions for base location (not asked in onboarding while cleaners do their own pickup/delivery; shown on the dormant driver route)
   - **Validation:** Max 500 chars
 - `experience_level` (enum → [CleanerExperienceLevel](#cleanerexperiencelevel), required) - Experience level
 - `machine_brand` (string, nullable) - Washing machine brand and model from onboarding step 3
@@ -118,17 +118,23 @@
   - **Validation:** 1900–2100 (DB); onboarding requires ≤ current year
 - `machine_condition` (enum → [CleanerMachineCondition](#cleanermachinecondition), nullable) - Self-reported machine condition
   - **Note:** All four machine fields are `NULL` for profiles created before they were stored (migration `20260916120000`).
-- `weekly_schedule` (jsonb, required) - Weekly availability pattern
+- `weekly_schedule` (jsonb, required) - Weekdays the cleaner takes pickups
   - **Format:** `{"mon": true, "tue": true, "wed": true, "thu": true, "fri": true, "sat": false, "sun": false}`
-  - **Default:** `{"mon": true, "tue": true, "wed": true, "thu": true, "fri": true, "sat": false, "sun": false}`
-  - **Note:** Defines which weekdays cleaner accepts orders. Must be set before cleaner can receive order assignments.
-- `is_accepting_orders` (boolean) - Whether cleaner is accepting new orders
-  - **Default:** `true`
-  - **Note:** Vacation mode toggle. When false, cleaner receives no new assignments.
+  - **Default:** Mon–Fri (`DEFAULT_WEEKLY_SCHEDULE` in `lib/config/cleaner-options.ts`, same as the column default)
+  - **Set by:** onboarding step 4 (pre-selected Mon–Fri, at least one day required) and the cleaner settings page. Validated by `normalizeWeeklySchedule` + `hasAnyWeekday` in `lib/validation/cleaner.ts`.
+  - **Note:** Read only at matching time (`findAvailableCleaner`, `getAvailableWeekdaysForCity`); changing it never touches already-assigned orders.
+- `is_accepting_orders` (boolean) - Whether cleaner is accepting new assignments
+  - **Default:** `true` (not asked in onboarding)
+  - **Set by:** the cleaner settings page ("Tar imot nye oppdrag") and the admin cleaner detail page `/admin/cleaners/[cleanerId]` (pause/resume button, `setCleanerAcceptingOrdersAction`).
+  - **Note:** Vacation mode. When false the cleaner is excluded from matching for new assignments only; orders already assigned proceed normally.
 - `created_at` (timestamp) - Profile creation timestamp
 - `updated_at` (timestamp) - Last update timestamp
 - `approved_at` (timestamp, nullable) - Approval timestamp
 - `suspended_at` (timestamp, nullable) - Suspension timestamp
+- `rejected_at` (timestamp, nullable) - When an admin rejected the application («Avvis søknaden» on `/admin/cleaners/[cleanerId]`, `rejectCleaner`)
+  - **Note:** Cleared, together with `rejection_reason` and `suspended_at`, when the cleaner is later approved (`setCleanerVerificationStatus('approved')`)
+- `rejection_reason` (text, nullable) - The admin's reason, shown verbatim on the cleaner dashboard's "Søknaden din ble avvist" screen
+  - **Validation:** Required when rejecting, max 500 chars (`CLEANER_REJECTION_REASON_MAX` in `lib/validation/cleaner.ts`; DB CHECK of the same size)
 - `deleted_at` (timestamp, nullable) - Soft delete timestamp
   - **Note:** Set when parent User is deleted. Preserves order history and financial records.
   - **Business Rule:** On deletion, anonymize sensitive fields (tax_id, bank_account, business_address) while keeping operational data
@@ -216,6 +222,8 @@
   - **Default:** `'pending'`
 - `provider_metadata` (jsonb, nullable) - Provider-specific metadata
   - **Note:** For one-time orders, stores `order_defaults` (address, preferences, pickup date) since there's no subscription to hold them.
+  - **Note:** `promo` holds the locked promo snapshot when a code was applied at checkout.
+  - **Note:** `terms_consent` (always written at checkout) records what the customer accepted: `{ terms_version, accepted_at, early_start_requested: true }`. `terms_version` is `TERMS_VERSION` from `src/lib/config/terms.ts` (an ISO date bumped whenever `/salgsvilkar` changes), `accepted_at` is the server timestamp, and `early_start_requested` records the express request to start the service within the 14-day withdrawal period (angrerettloven § 22 c). Written once, never updated.
 - `created_at` (timestamp) - Creation timestamp
 - `activated_at` (timestamp, nullable) - When agreement was activated by user
 - `stopped_at` (timestamp, nullable) - When agreement was stopped
@@ -266,7 +274,7 @@
     - `default_needs_ironing` (boolean) - Default ironing preference for orders
     - `default_cleaner_id` (uuid, nullable) - Default cleaner assignment (orders can be reassigned)
     - `first_pickup_date` (string) - ISO date (YYYY-MM-DD) for first order pickup
-  - **Note:** All order generation settings stored here. Individual orders can have different cleaner, address, or preferences.
+  - **Note:** All order generation settings stored here. Individual orders can have different cleaner, address, or preferences. Customers edit `initial_address` (street, postal code, pickup instructions, coordinates) from `/dashboard/settings`; `location_city` and `default_cleaner_id` never change after checkout.
 - `started_at` (timestamp, nullable) - Subscription activation timestamp
   - **Note:** Set when Vipps agreement is activated. Null while `status = 'pending_payment'`.
 - `paused_at` (timestamp, nullable) - Pause timestamp
@@ -312,7 +320,7 @@
 - `subscription_id` (uuid, FK → [Subscription](#subscription).id, nullable) - Subscription reference
   - **Note:** Set if order is part of subscription, null for one-time orders
 - `payment_agreement_id` (uuid, FK → [PaymentAgreement](#paymentagreement).id, nullable) - Payment agreement reference
-  - **Note:** Set for all orders (both subscription and one-time). Used to resolve Vipps agreement for charging.
+  - **Note:** Set on the **first** order of an agreement (created by the `agreement-activated` webhook), for both subscription and one-time checkouts; rolling-window orders carry NULL and resolve the agreement through the subscription. The webhook's idempotency check (`getOrderByPaymentAgreementId`) and the checkout success page rely on this.
 - `cleaner_id` (uuid, FK → [Cleaner](#cleaner).id, nullable) - Assigned cleaner
 - `status` (enum → [OrderStatus](#orderstatus), required) - Order status
   - **Default:** `pending_assignment`
@@ -348,23 +356,31 @@
     - **Default:** `NULL` (cleaner sets after weighing)
     - **Note:** Cleaner calculates based on weight, ironing, and other factors
     - **Note:** When a promo is applied, this stores the **discounted** amount actually charged (can be below the order minimum, or `0` for a fully-discounted order)
+  - `cleaner_payout_ore` (integer, nullable) - The cleaner's share of the order in øre
+    - **Default:** `NULL` (stamped together with `total_cost_ore` when the cleaner prices the order; frozen with the price)
+    - **Note:** `calculateOrderPrice().cleaner_payout_ore` — `cleaner_payout_percent` (70 %) of the **full** service price, i.e. **before** any promo discount; a promo never lowers it
+    - **Note:** Owed only once the order is `completed`; paid monthly by bank transfer (see [BUSINESS_LOGIC.md → Cleaner Payout](./BUSINESS_LOGIC.md#cleaner-payout))
   - `promo` (jsonb, nullable) - Locked promo-code snapshot, set on the **first** order of an agreement only
     - **Default:** `NULL` (no promo)
     - **Shape:** `{ promo_code_id, code, discount_type, discount_value, max_discount_ore, discount_ore? }`
     - **Note:** Discount terms are captured at checkout (so the deal survives if the code is later changed/deactivated); `discount_ore` is filled in when the cleaner prices the order
-    - **Note:** Discount is **platform-absorbed** — it reduces `total_cost_ore` but not the cleaner payout
+    - **Note:** Discount is **platform-absorbed** — it reduces `total_cost_ore` but not `cleaner_payout_ore`
 - **Other:**
   - `declined_by_cleaner_ids` (uuid[], nullable) - Array of cleaner IDs who declined this order
     - **Note:** Used during reassignment to prevent offering order to same cleaner again
   - `assigned_at` (timestamp, nullable) - Cleaner assignment timestamp
   - `picked_up_at` (timestamp, nullable) - Actual pickup timestamp
-  - `in_cleaning_at` (timestamp, nullable) - When driver delivered to cleaner
+  - `in_cleaning_at` (timestamp, nullable) - When the laundry reached the cleaner (set together with picked_up_at when the cleaner picks up)
   - `ready_for_delivery_at` (timestamp, nullable) - When cleaner marked laundry as ready
-  - `out_for_delivery_at` (timestamp, nullable) - When driver collected from cleaner
+  - `out_for_delivery_at` (timestamp, nullable) - When a driver collected from the cleaner (dormant driver flow only)
   - `completed_at` (timestamp, nullable) - Order completion timestamp
   - `cancelled_at` (timestamp, nullable) - Cancellation timestamp
   - `cancellation_reason` (text, nullable) - Reason for cancellation
-    - **Validation:** Required if status = `cancelled`, max 500 chars
+    - **Validation:** Max 500 chars
+    - **Note:** Written by admin cancellation (`cancelOrderAdminAction`, required there) and shown to the customer on the order page; customer cancellation leaves it `NULL`
+  - `admin_notes` (text, nullable) - Internal admin notes (`/admin/orders/[orderId]` → "Interne notater")
+    - **Validation:** Max 2000 chars
+    - **Note:** Admin dashboard only — never rendered on a customer or cleaner surface
   - `mission_accepted_at` (timestamp, nullable) - When cleaner accepted the order
   - `created_at` (timestamp) - Order creation timestamp
   - `updated_at` (timestamp) - Last update timestamp
@@ -379,7 +395,7 @@
 
 **Notes:**
 
-- **FLEXIBLE Pricing:** Orders created with `total_cost_ore = NULL`. Cleaner weighs laundry after pickup and calculates price.
+- **FLEXIBLE Pricing:** Orders created with `total_cost_ore = NULL` and `cleaner_payout_ore = NULL`. Cleaner registers the loads after pickup; both are stamped in the same write.
 - **Single Address Model:** Pickup and delivery use same address (simplified from previous two-address model).
 - **No Plan Reference:** Removed subscription_plans table - pricing is fully flexible.
 
@@ -407,8 +423,9 @@
 - `amount_ore` (integer, required) - Amount in øre
   - **Constraints:** >= 0
 - `status` (enum, required) - Status: `pending`, `authorized`, `captured`, `failed`, `refunded`, `cancelled`
-  - **Flow (RESERVE_CAPTURE):** pending → authorized → captured/failed
-  - **Note:** `authorized` status indicates funds are reserved but not yet captured (Vipps RESERVE_CAPTURE)
+  - **Flow (DIRECT_CAPTURE):** pending → captured / failed / cancelled; captured → refunded (full refund only — a partial refund keeps `captured` and records `refund_amount_ore`)
+  - **Note:** `authorized` is only reached with RESERVE_CAPTURE, which the platform does not use
+  - **Note:** a `pending` row with `provider_reference IS NULL` older than 15 min is an *orphan* (the Vipps call never completed); the deferred agreement stop ignores it and the admin overview counts it as failed
 - `payment_provider` (enum, required) - Provider: `vipps`, `stripe`, `manual`
 - `provider_reference` (string, nullable) - Merchant reference for webhook lookups
   - **Recurring API:** Vipps charge ID (chr_Xyz789)
@@ -420,6 +437,7 @@
 - `captured_at` (timestamp, nullable) - Capture timestamp (when funds actually captured)
 - `failed_at` (timestamp, nullable) - Failure timestamp
 - `failure_reason` (text, nullable) - Failure reason
+- `cancelled_at` (timestamp, nullable) - Cancellation timestamp (Vipps charge-canceled webhook)
 - `refunded_at` (timestamp, nullable) - Refund timestamp
 - `refund_amount_ore` (integer, nullable) - Refund amount in øre
   - **Constraints:** >= 0
@@ -531,12 +549,14 @@
 - `email` (varchar(255), required) - Lowercased, trimmed
 - `audience` (text, required) - `customer` | `cleaner`
 - `city` (text, required) - `bergen` | `oslo`
-- `created_at` (timestamp) - Signup time (also the consent timestamp — there is no checkbox; submitting the form is the consent, and the line under the button states exactly what it covers: one email when we open, no newsletter)
+- `created_at` (timestamp) - Signup time (also the consent timestamp — there is no checkbox; submitting the form is the consent, and the line under the button states exactly what it covers: one e-mail when we open, no newsletter)
+- `offer_eligible` (boolean, required, default false) - `true` on the first `WAITLIST_OFFER_SPOTS` (50) customer signups, set by the `waitlist_signups_mark_offer_eligible` BEFORE INSERT trigger (advisory-locked count of eligible rows) and never recomputed; cleaner rows are always `false`. The launch promo code goes to `WHERE offer_eligible`. The cap is mirrored in `src/components/coming-soon/launch.ts` — change both together
 
 **Notes:**
 
 - Written only by `joinWaitlistAction` (`app/actions.ts`) via the service role; RLS is enabled with no policies.
 - Signing up twice is a silent no-op (`UNIQUE(email, audience)` + upsert ignoring duplicates), so the form never reveals whether an email is already listed.
+- Deleting an eligible row (consent withdrawn) frees the spot for the next *new* customer signup; the existing 51st row is not promoted.
 
 **Indexes:**
 
@@ -554,14 +574,14 @@
 
 - `customer`
 - `cleaner`
-- `driver` - Picks up and delivers laundry. Minimal profile in `drivers` (one city + optional route start); accounts and profiles are created by admins from the admin dashboard (never self-service).
+- `driver` - Picks up and delivers laundry. Minimal profile in `drivers` (one city + optional route start); accounts and profiles are created by admins from the admin dashboard (never self-service). Dormant in the first version — cleaners do pickup and delivery.
 - `admin`
 
 ### CleanerVerificationStatus
 
 - `pending` - Application submitted, awaiting review
 - `approved` - Verified and active
-- `rejected` - Application rejected
+- `rejected` - Application rejected by an admin with a reason (`rejected_at`, `rejection_reason`); can still be approved later
 - `suspended` - Temporarily suspended
 
 ### CleanerBusinessType
@@ -603,10 +623,10 @@
 
 - `pending_assignment` - Waiting for cleaner assignment (edge case: no available cleaners)
 - `pickup_scheduled` - Cleaner assigned and pickup scheduled
-- `picked_up` - Laundry picked up from customer, in transit to cleaner
-- `in_cleaning` - Laundry delivered to cleaner, being washed
-- `ready_for_delivery` - Laundry cleaned, ready for driver to collect from cleaner
-- `out_for_delivery` - Driver collected from cleaner, en route to customer
+- `picked_up` - Laundry picked up from customer, in transit to cleaner (driver flow only)
+- `in_cleaning` - Laundry with the cleaner, being washed
+- `ready_for_delivery` - Laundry cleaned and charged, ready to be delivered
+- `out_for_delivery` - Driver collected from cleaner, en route to customer (driver flow only)
 - `completed` - Clean laundry delivered to customer (final state)
 - `cancelled` - Order cancelled (final state)
 
@@ -652,7 +672,7 @@
 ## Security & Privacy
 
 - **RLS Policies:** Customers see own data only; cleaners see assigned orders only; admins have full access
-- **Driver Role (MVP):** Dedicated `driver` users run the driver dashboard (`/dashboard/driver`); admins have access to it too. Privileged roles (`admin`, `driver`) cannot be self-selected at signup — `handle_new_user` only honors `customer`/`cleaner` from metadata.
+- **Driver Role (MVP):** Dedicated `driver` users run the driver dashboard (`/dashboard/driver`); dormant in the first version — only the driver role can open it (no driver accounts exist), and no UI links to it. Privileged roles (`admin`, `driver`) cannot be self-selected at signup — `handle_new_user` only honors `customer`/`cleaner` from metadata.
 
 ---
 

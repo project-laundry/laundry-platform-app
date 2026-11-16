@@ -9,8 +9,8 @@ This is **NooraCare**, a peer-to-peer laundry platform that connects customers w
 The application supports four user roles:
 
 - **Customers**: Schedule laundry pickups via subscription plans
-- **Cleaners**: Accept missions and provide laundry services
-- **Drivers**: Pick up and deliver laundry along a daily optimized route (admins also have driver access)
+- **Cleaners**: Accept missions, pick up at the customer, wash, and deliver back
+- **Drivers** (dormant): Built to pick up and deliver along a daily optimized route, but not used in the first version — cleaners pick up and deliver, only the driver role can open the driver dashboard, and no UI links to the driver pages. Keep this code; it is intentionally unused
 - **Admins**: Manage operations and platform oversight
 
 ## Development Philosophy
@@ -50,6 +50,7 @@ Key implications:
   - Use format `YYYYMMDDHHMMSS_description.sql`
   - **IMPORTANT**: Claude must never apply migrations itself (no `supabase db push`, no Supabase MCP `execute_sql`/`apply_migration`) — only create the migration file and inform the user
   - **CI applies migrations automatically on push** — `.github/workflows/staging.yaml` runs `supabase db push` against the staging project on every push to `develop`, and `.github/workflows/production.yaml` does the same against production on every push to `main`. So once a migration file is committed and pushed, it lands on the corresponding database without any manual `db push` — see `ENVIRONMENTS.md` for the full promotion flow. This means the migration ships as soon as the branch is pushed, not only once someone runs it by hand.
+- **Auth e-mails**: Supabase Auth sends through Resend (custom SMTP, `NooraCare <no-reply@nooracare.no>`). The Norwegian templates in `supabase/templates/` are the source of truth, wired into `supabase/config.toml` for local `supabase start`; the hosted projects are configured by hand — after any template/subject change, paste it into **both** dashboards. Links use `{{ .ConfirmationURL }}` (handled by `app/auth/callback`). Site URL, redirect allowlist, rate limit and leaked-password protection per project: `ENVIRONMENTS.md` → "Supabase Auth e-mails". No `supabase config push` anywhere
 - **Schema Documentation**:
   - See `ENTITIES.md` for complete database schema, entity definitions, relationships, and data integrity rules
   - See `BUSINESS_LOGIC.md` for application workflows, operational rules, and business process definitions
@@ -74,67 +75,74 @@ npm run test:watch # Run tests in watch mode
 ```
 src/
 ├── app/                    # Next.js App Router pages
-│   ├── page.tsx            # Pre-launch coming-soon page + waitlist (actions.ts: joinWaitlistAction; no consent checkbox — submitting is the consent)
+│   ├── page.tsx            # Landing page: pre-launch waitlist hero + the illustrated how-it-works story (actions.ts: joinWaitlistAction; no consent checkbox — submitting is the consent). At launch, swap the waitlist form for the order CTA; no testimonials until there are real ones
 │   ├── opengraph-image.tsx # Social share image for /, rendered by lib/og-image.tsx (bli-renser has its own)
-│   ├── lansering/          # The real landing page, parked (noindex + gated on prod) until launch — move back to page.tsx then; no testimonials until there are real ones
 │   ├── not-found.tsx       # Root 404 (unmatched URLs + every notFound() call)
-│   ├── admin/              # Admin dashboard (layout = shell + role guard; page = overview with counts)
-│   │   ├── orders/         # Order list + per-order detail page (edit details, cleaner (re)assignment)
-│   │   ├── cleaners/       # Cleaner list, activate/deactivate (verification_status)
+│   ├── admin/              # Admin dashboard (layout = shell + role guard; page = overview: count tiles + attention sections «I dag» / «Forsinket» / «Venter på tildeling» / «Betalinger å følge opp» / «Ordre ikke generert» from lib/database/admin-attention.ts; a failed query shows an error, never 0 or an empty list)
+│   │   ├── orders/         # Order list + per-order detail page (edit details, cleaner (re)assignment, «Belast på nytt» retry of a failed Vipps charge, price override while nothing is charged, «Marker som hentet/klar/levert» fallbacks, pre-pickup cancel with a customer-visible reason, internal admin_notes)
+│   │   ├── cleaners/       # Cleaner list (links only) + per-cleaner detail page [cleanerId] with all onboarding data (tax id/bank account behind RevealField), orders + payout sums, and the actions: approve, reject with reason (CleanerRejectControl → rejectCleanerAction), deactivate/reactivate (verification_status), pause/resume new orders (is_accepting_orders)
 │   │   ├── customers/      # Customer list + per-customer detail
 │   │   ├── payments/       # Payment list (read-only)
 │   │   ├── promo-codes/    # Promo code list, create/edit, redemptions per code
-│   │   ├── drivers/        # Driver list, create/edit (account + profile)
+│   │   ├── drivers/        # Driver list, create/edit (account + profile) — dormant, not in AdminNav
 │   │   └── admins/         # Admin user list, create/edit
 │   ├── api/                # API routes
+│   │   ├── cron/
+│   │   │   └── admin-digest/ # Daily admin digest (Vercel cron in vercel.json, 06:00 UTC, Production only): CRON_SECRET bearer check → getAdminAttention → buildAdminDigest → Resend REST via fetch, plain text to every admin user
 │   │   └── webhooks/
 │   │       └── vipps/
 │   │           └── recurring/ # Vipps Recurring API webhooks (agreement activation, charge events)
 │   ├── auth/               # Authentication flow
 │   │   ├── address/        # Address input step
-│   │   ├── callback/       # Supabase auth callback
-│   │   ├── error/          # Invalid/expired confirmation link (callback redirects here)
-│   │   ├── login/          # Login page
-│   │   ├── signup/         # Sign up page
+│   │   ├── callback/       # Supabase e-mail link landing: `?token_hash=&type=` (verifyOtp) or PKCE `?code=` (exchangeCodeForSession); sanitizes ?next=; recovery links (type=recovery or next=/auth/reset-password) always go to reset-password, failures to forgot-password?expired=1
+│   │   ├── error/          # Invalid/expired confirmation link (callback redirects here for non-recovery links)
+│   │   ├── forgot-password/ # Password reset step 1: e-mail → resetPasswordForEmail (redirectTo = callback?next=/auth/reset-password); always shows "sent"; ?expired=1 shows the expired-link note
+│   │   ├── login/          # Login page (honors ?next= for same-site paths — the order flow sends anonymous customers here from step 3); "Glemt passord?" → forgot-password
+│   │   ├── reset-password/ # Password reset step 2: server page requires a session (else → forgot-password?expired=1), ResetPasswordForm calls updateUser({ password }) then → /dashboard
+│   │   ├── signup/         # Sign up page (passes ?next= through to the confirmation callback)
 │   │   └── success/        # Registration success
-│   ├── bli-renser/         # Cleaner coming-soon page + waitlist; real landing parked at bli-renser/lansering; onboarding flow below. faq.ts = the cleaner FAQ shared by both pages (coming-soon picks a subset via pickFaq)
+│   ├── bli-renser/         # Cleaner coming-soon page + waitlist; real cleaner landing parked at bli-renser/lansering; onboarding flow below. faq.ts = the cleaner FAQ shared by both pages (coming-soon picks a subset via pickFaq)
 │   │   ├── signup/         # Account creation (+ signup/success: "check your email")
 │   │   ├── (steps)/        # Route group: server layout = cleaner-only + no-profile guard; StepGuard = step order
 │   │   │   ├── business/   # Step 1: business type, tax id (uniqueness pre-check), bank account
-│   │   │   ├── services/   # Step 2: base address (where the cleaner washes) + note to the driver
+│   │   │   ├── services/   # Step 2: base address (where the cleaner washes)
 │   │   │   ├── equipment/  # Step 3: washing machine (stored on cleaners.machine_*); optional photo → recognizeMachineAction pre-fills the fields (resize-image.ts is the browser-side JPEG downscale)
-│   │   │   ├── profile/    # Step 4: display name + experience
+│   │   │   ├── profile/    # Step 4: display name + experience + pickup weekdays (default Mon–Fri; is_accepting_orders is not asked)
 │   │   │   └── confirm/    # Step 5: summary + consent → createCleanerProfileAction
 │   │   └── success/        # Application submitted
-│   ├── dashboard/          # User dashboards
-│   │   ├── cleaner/        # Cleaner dashboard & missions
-│   │   └── driver/         # Driver dashboard (daily route)
-│   ├── orders/             # Customer order flow (3 steps)
-│   │   ├── [orderId]/      # Order cancel/reschedule
-│   │   ├── details/        # Customer order details
-│   │   ├── wash/           # Step 1: what to wash (bags, bedding, ironing)
-│   │   ├── pickup/         # Step 2: address + pickup date + frequency
-│   │   ├── confirm/        # Step 3: review + promo code + Vipps handoff
-│   │   ├── success/        # Order success (polls agreement status)
-│   │   ├── layout.tsx      # Step route guards (redirects to /orders/wash)
-│   │   └── actions.ts      # Server actions
-│   └── profile/            # User profile pages
-│       └── cleaner/        # Cleaner profile view
+│   ├── dashboard/          # User dashboards (page.tsx = customer dashboard; header gear icon → settings/)
+│   │   ├── settings/       # Customer "Min konto": name + phone (users row via updateUserContact), password (browser supabase.auth.updateUser, links to /auth/forgot-password), subscription pickup address + instructions (rewrites order_defaults.initial_address, same city only, optionally copied onto the not-yet-picked-up order)
+│   │   ├── subscription/   # Subscription details + cancel flow
+│   │   ├── cleaner/        # Cleaner dashboard, missions & profile settings (settings/ — incl. availability: is_accepting_orders + weekly_schedule)
+│   │   └── driver/         # Driver dashboard (daily route) — dormant, driver role only
+│   └── orders/             # Customer order flow (3 steps; steps 1–2 work logged out, step 3 asks the customer to log in before Vipps)
+│       ├── [orderId]/      # Order cancel/reschedule
+│       ├── details/        # Customer order details
+│       ├── wash/           # Step 1: what to wash (bags, bedding, ironing)
+│       ├── pickup/         # Step 2: address + pickup date + frequency
+│       ├── confirm/        # Step 3: review + promo code + required terms/angrerett consent + Vipps handoff
+│       ├── success/        # Order success (polls getCheckoutStatusAction: DB agreement status + first-order presence; Vipps only as abort fallback while pending)
+│       ├── layout.tsx      # Step route guards (redirects to /orders/wash)
+│       └── actions.ts      # Server actions
 ├── assets/brand/          # Logo PNGs (primary/secondary/submerke, normal + negativ); favicons are app/icon.png + app/apple-icon.png
 ├── components/             # Reusable UI components
 │   ├── auth/               # Auth components (empty)
-│   ├── coming-soon/        # Shared shell (light hero with optional photo, StepList, FaqList, CrossPromo) + WaitlistForm for the two coming-soon pages; HowItWorksStory.tsx = the illustrated 5-step story on the customer page; launch.ts holds the launch window label, the waitlist offer cap and the Instagram URL
+│   ├── coming-soon/        # Shared shell (light hero with optional photo, StepList, FaqList, CrossPromo) + WaitlistForm for the two coming-soon pages; HowItWorksStory.tsx = the illustrated 5-step story on the customer page; launch.ts holds the launch window label and the waitlist offer cap
 │   ├── forms/              # Form components (empty)
 │   ├── layout/             # Layout components (empty)
+│   ├── legal/              # CompanyContactCard — the company details box shared by /salgsvilkar, /personvern and /personvern-renser (values from lib/config/company.ts)
 │   └── ui/                 # UI elements
 │       └── LogoutButton.tsx
 ├── hooks/                  # Custom React hooks (empty)
 ├── lib/                    # Core utilities and business logic
 │   ├── ai/                 # Claude integration: machine-recognition.ts (photo → machine suggestion, never throws), config.ts (ANTHROPIC_API_KEY)
-│   ├── auth/               # requireRole/assertRole guards (require-role.ts); signup error mapping (signup-errors.ts)
+│   ├── auth/               # requireRole/assertRole guards (require-role.ts); signup error mapping (signup-errors.ts); password-reset paths + error mapping (password-reset.ts); ?next= sanitizing (next-path.ts)
 │   ├── config/
-│   │   └── pricing.ts      # Pricing constants and both calculators: calculateOrderPrice (cleaner-binding: per 5kg load + 3 ironing groups) and calculateCustomerEstimate (customer estimate: per bag/set/piece). Ironing groups exist in the model but are NOT offered in the first version — hidden on every public surface, see BUSINESS_LOGIC.md "Ironing". CLEANER_MIN_PAYOUT_PER_ORDER_ORE is the "minst 350 kr per oppdrag" cleaner marketing leads with (70 % of the 500 kr order minimum)
+│   │   ├── company.ts      # COMPANY (legal name, org number, postal address, phone, e-mail, Instagram/Facebook URLs) + formatOrgNumber/phoneHref/formatPostalAddress — the ONLY place these values live; footer, /kontakt, the legal pages and bli-renser/success read from it. Confirm the values before launch
+│   │   ├── pricing.ts      # Pricing constants and both calculators: calculateOrderPrice (cleaner-binding: per 5kg load + 3 ironing groups) and calculateCustomerEstimate (customer estimate: per bag/set/piece). Ironing groups exist in the model but are NOT offered in the first version — hidden on every public surface, see BUSINESS_LOGIC.md "Ironing". CLEANER_MIN_PAYOUT_PER_ORDER_ORE is the "minst 350 kr per oppdrag" cleaner marketing leads with (70 % of the 500 kr order minimum)
+│   │   └── terms.ts        # TERMS_VERSION (ISO date of the current /salgsvilkar text, bump on every terms change) + formatTermsVersion; stamped into payment_agreements.provider_metadata.terms_consent at checkout
 │   ├── database/           # Database CRUD operations
+│   │   ├── admin-attention.ts  # Today/overdue/waiting/failed lists for /admin and the digest; every list is `T[] | null` (null = query failed). Rules: overdue pickup = scheduled_date < today (Oslo) and not picked up; ready too long = ready_for_delivery_at older than READY_TOO_LONG_DAYS; payments = failed + orphan pending + stale pending (STALE_PENDING_DAYS, lib/utils/payment-status.ts); "order not generated" = active subscription/agreement older than ACTIVATION_GRACE_MINUTES with no (active) order. delivery_date is never used for lateness
 │   │   ├── cleaners.ts     # Cleaner queries & matching
 │   │   ├── customers.ts    # Customer queries
 │   │   ├── orders.ts       # Order CRUD
@@ -150,6 +158,7 @@ src/
 │   │       ├── service.ts          # High-level Vipps service layer
 │   │       └── config.ts           # Vipps configuration validation
 │   ├── services/
+│   │   ├── admin-digest.ts      # buildAdminDigest(attention, { appUrl, now }) → { subject, text } (pure, plain text)
 │   │   ├── order-generation.ts  # Subscription to orders logic
 │   │   └── staff-accounts.ts    # Staff (driver/admin) account creation: auth user + role flip + cleanup
 │   ├── supabase/
@@ -169,7 +178,7 @@ src/
 └── proxy.ts                # Supabase session refresh + pre-launch gate
 ```
 
-**Customer-facing wording:** customers count **poser** (`PRICING.per_bag_ore`), and the per-bag price is never shown without the order minimum next to it ("119 kr per pose, minste bestilling 500 kr") — on its own it reads as a 119 kr order. Cleaners count **vask** — one full machine, up to 5 kg (`PRICING.price_per_load_ore`); mention the kilos only where a cleaner needs the definition (FAQ, payout box, dashboard), never on customer surfaces. Cleaner earnings are quoted as the guaranteed minimum per order (`CLEANER_MIN_PAYOUT_PER_ORDER_ORE`), not a per-load figure. "Nabo" is a sales pitch, not a description: fine in headlines, tab titles, share images and cross-promos, but whoever actually washes is "en lokal renser" / "en godkjent renser i området" — never "i nabolaget". Don't promise turnaround times, free delivery, ironing or a quality guarantee anywhere — see the honest-claims note in `components/landing/Hero.tsx`.
+**Customer-facing wording:** customers count **poser** (`PRICING.per_bag_ore`), and the per-bag price is never shown without the order minimum next to it ("119 kr per pose, minste bestilling 500 kr") — on its own it reads as a 119 kr order. Cleaners count **vask** — one full machine, up to 5 kg (`PRICING.price_per_load_ore`); mention the kilos only where a cleaner needs the definition (FAQ, payout box, dashboard), never on customer surfaces. Cleaner earnings are quoted as the guaranteed minimum per order (`CLEANER_MIN_PAYOUT_PER_ORDER_ORE`), not a per-load figure. "Nabo" is a sales pitch, not a description: fine in headlines, tab titles, share images and cross-promos, but whoever actually washes is "en lokal renser" / "en godkjent renser i området" — never "i nabolaget". Don't promise turnaround times, free delivery, ironing or a quality guarantee anywhere — see the honest-claims note in `components/coming-soon/HowItWorksStory.tsx`.
 
 ## Architecture Patterns
 
@@ -180,8 +189,9 @@ Server actions handle mutations from the UI:
 - `app/orders/actions.ts` - Subscription creation, Vipps agreement creation, customer queries
 - `app/auth/actions.ts` - Public signup pre-check (`checkSignupAvailabilityAction`): both signup forms call it before `supabase.auth.signUp` because Supabase Auth hides which constraint failed inside `handle_new_user`; the `signUp` result is then mapped by `lib/auth/signup-errors.ts`
 - `app/bli-renser/actions.ts` - Cleaner profile creation (`createCleanerProfileAction`) and the step-1 tax id pre-check (`checkTaxIdAvailabilityAction`): `cleaners.tax_id` is UNIQUE, so the business form checks it before advancing instead of letting the final insert fail on step 5; the action also maps a `23505` from the insert to the same message as a race fallback; and the step-3 photo helper (`recognizeMachineAction`): guards with `assertRole(["cleaner"])`, validates the base64 payload, and returns `lib/ai/machine-recognition.ts`'s `{ status: 'ok' | 'no_machine' | 'unavailable' }` result for the form to pre-fill from
-- `app/admin/orders/actions.ts` - Cleaner (re)assignment, admin order edits (dates, address)
-- `app/admin/cleaners|drivers|admins|promo-codes/actions.ts` - Admin dashboard mutations (cleaner activation, staff account create/edit, promo code create/edit)
+- `app/dashboard/settings/actions.ts` - Customer account page: `updateCustomerContactAction` (name/phone → `updateUserContact`, phone stored as `+47` + 8 digits) and `updateSubscriptionAddressAction` (rewrites `order_defaults.initial_address` on the active subscription — city derived from the postal code must equal `location_city`; validated via `validateAddress`, coordinates replaced; optional copy onto `pending_assignment`/`pickup_scheduled` orders via `updateUpcomingOrdersAddressBySubscriptionId`). Password change is client-side (`supabase.auth.updateUser`), no action
+- `app/admin/orders/actions.ts` - Cleaner (re)assignment, admin order edits (dates, address), `retryChargeAction` (re-creates the Vipps charge for an order with no live payment — gated by `hasLivePayment` in `lib/utils/payment-status.ts`), `cancelOrderAdminAction` (pre-pickup only, reason required → `cancellation_reason`, no 24 h rule, rolling window regenerates for an active subscription), `overrideOrderPriceAction` (`in_cleaning`/`ready_for_delivery` with no live payment; same formula as the cleaner via `calculateOrderPrice` + `applyPromoDiscount`, writes `updateOrderPricingByAdmin`), `adminMarkReadyAction` (exit for an order stuck in `in_cleaning` — shares `lib/services/ready-order.ts` with the cleaner's «Marker som klar», so it charges the customer), `updateAdminNotesAction` (`orders.admin_notes`, any status)
+- `app/admin/cleaners|drivers|admins|promo-codes/actions.ts` - Admin dashboard mutations (cleaner approve/deactivate + `rejectCleanerAction` with a required reason, staff account create/edit, promo code create/edit)
 
 **Note:** Vipps agreement creation uses server actions (not API routes) for consistency with the codebase pattern. API routes are only used where external services need to call in (webhooks, callbacks, cron).
 
@@ -202,11 +212,11 @@ All database operations use dedicated functions in `lib/database/`:
 
 ### Middleware
 
-`src/proxy.ts` (Next 16 proxy convention) refreshes Supabase auth sessions on every request and applies the **pre-launch gate** (`src/lib/prelaunch.ts`), keyed on the hostname: on `nooracare.no` / `www.nooracare.no`, anonymous visitors only reach `/`, `/bli-renser`, the legal/contact pages, the price calculator, `/admin` and `/auth/callback`; login, signup, the order flow and the parked `*/lansering` pages redirect to `/`. `test.nooracare.no`, localhost and previews are never gated — the full app lives on staging until launch. Signed-in users pass. Delete the gate at launch. Role guards live in `src/lib/auth/require-role.ts` (`requireRole` for pages/layouts, `assertRole` for server actions); privileged roles (`admin`, `driver`) can never be chosen at signup — the `handle_new_user` trigger only honors `customer`/`cleaner` metadata.
+`src/proxy.ts` (Next 16 proxy convention) refreshes Supabase auth sessions on every request and applies the **pre-launch gate** (`src/lib/prelaunch.ts`), keyed on the hostname: on `nooracare.no` / `www.nooracare.no`, anonymous visitors only reach `/`, `/bli-renser`, the legal/contact pages, the price calculator, `/admin`, `/auth/callback`, `/auth/error` and the password-reset pages (`/auth/forgot-password`, `/auth/reset-password` — the recovery e-mail must work before launch); login, signup, the order flow and the parked `/bli-renser/lansering` page redirect to `/`. `test.nooracare.no`, localhost and previews are never gated — the full app lives on staging until launch. Signed-in users pass. Delete the gate at launch. Role guards live in `src/lib/auth/require-role.ts` (`requireRole` for pages/layouts, `assertRole` for server actions); privileged roles (`admin`, `driver`) can never be chosen at signup — the `handle_new_user` trigger only honors `customer`/`cleaner` metadata.
 
 ## Maps & Geocoding
 
-Addresses are geocoded into `latitude`/`longitude` so the cleaner dashboard can build an optimized pickup route.
+Addresses are geocoded into `latitude`/`longitude` so the (dormant) driver dashboard can build an optimized route and the cleaner gets a map link.
 
 - **Service**: `lib/maps/geocoding.ts` (`geocodeAddress` → `{ latitude, longitude } | null`, never throws) and `lib/maps/config.ts` (`GOOGLE_MAPS_API_KEY`).
 - **Geocode at the source, propagate by copy**: addresses are geocoded once where they enter the system — checkout and address edit (`app/orders/actions.ts`) and cleaner onboarding (`app/bli-renser/actions.ts`). Customer coords are stored in `subscriptions.order_defaults.initial_address` and copied onto every generated order by `lib/services/order-generation.ts`. Cleaner coords live on the `cleaners` row.
@@ -223,6 +233,12 @@ Cleaner onboarding step 3 can pre-fill the washing machine fields from a photo. 
 - **Graceful degradation**: missing key, API error, refusal, unparsable output → `unavailable`; a photo without a washing machine → `no_machine`. Both show a short message; the step is always completable manually.
 - **Env**: `ANTHROPIC_API_KEY` (optional; see `ENVIRONMENTS.md`).
 
+## Admin Digest
+
+Every day at 06:00 UTC a Vercel cron (`vercel.json` → `crons`, Production only) calls `GET /api/cron/admin-digest` with `Authorization: Bearer $CRON_SECRET`. The route e-mails the same lists `/admin` shows (`lib/database/admin-attention.ts` → `lib/services/admin-digest.ts`) as plain text to every `users` row with `role = 'admin'` and `deleted_at IS NULL`, through the Resend REST API with `fetch` (no SDK). It is sent even when there is nothing to do, so a missing e-mail means the cron or sender is broken. Instant alerts (#40, #42) are not built; the webhook's `TODO: Send admin notification` comments stand.
+
+- **Env**: `CRON_SECRET`, `RESEND_API_KEY`, optional `ADMIN_DIGEST_FROM` (see `ENVIRONMENTS.md`). The `nooracare.no` sending domain is verified in Resend (shared with the Auth e-mails).
+
 ## Payment Processing
 
 ### Vipps Integration
@@ -237,7 +253,7 @@ The platform uses Vipps Recurring API for production payments with DIRECT_CAPTUR
 - `lib/payments/vipps/service.ts` - High-level service layer orchestrating Vipps + database operations
 - `lib/payments/vipps/config.ts` - Configuration validation and environment checks
 - `app/orders/actions.ts` - Server actions including checkout flow (creates PaymentAgreement + optional Subscription)
-- `app/api/webhooks/vipps/recurring/route.ts` - **Critical** webhook handler for Recurring API events - handles agreement activation, order generation, and charge events
+- `app/api/webhooks/vipps/recurring/route.ts` - **Critical** webhook handler for Recurring API events - handles agreement activation, order generation, and charge events. Activation is idempotent (status-guarded updates + `getOrderByPaymentAgreementId` existence check — Vipps delivers at-least-once). Answers 500 only on transient failures so Vipps retries; permanent conditions (unknown agreement/charge, malformed body) get 200 because Vipps holds back later webhooks until it sees a 200
 - `lib/services/order-generation.ts` - Order generation service (calculates pickup dates based on subscription frequency)
 
 
@@ -246,12 +262,13 @@ The platform uses Vipps Recurring API for production payments with DIRECT_CAPTUR
 - `VIPPS_CLIENT_SECRET` - Vipps API client secret
 - `VIPPS_SUBSCRIPTION_KEY` - Vipps API subscription key
 - `VIPPS_MERCHANT_SERIAL_NUMBER` - Vipps merchant serial number (MSN)
-- `VIPPS_API_URL` - Vipps API base URL (test: https://apitest.vipps.no, prod: https://api.vipps.no)
+- `VIPPS_API_URL` - Vipps API base URL — **required, no default**: exactly `https://apitest.vipps.no` (test) or `https://api.vipps.no` (prod). Anything else makes `createVippsRecurringClient()` throw (fail closed, see `lib/payments/vipps/config.ts` `getVippsApiUrl`)
 - `VIPPS_WEBHOOK_SECRET` - Shared webhook secret for HMAC-SHA256 signature verification
 - `VIPPS_WEBHOOK_SECRET_RECURRING` - Optional: Recurring API webhook-specific secret (overrides VIPPS_WEBHOOK_SECRET)
+- `NEXT_PUBLIC_VIPPS_ALLOW_FORCE_ACCEPT` - Opt-in (`true`) for the test-only force-accept helper (`forceAcceptAgreementAction` + the "Auto-godkjenn avtale" checkbox on `/orders/confirm`). Honoured only together with the test `VIPPS_API_URL` (`isVippsForceAcceptAllowed`). Set locally and on Vercel Preview (`develop`); never in Production
 
 **Webhook Configuration:**
-The platform exposes a single webhook endpoint to register in the Vipps dashboard:
+The platform exposes a single webhook endpoint, registered per Vipps environment with `npm run webhooks -- register …` (`scripts/manage-webhooks.ts`; the Vipps portal only lists webhooks). Production registration + verification steps live in `ENVIRONMENTS.md` → Launch checklist:
 
 1. **Recurring API Webhook**: `https://yourdomain.com/api/webhooks/vipps/recurring`
    - Subscribe to all `recurring.charge.*` events (reserved, captured, canceled, refunded, failed, creation-failed)
@@ -267,7 +284,7 @@ The webhook uses HMAC-SHA256 signature verification with `VIPPS_WEBHOOK_SECRET` 
 - **New Table:** `payment_agreements` - Decoupled Vipps agreement lifecycle from subscriptions
   - `provider_agreement_id` - Vipps agreement ID (unique)
   - `status` - pending/active/stopped/expired
-  - `provider_metadata` - For one-time orders, stores `order_defaults`
+  - `provider_metadata` - Always stores `terms_consent` (`{ terms_version, accepted_at, early_start_requested }`, written by `createSubscriptionAction`; `TERMS_VERSION` lives in `lib/config/terms.ts` and also renders the "Sist oppdatert" date on `/salgsvilkar`); for one-time orders also stores `order_defaults`; `promo` when a code was applied
 - **Removed Tables:** `subscription_plans`, `bag_deliveries` (FLEXIBLE pricing eliminated need for plans)
 - **Removed Fields:** `subscriptions.provider_agreement_id` (moved to `payment_agreements`), `subscriptions.next_billing_date`, `subscriptions.billing_cost_ore`, `subscriptions.recurring_weekday`, `subscriptions.expires_at`, `orders.plan_id`, `orders.extra_kg`, `orders.delicate_items_count`
 - `subscriptions.payment_agreement_id` - FK to `payment_agreements` (replaces `provider_agreement_id`)
@@ -282,6 +299,7 @@ The webhook uses HMAC-SHA256 signature verification with `VIPPS_WEBHOOK_SECRET` 
 - `orders.payment_agreement_id` - FK to `payment_agreements` (for one-time orders without subscription)
 - `orders.customer_estimate` - (JSONB, nullable) Customer's self-reported selection from checkout: `{bags, bedding_sets, iron_everyday_items, iron_formal_items, iron_bedding, estimated_total_ore}`. Informational — the binding price is set by the cleaner
 - `orders.total_cost_ore` - **NULLABLE** (NULL until cleaner sets price)
+- `orders.cleaner_payout_ore` - **NULLABLE** cleaner's share in øre, stamped with `total_cost_ore` at pricing time from `calculateOrderPrice().cleaner_payout_ore` (full price, before promo); frozen with the price. Paid monthly by manual bank transfer by the 10th of the next month — the sentence cleaners see is `CLEANER_PAYOUT_TERMS_TEXT` in `lib/config/pricing.ts`; monthly sums in `lib/utils/payout.ts`
 - `orders.actual_weight_kg` - Actual weight after pickup
 - `orders.pricing_notes` - Cleaner's pricing explanation
 - `orders.price_calculated_at` - When cleaner calculated price
@@ -291,13 +309,13 @@ The webhook uses HMAC-SHA256 signature verification with `VIPPS_WEBHOOK_SECRET` 
 **Promo Codes (first-order discounts):**
 - **New Tables:** `promo_codes` (shared codes: percentage/fixed, optional cap, validity window, optional global redemption cap) and `promo_code_redemptions` (ledger; `UNIQUE(promo_code_id, customer_id)` enforces once-per-customer)
 - **New Field:** `orders.promo` (JSONB) - locked discount snapshot stamped onto the **first** order only; `discount_ore` filled in when the cleaner prices the order
-- Flow: customer enters code at checkout → validated + snapshot locked into `payment_agreements.provider_metadata.promo` → stamped onto first order + redemption recorded in the agreement-activated webhook → discount applied when cleaner prices the order (`total_cost_ore` = full − discount; **platform-absorbed**, cleaner payout unchanged; charge can fall below the 500 kr minimum, and a 0 total skips the Vipps charge)
+- Flow: customer enters code at checkout → validated + snapshot locked into `payment_agreements.provider_metadata.promo` → stamped onto first order + redemption recorded in the agreement-activated webhook → discount applied when cleaner prices the order (`total_cost_ore` = full − discount; **platform-absorbed**, `cleaner_payout_ore` stays the share of the full price; charge can fall below the 500 kr minimum, and a 0 total skips the Vipps charge)
 - See `lib/database/promo-codes.ts`, `computeDiscountOre` in `lib/config/pricing.ts`, and [BUSINESS_LOGIC.md](./BUSINESS_LOGIC.md#promo-codes--discounts)
 
 **Subscription Cancellation:**
 - Entry point: the dashboard subscription strip → `/dashboard/subscription` (details) → `/dashboard/subscription/cancel` (confirmation) → success page. Action: `cancelSubscriptionAction` in `app/dashboard/subscription/actions.ts`.
 - **In-flight orders survive:** only not-yet-picked-up orders (`pending_assignment`, `pickup_scheduled`) are cancelled — `lib/database/orders.ts`'s `cancelOrdersBySubscriptionId`. An order already `picked_up` or beyond is never cancelled by subscription cancellation; it completes and is charged normally, becoming the customer's last order. Unlike order-level cancellation, there is no 24h-notice exception — the split is purely by status. `getActiveOrdersBySubscriptionId` reports what's still non-terminal, used to detect whether an in-flight order remains.
-- **Deferred Vipps stop:** if an in-flight order exists at cancel time, the subscription flips to `cancelled` immediately (blocking new order generation via the status guard in `checkAndGenerateNextOrders`), but the Vipps agreement is only stopped once that order settles — otherwise the charge for it (created when the cleaner marks it ready) would fail. `stopVippsAgreementForCancelledSubscription` (`lib/payments/vipps/service.ts`) does the stop; it's safe to call unconditionally (no-ops unless the subscription is cancelled, its agreement is still active, no active orders remain, and **no Vipps charge for the subscription's orders is still pending/authorized** — stopping the agreement would cancel a pending charge) and is called from two places: the charge-captured webhook handler and `completeDeliveredOrder` (`lib/services/complete-order.ts`), which runs it unconditionally on every delivery completion. Between them every ordering is covered: capture-before-delivery (webhook no-ops on the active order, completion stops), same-day delivery with the charge still pending (completion defers, the webhook stops after capture), and 0-total promo orders with no charge event (completion stops).
+- **Deferred Vipps stop:** if an in-flight order exists at cancel time, the subscription flips to `cancelled` immediately (blocking new order generation via the status guard in `checkAndGenerateNextOrders`), but the Vipps agreement is only stopped once that order settles — otherwise the charge for it (created when the cleaner marks it ready) would fail. `stopVippsAgreementForCancelledSubscription` (`lib/payments/vipps/service.ts`) does the stop; it's safe to call unconditionally (no-ops unless the subscription is cancelled, its agreement is still active, no active orders remain, and **no Vipps charge for the subscription's orders is still pending/authorized** — stopping the agreement would cancel a pending charge; orphan `pending` rows with no `provider_reference` older than 15 min are ignored, see `isOrphanPendingPayment` in `lib/utils/payment-status.ts`) and is called from two places: the charge-captured webhook handler and `completeDeliveredOrder` (`lib/services/complete-order.ts`), which runs it unconditionally on every delivery completion. Between them every ordering is covered: capture-before-delivery (webhook no-ops on the active order, completion stops), same-day delivery with the charge still pending (completion defers, the webhook stops after capture), and 0-total promo orders with no charge event (completion stops).
 
 **Migration history:** The migration history was squashed into a single baseline
 before production launch — `supabase/migrations/20260606233033_initial_schema.sql`

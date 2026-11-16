@@ -2,6 +2,8 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { MarketingNav } from '@/components/landing/MarketingNav';
 import { Footer } from "@/components/landing/Footer";
+import { formatTermsVersion } from "@/lib/config/terms";
+import { CompanyContactCard } from "@/components/legal/CompanyContactCard";
 
 export const metadata: Metadata = {
   title: "Salgsvilkår | NooraCare",
@@ -33,7 +35,7 @@ export default function SalgsvilkarPage() {
                 Salgsvilkår
               </h1>
               <p className="text-sm text-medium-gray">
-                Sist oppdatert: 23.05.2026
+                Sist oppdatert: {formatTermsVersion()}
               </p>
             </header>
 
@@ -66,45 +68,7 @@ export default function SalgsvilkarPage() {
                 NooraCare er ansvarlig for selve avtaleforholdet,
                 betalingsformidling og kundeforholdet.
               </p>
-              <div className="rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-6 shadow-[var(--shadow-card)] backdrop-blur">
-                <p className="mb-3 text-sm font-medium text-medium-gray">
-                  Kontakt- og selskapsinformasjon:
-                </p>
-                <ul className="space-y-1.5 text-sm text-dark-gray">
-                  <li>
-                    <span className="font-medium">Selskapsnavn:</span> NooraCare
-                    AS
-                  </li>
-                  <li>
-                    <span className="font-medium">Organisasjonsnummer:</span>{" "}
-                    836 788 842
-                  </li>
-                  {/* TODO: replace with real postal address before production – keep in sync with Footer.tsx */}
-                  <li>
-                    <span className="font-medium">Postadresse:</span> Breimyra
-                    232, 5134 Flaktveit
-                  </li>
-                  {/* TODO: replace with real phone number before production – keep in sync with Footer.tsx */}
-                  <li>
-                    <span className="font-medium">Telefon:</span>{" "}
-                    <a
-                      href="tel:+4797616468"
-                      className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
-                    >
-                      +47 976 16 468
-                    </a>
-                  </li>
-                  <li>
-                    <span className="font-medium">E-post:</span>{" "}
-                    <a
-                      href="mailto:post@nooracare.no"
-                      className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
-                    >
-                      post@nooracare.no
-                    </a>
-                  </li>
-                </ul>
-              </div>
+              <CompanyContactCard label="Kontakt- og selskapsinformasjon:" />
             </section>
 
             {/* 2. Service description */}
@@ -113,8 +77,8 @@ export default function SalgsvilkarPage() {
                 2. Tjenestebeskrivelse
               </h2>
               <p className="leading-relaxed text-dark-gray mb-4">
-                NooraCare formidler henting, vask, eventuell stryking og
-                levering av klesvask i Bergen og Oslo. Tjenesten kan benyttes på
+                NooraCare formidler henting, vask og levering av klesvask i
+                Bergen og Oslo. Tjenesten kan benyttes på
                 to måter:
               </p>
               <ul className="space-y-3 leading-relaxed text-dark-gray list-disc list-outside pl-6">
@@ -154,8 +118,7 @@ export default function SalgsvilkarPage() {
               <p className="leading-relaxed text-dark-gray">
                 NooraCare bruker fleksibel prising: estimat vises ved
                 bestilling, men endelig pris fastsettes av renseren etter
-                henting basert på faktisk vekt og tilleggstjenester (for
-                eksempel stryking eller spesialvask).
+                henting basert på faktisk mengde vask.
               </p>
             </section>
 
@@ -166,10 +129,8 @@ export default function SalgsvilkarPage() {
               </h2>
               <p className="leading-relaxed text-dark-gray">
                 Bestilling skjer ved å fullføre bestillingsflyten på
-                nettstedet. Bindende avtale anses inngått når du har godkjent
-                betaling i Vipps og NooraCare har bekreftet bestillingen ved
-                å sende bekreftelse til den e-postadressen du oppga ved
-                registrering.
+                nettstedet. Bindende avtale anses inngått når betalingsavtalen
+                er godkjent i Vipps og bestillingen vises i dashbordet ditt.
               </p>
             </section>
 
@@ -199,17 +160,17 @@ export default function SalgsvilkarPage() {
                 6. Henting og levering
               </h2>
               <p className="leading-relaxed text-dark-gray mb-4">
-                Henting skjer på avtalt dato innenfor det hentevinduet som
-                vises i bestillingsbekreftelsen. Vasket og eventuelt stryket
-                tøy leveres tilbake til samme adresse innenfor avtalt
-                leveringsvindu.
+                Henting skjer på datoen du har valgt, innenfor hentevinduet
+                som vises i bestillingen. Renseren henter tøyet og leverer det
+                vaskede tøyet tilbake til samme adresse. Leveringsdatoen som
+                vises er et estimat, ikke en fast avtale.
               </p>
               <p className="leading-relaxed text-dark-gray">
-                Du er ansvarlig for å være tilgjengelig på adressen i avtalte
-                tidsrom, eller for å gi tydelige instruksjoner for
-                kontaktløs henting/levering. Hvis henting eller levering ikke
-                kan gjennomføres på grunn av forhold på din side, kan
-                NooraCare belaste et bomturgebyr som angitt i prislisten.
+                Du er ansvarlig for å være tilgjengelig på adressen i
+                hentevinduet, eller for å gi tydelige instruksjoner for
+                kontaktløs henting og levering. Hvis henting ikke kan
+                gjennomføres, tar renseren kontakt med deg, og du kan flytte
+                hentedagen i bestillingen din.
               </p>
             </section>
 

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { ClipboardList, Coins, Truck } from 'lucide-react';
 import { CLEANER_MIN_PAYOUT_PER_ORDER_ORE, PRICING, formatKr } from '@/lib/config/pricing';
+import { PICKUP_TIME_RANGE } from '@/lib/config/pickup-times';
 import {
   ACCENT_CHIPS,
   ComingSoonHero,
@@ -33,8 +34,8 @@ const WHY = [
   },
   {
     icon: Truck,
-    title: 'Ingen kjøring',
-    text: 'Sjåføren vår leverer og henter tøyet hjemme hos deg. Du trenger ikke bil.',
+    title: 'Du henter og leverer',
+    text: 'Du henter tøyet hos kunden og leverer det rent tilbake. Vi finner kundene for deg.',
   },
   {
     icon: ClipboardList,
@@ -49,16 +50,16 @@ const STEPS = [
     text: 'Vi kobler deg til kunder i ditt område.',
   },
   {
-    title: 'Sjåføren leverer tøyet',
-    text: 'Tøyet hentes hos kunden og leveres hjem til deg.',
+    title: 'Du henter tøyet',
+    text: `Hent posene hjemme hos kunden på dagen kunden har valgt, mellom kl. ${PICKUP_TIME_RANGE.start} og ${PICKUP_TIME_RANGE.end}.`,
   },
   {
     title: 'Du vasker hjemme',
     text: 'Vask, tørk og brett i din egen maskin, så tøyet er klart til levering i tide.',
   },
   {
-    title: 'Sjåføren henter det rene tøyet',
-    text: 'Marker oppdraget som klart, så tar vi det videre til kunden.',
+    title: 'Du leverer det rene tøyet',
+    text: 'Marker oppdraget som klart, og lever tøyet tilbake til kunden.',
   },
 ];
 
@@ -78,14 +79,14 @@ export default async function CleanerComingSoonPage() {
         badge={`Bli renser · åpner ${LAUNCH_WINDOW_LABEL}`}
         title="Tjen penger på"
         highlight="vaskemaskinen din."
-        subtitle={`Vask tøy hjemme i din egen maskin og tjen minst ${MIN_PAYOUT} per oppdrag. Vi henter og leverer. Få beskjed først når registreringen åpner i Bergen og Oslo.`}
+        subtitle={`Vask tøy hjemme i din egen maskin og tjen minst ${MIN_PAYOUT} per oppdrag. Vi finner kundene og tar betalingen. Få beskjed først når registreringen åpner i Bergen og Oslo.`}
         count={count}
       />
 
       {/* Why */}
       <section className="border-b border-lin/70 py-12">
         <div className="mx-auto max-w-5xl px-5">
-          <SectionHeading eyebrow="Hvorfor NooraCare" title="Du vasker. Vi tar resten." />
+          <SectionHeading eyebrow="Hvorfor NooraCare" title="Du vasker og leverer. Vi tar resten." />
           <div className="grid gap-3 sm:grid-cols-3">
             {WHY.map((item, index) => (
               <div key={item.title} className={comingSoonCard}>

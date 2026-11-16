@@ -11,6 +11,7 @@ import { FormRadioGroup } from '@/components/forms/FormRadioGroup';
 import { validateTaxId, validateBankAccount, taxIdTakenMessage } from '@/lib/validation/cleaner';
 import { checkTaxIdAvailabilityAction } from '../../actions';
 import type { CleanerBusinessType } from '@/types/database';
+import { CLEANER_PAYOUT_TERMS_TEXT } from '@/lib/config/pricing';
 
 const digitsOnly = (value: string) => value.replace(/\D/g, '');
 
@@ -171,7 +172,7 @@ function BusinessInfoForm() {
         <CleanerFlowSection
           icon={<Landmark className="size-5" />}
           title="Bankkonto"
-          hint="Hit utbetaler vi din andel av hvert fullførte oppdrag."
+          hint={CLEANER_PAYOUT_TERMS_TEXT}
           delay={120}
         >
           <FormInput

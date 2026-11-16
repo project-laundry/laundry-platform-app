@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
+  hasAnyWeekday,
+  normalizeWeeklySchedule,
   validateNorwegianPhone,
   validateBankAccount,
   validateTaxId,
@@ -68,5 +70,46 @@ describe('validateYear', () => {
     expect(validateYear(String(new Date().getFullYear() + 1))).toBe(false);
     expect(validateYear('20')).toBe(false);
     expect(validateYear('abcd')).toBe(false);
+  });
+});
+
+describe('normalizeWeeklySchedule', () => {
+  it('coerces every key to a real boolean and drops unknown keys', () => {
+    const result = normalizeWeeklySchedule({
+      mon: true,
+      tue: 'true',
+      wed: 1,
+      thu: undefined,
+      sat: true,
+      extra: true,
+    } as unknown as Parameters<typeof normalizeWeeklySchedule>[0]);
+
+    expect(result).toEqual({
+      mon: true,
+      tue: false,
+      wed: false,
+      thu: false,
+      fri: false,
+      sat: true,
+      sun: false,
+    });
+    expect('extra' in result).toBe(false);
+  });
+
+  it('returns an all-false schedule for null or undefined input', () => {
+    const allFalse = { mon: false, tue: false, wed: false, thu: false, fri: false, sat: false, sun: false };
+    expect(normalizeWeeklySchedule(null)).toEqual(allFalse);
+    expect(normalizeWeeklySchedule(undefined)).toEqual(allFalse);
+  });
+});
+
+describe('hasAnyWeekday', () => {
+  it('is true when at least one day is selected and false otherwise', () => {
+    expect(
+      hasAnyWeekday({ mon: false, tue: false, wed: false, thu: false, fri: false, sat: false, sun: true })
+    ).toBe(true);
+    expect(
+      hasAnyWeekday({ mon: false, tue: false, wed: false, thu: false, fri: false, sat: false, sun: false })
+    ).toBe(false);
   });
 });

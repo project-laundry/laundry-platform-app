@@ -111,6 +111,9 @@ export interface Cleaner {
   updated_at: string;
   approved_at: string | null;
   suspended_at: string | null;
+  // Set by the admin «Avvis søknaden» action; both cleared again when the cleaner is approved
+  rejected_at: string | null;
+  rejection_reason: string | null;
   deleted_at: string | null;
 }
 
@@ -248,6 +251,9 @@ export interface Order {
   pricing_notes: string | null;
   price_calculated_at: string | null;
   total_cost_ore: number | null;
+  // Cleaner's share in øre, stamped with total_cost_ore at pricing time (before any
+  // platform-absorbed promo discount). NULL until priced. Owed once completed.
+  cleaner_payout_ore: number | null;
   // Promo code applied at checkout (first order only); null if none
   promo: OrderPromo | null;
   // Other
@@ -260,6 +266,8 @@ export interface Order {
   completed_at: string | null;
   cancelled_at: string | null;
   cancellation_reason: string | null;
+  // Internal admin notes — admin dashboard only, never shown to customers or cleaners
+  admin_notes: string | null;
   mission_accepted_at: string | null;
   created_at: string;
   updated_at: string;
@@ -280,6 +288,7 @@ export interface Payment {
   captured_at: string | null;
   failed_at: string | null;
   failure_reason: string | null;
+  cancelled_at: string | null;
   refunded_at: string | null;
   refund_amount_ore: number | null;
   refund_reason: string | null;
@@ -325,6 +334,20 @@ export interface OrderPromo {
 }
 
 // =============================================================================
+/**
+ * Checkout consent stored in payment_agreements.provider_metadata.terms_consent.
+ * Written once by createSubscriptionAction (server clock, server-side version
+ * constant) and never updated. early_start_requested records that the customer
+ * expressly asked for the service to start within the 14-day withdrawal period
+ * and acknowledged the right lapses once the wash is completed (angrerettloven
+ * § 22 c); the action rejects checkouts without it, so it is always true here.
+ */
+export interface TermsConsent {
+  terms_version: string; // TERMS_VERSION (ISO date) at acceptance time
+  accepted_at: string; // ISO timestamp, server clock
+  early_start_requested: true;
+}
+
 // HELPER TYPES FOR RELATIONSHIPS
 // =============================================================================
 

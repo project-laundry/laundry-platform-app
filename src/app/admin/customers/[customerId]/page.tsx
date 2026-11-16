@@ -15,8 +15,9 @@ import {
   getSubscriptionStatusLabel,
   getSubscriptionStatusVariant,
 } from '@/lib/utils/subscription-status';
-import { formatKr } from '@/lib/config/pricing';
+import { IRONING_OFFERED, formatKr } from '@/lib/config/pricing';
 import type { OrderWithRelations } from '@/types/database';
+import { requireRole } from '@/lib/auth/require-role';
 
 const HISTORY_LIMIT = 10;
 
@@ -63,6 +64,7 @@ export default async function AdminCustomerDetailPage({
 }: {
   params: Promise<{ customerId: string }>;
 }) {
+  await requireRole(['admin']);
   const { customerId } = await params;
 
   const customer = await getCustomerWithUserById(customerId);
@@ -139,7 +141,7 @@ export default async function AdminCustomerDetailPage({
                 <p>
                   {defaults.initial_address.street}, {defaults.initial_address.postal_code}{' '}
                   {defaults.initial_address.city}
-                  {defaults.default_needs_ironing ? ' · Stryking' : ''}
+                  {IRONING_OFFERED && defaults.default_needs_ironing ? ' · Stryking' : ''}
                 </p>
               </div>
             )}

@@ -2,6 +2,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { Payment, PaymentStatus, PaymentType, PaymentProvider, Customer, User, Order } from '@/types/database';
+import { orphanPendingCutoffIso } from '@/lib/utils/payment-status';
 
 export interface CreatePaymentData {
   customer_id: string;
@@ -46,32 +47,6 @@ export async function createPayment(data: CreatePaymentData): Promise<Payment | 
 // =============================================================================
 // VIPPS PAYMENT METADATA MANAGEMENT
 // =============================================================================
-
-/**
- * Update payment with provider metadata (for Vipps charge IDs, etc.)
- */
-export async function updatePaymentWithMetadata(
-  paymentId: string,
-  metadata: Record<string, unknown>
-): Promise<Payment | null> {
-  const supabase = await createAdminClient();
-
-  const { data, error } = await supabase
-    .from('payments')
-    .update({
-      provider_metadata: metadata,
-    })
-    .eq('id', paymentId)
-    .select()
-    .single();
-
-  if (error) {
-    console.error('Error updating payment metadata:', error);
-    return null;
-  }
-
-  return data;
-}
 
 /**
  * Update payment with provider reference and metadata
@@ -188,6 +163,72 @@ export async function failPaymentWithMetadata(
   return data;
 }
 
+/**
+ * Mark payment cancelled (Vipps charge-canceled webhook)
+ */
+export async function cancelPaymentWithMetadata(
+  paymentId: string,
+  metadata: Record<string, unknown>
+): Promise<Payment | null> {
+  const supabase = await createAdminClient();
+
+  const { data, error } = await supabase
+    .from('payments')
+    .update({
+      status: 'cancelled' as PaymentStatus,
+      cancelled_at: new Date().toISOString(),
+      provider_metadata: metadata,
+    })
+    .eq('id', paymentId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error cancelling payment:', error);
+    return null;
+  }
+
+  return data;
+}
+
+/**
+ * Record a refund (Vipps charge-refunded webhook).
+ * Always writes refund_amount_ore + refunded_at; the status only becomes
+ * 'refunded' when the whole amount came back (fullRefund). A partial refund
+ * keeps the current status (normally 'captured').
+ */
+export async function refundPaymentWithMetadata(
+  paymentId: string,
+  refundAmountOre: number,
+  fullRefund: boolean,
+  metadata: Record<string, unknown>
+): Promise<Payment | null> {
+  const supabase = await createAdminClient();
+
+  const updates: Record<string, unknown> = {
+    refund_amount_ore: refundAmountOre,
+    refunded_at: new Date().toISOString(),
+    provider_metadata: metadata,
+  };
+  if (fullRefund) {
+    updates.status = 'refunded' as PaymentStatus;
+  }
+
+  const { data, error } = await supabase
+    .from('payments')
+    .update(updates)
+    .eq('id', paymentId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error recording payment refund:', error);
+    return null;
+  }
+
+  return data;
+}
+
 // =============================================================================
 // PAYMENT LOOKUP
 // =============================================================================
@@ -222,6 +263,10 @@ export async function getPaymentByReference(reference: string): Promise<Payment 
  * un-settled (pending/authorized). Used by the deferred agreement stop:
  * stopping a Vipps agreement cancels its still-pending charges, so the stop
  * must wait until every charge has settled.
+ *
+ * Orphan rows — pending, no provider_reference, older than the grace period —
+ * never had a charge at Vipps and never will, so they do not count
+ * (see isOrphanPendingPayment in lib/utils/payment-status.ts).
  */
 export async function hasUnsettledVippsPaymentForSubscription(
   subscriptionId: string
@@ -248,6 +293,7 @@ export async function hasUnsettledVippsPaymentForSubscription(
     .in('order_id', orders.map((order) => order.id))
     .eq('payment_provider', 'vipps')
     .in('status', ['pending', 'authorized'])
+    .or(`provider_reference.not.is.null,created_at.gte.${orphanPendingCutoffIso()}`)
     .limit(1);
 
   if (error) {
@@ -287,7 +333,13 @@ export async function getAllPaymentsWithDetails(options: {
       order:orders!order_id(id, order_number)
     `);
 
-  if (options.status) {
+  if (options.status === 'failed') {
+    // The "Feilet" filter is where the admin overview tile links; it also
+    // lists orphan pending rows, which that tile counts (see isOrphanPendingPayment).
+    query = query.or(
+      `status.eq.failed,and(status.eq.pending,provider_reference.is.null,created_at.lt.${orphanPendingCutoffIso()})`
+    );
+  } else if (options.status) {
     query = query.eq('status', options.status);
   }
 

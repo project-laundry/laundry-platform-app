@@ -1,16 +1,26 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import type { CleanerVerificationStatus } from '@/types/database';
 import { setCleanerActivationAction } from './actions';
+
+/** Button label per current status — the click always flips to the opposite
+ *  side: approved → suspend, everything else → approve. */
+const LABELS: Record<CleanerVerificationStatus, string> = {
+  pending: 'Godkjenn',
+  approved: 'Deaktiver',
+  rejected: 'Godkjenn likevel',
+  suspended: 'Aktiver på nytt',
+};
 
 export function CleanerActivationButton({
   cleanerId,
-  isActive,
+  status,
 }: {
   cleanerId: string;
-  /** true when verification_status === 'approved' */
-  isActive: boolean;
+  status: CleanerVerificationStatus;
 }) {
+  const isActive = status === 'approved';
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -25,7 +35,7 @@ export function CleanerActivationButton({
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="flex flex-col items-start gap-1">
       <button
         type="button"
         onClick={handleClick}
@@ -36,7 +46,7 @@ export function CleanerActivationButton({
             : 'border-cream-dark bg-white text-nordic-blue hover:border-sea-green hover:text-sea-green'
         }`}
       >
-        {isPending ? 'Lagrer...' : isActive ? 'Deaktiver' : 'Aktiver'}
+        {isPending ? 'Lagrer...' : LABELS[status]}
       </button>
       {error && <p className="text-xs text-red-700">{error}</p>}
     </div>

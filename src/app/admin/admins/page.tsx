@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ChevronRight, Inbox, Plus } from 'lucide-react';
 import { getUsersByRole } from '@/lib/database/users';
+import { requireRole } from '@/lib/auth/require-role';
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('no-NO', {
@@ -11,6 +12,7 @@ function formatDate(dateStr: string): string {
 }
 
 export default async function AdminAdminsPage() {
+  await requireRole(['admin']);
   const admins = await getUsersByRole('admin');
 
   return (

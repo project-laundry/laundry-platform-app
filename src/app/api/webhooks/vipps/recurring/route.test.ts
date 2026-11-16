@@ -25,13 +25,14 @@ vi.mock('@/lib/database/payments', () => ({
   getPaymentByReference: vi.fn(),
   capturePaymentWithMetadata: vi.fn(),
   failPaymentWithMetadata: vi.fn(),
-  updatePaymentWithMetadata: vi.fn(),
+  cancelPaymentWithMetadata: vi.fn(),
+  refundPaymentWithMetadata: vi.fn(),
 }));
 vi.mock('@/lib/payments/vipps/service', () => ({
   cancelVippsAgreement: vi.fn(),
   stopVippsAgreementForCancelledSubscription: vi.fn(),
 }));
-vi.mock('@/lib/database/orders', () => ({ createOrder: vi.fn() }));
+vi.mock('@/lib/database/orders', () => ({ createOrder: vi.fn(), getOrderByPaymentAgreementId: vi.fn() }));
 vi.mock('@/lib/database/promo-codes', () => ({ recordPromoRedemption: vi.fn() }));
 
 import { validateVippsWebhook } from '@/lib/payments/vipps/webhook-auth';
@@ -51,10 +52,11 @@ import {
   getPaymentByReference,
   capturePaymentWithMetadata,
   failPaymentWithMetadata,
-  updatePaymentWithMetadata,
+  cancelPaymentWithMetadata,
+  refundPaymentWithMetadata,
 } from '@/lib/database/payments';
 import { cancelVippsAgreement, stopVippsAgreementForCancelledSubscription } from '@/lib/payments/vipps/service';
-import { createOrder } from '@/lib/database/orders';
+import { createOrder, getOrderByPaymentAgreementId } from '@/lib/database/orders';
 import { recordPromoRedemption } from '@/lib/database/promo-codes';
 import { POST } from './route';
 
@@ -125,9 +127,21 @@ const agreementPayload = (overrides: Record<string, unknown> = {}) => ({
 beforeEach(() => {
   vi.clearAllMocks();
   m(validateVippsWebhook).mockReturnValue(true);
+  // Every DB write succeeds by default: the handlers now throw (and the route
+  // answers 500) when a write returns null. Failure tests override per case.
+  // vi.clearAllMocks only clears calls, so these must be re-set here every time.
+  m(activatePaymentAgreement).mockResolvedValue({ id: 'pa-1', status: 'active' });
+  m(stopPaymentAgreement).mockResolvedValue({ id: 'pa-1', status: 'stopped' });
+  m(expirePaymentAgreement).mockResolvedValue({ id: 'pa-1', status: 'expired' });
+  m(activateSubscriptionOnAgreementActivation).mockResolvedValue({ id: 'sub-1', status: 'active' });
+  m(cancelSubscription).mockResolvedValue({ id: 'sub-1', status: 'cancelled' });
+  m(expireSubscription).mockResolvedValue({ id: 'sub-1', status: 'expired' });
+  m(capturePaymentWithMetadata).mockResolvedValue({ id: 'pay-1', status: 'captured' });
+  m(failPaymentWithMetadata).mockResolvedValue({ id: 'pay-1', status: 'failed' });
+  m(getOrderByPaymentAgreementId).mockResolvedValue(null);
 });
 
-describe('POST /api/webhooks/vipps/recurring — authentication', () => {
+describe('POST /api/webhooks/vipps/recurring — authentication & response codes', () => {
   it('returns 401 when the signature is invalid', async () => {
     m(validateVippsWebhook).mockReturnValue(false);
     const res = await post(agreementPayload({ eventType: 'recurring.agreement-activated.v1' }));
@@ -140,6 +154,26 @@ describe('POST /api/webhooks/vipps/recurring — authentication', () => {
     const res = await post(chargePayload({ eventType: 'recurring.charge-captured.v1' }));
     expect(res.status).toBe(200);
     expect(getPaymentByReference).not.toHaveBeenCalled();
+  });
+
+  it('acknowledges (200) a body that is not JSON instead of letting Vipps retry it', async () => {
+    const request = {
+      method: 'POST',
+      url: 'https://hooks.example.com/api/webhooks/vipps/recurring',
+      headers: { get: () => null },
+      text: async () => 'not json',
+    } as unknown as NextRequest;
+    const res = await POST(request);
+    expect(res.status).toBe(200);
+    expect(getPaymentAgreementByProviderId).not.toHaveBeenCalled();
+  });
+
+  it('returns 500 when a handler fails on a DB write, so Vipps retries', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', customer_id: 'cust-1', status: 'pending', provider_metadata: null });
+    m(activatePaymentAgreement).mockResolvedValue(null);
+    const res = await post(agreementPayload({ eventType: 'recurring.agreement-activated.v1' }));
+    expect(res.status).toBe(500);
+    expect(createOrder).not.toHaveBeenCalled();
   });
 });
 
@@ -190,50 +224,135 @@ describe('charge events', () => {
     expect(failPaymentWithMetadata).toHaveBeenCalledWith('pay-1', 'Insufficient funds', expect.objectContaining({ vipps_status: 'FAILED' }));
   });
 
-  it('records a cancellation on charge-canceled', async () => {
+  it('marks the payment failed on charge-creation-failed so it can be retried', async () => {
     m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', status: 'active' });
     m(getPaymentByReference).mockResolvedValue({ id: 'pay-1' });
+
+    const res = await post(
+      chargePayload({ eventType: 'recurring.charge-creation-failed.v1', failureReason: 'Amount too high', failureCode: 7 })
+    );
+
+    expect(res.status).toBe(200);
+    expect(failPaymentWithMetadata).toHaveBeenCalledWith('pay-1', 'Amount too high', expect.objectContaining({ vipps_status: 'FAILED' }));
+  });
+
+  it('acknowledges (200) a charge-creation-failed with no payment row', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', status: 'active' });
+    m(getPaymentByReference).mockResolvedValue(null);
+
+    const res = await post(chargePayload({ eventType: 'recurring.charge-creation-failed.v1' }));
+
+    expect(res.status).toBe(200);
+    expect(failPaymentWithMetadata).not.toHaveBeenCalled();
+  });
+
+  it('acknowledges (200) a captured charge with no payment row — a retry cannot fix that', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', status: 'active' });
+    m(getPaymentByReference).mockResolvedValue(null);
+
+    const res = await post(chargePayload({ eventType: 'recurring.charge-captured.v1' }));
+
+    expect(res.status).toBe(200);
+    expect(capturePaymentWithMetadata).not.toHaveBeenCalled();
+  });
+
+  it('returns 500 when the captured write fails', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', status: 'active' });
+    m(getPaymentByReference).mockResolvedValue({ id: 'pay-1' });
+    m(capturePaymentWithMetadata).mockResolvedValue(null);
+
+    const res = await post(chargePayload({ eventType: 'recurring.charge-captured.v1' }));
+
+    expect(res.status).toBe(500);
+    expect(cancelVippsAgreement).not.toHaveBeenCalled();
+  });
+
+  it('returns 500 when the failed write fails', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', status: 'active' });
+    m(getPaymentByReference).mockResolvedValue({ id: 'pay-1' });
+    m(failPaymentWithMetadata).mockResolvedValue(null);
+
+    const res = await post(chargePayload({ eventType: 'recurring.charge-failed.v1', failureReason: 'Insufficient funds', failureCode: 42 }));
+
+    expect(res.status).toBe(500);
+  });
+
+  it('marks the payment cancelled on charge-canceled', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', status: 'active' });
+    m(getPaymentByReference).mockResolvedValue({ id: 'pay-1', amount_ore: 50000 });
 
     await post(chargePayload({ eventType: 'recurring.charge-canceled.v1', amountCanceled: 50000 }));
 
-    expect(updatePaymentWithMetadata).toHaveBeenCalledWith('pay-1', expect.objectContaining({ vipps_status: 'CANCELLED' }));
+    expect(cancelPaymentWithMetadata).toHaveBeenCalledWith(
+      'pay-1',
+      expect.objectContaining({ vipps_status: 'CANCELLED', vipps_amount_canceled: 50000 })
+    );
   });
 
-  it('records a refund on charge-refunded', async () => {
+  it('marks the payment refunded on a full charge-refunded', async () => {
     m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', status: 'active' });
-    m(getPaymentByReference).mockResolvedValue({ id: 'pay-1' });
+    m(getPaymentByReference).mockResolvedValue({ id: 'pay-1', amount_ore: 50000 });
 
     await post(chargePayload({ eventType: 'recurring.charge-refunded.v1', amountRefunded: 50000 }));
 
-    expect(updatePaymentWithMetadata).toHaveBeenCalledWith('pay-1', expect.objectContaining({ vipps_status: 'REFUNDED' }));
+    expect(refundPaymentWithMetadata).toHaveBeenCalledWith(
+      'pay-1',
+      50000,
+      true,
+      expect.objectContaining({ vipps_status: 'REFUNDED' })
+    );
+  });
+
+  it('records a partial refund without flipping the status', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', status: 'active' });
+    m(getPaymentByReference).mockResolvedValue({ id: 'pay-1', amount_ore: 50000 });
+
+    await post(chargePayload({ eventType: 'recurring.charge-refunded.v1', amountRefunded: 20000 }));
+
+    expect(refundPaymentWithMetadata).toHaveBeenCalledWith('pay-1', 20000, false, expect.anything());
+  });
+
+  it('falls back to the charge amount when amountRefunded is missing', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', status: 'active' });
+    m(getPaymentByReference).mockResolvedValue({ id: 'pay-1', amount_ore: 50000 });
+
+    await post(chargePayload({ eventType: 'recurring.charge-refunded.v1' }));
+
+    expect(refundPaymentWithMetadata).toHaveBeenCalledWith('pay-1', 50000, true, expect.anything());
   });
 });
 
 describe('agreement-activated', () => {
+  const PENDING_AGREEMENT = {
+    id: 'pa-1',
+    customer_id: 'cust-1',
+    status: 'pending',
+    provider_metadata: { promo: PROMO },
+  };
+  const PENDING_SUBSCRIPTION = {
+    id: 'sub-1',
+    customer_id: 'cust-1',
+    frequency: 'weekly',
+    status: 'pending_payment',
+    order_defaults: ORDER_DEFAULTS,
+  };
+
   it('activates the subscription, generates the first order, and records the promo redemption', async () => {
-    m(getPaymentAgreementByProviderId).mockResolvedValue({
-      id: 'pa-1',
-      customer_id: 'cust-1',
-      status: 'pending',
-      provider_metadata: { promo: PROMO },
-    });
-    m(activatePaymentAgreement).mockResolvedValue({ id: 'pa-1' });
-    m(getSubscriptionByPaymentAgreementId).mockResolvedValue({ id: 'sub-1' });
-    m(activateSubscriptionOnAgreementActivation).mockResolvedValue({
-      id: 'sub-1',
-      customer_id: 'cust-1',
-      order_defaults: ORDER_DEFAULTS,
-    });
+    m(getPaymentAgreementByProviderId).mockResolvedValue(PENDING_AGREEMENT);
+    m(getSubscriptionByPaymentAgreementId).mockResolvedValue(PENDING_SUBSCRIPTION);
     m(createOrder).mockResolvedValue({ id: 'ord-1', order_number: 'ABC123', scheduled_date: '2030-01-04' });
 
-    await post(agreementPayload({ eventType: 'recurring.agreement-activated.v1' }));
+    const res = await post(agreementPayload({ eventType: 'recurring.agreement-activated.v1' }));
 
+    expect(res.status).toBe(200);
     expect(activatePaymentAgreement).toHaveBeenCalledWith('pa-1');
     expect(activateSubscriptionOnAgreementActivation).toHaveBeenCalledWith('sub-1');
+    expect(getOrderByPaymentAgreementId).toHaveBeenCalledWith('pa-1');
     expect(createOrder).toHaveBeenCalledOnce();
     const orderArg = m(createOrder).mock.calls[0][0];
     expect(orderArg).toMatchObject({
       subscription_id: 'sub-1',
+      payment_agreement_id: 'pa-1',
       customer_id: 'cust-1',
       total_cost_ore: null,
       scheduled_date: '2030-01-04',
@@ -249,17 +368,112 @@ describe('agreement-activated', () => {
       status: 'pending',
       provider_metadata: { order_defaults: ORDER_DEFAULTS }, // no promo
     });
-    m(activatePaymentAgreement).mockResolvedValue({ id: 'pa-1' });
     m(getSubscriptionByPaymentAgreementId).mockResolvedValue(null); // one-time
     m(createOrder).mockResolvedValue({ id: 'ord-2', order_number: 'XYZ789', scheduled_date: '2030-01-04' });
 
-    await post(agreementPayload({ eventType: 'recurring.agreement-activated.v1' }));
+    const res = await post(agreementPayload({ eventType: 'recurring.agreement-activated.v1' }));
 
+    expect(res.status).toBe(200);
     expect(activateSubscriptionOnAgreementActivation).not.toHaveBeenCalled();
     expect(createOrder).toHaveBeenCalledOnce();
     const orderArg = m(createOrder).mock.calls[0][0];
     expect(orderArg).toMatchObject({ subscription_id: null, payment_agreement_id: 'pa-1' });
     expect(recordPromoRedemption).not.toHaveBeenCalled();
+  });
+
+  it('is a no-op on a duplicate delivery: agreement and subscription already active, order already exists', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ ...PENDING_AGREEMENT, status: 'active' });
+    m(getSubscriptionByPaymentAgreementId).mockResolvedValue({ ...PENDING_SUBSCRIPTION, status: 'active' });
+    m(getOrderByPaymentAgreementId).mockResolvedValue({ id: 'ord-1', order_number: 'ABC123' });
+
+    const res = await post(agreementPayload({ eventType: 'recurring.agreement-activated.v1' }));
+
+    expect(res.status).toBe(200);
+    expect(activatePaymentAgreement).not.toHaveBeenCalled();
+    expect(activateSubscriptionOnAgreementActivation).not.toHaveBeenCalled();
+    expect(createOrder).not.toHaveBeenCalled();
+    // The (idempotent) redemption is still recorded against the existing order.
+    expect(recordPromoRedemption).toHaveBeenCalledWith(expect.objectContaining({ promoCodeId: 'promo-1', orderId: 'ord-1' }));
+  });
+
+  it('creates the missing first order on a retry after an earlier attempt died post-activation', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ ...PENDING_AGREEMENT, status: 'active' });
+    m(getSubscriptionByPaymentAgreementId).mockResolvedValue({ ...PENDING_SUBSCRIPTION, status: 'active' });
+    m(getOrderByPaymentAgreementId).mockResolvedValue(null);
+    m(createOrder).mockResolvedValue({ id: 'ord-1', order_number: 'ABC123', scheduled_date: '2030-01-04' });
+
+    const res = await post(agreementPayload({ eventType: 'recurring.agreement-activated.v1' }));
+
+    expect(res.status).toBe(200);
+    expect(activatePaymentAgreement).not.toHaveBeenCalled();
+    expect(activateSubscriptionOnAgreementActivation).not.toHaveBeenCalled();
+    expect(createOrder).toHaveBeenCalledOnce();
+  });
+
+  it('returns 500 without creating an order when the guarded activation matches no row (lost race)', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue(PENDING_AGREEMENT);
+    m(activatePaymentAgreement).mockResolvedValue(null);
+
+    const res = await post(agreementPayload({ eventType: 'recurring.agreement-activated.v1' }));
+
+    expect(res.status).toBe(500);
+    expect(getSubscriptionByPaymentAgreementId).not.toHaveBeenCalled();
+    expect(createOrder).not.toHaveBeenCalled();
+  });
+
+  it('returns 500 without creating an order when the guarded subscription activation matches no row', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue(PENDING_AGREEMENT);
+    m(getSubscriptionByPaymentAgreementId).mockResolvedValue(PENDING_SUBSCRIPTION);
+    m(activateSubscriptionOnAgreementActivation).mockResolvedValue(null);
+
+    const res = await post(agreementPayload({ eventType: 'recurring.agreement-activated.v1' }));
+
+    expect(res.status).toBe(500);
+    expect(createOrder).not.toHaveBeenCalled();
+  });
+
+  it('returns 500 when the first order insert fails, so Vipps retries', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue(PENDING_AGREEMENT);
+    m(getSubscriptionByPaymentAgreementId).mockResolvedValue(PENDING_SUBSCRIPTION);
+    m(createOrder).mockResolvedValue(null);
+
+    const res = await post(agreementPayload({ eventType: 'recurring.agreement-activated.v1' }));
+
+    expect(res.status).toBe(500);
+    expect(recordPromoRedemption).not.toHaveBeenCalled();
+  });
+
+  it('returns 500 when the order existence check throws (never inserts blind)', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue(PENDING_AGREEMENT);
+    m(getSubscriptionByPaymentAgreementId).mockResolvedValue(PENDING_SUBSCRIPTION);
+    m(getOrderByPaymentAgreementId).mockRejectedValue(new Error('db down'));
+
+    const res = await post(agreementPayload({ eventType: 'recurring.agreement-activated.v1' }));
+
+    expect(res.status).toBe(500);
+    expect(createOrder).not.toHaveBeenCalled();
+  });
+
+  it('ignores (200) an activation for an agreement that was stopped while pending', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ ...PENDING_AGREEMENT, status: 'stopped' });
+
+    const res = await post(agreementPayload({ eventType: 'recurring.agreement-activated.v1' }));
+
+    expect(res.status).toBe(200);
+    expect(activatePaymentAgreement).not.toHaveBeenCalled();
+    expect(getSubscriptionByPaymentAgreementId).not.toHaveBeenCalled();
+    expect(createOrder).not.toHaveBeenCalled();
+  });
+
+  it('does not generate an order for a subscription that is no longer pending_payment or active', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue(PENDING_AGREEMENT);
+    m(getSubscriptionByPaymentAgreementId).mockResolvedValue({ ...PENDING_SUBSCRIPTION, status: 'cancelled' });
+
+    const res = await post(agreementPayload({ eventType: 'recurring.agreement-activated.v1' }));
+
+    expect(res.status).toBe(200);
+    expect(activateSubscriptionOnAgreementActivation).not.toHaveBeenCalled();
+    expect(createOrder).not.toHaveBeenCalled();
   });
 });
 
@@ -301,5 +515,35 @@ describe('agreement lifecycle events', () => {
 
     expect(expirePaymentAgreement).toHaveBeenCalledWith('pa-1');
     expect(expireSubscription).toHaveBeenCalledWith('sub-1');
+  });
+
+  it('returns 500 when stopping the agreement fails on rejection, so Vipps retries', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1' });
+    m(stopPaymentAgreement).mockResolvedValue(null);
+
+    const res = await post(agreementPayload({ eventType: 'recurring.agreement-rejected.v1' }));
+
+    expect(res.status).toBe(500);
+    expect(cancelSubscription).not.toHaveBeenCalled();
+  });
+
+  it('returns 500 when cancelling the subscription fails after a user stop', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1' });
+    m(getSubscriptionByPaymentAgreementId).mockResolvedValue({ id: 'sub-1', status: 'active' });
+    m(cancelSubscription).mockResolvedValue(null);
+
+    const res = await post(agreementPayload({ eventType: 'recurring.agreement-stopped.v1', actor: 'USER' }));
+
+    expect(res.status).toBe(500);
+  });
+
+  it('returns 500 when expiring the agreement fails', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1' });
+    m(expirePaymentAgreement).mockResolvedValue(null);
+
+    const res = await post(agreementPayload({ eventType: 'recurring.agreement-expired.v1' }));
+
+    expect(res.status).toBe(500);
+    expect(expireSubscription).not.toHaveBeenCalled();
   });
 });

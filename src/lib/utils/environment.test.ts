@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { getAppEnvironment, isNonProduction } from './environment';
+import { getAppEnvironment } from './environment';
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -35,14 +35,5 @@ describe('getAppEnvironment', () => {
   it('falls back to development on a malformed URL', () => {
     vi.stubEnv('NEXT_PUBLIC_APP_URL', 'not-a-url');
     expect(getAppEnvironment()).toBe('development');
-  });
-});
-
-describe('isNonProduction', () => {
-  it('is false only in production', () => {
-    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://nooracare.no');
-    expect(isNonProduction()).toBe(false);
-    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://test.nooracare.no');
-    expect(isNonProduction()).toBe(true);
   });
 });

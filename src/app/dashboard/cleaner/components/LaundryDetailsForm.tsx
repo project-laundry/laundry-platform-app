@@ -26,6 +26,8 @@ interface LaundryDetailsFormProps {
   initialNotes: string | null;
   isEditable: boolean;
   promo?: OrderPromo | null;
+  /** orders.cleaner_payout_ore — used for the locked (non-editable) view. */
+  cleanerPayoutOre?: number | null;
 }
 
 const IRONING_CATEGORIES: IroningGroup[] = [
@@ -131,6 +133,7 @@ export function LaundryDetailsForm({
   initialNotes,
   isEditable,
   promo = null,
+  cleanerPayoutOre = null,
 }: LaundryDetailsFormProps) {
   const [washLoads, setWashLoads] = useState(initialWashLoads);
   const [ironingDetails, setIroningDetails] = useState<IroningDetails>(
@@ -246,6 +249,7 @@ export function LaundryDetailsForm({
         showCleanerPayout={true}
         promoCode={promo?.code}
         discountOre={promo ? computeDiscountOre(priceBreakdown.total_ore, promo) : 0}
+        cleanerPayoutOre={isEditable ? null : cleanerPayoutOre}
       />
 
       {/* Error/Success messages */}

@@ -2,6 +2,8 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { MarketingNav } from '@/components/landing/MarketingNav';
 import { Footer } from "@/components/landing/Footer";
+import { CompanyContactCard } from "@/components/legal/CompanyContactCard";
+import { COMPANY } from "@/lib/config/company";
 
 export const metadata: Metadata = {
   title: "Personvernerklæring for rensere | NooraCare",
@@ -33,7 +35,7 @@ export default function PersonvernRenserPage() {
                 Personvernerklæring for rensere
               </h1>
               <p className="text-sm text-medium-gray">
-                Sist oppdatert: 23.05.2026
+                Sist oppdatert: 16.10.2026
               </p>
               <p className="text-sm text-medium-gray mt-2">
                 Denne erklæringen gjelder for personer som er tilknyttet
@@ -51,7 +53,7 @@ export default function PersonvernRenserPage() {
             {/* Intro */}
             <section className="mb-10">
               <p className="leading-relaxed text-dark-gray">
-                NooraCare AS behandler personopplysninger om deg når du
+                {COMPANY.legalName} behandler personopplysninger om deg når du
                 registrerer deg, blir godkjent og utfører oppdrag som
                 renser. Denne erklæringen forklarer hvilke opplysninger vi
                 behandler – inkludert sensitive identifikatorer som
@@ -68,48 +70,10 @@ export default function PersonvernRenserPage() {
                 1. Behandlingsansvarlig
               </h2>
               <p className="leading-relaxed text-dark-gray mb-4">
-                NooraCare AS er behandlingsansvarlig for behandlingen av
+                {COMPANY.legalName} er behandlingsansvarlig for behandlingen av
                 personopplysningene som beskrives her.
               </p>
-              <div className="rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-6 shadow-[var(--shadow-card)] backdrop-blur">
-                <p className="mb-3 text-sm font-medium text-medium-gray">
-                  Kontaktopplysninger:
-                </p>
-                <ul className="space-y-1.5 text-sm text-dark-gray">
-                  <li>
-                    <span className="font-medium">Selskapsnavn:</span>{" "}
-                    NooraCare AS
-                  </li>
-                  <li>
-                    <span className="font-medium">Organisasjonsnummer:</span>{" "}
-                    836 788 842
-                  </li>
-                  {/* TODO: replace with real postal address before production – keep in sync with Footer.tsx */}
-                  <li>
-                    <span className="font-medium">Postadresse:</span> Breimyra
-                    232, 5134 Flaktveit
-                  </li>
-                  {/* TODO: replace with real phone number before production – keep in sync with Footer.tsx */}
-                  <li>
-                    <span className="font-medium">Telefon:</span>{" "}
-                    <a
-                      href="tel:+4797616468"
-                      className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
-                    >
-                      +47 976 16 468
-                    </a>
-                  </li>
-                  <li>
-                    <span className="font-medium">E-post:</span>{" "}
-                    <a
-                      href="mailto:post@nooracare.no"
-                      className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
-                    >
-                      post@nooracare.no
-                    </a>
-                  </li>
-                </ul>
-              </div>
+              <CompanyContactCard label="Kontaktopplysninger:" />
             </section>
 
             {/* 2. What we process */}
@@ -147,7 +111,7 @@ export default function PersonvernRenserPage() {
                 <li>
                   <span className="font-medium">Operasjonell informasjon:</span>{" "}
                   baseadresse (gateadresse, postnummer, by, land) hvor du
-                  driver virksomheten din fra, instruksjoner for adkomst,
+                  driver virksomheten din fra,
                   ukentlig arbeidsplan, erfaringsnivå og opplysninger om
                   vaskemaskinen din (merke, kapasitet, årsmodell, tilstand).
                 </li>

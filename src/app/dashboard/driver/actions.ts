@@ -29,7 +29,10 @@ export async function completeDriverStopAction(
   stopType: DriverStopType,
   orderIds: string[]
 ): Promise<DriverStopActionResult> {
-  const { error: authError } = await assertRole(['driver', 'admin']);
+  // Dormant: cleaners do pickup and delivery (BUSINESS_LOGIC.md → Pickup/Delivery
+  // Operations). Admins are kept out so a bookmarked route can't move orders into
+  // driver-only statuses; add 'admin' back when drivers return.
+  const { error: authError } = await assertRole(['driver']);
   if (authError) {
     return { success: false, error: authError, transitioned: 0, skipped: 0 };
   }
@@ -82,7 +85,7 @@ export async function undoDriverStopAction(
   stopType: DriverStopType,
   orderIds: string[]
 ): Promise<DriverStopActionResult> {
-  const { error: authError } = await assertRole(['driver', 'admin']);
+  const { error: authError } = await assertRole(['driver']);
   if (authError) {
     return { success: false, error: authError, transitioned: 0, skipped: 0 };
   }

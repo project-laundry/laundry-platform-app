@@ -17,17 +17,17 @@ const STEP_META: Record<CleanerFlowStep, { title: string; subtitle: string; back
   },
   2: {
     title: 'Hvor vasker du?',
-    subtitle: 'Adressen der vaskemaskinen din står. Sjåføren vår leverer og henter tøyet her.',
+    subtitle: 'Adressen der vaskemaskinen din står. Vi bruker den til å finne kunder i byen din.',
     back: '/bli-renser/business',
   },
   3: {
     title: 'Vaskemaskinen din',
-    subtitle: 'Fortell oss om maskinen du vasker med, så vet vi hvor mye du kan ta imot.',
+    subtitle: 'Fortell oss om maskinen du vasker med. Vi bruker det når vi går gjennom søknaden din.',
     back: '/bli-renser/services',
   },
   4: {
     title: 'Profilen din',
-    subtitle: 'Navnet kundene ser, og hvor mye erfaring du har med klesvask.',
+    subtitle: 'Navnet kundene ser, erfaringen din, og hvilke dager du tar imot henting.',
     back: '/bli-renser/equipment',
   },
   5: {
