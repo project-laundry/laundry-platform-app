@@ -22,8 +22,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # next-env.d.ts and the route types are gitignored; generate them first.
       - name: Typecheck
-        run: npx tsc --noEmit
+        run: npx next typegen && npx tsc --noEmit
 
       - name: Unit & integration tests
         run: npm test
