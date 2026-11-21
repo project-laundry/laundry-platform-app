@@ -13,13 +13,15 @@ vi.mock('@/lib/email/customer-emails', () => ({
   buildOrderDeliveredEmail: vi.fn(() => ({ subject: 'Levert', text: 'tekst', html: '<p>html</p>' })),
   buildOrderPickedUpEmail: vi.fn(() => ({ subject: 'Hentet', text: 'tekst', html: '<p>html</p>' })),
   buildPaymentFailedEmail: vi.fn(() => ({ subject: 'Feilet', text: 'tekst', html: '<p>html</p>' })),
+  buildPickupReminderEmail: vi.fn(() => ({ subject: 'Påminnelse', text: 'tekst', html: '<p>html</p>' })),
 }));
 
 import { getOrderForCustomerEmail } from '@/lib/database/orders';
 import { getPaymentById, getPaymentsByOrderId } from '@/lib/database/payments';
 import { sendEmail } from '@/lib/email/send';
-import { buildOrderConfirmationEmail, buildOrderDeliveredEmail, buildOrderPickedUpEmail, buildPaymentFailedEmail, buildPriceReceiptEmail } from '@/lib/email/customer-emails';
-import { sendOrderConfirmationEmail, sendOrderDeliveredEmail, sendOrderPickedUpEmail, sendPaymentFailedEmail, sendPriceReceiptEmail } from './customer-emails';
+import { buildOrderConfirmationEmail, buildOrderDeliveredEmail, buildOrderPickedUpEmail, buildPaymentFailedEmail, buildPickupReminderEmail, buildPriceReceiptEmail } from '@/lib/email/customer-emails';
+import { sendOrderConfirmationEmail, sendOrderDeliveredEmail, sendOrderPickedUpEmail, sendPaymentFailedEmail, sendPickupReminderEmail, sendPriceReceiptEmail } from './customer-emails';
+import type { OrderForCustomerEmail } from '@/lib/database/orders';
 
 const m = (fn: unknown) => fn as Mock;
 
@@ -263,5 +265,49 @@ describe('sendOrderPickedUpEmail', () => {
 
     m(sendEmail).mockResolvedValue({ ok: false, error: 'Resend responded 500' });
     await expect(sendOrderPickedUpEmail('ord-1', { showPickupTime: true })).resolves.toBeUndefined();
+  });
+});
+
+const PICKUP_REMINDER_ORDER = {
+  id: 'ord-9',
+  scheduled_date: '2026-11-24',
+  customer: { user: { email: 'kari@example.com', full_name: 'Kari' } },
+  cleaner: { display_name: 'Anna' },
+} as unknown as OrderForCustomerEmail;
+
+describe('sendPickupReminderEmail', () => {
+  it('sends the reminder with a key that contains the pickup date and reports true', async () => {
+    await expect(sendPickupReminderEmail(PICKUP_REMINDER_ORDER)).resolves.toBe(true);
+
+    expect(buildPickupReminderEmail).toHaveBeenCalledWith(PICKUP_REMINDER_ORDER, { appUrl: 'https://nooracare.no' });
+    expect(sendEmail).toHaveBeenCalledWith({
+      from: 'NooraCare <no-reply@nooracare.no>',
+      to: ['kari@example.com'],
+      replyTo: ['post@nooracare.no'],
+      subject: 'Påminnelse',
+      text: 'tekst',
+      html: '<p>html</p>',
+      idempotencyKey: 'pickup-reminder/ord-9/2026-11-24',
+    });
+  });
+
+  it('reports false when Resend rejects the send', async () => {
+    m(sendEmail).mockResolvedValue({ ok: false, error: 'Resend responded 429' });
+
+    await expect(sendPickupReminderEmail(PICKUP_REMINDER_ORDER)).resolves.toBe(false);
+  });
+
+  it('reports false and sends nothing when NEXT_PUBLIC_APP_URL is missing', async () => {
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', '');
+
+    await expect(sendPickupReminderEmail(PICKUP_REMINDER_ORDER)).resolves.toBe(false);
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('never throws: a row without a customer reports false', async () => {
+    const broken = { ...PICKUP_REMINDER_ORDER, customer: null } as unknown as OrderForCustomerEmail;
+
+    await expect(sendPickupReminderEmail(broken)).resolves.toBe(false);
+    expect(sendEmail).not.toHaveBeenCalled();
   });
 });

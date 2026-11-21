@@ -10,6 +10,7 @@
 // and every price e-mail restates: checkout = estimate, cleaner = binding price.
 
 import { COMPANY } from '@/lib/config/company';
+import { PICKUP_TIME_RANGE } from '@/lib/config/pickup-times';
 import {
   IRONING_OFFERED,
   PRICING,
@@ -541,6 +542,70 @@ export function buildOrderPickedUpEmail(
   return finish(
     `Tøyet ditt er hentet – bestilling #${order.order_number}`,
     'Tøyet ditt er hentet',
+    blocks,
+    options
+  );
+}
+
+// ─── #24 Pickup reminder ────────────────────────────────────────────────────
+
+/**
+ * Sent by the pickup-reminders cron the evening before the pickup date, to
+ * orders in pickup_scheduled. One job: get the bag ready. Repeats the address
+ * and the customer's own instructions so an error is spotted while the order
+ * page still accepts changes (address, instructions, a later date).
+ * Cancellation is deliberately not offered: the app refuses it less than 24
+ * hours before pickup. Never mentions a subscription.
+ */
+export function buildPickupReminderEmail(
+  order: OrderForCustomerEmail,
+  options: CustomerEmailOptions
+): CustomerEmail {
+  const pickupDate = formatLongDate(order.scheduled_date);
+  const cleanerName = order.cleaner?.display_name.trim() || null;
+  const addressNote = order.special_instructions_address?.trim() || null;
+  const washNote = order.special_instructions?.trim() || null;
+
+  const pickupRows = [
+    { label: 'Dato', value: pickupDate },
+    { label: 'Tid', value: `kl. ${PICKUP_TIME_RANGE.start}–${PICKUP_TIME_RANGE.end}` },
+    { label: 'Adresse', value: `${order.street}, ${order.postal_code} ${order.city}` },
+  ];
+  if (cleanerName) {
+    pickupRows.push({ label: 'Renser', value: cleanerName });
+  }
+
+  const blocks: Block[] = [
+    greeting(order),
+    paragraph(
+      `${cleanerName ?? 'Vi'} henter tøyet ditt i morgen, ${pickupDate}, mellom kl. ${PICKUP_TIME_RANGE.start} og ${PICKUP_TIME_RANGE.end}. Sett posen klar før kl. ${PICKUP_TIME_RANGE.start}.`
+    ),
+    heading('Henting'),
+    rows(pickupRows),
+    heading('Dine beskjeder'),
+  ];
+
+  if (addressNote) {
+    blocks.push(paragraph(`Henteinstruksjoner: ${addressNote}`));
+  }
+  if (washNote) {
+    blocks.push(paragraph(`Vaskeinstruksjoner: ${washNote}`));
+  }
+  if (!addressNote && !washNote) {
+    blocks.push(paragraph('Du har ikke lagt inn noen beskjeder til renseren.'));
+  }
+
+  blocks.push(
+    paragraph(
+      'Stemmer ikke noe? Du kan fortsatt endre adresse, beskjeder og hentedato på bestillingssiden.'
+    ),
+    button('Se eller endre bestillingen', orderUrl(order, options)),
+    closing()
+  );
+
+  return finish(
+    'Vi henter tøyet ditt i morgen – sett posen klar',
+    'Vi henter tøyet ditt i morgen',
     blocks,
     options
   );

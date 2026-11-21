@@ -51,12 +51,16 @@ Staging/production values are set **per environment** in the Vercel dashboard.
 | `NEXT_PUBLIC_VIPPS_ALLOW_FORCE_ACCEPT` | `true` (enables the "Auto-godkjenn avtale" test checkbox) | **unset** — never add it to Production |
 | `GOOGLE_MAPS_API_KEY` | Maps Platform key (Geocoding API enabled) | same, or a prod-restricted key |
 | `ANTHROPIC_API_KEY` | Anthropic API key (cleaner onboarding photo recognition; optional) | separate prod key from the Anthropic Console |
-| `CRON_SECRET` | any random string (lets you curl the digest route on staging) | a different random string — Vercel sends it on every cron call to `/api/cron/admin-digest` |
+| `CRON_SECRET` | any random string (lets you curl the cron routes on staging) | a different random string — Vercel sends it on every cron call to `/api/cron/admin-digest` and `/api/cron/pickup-reminders` |
 | `RESEND_API_KEY` | Resend API key — sends the customer e-mails (order confirmation, receipt, payment failed) to the staging test accounts and the curl-tested admin digest | Resend API key for the verified `nooracare.no` sending domain (customer e-mails + admin digest) |
 | `ADMIN_DIGEST_FROM` | optional; default `NooraCare <varsel@nooracare.no>` | same |
 
-> `CRON_SECRET` protects the one cron route, `GET /api/cron/admin-digest` (daily admin
-> digest, declared in `vercel.json`, Production only). Order generation is still webhook-driven.
+> `CRON_SECRET` protects the two cron routes declared in `vercel.json` (Production only):
+> `GET /api/cron/admin-digest` (daily admin digest, 06:00 UTC) and
+> `GET /api/cron/pickup-reminders` (customer pickup reminders, 16:00 UTC). Staging has no
+> crons — test either route there with
+> `curl -i -H "Authorization: Bearer <CRON_SECRET>" https://test.nooracare.no/api/cron/<name>`.
+> Order generation is still webhook-driven.
 
 **Pre-launch gate (no env var):** `src/proxy.ts` checks the request host against
 `src/lib/prelaunch.ts`. On `nooracare.no` / `www.nooracare.no` the customer side is open: anonymous
@@ -170,6 +174,17 @@ details live — the footer, `/kontakt` and the legal pages all read from it.
    must answer `200 {"sent":<number of admins>}` and every admin receives «NooraCare <dag>:
    … å følge opp». Vercel → project → *Settings* → *Cron Jobs* lists `/api/cron/admin-digest`
    at `0 6 * * *`.
+
+11. **Pickup reminder e-mail.** Uses the same `CRON_SECRET` and `RESEND_API_KEY` as the digest —
+   no new variables. After the production deploy, trigger it once by hand:
+   ```bash
+   curl -i -H "Authorization: Bearer <CRON_SECRET>" https://nooracare.no/api/cron/pickup-reminders
+   ```
+   must answer `200 {"date":"<tomorrow>","sent":<n>,"failed":0}`, where `<n>` is the number of
+   orders in `pickup_scheduled` with pickup tomorrow (0 is a valid answer). Calling it again the
+   same evening sends nothing twice. Vercel → project → *Settings* → *Cron Jobs* lists
+   `/api/cron/pickup-reminders` at `0 16 * * *` (17:00 Oslo in winter, 18:00 in summer; on the
+   Hobby plan it fires at some point within that hour).
 
 ---
 

@@ -737,6 +737,41 @@ export async function getOrderForCustomerEmail(
   return data as OrderForCustomerEmail | null;
 }
 
+/**
+ * The orders that get a pickup reminder (#24): status pickup_scheduled and
+ * scheduled_date equal to the given YYYY-MM-DD date, each with what the
+ * e-mail needs (same shape as getOrderForCustomerEmail). Admin client — the
+ * only caller is the pickup-reminders cron route. Returns null when the
+ * query fails (logged), so the route can answer 500 instead of reporting
+ * "0 to send".
+ */
+export async function getOrdersForPickupReminder(
+  scheduledDate: string
+): Promise<OrderForCustomerEmail[] | null> {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select(`
+      *,
+      customer:customers!customer_id(
+        user:users!user_id(email, full_name)
+      ),
+      subscription:subscriptions(frequency, status),
+      cleaner:cleaners!orders_cleaner_id_fkey(display_name)
+    `)
+    .eq('status', 'pickup_scheduled')
+    .eq('scheduled_date', scheduledDate)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('[getOrdersForPickupReminder] Error fetching orders:', error);
+    return null;
+  }
+
+  return data as OrderForCustomerEmail[];
+}
+
 export interface RecentOrderAddress {
   street: string;
   postal_code: string;

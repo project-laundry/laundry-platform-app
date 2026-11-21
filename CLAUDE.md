@@ -88,7 +88,8 @@ src/
 │   │   └── admins/         # Admin user list, create/edit
 │   ├── api/                # API routes
 │   │   ├── cron/
-│   │   │   └── admin-digest/ # Daily admin digest (Vercel cron in vercel.json, 06:00 UTC, Production only): CRON_SECRET bearer check → getAdminAttention → buildAdminDigest → sendEmail (lib/email/send.ts), plain text to every admin user
+│   │   │   ├── admin-digest/ # Daily admin digest (Vercel cron in vercel.json, 06:00 UTC, Production only): CRON_SECRET bearer check → getAdminAttention → buildAdminDigest → sendEmail (lib/email/send.ts), plain text to every admin user
+│   │   │   └── pickup-reminders/ # Daily pickup reminder (Vercel cron in vercel.json, 16:00 UTC, Production only): CRON_SECRET bearer check → getOrdersForPickupReminder(tomorrowInOslo()) → sendPickupReminderEmail per order, one at a time → { date, sent, failed } (502 when any send failed)
 │   │   └── webhooks/
 │   │       └── vipps/
 │   │           └── recurring/ # Vipps Recurring API webhooks (agreement activation, charge events)
@@ -154,7 +155,7 @@ src/
 │   │   └── subscriptions.ts   # Subscription operations (recurring order management)
 │   ├── email/
 │   │   ├── send.ts         # sendEmail(): the ONE Resend transport (fetch → POST /emails, optional Idempotency-Key, never throws, { ok } | { ok: false, error }); CUSTOMER_EMAIL_FROM. Used by the admin digest and the customer e-mails
-│   │   └── customer-emails.ts # Pure builders for the customer e-mails → { subject, text, html }: buildOrderConfirmationEmail (#23), buildPriceReceiptEmail (#26), buildPaymentFailedEmail (#28), buildOrderDeliveredEmail (#27), buildOrderPickedUpEmail (#25). Text and HTML rendered from one block list; HTML wrapper mirrors supabase/templates/
+│   │   └── customer-emails.ts # Pure builders for the customer e-mails → { subject, text, html }: buildOrderConfirmationEmail (#23), buildPriceReceiptEmail (#26), buildPaymentFailedEmail (#28), buildOrderDeliveredEmail (#27), buildOrderPickedUpEmail (#25), buildPickupReminderEmail (#24). Text and HTML rendered from one block list; HTML wrapper mirrors supabase/templates/
 │   ├── payments/           # Payment processing integrations
 │   │   └── vipps/          # Vipps integration (Recurring API)
 │   │       ├── base-client.ts      # Shared OAuth and HTTP utilities
@@ -164,7 +165,7 @@ src/
 │   │       └── config.ts           # Vipps configuration validation
 │   ├── services/
 │   │   ├── admin-digest.ts      # buildAdminDigest(attention, { appUrl, now }) → { subject, text } (pure, plain text)
-│   │   ├── customer-emails.ts   # sendOrderConfirmationEmail / sendPriceReceiptEmail / sendPaymentFailedEmail / sendOrderDeliveredEmail / sendOrderPickedUpEmail — load (getOrderForCustomerEmail, getPaymentById, getPaymentsByOrderId), build, send; NEVER throw, return void (callers: Vipps webhook, ready-order, retryChargeAction, complete-order, markOrderPickedUpAction, adminMarkPickedUpAction)
+│   │   ├── customer-emails.ts   # sendOrderConfirmationEmail / sendPriceReceiptEmail / sendPaymentFailedEmail / sendOrderDeliveredEmail / sendOrderPickedUpEmail — load (getOrderForCustomerEmail, getPaymentById, getPaymentsByOrderId), build, send; NEVER throw, return void (callers: Vipps webhook, ready-order, retryChargeAction, complete-order, markOrderPickedUpAction, adminMarkPickedUpAction); sendPickupReminderEmail(order) → boolean for the pickup-reminders cron (#24)
 │   │   ├── order-generation.ts  # Subscription to orders logic
 │   │   └── staff-accounts.ts    # Staff (driver/admin) account creation: auth user + role flip + cleanup
 │   ├── supabase/
@@ -172,7 +173,7 @@ src/
 │   │   ├── server.ts       # Server Supabase client
 │   │   └── index.ts        # Exports
 │   ├── utils/
-│   │   ├── date.ts         # Date/weekday utilities
+│   │   ├── date.ts         # Date/weekday utilities; todayInOslo / tomorrowInOslo for "the customer's day" (the server runs in UTC)
 │   │   ├── email.ts        # EMAIL_RE / isValidEmail, shared by the waitlist form (client) and action (server)
 │   │   └── order-number.ts # Order number generation
 │   ├── og-image.tsx        # Shared next/og renderer for the social share images (Fjord + stacked logo; Fraunces fetched at build, falls back silently)
@@ -255,10 +256,19 @@ Transactional e-mails to customers (epic #32): Norwegian, sender `NooraCare <no-
 | Payment failed (#28) | `charge-failed` and `charge-creation-failed` webhooks after the payment row is marked `failed` (both handlers fail the row first). Copy states the retry policy: nothing to do, we re-charge within a few days («Belast på nytt»), we get in touch if that fails, delivery is unaffected | `payment-failed/<payment.id>` |
 | Laundry delivered (#27) | `completeDeliveredOrder` (`lib/services/complete-order.ts`), last step after the guarded transition to `completed`, the rolling window and the agreement-stop check — cleaner «Levert til kunden», admin «Marker som levert», dormant driver delivery stop. Delivery date (`delivery_date`) + address, a payment line derived from the order's `payments` rows (nothing charged / captured / in flight; silent when the charge failed or does not exist), dormant subscription paragraph without a date | `order-delivered/<order.id>` |
 | Laundry picked up (#25) | `markOrderPickedUpAction` (cleaner «Jeg har hentet tøyet», shows the pickup time) and `adminMarkPickedUpAction` (admin fallback, no time), each right after the guarded `pickup_scheduled → in_cleaning` write succeeded. Names the cleaner by the whole `cleaners.display_name`, says the next e-mails are "price set" and "delivered", restates estimate vs. binding price. No delivery date or deadline. The dormant driver flow sends nothing | `order-picked-up/<order.id>` |
+| Pickup reminder (#24) | `GET /api/cron/pickup-reminders` (daily cron, 16:00 UTC) for every order in `pickup_scheduled` with `scheduled_date` = tomorrow (Oslo). Pickup date, time window (`PICKUP_TIME_RANGE`) and address, the customer's «Henteinstruksjoner» / «Vaskeinstruksjoner», the cleaner's `display_name`, button to the order page. Offers changing address, instructions and date — not cancellation (refused < 24 h before pickup) | `pickup-reminder/<order.id>/<scheduled_date>` |
 
 Not sent (deliberately): other status changes (assignment, ready for delivery), `charge-captured` (the receipt went out at charge creation), the synchronous charge-creation failure inside `createChargeForCompletedOrder` (the admin's retry sends the price e-mail instead). `out_for_delivery` (dormant driver flow) sends nothing — the delivered e-mail goes out on `completed` only.
 
 - **Env**: `RESEND_API_KEY` (missing → send skipped and logged), `NEXT_PUBLIC_APP_URL` (links). Staging sends real mail to the test accounts.
+
+## Pickup Reminders
+
+Every day at 16:00 UTC (17:00 in Oslo in winter, 18:00 in summer) a Vercel cron (`vercel.json` → `crons`, Production only) calls `GET /api/cron/pickup-reminders` with `Authorization: Bearer $CRON_SECRET`. The route loads the orders in `pickup_scheduled` whose `scheduled_date` is tomorrow in the Oslo calendar (`tomorrowInOslo` → `getOrdersForPickupReminder`) and sends each customer the "sett posen klar" e-mail (`sendPickupReminderEmail` → `buildPickupReminderEmail`, see Customer E-mails). `pending_assignment` orders get nothing. Sends are sequential; one failure never stops the batch. The route answers `{ date, sent, failed }` — 200 when nothing failed, 502 when something did (Vercel does not retry crons; the code only makes the failure visible in the logs).
+
+- **Re-runs are safe**: the Resend `Idempotency-Key` is `pickup-reminder/<order.id>/<scheduled_date>` (kept 24 h; the cron runs once a day). Calling the route again the same evening re-sends nothing and retries what failed; a rescheduled order gets a reminder for its new date. Nothing is stored in the DB.
+- **No catch-up**: if the cron does not run on an evening, those customers get no reminder unless someone calls the route by hand before midnight Oslo time.
+- **Env**: `CRON_SECRET`, `RESEND_API_KEY`, `NEXT_PUBLIC_APP_URL` (see `ENVIRONMENTS.md`).
 
 ## Payment Processing
 

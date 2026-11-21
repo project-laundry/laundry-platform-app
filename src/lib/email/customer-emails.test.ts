@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { OrderForCustomerEmail } from '@/lib/database/orders';
-import { buildOrderConfirmationEmail, buildOrderPickedUpEmail, buildPaymentFailedEmail, buildOrderDeliveredEmail, buildPriceReceiptEmail, formatKrExact, formatLongDate } from './customer-emails';
+import { buildOrderConfirmationEmail, buildOrderPickedUpEmail, buildPickupReminderEmail, buildPaymentFailedEmail, buildOrderDeliveredEmail, buildPriceReceiptEmail, formatKrExact, formatLongDate } from './customer-emails';
 
 const OPTIONS = { appUrl: 'https://nooracare.no/' };
 
@@ -458,5 +458,80 @@ describe('buildOrderPickedUpEmail', () => {
     expect(text).toContain('hentet tøyet ditt søndag 25. oktober kl. 00:05.');
     expect(html).toContain('&lt;b&gt;Ola&lt;/b&gt; Hansen, renseren din,');
     expect(html).not.toContain('<b>Ola</b>');
+  });
+});
+
+/** The same order the evening before pickup: a cleaner is assigned and the customer left both notes. */
+const PICKUP_REMINDER_ORDER: OrderForCustomerEmail = {
+  ...ORDER,
+  status: 'pickup_scheduled',
+  cleaner_id: 'cl-1',
+  scheduled_date: '2026-11-24',
+  delivery_date: '2026-11-26',
+  special_instructions_address: 'Portkode 1234, posen står i gangen',
+  special_instructions: 'Vask på 30 grader',
+  subscription_id: null,
+  subscription: null,
+  cleaner: { display_name: 'Anna' },
+};
+
+describe('buildPickupReminderEmail', () => {
+  it('tells the customer who comes when, repeats address and notes, and links to the order', () => {
+    const { subject, text, html } = buildPickupReminderEmail(PICKUP_REMINDER_ORDER, OPTIONS);
+
+    expect(subject).toBe('Vi henter tøyet ditt i morgen – sett posen klar');
+    expect(text).toContain('Hei Kari!');
+    expect(text).toContain(
+      'Anna henter tøyet ditt i morgen, tirsdag 24. november 2026, mellom kl. 15:00 og 18:00. Sett posen klar før kl. 15:00.'
+    );
+    expect(text).toContain(
+      'HENTING\n\nDato: tirsdag 24. november 2026\nTid: kl. 15:00–18:00\nAdresse: Storgata 1, 0150 Oslo\nRenser: Anna'
+    );
+    expect(text).toContain('Henteinstruksjoner: Portkode 1234, posen står i gangen');
+    expect(text).toContain('Vaskeinstruksjoner: Vask på 30 grader');
+    expect(text).not.toContain('Du har ikke lagt inn noen beskjeder');
+    expect(text).toContain('Du kan fortsatt endre adresse, beskjeder og hentedato på bestillingssiden.');
+    expect(text).toContain('Se eller endre bestillingen: https://nooracare.no/orders/details/ord-1');
+    expect(html).toContain('Vi henter tøyet ditt i morgen</h1>');
+    expect(html).toContain('href="https://nooracare.no/orders/details/ord-1"');
+  });
+
+  it('says so when the customer left no notes', () => {
+    const { text } = buildPickupReminderEmail(
+      { ...PICKUP_REMINDER_ORDER, special_instructions_address: null, special_instructions: '   ' },
+      OPTIONS
+    );
+
+    expect(text).toContain('Du har ikke lagt inn noen beskjeder til renseren.');
+    expect(text).not.toContain('Henteinstruksjoner:');
+    expect(text).not.toContain('Vaskeinstruksjoner:');
+  });
+
+  it('falls back to "Vi" when the order has no cleaner row', () => {
+    const { text } = buildPickupReminderEmail({ ...PICKUP_REMINDER_ORDER, cleaner: null }, OPTIONS);
+
+    expect(text).toContain('Vi henter tøyet ditt i morgen, tirsdag 24. november 2026');
+    expect(text).not.toContain('Renser:');
+  });
+
+  it('never offers cancellation or mentions a subscription', () => {
+    const { text } = buildPickupReminderEmail(
+      { ...PICKUP_REMINDER_ORDER, subscription_id: 'sub-1', subscription: { frequency: 'weekly', status: 'active' } },
+      OPTIONS
+    );
+
+    expect(text.toLowerCase()).not.toContain('kanseller');
+    expect(text.toLowerCase()).not.toContain('avbestill');
+    expect(text.toLowerCase()).not.toContain('abonnement');
+  });
+
+  it('escapes customer-written notes in the HTML', () => {
+    const { html } = buildPickupReminderEmail(
+      { ...PICKUP_REMINDER_ORDER, special_instructions_address: 'Ring på <Hansen> & "Olsen"' },
+      OPTIONS
+    );
+
+    expect(html).toContain('Ring på &lt;Hansen&gt; &amp; &quot;Olsen&quot;');
+    expect(html).not.toContain('<Hansen>');
   });
 });

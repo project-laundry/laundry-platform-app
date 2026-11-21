@@ -17,6 +17,7 @@ import {
   buildOrderDeliveredEmail,
   buildOrderPickedUpEmail,
   buildPaymentFailedEmail,
+  buildPickupReminderEmail,
   buildPriceReceiptEmail,
   type CustomerEmail,
 } from '@/lib/email/customer-emails';
@@ -207,5 +208,49 @@ export async function sendOrderPickedUpEmail(
     );
   } catch (error) {
     console.error(`[Customer e-mail] Picked-up e-mail for ${orderId} failed:`, error);
+  }
+}
+
+/**
+ * #24 — pickup reminder. Called once per order by the pickup-reminders cron
+ * (app/api/cron/pickup-reminders/route.ts), which has already loaded the
+ * orders in one query — so this takes the loaded order, not an id.
+ *
+ * Never throws. Unlike the event-triggered senders above it returns a
+ * boolean, because the cron reports how many reminders went out: true =
+ * Resend accepted the e-mail (or replayed an identical one sent earlier
+ * the same evening), false = not sent (logged).
+ *
+ * The key contains the pickup date, so a re-run the same evening cannot
+ * send twice (Resend keeps keys for 24 h and the cron runs once a day),
+ * while an order moved to a new date gets a reminder for that date too.
+ */
+export async function sendPickupReminderEmail(order: OrderForCustomerEmail): Promise<boolean> {
+  const idempotencyKey = `pickup-reminder/${order.id}/${order.scheduled_date}`;
+  try {
+    const url = appUrl();
+    if (!url) return false;
+
+    const to = order.customer.user.email;
+    const email = buildPickupReminderEmail(order, { appUrl: url });
+    const result = await sendEmail({
+      from: CUSTOMER_EMAIL_FROM,
+      to: [to],
+      replyTo: [COMPANY.email],
+      subject: email.subject,
+      text: email.text,
+      html: email.html,
+      idempotencyKey,
+    });
+
+    if (result.ok) {
+      console.log(`[Customer e-mail] Sent ${idempotencyKey} to ${to}`);
+    } else {
+      console.error(`[Customer e-mail] Not sent ${idempotencyKey} to ${to}: ${result.error}`);
+    }
+    return result.ok;
+  } catch (error) {
+    console.error(`[Customer e-mail] Pickup reminder ${idempotencyKey} failed:`, error);
+    return false;
   }
 }
