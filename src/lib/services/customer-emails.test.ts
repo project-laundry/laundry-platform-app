@@ -10,13 +10,14 @@ vi.mock('@/lib/email/send', () => ({
 vi.mock('@/lib/email/customer-emails', () => ({
   buildOrderConfirmationEmail: vi.fn(() => ({ subject: 'Bekreftet', text: 'tekst', html: '<p>html</p>' })),
   buildPriceReceiptEmail: vi.fn(() => ({ subject: 'Pris', text: 'tekst', html: '<p>html</p>' })),
+  buildPaymentFailedEmail: vi.fn(() => ({ subject: 'Feilet', text: 'tekst', html: '<p>html</p>' })),
 }));
 
 import { getOrderForCustomerEmail } from '@/lib/database/orders';
 import { getPaymentById } from '@/lib/database/payments';
 import { sendEmail } from '@/lib/email/send';
-import { buildOrderConfirmationEmail, buildPriceReceiptEmail } from '@/lib/email/customer-emails';
-import { sendOrderConfirmationEmail, sendPriceReceiptEmail } from './customer-emails';
+import { buildOrderConfirmationEmail, buildPaymentFailedEmail, buildPriceReceiptEmail } from '@/lib/email/customer-emails';
+import { sendOrderConfirmationEmail, sendPaymentFailedEmail, sendPriceReceiptEmail } from './customer-emails';
 
 const m = (fn: unknown) => fn as Mock;
 
@@ -116,5 +117,42 @@ describe('sendPriceReceiptEmail', () => {
     m(sendEmail).mockRejectedValue(new Error('boom'));
 
     await expect(sendPriceReceiptEmail('ord-1', null)).resolves.toBeUndefined();
+  });
+});
+
+describe('sendPaymentFailedEmail', () => {
+  const PAYMENT = { id: 'pay-1', order_id: 'ord-1', amount_ore: 46424, provider_reference: 'chr-1' };
+
+  it('loads the payment and its order and sends keyed on the payment id', async () => {
+    m(getPaymentById).mockResolvedValue(PAYMENT);
+
+    await sendPaymentFailedEmail('pay-1');
+
+    expect(getOrderForCustomerEmail).toHaveBeenCalledWith('ord-1');
+    expect(buildPaymentFailedEmail).toHaveBeenCalledWith(ORDER, PAYMENT, { appUrl: 'https://nooracare.no' });
+    expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ subject: 'Feilet', idempotencyKey: 'payment-failed/pay-1' }));
+  });
+
+  it('sends nothing for a payment without an order', async () => {
+    m(getPaymentById).mockResolvedValue({ ...PAYMENT, order_id: null });
+
+    await sendPaymentFailedEmail('pay-1');
+
+    expect(getOrderForCustomerEmail).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('sends nothing for an unknown payment', async () => {
+    m(getPaymentById).mockResolvedValue(null);
+
+    await sendPaymentFailedEmail('pay-x');
+
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('never throws when the payment lookup rejects', async () => {
+    m(getPaymentById).mockRejectedValue(new Error('db down'));
+
+    await expect(sendPaymentFailedEmail('pay-1')).resolves.toBeUndefined();
   });
 });

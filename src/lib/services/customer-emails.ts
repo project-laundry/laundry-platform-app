@@ -14,6 +14,7 @@ import { COMPANY } from '@/lib/config/company';
 import { getOrderForCustomerEmail, type OrderForCustomerEmail } from '@/lib/database/orders';
 import {
   buildOrderConfirmationEmail,
+  buildPaymentFailedEmail,
   buildPriceReceiptEmail,
   type CustomerEmail,
 } from '@/lib/email/customer-emails';
@@ -110,5 +111,37 @@ export async function sendPriceReceiptEmail(
     );
   } catch (error) {
     console.error(`[Customer e-mail] Price receipt for ${orderId} failed:`, error);
+  }
+}
+
+/**
+ * #28 — payment failed. Called by the Vipps charge-failed and
+ * charge-creation-failed webhook handlers after the payment row is marked
+ * `failed`. Keyed on the payment id, so a redelivered webhook sends nothing.
+ */
+export async function sendPaymentFailedEmail(paymentId: string): Promise<void> {
+  try {
+    const url = appUrl();
+    if (!url) return;
+
+    const payment = await getPaymentById(paymentId);
+    if (!payment || !payment.order_id) {
+      console.error(`[Customer e-mail] Payment ${paymentId} has no order — payment-failed e-mail skipped`);
+      return;
+    }
+
+    const order = await getOrderForCustomerEmail(payment.order_id);
+    if (!order) {
+      console.error(`[Customer e-mail] Order ${payment.order_id} not found — payment-failed e-mail skipped`);
+      return;
+    }
+
+    await deliver(
+      order,
+      buildPaymentFailedEmail(order, payment, { appUrl: url }),
+      `payment-failed/${payment.id}`
+    );
+  } catch (error) {
+    console.error(`[Customer e-mail] Payment-failed e-mail for ${paymentId} failed:`, error);
   }
 }

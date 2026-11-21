@@ -57,9 +57,8 @@ export function isOrphanPendingPayment(
 /**
  * A pending Vipps row WITH a charge id is normally captured (or fails) on its
  * due date, one day after creation. One still pending this many days later
- * never got its webhook (e.g. charge-creation-failed only logs) and needs an
- * admin to look at it. Used by the admin attention list only; it does not
- * change hasLivePayment.
+ * never got its webhook (lost delivery) and needs an admin to look at it.
+ * Used by the admin attention list only; it does not change hasLivePayment.
  */
 export const STALE_PENDING_DAYS = 3;
 

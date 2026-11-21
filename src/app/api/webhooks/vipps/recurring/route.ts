@@ -11,8 +11,8 @@
 // - recurring.charge-captured.v1 → Complete payment
 // - recurring.charge-canceled.v1 → Mark payment as canceled
 // - recurring.charge-refunded.v1 → Process refund
-// - recurring.charge-failed.v1 → Mark payment as failed
-// - recurring.charge-creation-failed.v1 → Handle charge creation failure
+// - recurring.charge-failed.v1 → Mark payment as failed → payment-failed e-mail to the customer
+// - recurring.charge-creation-failed.v1 → Mark payment as failed → payment-failed e-mail to the customer
 //
 // AGREEMENT EVENTS:
 // - recurring.agreement-activated.v1 → Agreement accepted by user → Activate payment agreement + subscription (if any) → Generate first order
@@ -52,7 +52,7 @@ import {
 import { cancelVippsAgreement, stopVippsAgreementForCancelledSubscription } from '@/lib/payments/vipps/service';
 import { createOrder, getOrderByPaymentAgreementId } from '@/lib/database/orders';
 import { buildOrderData } from '@/lib/services/order-generation';
-import { sendOrderConfirmationEmail } from '@/lib/services/customer-emails';
+import { sendOrderConfirmationEmail, sendPaymentFailedEmail } from '@/lib/services/customer-emails';
 import { recordPromoRedemption } from '@/lib/database/promo-codes';
 import { addDays, toISODateString, getWeekdayFromDate, getNextOccurrenceOfWeekday } from '@/lib/utils/date';
 import { DAYS_PICKUP_TO_DELIVERY } from '@/lib/config/order-timing';
@@ -466,7 +466,10 @@ async function handleChargeFailed(
 
   console.log(`[Vipps Recurring Webhook] Payment ${payment.id} marked as failed`);
 
-  // TODO: Send customer notification about failed payment
+  // Payment-failed e-mail (#28). Never throws; keyed on the payment id so a
+  // redelivered webhook sends nothing. Retry policy = admin «Belast på nytt».
+  await sendPaymentFailedEmail(payment.id);
+
   // TODO: Handle retry logic or subscription pausing after multiple failures
 }
 
@@ -474,6 +477,7 @@ async function handleChargeFailed(
  * Handle recurring.charge-creation-failed.v1
  *
  * Charge failed to be created asynchronously (async validation failed).
+ * Marks the payment row failed, then sends the customer the payment-failed e-mail (#28).
  */
 async function handleChargeCreationFailed(
   webhook: VippsChargeWebhookBody,
@@ -517,6 +521,10 @@ async function handleChargeCreationFailed(
   if (!failed) {
     throw new Error(`Failed to mark payment ${payment.id} as failed`);
   }
+
+  // Payment-failed e-mail (#28) — same as charge-failed. Never throws; keyed
+  // on the payment id so a redelivered webhook sends nothing.
+  await sendPaymentFailedEmail(payment.id);
 
   // TODO: Send admin notification about charge creation failure
 }

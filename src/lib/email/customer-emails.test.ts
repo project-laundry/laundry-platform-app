@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { OrderForCustomerEmail } from '@/lib/database/orders';
-import { buildOrderConfirmationEmail, buildPriceReceiptEmail, formatKrExact, formatLongDate } from './customer-emails';
+import { buildOrderConfirmationEmail, buildPaymentFailedEmail, buildPriceReceiptEmail, formatKrExact, formatLongDate } from './customer-emails';
 
 const OPTIONS = { appUrl: 'https://nooracare.no/' };
 
@@ -208,6 +208,31 @@ describe('buildPriceReceiptEmail', () => {
     expect(text).toContain('Rabatt (WELCOME): −580,30 kr');
     expect(text).toContain('Totalt: 0 kr');
     expect(text).toContain('ingenting trekkes');
+    expect(text).not.toContain('Vipps-referanse');
+  });
+});
+
+describe('buildPaymentFailedEmail', () => {
+  it('names the order and amount, states the retry policy and the Vipps reference', () => {
+    const { subject, text } = buildPaymentFailedEmail(
+      { ...ORDER, status: 'ready_for_delivery', wash_loads: 2, total_cost_ore: 46424 },
+      { amount_ore: 46424, provider_reference: 'chr-1' },
+      OPTIONS
+    );
+
+    expect(subject).toBe('Betalingen for bestilling #ABC123 gikk ikke gjennom');
+    expect(text).toContain('Vi fikk dessverre ikke trukket 464,24 kr for bestilling #ABC123 via Vipps.');
+    expect(text).toContain('HVA SKJER NÅ');
+    expect(text).toContain('Dette påvirker ikke leveringen av tøyet ditt.');
+    expect(text).toContain('nytt forsøk på å trekke beløpet i løpet av noen dager');
+    expect(text).toContain('Vipps-referanse: chr-1');
+    expect(text).toContain('Se bestillingen: https://nooracare.no/orders/details/ord-1');
+  });
+
+  it('omits the reference row when the payment has none', () => {
+    const { text } = buildPaymentFailedEmail(ORDER, { amount_ore: 50000, provider_reference: null }, OPTIONS);
+
+    expect(text).toContain('trukket 500 kr for bestilling #ABC123');
     expect(text).not.toContain('Vipps-referanse');
   });
 });

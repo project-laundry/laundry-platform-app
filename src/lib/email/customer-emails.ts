@@ -354,3 +354,45 @@ export function buildPriceReceiptEmail(
     options
   );
 }
+
+// ─── #28 Payment failed ─────────────────────────────────────────────────────
+
+/**
+ * Sent when Vipps reports the charge as failed (charge-failed after its own
+ * retries, or charge-creation-failed). The customer usually does not know.
+ * Encodes the retry policy: nothing to do, we re-charge within a few days
+ * (admin «Belast på nytt»), we get in touch if that fails too; the laundry
+ * is delivered regardless.
+ */
+export function buildPaymentFailedEmail(
+  order: OrderForCustomerEmail,
+  payment: Pick<Payment, 'amount_ore' | 'provider_reference'>,
+  options: CustomerEmailOptions
+): CustomerEmail {
+  const amount = formatKrExact(payment.amount_ore);
+  const blocks: Block[] = [
+    greeting(order),
+    paragraph(`Vi fikk dessverre ikke trukket ${amount} for bestilling #${order.order_number} via Vipps.`),
+    heading('Hva skjer nå'),
+    paragraph('Dette påvirker ikke leveringen av tøyet ditt.'),
+    paragraph(
+      'Sjekk at betalingskortet i Vipps-appen er gyldig og har dekning, og at Vipps-avtalen med NooraCare fortsatt er aktiv.'
+    ),
+    paragraph(
+      'Vi gjør et nytt forsøk på å trekke beløpet i løpet av noen dager. Du trenger ikke gjøre noe mer. Lykkes det ikke, tar vi kontakt med deg.'
+    ),
+  ];
+
+  if (payment.provider_reference) {
+    blocks.push(rows([{ label: 'Vipps-referanse', value: payment.provider_reference }]));
+  }
+
+  blocks.push(button('Se bestillingen', orderUrl(order, options)), closing());
+
+  return finish(
+    `Betalingen for bestilling #${order.order_number} gikk ikke gjennom`,
+    'Betalingen gikk ikke gjennom',
+    blocks,
+    options
+  );
+}
