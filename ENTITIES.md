@@ -564,7 +564,7 @@
 
 ---
 
-**Note:** For MVP, email/SMS notifications are tracked via provider audit logs (SendGrid, Twilio, etc.) - no database storage needed.
+**Note:** Customer e-mails are sent through Resend and not stored in the database — the Resend dashboard is the delivery log, and duplicate suppression uses Resend idempotency keys rather than a `*_sent_at` column (see BUSINESS_LOGIC.md → Customer E-mails).
 
 ---
 

@@ -4,8 +4,9 @@
 // Called by the Vercel cron declared in vercel.json (06:00 UTC daily, Production
 // only). Vercel sends `Authorization: Bearer <CRON_SECRET>`; anything else is 401.
 // Builds the same attention lists as /admin and e-mails them as plain text to
-// every admin user through the Resend REST API. Sent even when there is nothing
-// to follow up, so a missing e-mail means the cron or the sender is broken.
+// every admin user through the shared Resend transport (lib/email/send.ts).
+// Sent even when there is nothing to follow up, so a missing e-mail means the
+// cron or the sender is broken.
 //
 // Response codes: 401 bad/missing secret; 500 missing configuration or no
 // recipients; 502 Resend rejected the send; 200 { sent: <recipient count> }.
@@ -14,8 +15,8 @@ import { NextResponse } from 'next/server';
 import { getAdminAttention } from '@/lib/database/admin-attention';
 import { getUsersByRole } from '@/lib/database/users';
 import { buildAdminDigest } from '@/lib/services/admin-digest';
+import { sendEmail } from '@/lib/email/send';
 
-const RESEND_SEND_URL = 'https://api.resend.com/emails';
 const DEFAULT_FROM = 'NooraCare <varsel@nooracare.no>';
 
 export async function GET(request: Request): Promise<Response> {
@@ -42,24 +43,14 @@ export async function GET(request: Request): Promise<Response> {
   const attention = await getAdminAttention();
   const { subject, text } = buildAdminDigest(attention, { appUrl, now: new Date() });
 
-  const response = await fetch(RESEND_SEND_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-      'User-Agent': 'nooracare-admin-digest/1.0',
-    },
-    body: JSON.stringify({
-      from: process.env.ADMIN_DIGEST_FROM || DEFAULT_FROM,
-      to: recipients,
-      subject,
-      text,
-    }),
+  const result = await sendEmail({
+    from: process.env.ADMIN_DIGEST_FROM || DEFAULT_FROM,
+    to: recipients,
+    subject,
+    text,
   });
 
-  if (!response.ok) {
-    const body = await response.text();
-    console.error(`[Admin Digest] Resend rejected the e-mail (${response.status}):`, body);
+  if (!result.ok) {
     return NextResponse.json({ error: 'Send failed' }, { status: 502 });
   }
 

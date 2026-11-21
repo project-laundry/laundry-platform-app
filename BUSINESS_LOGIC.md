@@ -43,6 +43,7 @@
        - `subscription_id` set if recurring, null if one-time
        - Status: 'pickup_scheduled' if cleaner assigned, else 'pending_assignment'
        - **If a promo was captured:** stamp the locked snapshot onto this (first) order's `promo` and insert a `promo_code_redemptions` row (idempotent). Recurring orders #2+ never receive it → **first order only**.
+     - **Order confirmation e-mail** to the customer right after the first order is inserted (never on the duplicate-delivery branch) — see [Customer E-mails](#customer-e-mails)
 
 3. **Rolling Window Order Generation** (recurring only, triggered when order completes):
    - System maintains **1 upcoming order** at all times
@@ -318,6 +319,18 @@ Instead of separate audit tables, rely on entity timestamps:
 These timestamps provide sufficient audit trail for MVP compliance.
 
 **Future:** Add dedicated audit tables (OrderStatusHistory, SubscriptionChangeHistory) if regulatory compliance requires full change tracking.
+
+---
+
+### Customer E-mails
+
+Transactional only (no consent needed), Norwegian, from NooraCare (`no-reply@nooracare.no`, reply-to `post@nooracare.no`). Every price-related e-mail restates the model: checkout shows an **estimate**, the cleaner sets the **binding price** after pickup.
+
+| E-mail | When | Must say |
+|---|---|---|
+| Order confirmation | Vipps agreement activated and the first order exists (subscription or one-time) | pickup date + address; bags / bedding sets; estimate «ca. X kr» + "endelig pris settes av renseren etter henting – du betaler for faktisk mengde"; promo code if any; subscriptions only (not in the first version): frequency, next pickup is automatic, how to cancel (`/dashboard/subscription`) |
+
+Delivery and idempotency are Resend's (idempotency key per order/payment, 24 h); nothing about e-mails is stored in the database. A failed send is logged and never fails the triggering webhook or action. No e-mail is sent for `charge-captured` or for per-status updates.
 
 ---
 

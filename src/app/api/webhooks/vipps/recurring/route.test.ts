@@ -34,6 +34,7 @@ vi.mock('@/lib/payments/vipps/service', () => ({
 }));
 vi.mock('@/lib/database/orders', () => ({ createOrder: vi.fn(), getOrderByPaymentAgreementId: vi.fn() }));
 vi.mock('@/lib/database/promo-codes', () => ({ recordPromoRedemption: vi.fn() }));
+vi.mock('@/lib/services/customer-emails', () => ({ sendOrderConfirmationEmail: vi.fn() }));
 
 import { validateVippsWebhook } from '@/lib/payments/vipps/webhook-auth';
 import {
@@ -58,6 +59,7 @@ import {
 import { cancelVippsAgreement, stopVippsAgreementForCancelledSubscription } from '@/lib/payments/vipps/service';
 import { createOrder, getOrderByPaymentAgreementId } from '@/lib/database/orders';
 import { recordPromoRedemption } from '@/lib/database/promo-codes';
+import { sendOrderConfirmationEmail } from '@/lib/services/customer-emails';
 import { POST } from './route';
 
 // Cast helpers
@@ -359,6 +361,7 @@ describe('agreement-activated', () => {
       customer_estimate: ORDER_DEFAULTS.customer_estimate,
     });
     expect(recordPromoRedemption).toHaveBeenCalledWith(expect.objectContaining({ promoCodeId: 'promo-1', orderId: 'ord-1' }));
+    expect(sendOrderConfirmationEmail).toHaveBeenCalledWith('ord-1');
   });
 
   it('creates a one-time order from agreement metadata and records no promo when none is present', async () => {
@@ -379,6 +382,7 @@ describe('agreement-activated', () => {
     const orderArg = m(createOrder).mock.calls[0][0];
     expect(orderArg).toMatchObject({ subscription_id: null, payment_agreement_id: 'pa-1' });
     expect(recordPromoRedemption).not.toHaveBeenCalled();
+    expect(sendOrderConfirmationEmail).toHaveBeenCalledWith('ord-2');
   });
 
   it('is a no-op on a duplicate delivery: agreement and subscription already active, order already exists', async () => {
@@ -394,6 +398,7 @@ describe('agreement-activated', () => {
     expect(createOrder).not.toHaveBeenCalled();
     // The (idempotent) redemption is still recorded against the existing order.
     expect(recordPromoRedemption).toHaveBeenCalledWith(expect.objectContaining({ promoCodeId: 'promo-1', orderId: 'ord-1' }));
+    expect(sendOrderConfirmationEmail).not.toHaveBeenCalled();
   });
 
   it('creates the missing first order on a retry after an earlier attempt died post-activation', async () => {
@@ -441,6 +446,7 @@ describe('agreement-activated', () => {
 
     expect(res.status).toBe(500);
     expect(recordPromoRedemption).not.toHaveBeenCalled();
+    expect(sendOrderConfirmationEmail).not.toHaveBeenCalled();
   });
 
   it('returns 500 when the order existence check throws (never inserts blind)', async () => {

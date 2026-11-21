@@ -52,7 +52,7 @@ Staging/production values are set **per environment** in the Vercel dashboard.
 | `GOOGLE_MAPS_API_KEY` | Maps Platform key (Geocoding API enabled) | same, or a prod-restricted key |
 | `ANTHROPIC_API_KEY` | Anthropic API key (cleaner onboarding photo recognition; optional) | separate prod key from the Anthropic Console |
 | `CRON_SECRET` | any random string (lets you curl the digest route on staging) | a different random string — Vercel sends it on every cron call to `/api/cron/admin-digest` |
-| `RESEND_API_KEY` | Resend API key (the digest only runs on Production, but the route must work when curl-tested) | Resend API key for the verified `nooracare.no` sending domain |
+| `RESEND_API_KEY` | Resend API key — sends the customer e-mails (order confirmation, receipt, payment failed) to the staging test accounts and the curl-tested admin digest | Resend API key for the verified `nooracare.no` sending domain (customer e-mails + admin digest) |
 | `ADMIN_DIGEST_FROM` | optional; default `NooraCare <varsel@nooracare.no>` | same |
 
 > `CRON_SECRET` protects the one cron route, `GET /api/cron/admin-digest` (daily admin

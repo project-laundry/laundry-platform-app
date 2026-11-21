@@ -88,7 +88,7 @@ src/
 │   │   └── admins/         # Admin user list, create/edit
 │   ├── api/                # API routes
 │   │   ├── cron/
-│   │   │   └── admin-digest/ # Daily admin digest (Vercel cron in vercel.json, 06:00 UTC, Production only): CRON_SECRET bearer check → getAdminAttention → buildAdminDigest → Resend REST via fetch, plain text to every admin user
+│   │   │   └── admin-digest/ # Daily admin digest (Vercel cron in vercel.json, 06:00 UTC, Production only): CRON_SECRET bearer check → getAdminAttention → buildAdminDigest → sendEmail (lib/email/send.ts), plain text to every admin user
 │   │   └── webhooks/
 │   │       └── vipps/
 │   │           └── recurring/ # Vipps Recurring API webhooks (agreement activation, charge events)
@@ -152,6 +152,9 @@ src/
 │   │   ├── payments.ts     # Payment operations (includes Vipps metadata management)
 │   │   ├── promo-codes.ts  # Promo code validation & redemption (shared, once-per-customer)
 │   │   └── subscriptions.ts   # Subscription operations (recurring order management)
+│   ├── email/
+│   │   ├── send.ts         # sendEmail(): the ONE Resend transport (fetch → POST /emails, optional Idempotency-Key, never throws, { ok } | { ok: false, error }); CUSTOMER_EMAIL_FROM. Used by the admin digest and the customer e-mails
+│   │   └── customer-emails.ts # Pure builders for the customer e-mails → { subject, text, html }: buildOrderConfirmationEmail (#23), buildPriceReceiptEmail (#26), buildPaymentFailedEmail (#28). Text and HTML rendered from one block list; HTML wrapper mirrors supabase/templates/
 │   ├── payments/           # Payment processing integrations
 │   │   └── vipps/          # Vipps integration (Recurring API)
 │   │       ├── base-client.ts      # Shared OAuth and HTTP utilities
@@ -161,6 +164,7 @@ src/
 │   │       └── config.ts           # Vipps configuration validation
 │   ├── services/
 │   │   ├── admin-digest.ts      # buildAdminDigest(attention, { appUrl, now }) → { subject, text } (pure, plain text)
+│   │   ├── customer-emails.ts   # sendOrderConfirmationEmail / sendPriceReceiptEmail / sendPaymentFailedEmail — load (getOrderForCustomerEmail, getPaymentById), build, send; NEVER throw, return void (callers: Vipps webhook, ready-order, retryChargeAction)
 │   │   ├── order-generation.ts  # Subscription to orders logic
 │   │   └── staff-accounts.ts    # Staff (driver/admin) account creation: auth user + role flip + cleanup
 │   ├── supabase/
@@ -172,8 +176,7 @@ src/
 │   │   ├── email.ts        # EMAIL_RE / isValidEmail, shared by the waitlist form (client) and action (server)
 │   │   └── order-number.ts # Order number generation
 │   ├── og-image.tsx        # Shared next/og renderer for the social share images (Fjord + stacked logo; Fraunces fetched at build, falls back silently)
-│   ├── prelaunch.ts        # Host-keyed pre-launch gate used by proxy.ts (see Middleware); customer paths are open, the cleaner side is still gated — delete when cleaners launch
-│   └── notifications.ts    # Notification templates and system
+│   └── prelaunch.ts        # Host-keyed pre-launch gate used by proxy.ts (see Middleware); customer paths are open, the cleaner side is still gated — delete when cleaners launch
 ├── types/
 │   ├── database.ts         # Complete entity types and enums
 │   └── index.ts            # General type exports
@@ -237,9 +240,21 @@ Cleaner onboarding step 3 can pre-fill the washing machine fields from a photo. 
 
 ## Admin Digest
 
-Every day at 06:00 UTC a Vercel cron (`vercel.json` → `crons`, Production only) calls `GET /api/cron/admin-digest` with `Authorization: Bearer $CRON_SECRET`. The route e-mails the same lists `/admin` shows (`lib/database/admin-attention.ts` → `lib/services/admin-digest.ts`) as plain text to every `users` row with `role = 'admin'` and `deleted_at IS NULL`, through the Resend REST API with `fetch` (no SDK). It is sent even when there is nothing to do, so a missing e-mail means the cron or sender is broken. Instant alerts (#40, #42) are not built; the webhook's `TODO: Send admin notification` comments stand.
+Every day at 06:00 UTC a Vercel cron (`vercel.json` → `crons`, Production only) calls `GET /api/cron/admin-digest` with `Authorization: Bearer $CRON_SECRET`. The route e-mails the same lists `/admin` shows (`lib/database/admin-attention.ts` → `lib/services/admin-digest.ts`) as plain text to every `users` row with `role = 'admin'` and `deleted_at IS NULL`, through the shared `sendEmail` transport (`lib/email/send.ts` — Resend REST API with `fetch`, no SDK). It is sent even when there is nothing to do, so a missing e-mail means the cron or sender is broken. Instant alerts (#40, #42) are not built; the webhook's `TODO: Send admin notification` comments stand.
 
 - **Env**: `CRON_SECRET`, `RESEND_API_KEY`, optional `ADMIN_DIGEST_FROM` (see `ENVIRONMENTS.md`). The `nooracare.no` sending domain is verified in Resend (shared with the Auth e-mails).
+
+## Customer E-mails
+
+Transactional e-mails to customers (epic #32): Norwegian, sender `NooraCare <no-reply@nooracare.no>` with reply-to `COMPANY.email`, no marketing content (so no consent needed). One transport for the whole app: `sendEmail` in `lib/email/send.ts` (Resend REST via `fetch`, `RESEND_API_KEY`, no SDK). Builders are pure (`lib/email/customer-emails.ts`, `{ subject, text, html }` from one block list — the HTML wrapper mirrors `supabase/templates/`); `lib/services/customer-emails.ts` loads the order (`getOrderForCustomerEmail`) and payment (`getPaymentById`), builds and sends. The service functions **never throw and return void**: a failed e-mail is logged and must never fail the Vipps webhook or a server action. Idempotency is Resend's `Idempotency-Key` (`<event>/<entity id>`, 24 h) on top of the already guarded triggers — no `*_sent_at` columns, nothing stored in the DB; `https://resend.com/emails` is the delivery log.
+
+| E-mail | Trigger (exact code path) | Key |
+|---|---|---|
+| Order confirmation (#23) | `generateFirstOrder` in the `agreement-activated` webhook, right after `createOrder` succeeds (subscription and one-time; the duplicate-delivery branch sends nothing). Pickup date + address, what the customer sends, the estimate with the "endelig pris settes av renseren etter henting" explanation, promo line, subscription frequency + cancel link (`/dashboard/subscription`) for subscriptions only (dormant while `SUBSCRIPTIONS_OFFERED` is false) | `order-confirmation/<order.id>` |
+
+Not sent (deliberately): per-status updates, `charge-captured`.
+
+- **Env**: `RESEND_API_KEY` (missing → send skipped and logged), `NEXT_PUBLIC_APP_URL` (links). Staging sends real mail to the test accounts.
 
 ## Payment Processing
 

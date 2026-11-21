@@ -16,6 +16,7 @@
 //
 // AGREEMENT EVENTS:
 // - recurring.agreement-activated.v1 → Agreement accepted by user → Activate payment agreement + subscription (if any) → Generate first order
+//   → order confirmation e-mail to the customer (lib/services/customer-emails.ts, non-blocking)
 //   (idempotent: status-guarded updates + first-order existence check, because Vipps delivers at-least-once)
 //
 // RESPONSE CODES: 401 bad signature; 200 for anything a retry can never fix (unknown
@@ -51,6 +52,7 @@ import {
 import { cancelVippsAgreement, stopVippsAgreementForCancelledSubscription } from '@/lib/payments/vipps/service';
 import { createOrder, getOrderByPaymentAgreementId } from '@/lib/database/orders';
 import { buildOrderData } from '@/lib/services/order-generation';
+import { sendOrderConfirmationEmail } from '@/lib/services/customer-emails';
 import { recordPromoRedemption } from '@/lib/database/promo-codes';
 import { addDays, toISODateString, getWeekdayFromDate, getNextOccurrenceOfWeekday } from '@/lib/utils/date';
 import { DAYS_PICKUP_TO_DELIVERY } from '@/lib/config/order-timing';
@@ -718,6 +720,14 @@ async function generateFirstOrder(
     // 500 and Vipps retries; the existence check above makes the retry safe.
     throw new Error(`Failed to create first order for payment agreement ${paymentAgreementId}`);
   }
+
+  // Order confirmation e-mail (#23) — only on the path that just inserted the
+  // order, so a duplicate delivery (handled above) never sends a second one.
+  // Sent BEFORE the promo redemption: if that write fails and Vipps retries,
+  // the retry finds the order, records the redemption and sends nothing.
+  // Never throws (lib/services/customer-emails.ts) — an e-mail failure must
+  // not make Vipps retry an activation that already succeeded.
+  await sendOrderConfirmationEmail(order.id);
 
   // Record the redemption now that a first order exists (committed customer).
   // Idempotent via UNIQUE(promo_code_id, customer_id) — safe on webhook retries.

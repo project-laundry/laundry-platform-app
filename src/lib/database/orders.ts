@@ -697,6 +697,43 @@ export async function getOrderByPaymentAgreementId(
   return data;
 }
 
+/**
+ * One order with what the customer e-mails need next to it: the customer's
+ * e-mail address and name (users row) and the subscription's frequency and
+ * status (null for a one-time order). Admin client — the callers are the
+ * Vipps webhook and server actions. Null when the order does not exist or
+ * the query fails (logged): the e-mail is then skipped, never thrown.
+ */
+export interface OrderForCustomerEmail extends Order {
+  customer: { user: Pick<User, 'email' | 'full_name'> };
+  subscription: Pick<Subscription, 'frequency' | 'status'> | null;
+}
+
+export async function getOrderForCustomerEmail(
+  orderId: string
+): Promise<OrderForCustomerEmail | null> {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select(`
+      *,
+      customer:customers!customer_id(
+        user:users!user_id(email, full_name)
+      ),
+      subscription:subscriptions(frequency, status)
+    `)
+    .eq('id', orderId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[getOrderForCustomerEmail] Error fetching order:', error);
+    return null;
+  }
+
+  return data as OrderForCustomerEmail | null;
+}
+
 export interface RecentOrderAddress {
   street: string;
   postal_code: string;
