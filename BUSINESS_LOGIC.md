@@ -242,6 +242,7 @@ Assignment happens at subscription creation.
 1. `pickup_scheduled` → `in_cleaning`
    - **Who:** Cleaner («Jeg har hentet tøyet»); admin fallback «Marker som hentet»
    - **Action:** Picks up laundry at the customer's door; one guarded write stamps `picked_up_at` and `in_cleaning_at`. Before the pickup date the cleaner sees a warning, but an early pickup agreed with the customer is allowed.
+   - **E-mail:** the customer gets the "laundry picked up" e-mail (see [Customer E-mails](#customer-e-mails)) — non-blocking, once per order
 2. `in_cleaning` → `ready_for_delivery`
    - **Who:** Cleaner («Tøyet er klart til levering» — the same confirm saves the wash count and price, then marks ready); admin fallback «Marker som klar» on the order page (exit for an order stuck in `in_cleaning` — the admin sets the price with the override first if the cleaner never did). Both go through `markOrderReadyAndCharge` in `lib/services/ready-order.ts`.
    - **Guard + charge:** rejected until wash details are registered (`wash_loads > 0`) and the price is set (`total_cost_ore`). Confirming this step **creates the Vipps charge** — the customer pays when the laundry is finished, not at delivery.
@@ -332,8 +333,9 @@ Transactional only (no consent needed), Norwegian, from NooraCare (`no-reply@noo
 | Price set + receipt | Cleaner (or admin fallback) marks the order ready and the Vipps charge is created; again on every admin «Belast på nytt»; also for a 0-total promo order | price lines (machines × 229 kr, pickup/delivery, service fee, minimum if applied), promo deduction, total; the checkout estimate for comparison; `pricing_notes`; "trekkes automatisk via Vipps-avtalen din i løpet av et par dager" + Vipps reference |
 | Payment failed | Vipps reports `charge-failed` or `charge-creation-failed` (the payment row is marked `failed` first) | which order and amount; retry policy: delivery is unaffected, check the card/agreement in Vipps, we re-charge within a few days (admin «Belast på nytt»), we get in touch if that fails too |
 | Laundry delivered | The order becomes `completed` (cleaner «Levert til kunden», admin «Marker som levert»); never on `out_for_delivery` | delivered date + address; payment line that matches the payment state — nothing charged (0 total), "er trukket" (captured) or "trekkes automatisk … i løpet av et par dager" (charge in flight), and no payment line at all when the charge failed or was never created; subscriptions only (dormant): next pickup is set up automatically, date on Min side; link to the order. No review request, no marketing |
+| Laundry picked up | Cleaner taps «Jeg har hentet tøyet» (with the pickup time) or admin uses «Marker som hentet» (no time — the click is not the pickup time) | who picked it up (cleaner's display name); next: an e-mail when the price is set and one when the laundry is delivered; the checkout price was an estimate, the cleaner sets the binding price. Never a delivery date or deadline |
 
-Delivery and idempotency are Resend's (idempotency key per order/payment, 24 h); nothing about e-mails is stored in the database. A failed send is logged and never fails the triggering webhook or action. No e-mail is sent for `charge-captured`, for per-status updates, or when charge creation fails synchronously (the admin's retry sends the price e-mail instead).
+Delivery and idempotency are Resend's (idempotency key per order/payment, 24 h); nothing about e-mails is stored in the database. A failed send is logged and never fails the triggering webhook or action. No e-mail is sent for `charge-captured`, for other status changes (assignment, ready for delivery), or when charge creation fails synchronously (the admin's retry sends the price e-mail instead).
 
 ---
 

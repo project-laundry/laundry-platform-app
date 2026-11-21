@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { OrderForCustomerEmail } from '@/lib/database/orders';
-import { buildOrderConfirmationEmail, buildPaymentFailedEmail, buildOrderDeliveredEmail, buildPriceReceiptEmail, formatKrExact, formatLongDate } from './customer-emails';
+import { buildOrderConfirmationEmail, buildOrderPickedUpEmail, buildPaymentFailedEmail, buildOrderDeliveredEmail, buildPriceReceiptEmail, formatKrExact, formatLongDate } from './customer-emails';
 
 const OPTIONS = { appUrl: 'https://nooracare.no/' };
 
@@ -55,6 +55,7 @@ const ORDER: OrderForCustomerEmail = {
   updated_at: '2026-10-20T10:00:00.000Z',
   customer: { user: { email: 'kari@example.com', full_name: 'Kari Nordmann' } },
   subscription: null,
+  cleaner: null,
 };
 
 /** The dormant variant: the first order of a weekly subscription. */
@@ -338,5 +339,124 @@ describe('buildOrderDeliveredEmail', () => {
     );
 
     expect(text).not.toContain('Neste henting');
+  });
+});
+
+/** A one-time order just collected by cleaner "Ola Hansen" at 14:32 Oslo time (12:32 UTC, CEST). */
+const PICKED_UP_ORDER: OrderForCustomerEmail = {
+  ...ORDER,
+  subscription_id: null,
+  subscription: null,
+  cleaner_id: 'cl-1',
+  status: 'in_cleaning',
+  picked_up_at: '2026-10-24T12:32:00.000Z',
+  in_cleaning_at: '2026-10-24T12:32:00.000Z',
+  cleaner: { display_name: 'Ola Hansen' },
+};
+
+describe('buildOrderPickedUpEmail', () => {
+  it('says who picked up the laundry and when, what happens next, and that the price was an estimate', () => {
+    const { subject, text, html } = buildOrderPickedUpEmail(
+      PICKED_UP_ORDER,
+      { showPickupTime: true },
+      OPTIONS
+    );
+
+    expect(subject).toBe('Tøyet ditt er hentet – bestilling #ABC123');
+    expect(text).toContain('Hei Kari!');
+    expect(text).toContain(
+      'Ola Hansen, renseren din, hentet tøyet ditt lørdag 24. oktober kl. 14:32.'
+    );
+    expect(text).toContain('HVA SKJER NÅ');
+    expect(text).toContain('Du får en e-post når prisen er satt, og en ny når tøyet er levert.');
+    expect(text).toContain('Prisen du så da du bestilte (ca. 589 kr), var et estimat.');
+    expect(text).toContain('Renseren setter den endelige prisen');
+    expect(text).toContain('Se bestillingen: https://nooracare.no/orders/details/ord-1');
+    expect(html).toContain('Tøyet ditt er hentet</h1>');
+    expect(html).toContain('href="https://nooracare.no/orders/details/ord-1"');
+  });
+
+  it('never shows a delivery date, a deadline or subscription wording', () => {
+    const { text } = buildOrderPickedUpEmail(
+      {
+        ...PICKED_UP_ORDER,
+        subscription_id: 'sub-1',
+        subscription: { frequency: 'weekly', status: 'active' },
+      },
+      { showPickupTime: true },
+      OPTIONS
+    );
+
+    expect(text).not.toContain('27. oktober');
+    expect(text).not.toContain('innen');
+    expect(text.toLowerCase()).not.toContain('abonnement');
+    expect(text.toLowerCase()).not.toContain('nabo');
+  });
+
+  it('leaves the time out for the admin fallback', () => {
+    const { text } = buildOrderPickedUpEmail(PICKED_UP_ORDER, { showPickupTime: false }, OPTIONS);
+
+    expect(text).toContain('Ola Hansen, renseren din, har hentet tøyet ditt.');
+    expect(text).not.toContain('kl.');
+    expect(text).not.toContain('24. oktober');
+  });
+
+  it('leaves the time out when picked_up_at is missing', () => {
+    const { text } = buildOrderPickedUpEmail(
+      { ...PICKED_UP_ORDER, picked_up_at: null },
+      { showPickupTime: true },
+      OPTIONS
+    );
+
+    expect(text).toContain('Ola Hansen, renseren din, har hentet tøyet ditt.');
+  });
+
+  it('trims the display name and falls back to «Renseren din» without a cleaner or with a blank name', () => {
+    const none = buildOrderPickedUpEmail(
+      { ...PICKED_UP_ORDER, cleaner_id: null, cleaner: null },
+      { showPickupTime: true },
+      OPTIONS
+    );
+    const blank = buildOrderPickedUpEmail(
+      { ...PICKED_UP_ORDER, cleaner: { display_name: '  ' } },
+      { showPickupTime: false },
+      OPTIONS
+    );
+    const padded = buildOrderPickedUpEmail(
+      { ...PICKED_UP_ORDER, cleaner: { display_name: '  Bergen Vask ' } },
+      { showPickupTime: false },
+      OPTIONS
+    );
+
+    expect(none.text).toContain('Renseren din hentet tøyet ditt lørdag 24. oktober kl. 14:32.');
+    expect(blank.text).toContain('Renseren din har hentet tøyet ditt.');
+    expect(padded.text).toContain('Bergen Vask, renseren din, har hentet tøyet ditt.');
+  });
+
+  it('omits the amount for an order without a checkout estimate', () => {
+    const { text } = buildOrderPickedUpEmail(
+      { ...PICKED_UP_ORDER, customer_estimate: null },
+      { showPickupTime: true },
+      OPTIONS
+    );
+
+    expect(text).toContain('Prisen du så da du bestilte, var et estimat.');
+    expect(text).not.toContain('ca.');
+  });
+
+  it('uses Oslo time across midnight and escapes the cleaner name in the HTML', () => {
+    const { text, html } = buildOrderPickedUpEmail(
+      {
+        ...PICKED_UP_ORDER,
+        picked_up_at: '2026-10-24T22:05:00.000Z',
+        cleaner: { display_name: '<b>Ola</b> Hansen' },
+      },
+      { showPickupTime: true },
+      OPTIONS
+    );
+
+    expect(text).toContain('hentet tøyet ditt søndag 25. oktober kl. 00:05.');
+    expect(html).toContain('&lt;b&gt;Ola&lt;/b&gt; Hansen, renseren din,');
+    expect(html).not.toContain('<b>Ola</b>');
   });
 });

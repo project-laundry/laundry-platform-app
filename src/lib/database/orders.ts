@@ -700,13 +700,15 @@ export async function getOrderByPaymentAgreementId(
 /**
  * One order with what the customer e-mails need next to it: the customer's
  * e-mail address and name (users row) and the subscription's frequency and
- * status (null for a one-time order). Admin client — the callers are the
+ * status (null for a one-time order), and the assigned cleaner's display name
+ * (null while no cleaner is assigned). Admin client — the callers are the
  * Vipps webhook and server actions. Null when the order does not exist or
  * the query fails (logged): the e-mail is then skipped, never thrown.
  */
 export interface OrderForCustomerEmail extends Order {
   customer: { user: Pick<User, 'email' | 'full_name'> };
   subscription: Pick<Subscription, 'frequency' | 'status'> | null;
+  cleaner: Pick<Cleaner, 'display_name'> | null;
 }
 
 export async function getOrderForCustomerEmail(
@@ -721,7 +723,8 @@ export async function getOrderForCustomerEmail(
       customer:customers!customer_id(
         user:users!user_id(email, full_name)
       ),
-      subscription:subscriptions(frequency, status)
+      subscription:subscriptions(frequency, status),
+      cleaner:cleaners!orders_cleaner_id_fkey(display_name)
     `)
     .eq('id', orderId)
     .maybeSingle();

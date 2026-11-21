@@ -21,6 +21,7 @@ import {
 } from '@/lib/config/pricing';
 import { completeDeliveredOrder } from '@/lib/services/complete-order';
 import { markOrderReadyAndCharge } from '@/lib/services/ready-order';
+import { sendOrderPickedUpEmail } from '@/lib/services/customer-emails';
 
 export type { OrderWithCustomer };
 
@@ -89,6 +90,7 @@ export async function markOrderReadyForDelivery(
  * guarded write, stamping picked_up_at next to in_cleaning_at.
  * No date check: the UI warns before the pickup date, but an early pickup
  * agreed with the customer is allowed.
+ * Sends the customer the "laundry picked up" e-mail (sendOrderPickedUpEmail).
  */
 export async function markOrderPickedUpAction(
   orderId: string
@@ -122,6 +124,12 @@ export async function markOrderPickedUpAction(
   if (!updated) {
     return { success: false, error: 'Kunne ikke oppdatere status — last siden på nytt' };
   }
+
+  // "Laundry picked up" e-mail (#25) — only after the guarded write succeeded,
+  // so a double-tap (second call fails the guard above) never sends twice.
+  // The cleaner taps at the door, so picked_up_at is the real pickup time.
+  // Never throws (lib/services/customer-emails.ts).
+  await sendOrderPickedUpEmail(orderId, { showPickupTime: true });
 
   revalidatePath('/dashboard/cleaner');
   revalidatePath(`/dashboard/cleaner/${orderId}`);

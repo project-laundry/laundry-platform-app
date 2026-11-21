@@ -16,7 +16,10 @@ vi.mock('@/lib/database/orders', () => ({
 }));
 vi.mock('@/lib/payments/vipps/service', () => ({ createChargeForCompletedOrder: vi.fn() }));
 vi.mock('@/lib/services/complete-order', () => ({ completeDeliveredOrder: vi.fn() }));
-vi.mock('@/lib/services/customer-emails', () => ({ sendPriceReceiptEmail: vi.fn() }));
+vi.mock('@/lib/services/customer-emails', () => ({
+  sendPriceReceiptEmail: vi.fn(),
+  sendOrderPickedUpEmail: vi.fn(),
+}));
 
 import { getCleanerByUserId } from '@/lib/database/cleaners';
 import {
@@ -26,7 +29,7 @@ import {
 } from '@/lib/database/orders';
 import { completeDeliveredOrder } from '@/lib/services/complete-order';
 import { createChargeForCompletedOrder } from '@/lib/payments/vipps/service';
-import { sendPriceReceiptEmail } from '@/lib/services/customer-emails';
+import { sendOrderPickedUpEmail, sendPriceReceiptEmail } from '@/lib/services/customer-emails';
 import { MAX_WASH_LOADS_PER_ORDER } from '@/lib/config/pricing';
 import {
   markOrderPickedUpAction,
@@ -63,6 +66,7 @@ describe('markOrderPickedUpAction', () => {
       'in_cleaning',
       { picked_up_at: expect.any(String) }
     );
+    expect(sendOrderPickedUpEmail).toHaveBeenCalledWith('ord-1', { showPickupTime: true });
   });
 
   it('allows an early pickup (agreed with the customer)', async () => {
@@ -88,6 +92,7 @@ describe('markOrderPickedUpAction', () => {
 
     expect(result).toEqual({ success: false, error: 'Ordren er allerede hentet' });
     expect(updateOrderStatusGuarded).not.toHaveBeenCalled();
+    expect(sendOrderPickedUpEmail).not.toHaveBeenCalled();
   });
 
   it("rejects another cleaner's order", async () => {
@@ -97,6 +102,7 @@ describe('markOrderPickedUpAction', () => {
 
     expect(result.success).toBe(false);
     expect(updateOrderStatusGuarded).not.toHaveBeenCalled();
+    expect(sendOrderPickedUpEmail).not.toHaveBeenCalled();
   });
 
   it('reports a lost race (guard returned null)', async () => {
@@ -110,6 +116,7 @@ describe('markOrderPickedUpAction', () => {
     const result = await markOrderPickedUpAction('ord-1');
 
     expect(result.success).toBe(false);
+    expect(sendOrderPickedUpEmail).not.toHaveBeenCalled();
   });
 
   it('rejects when not logged in', async () => {

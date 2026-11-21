@@ -13,7 +13,10 @@ vi.mock('@/lib/database/orders', () => ({
 }));
 vi.mock('@/lib/services/complete-order', () => ({ completeDeliveredOrder: vi.fn() }));
 vi.mock('@/lib/services/ready-order', () => ({ markOrderReadyAndCharge: vi.fn() }));
-vi.mock('@/lib/services/customer-emails', () => ({ sendPriceReceiptEmail: vi.fn() }));
+vi.mock('@/lib/services/customer-emails', () => ({
+  sendPriceReceiptEmail: vi.fn(),
+  sendOrderPickedUpEmail: vi.fn(),
+}));
 vi.mock('@/lib/services/order-generation', () => ({ checkAndGenerateNextOrders: vi.fn() }));
 vi.mock('@/lib/database/cleaners', () => ({ getAvailableCleanersForCity: vi.fn() }));
 vi.mock('@/lib/database/payments', () => ({ getPaymentsByOrderId: vi.fn() }));
@@ -34,7 +37,7 @@ import {
 } from '@/lib/database/orders';
 import { completeDeliveredOrder } from '@/lib/services/complete-order';
 import { markOrderReadyAndCharge } from '@/lib/services/ready-order';
-import { sendPriceReceiptEmail } from '@/lib/services/customer-emails';
+import { sendOrderPickedUpEmail, sendPriceReceiptEmail } from '@/lib/services/customer-emails';
 import { checkAndGenerateNextOrders } from '@/lib/services/order-generation';
 import { getAvailableCleanersForCity } from '@/lib/database/cleaners';
 import { getPaymentsByOrderId } from '@/lib/database/payments';
@@ -335,6 +338,7 @@ describe('adminMarkPickedUpAction', () => {
 
     expect(result).toEqual({ success: false, error: 'Ingen tilgang' });
     expect(updateOrderStatusGuarded).not.toHaveBeenCalled();
+    expect(sendOrderPickedUpEmail).not.toHaveBeenCalled();
   });
 
   it('moves pickup_scheduled to in_cleaning with picked_up_at', async () => {
@@ -350,6 +354,7 @@ describe('adminMarkPickedUpAction', () => {
       { picked_up_at: expect.any(String) }
     );
     expect(revalidatePath).toHaveBeenCalledWith('/admin/orders/ord-1');
+    expect(sendOrderPickedUpEmail).toHaveBeenCalledWith('ord-1', { showPickupTime: false });
   });
 
   it('errors when the order is no longer waiting for pickup', async () => {
@@ -358,6 +363,7 @@ describe('adminMarkPickedUpAction', () => {
     const result = await adminMarkPickedUpAction('ord-1');
 
     expect(result.success).toBe(false);
+    expect(sendOrderPickedUpEmail).not.toHaveBeenCalled();
   });
 });
 

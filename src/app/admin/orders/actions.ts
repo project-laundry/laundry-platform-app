@@ -13,7 +13,7 @@ import {
 } from '@/lib/database/orders';
 import { completeDeliveredOrder } from '@/lib/services/complete-order';
 import { markOrderReadyAndCharge } from '@/lib/services/ready-order';
-import { sendPriceReceiptEmail } from '@/lib/services/customer-emails';
+import { sendOrderPickedUpEmail, sendPriceReceiptEmail } from '@/lib/services/customer-emails';
 import { checkAndGenerateNextOrders } from '@/lib/services/order-generation';
 import { getAvailableCleanersForCity } from '@/lib/database/cleaners';
 import { getPaymentsByOrderId } from '@/lib/database/payments';
@@ -208,6 +208,7 @@ export interface AdminLogisticsResult {
  * Admin fallback when the cleaner forgot to tap «Jeg har hentet tøyet».
  * Same transition as the cleaner's markOrderPickedUpAction. The guarded
  * write is the status check, so a stale page can't move the wrong order.
+ * Sends the customer the "laundry picked up" e-mail, without a pickup time.
  */
 export async function adminMarkPickedUpAction(orderId: string): Promise<AdminLogisticsResult> {
   const { error: authError } = await assertRole(['admin']);
@@ -219,6 +220,11 @@ export async function adminMarkPickedUpAction(orderId: string): Promise<AdminLog
   if (!updated) {
     return { success: false, error: 'Ordren venter ikke på henting — last siden på nytt' };
   }
+
+  // Same "laundry picked up" e-mail as the cleaner's tap (#25), but without a
+  // time: this fallback runs because the cleaner forgot to tap, so "now" is
+  // not when the bags were collected. Never throws.
+  await sendOrderPickedUpEmail(orderId, { showPickupTime: false });
 
   revalidatePath('/admin/orders');
   revalidatePath(`/admin/orders/${orderId}`);

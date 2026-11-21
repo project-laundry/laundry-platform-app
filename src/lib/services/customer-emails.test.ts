@@ -11,14 +11,15 @@ vi.mock('@/lib/email/customer-emails', () => ({
   buildOrderConfirmationEmail: vi.fn(() => ({ subject: 'Bekreftet', text: 'tekst', html: '<p>html</p>' })),
   buildPriceReceiptEmail: vi.fn(() => ({ subject: 'Pris', text: 'tekst', html: '<p>html</p>' })),
   buildOrderDeliveredEmail: vi.fn(() => ({ subject: 'Levert', text: 'tekst', html: '<p>html</p>' })),
+  buildOrderPickedUpEmail: vi.fn(() => ({ subject: 'Hentet', text: 'tekst', html: '<p>html</p>' })),
   buildPaymentFailedEmail: vi.fn(() => ({ subject: 'Feilet', text: 'tekst', html: '<p>html</p>' })),
 }));
 
 import { getOrderForCustomerEmail } from '@/lib/database/orders';
 import { getPaymentById, getPaymentsByOrderId } from '@/lib/database/payments';
 import { sendEmail } from '@/lib/email/send';
-import { buildOrderConfirmationEmail, buildOrderDeliveredEmail, buildPaymentFailedEmail, buildPriceReceiptEmail } from '@/lib/email/customer-emails';
-import { sendOrderConfirmationEmail, sendOrderDeliveredEmail, sendPaymentFailedEmail, sendPriceReceiptEmail } from './customer-emails';
+import { buildOrderConfirmationEmail, buildOrderDeliveredEmail, buildOrderPickedUpEmail, buildPaymentFailedEmail, buildPriceReceiptEmail } from '@/lib/email/customer-emails';
+import { sendOrderConfirmationEmail, sendOrderDeliveredEmail, sendOrderPickedUpEmail, sendPaymentFailedEmail, sendPriceReceiptEmail } from './customer-emails';
 
 const m = (fn: unknown) => fn as Mock;
 
@@ -211,5 +212,56 @@ describe('sendOrderDeliveredEmail', () => {
     m(sendEmail).mockResolvedValue({ ok: false, error: 'Resend responded 500' });
 
     await expect(sendOrderDeliveredEmail('ord-1')).resolves.toBeUndefined();
+  });
+});
+
+describe('sendOrderPickedUpEmail', () => {
+  it('builds and sends the picked-up e-mail once per order, passing the time flag through', async () => {
+    await sendOrderPickedUpEmail('ord-1', { showPickupTime: true });
+
+    expect(getOrderForCustomerEmail).toHaveBeenCalledWith('ord-1');
+    expect(buildOrderPickedUpEmail).toHaveBeenCalledWith(
+      ORDER,
+      { showPickupTime: true },
+      { appUrl: 'https://nooracare.no' }
+    );
+    expect(sendEmail).toHaveBeenCalledWith({
+      from: 'NooraCare <no-reply@nooracare.no>',
+      to: ['kari@example.com'],
+      replyTo: ['post@nooracare.no'],
+      subject: 'Hentet',
+      text: 'tekst',
+      html: '<p>html</p>',
+      idempotencyKey: 'order-picked-up/ord-1',
+    });
+  });
+
+  it('uses the same idempotency key for the admin fallback', async () => {
+    await sendOrderPickedUpEmail('ord-1', { showPickupTime: false });
+
+    expect(buildOrderPickedUpEmail).toHaveBeenCalledWith(
+      ORDER,
+      { showPickupTime: false },
+      { appUrl: 'https://nooracare.no' }
+    );
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ idempotencyKey: 'order-picked-up/ord-1' })
+    );
+  });
+
+  it('sends nothing when the order is not found', async () => {
+    m(getOrderForCustomerEmail).mockResolvedValue(null);
+
+    await sendOrderPickedUpEmail('ord-x', { showPickupTime: true });
+
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('never throws when the database helper rejects or the send is rejected', async () => {
+    m(getOrderForCustomerEmail).mockRejectedValueOnce(new Error('db down'));
+    await expect(sendOrderPickedUpEmail('ord-1', { showPickupTime: true })).resolves.toBeUndefined();
+
+    m(sendEmail).mockResolvedValue({ ok: false, error: 'Resend responded 500' });
+    await expect(sendOrderPickedUpEmail('ord-1', { showPickupTime: true })).resolves.toBeUndefined();
   });
 });

@@ -481,3 +481,67 @@ export function buildOrderDeliveredEmail(
     options
   );
 }
+
+// ─── #25 Laundry picked up ──────────────────────────────────────────────────
+
+/** "lørdag 24. oktober kl. 14:32" (Oslo time) from an ISO timestamp. */
+function formatPickupMoment(iso: string): string {
+  const at = new Date(iso);
+  const day = new Intl.DateTimeFormat('nb-NO', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'Europe/Oslo',
+  }).format(at);
+  const time = new Intl.DateTimeFormat('nb-NO', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+    timeZone: 'Europe/Oslo',
+  }).format(at);
+  return `${day} kl. ${time}`;
+}
+
+/**
+ * Sent when the laundry leaves the customer's door (cleaner's «Jeg har hentet
+ * tøyet» or the admin fallback). Receipt of custody: who has it, what happens
+ * next, and one line on estimate vs. binding price. Deliberately NO delivery
+ * date or deadline — no turnaround promises (CLAUDE.md). `showPickupTime` is
+ * false for the admin fallback, whose timestamp is when the admin clicked,
+ * not when the bags were collected.
+ */
+export function buildOrderPickedUpEmail(
+  order: OrderForCustomerEmail,
+  details: { showPickupTime: boolean },
+  options: CustomerEmailOptions
+): CustomerEmail {
+  // The cleaner's whole display name (plan amendment: not just the first word).
+  const cleanerName = order.cleaner?.display_name.trim();
+  const who = cleanerName ? `${cleanerName}, renseren din,` : 'Renseren din';
+  const when =
+    details.showPickupTime && order.picked_up_at ? formatPickupMoment(order.picked_up_at) : null;
+  const estimate = order.customer_estimate;
+
+  const blocks: Block[] = [
+    greeting(order),
+    paragraph(when ? `${who} hentet tøyet ditt ${when}.` : `${who} har hentet tøyet ditt.`),
+    heading('Hva skjer nå'),
+    paragraph(
+      'Nå skal tøyet vaskes. Du får en e-post når prisen er satt, og en ny når tøyet er levert.'
+    ),
+    paragraph(
+      estimate
+        ? `Prisen du så da du bestilte (ca. ${formatKr(estimate.estimated_total_ore)}), var et estimat. Renseren setter den endelige prisen ut fra hvor mye tøy du faktisk sendte.`
+        : 'Prisen du så da du bestilte, var et estimat. Renseren setter den endelige prisen ut fra hvor mye tøy du faktisk sendte.'
+    ),
+    button('Se bestillingen', orderUrl(order, options)),
+    closing(),
+  ];
+
+  return finish(
+    `Tøyet ditt er hentet – bestilling #${order.order_number}`,
+    'Tøyet ditt er hentet',
+    blocks,
+    options
+  );
+}

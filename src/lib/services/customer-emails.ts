@@ -15,6 +15,7 @@ import { getOrderForCustomerEmail, type OrderForCustomerEmail } from '@/lib/data
 import {
   buildOrderConfirmationEmail,
   buildOrderDeliveredEmail,
+  buildOrderPickedUpEmail,
   buildPaymentFailedEmail,
   buildPriceReceiptEmail,
   type CustomerEmail,
@@ -175,5 +176,36 @@ export async function sendOrderDeliveredEmail(orderId: string): Promise<void> {
     );
   } catch (error) {
     console.error(`[Customer e-mail] Delivered e-mail for ${orderId} failed:`, error);
+  }
+}
+
+/**
+ * #25 — laundry picked up. Called by the cleaner's markOrderPickedUpAction
+ * (`showPickupTime: true` — tapped at the customer's door) and by the admin
+ * fallback adminMarkPickedUpAction (`showPickupTime: false` — the admin's
+ * click is not the pickup time), in both cases only after the guarded
+ * pickup_scheduled → in_cleaning write succeeded. One e-mail per order.
+ */
+export async function sendOrderPickedUpEmail(
+  orderId: string,
+  details: { showPickupTime: boolean }
+): Promise<void> {
+  try {
+    const url = appUrl();
+    if (!url) return;
+
+    const order = await getOrderForCustomerEmail(orderId);
+    if (!order) {
+      console.error(`[Customer e-mail] Order ${orderId} not found — picked-up e-mail skipped`);
+      return;
+    }
+
+    await deliver(
+      order,
+      buildOrderPickedUpEmail(order, details, { appUrl: url }),
+      `order-picked-up/${order.id}`
+    );
+  } catch (error) {
+    console.error(`[Customer e-mail] Picked-up e-mail for ${orderId} failed:`, error);
   }
 }
