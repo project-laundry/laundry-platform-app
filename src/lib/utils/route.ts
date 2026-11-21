@@ -1,4 +1,5 @@
-// Route helpers for the driver dashboard — PURE functions, no React, no I/O.
+// Route helpers for the driver dashboard and the cleaner's pickup round —
+// PURE functions, no React, no I/O.
 // Extended with:
 //  - stops that may lack coordinates (geocoding can fail; they are deferred)
 //  - precedence constraints (a cleaner drop-off can't precede its pickups)
@@ -162,3 +163,71 @@ export function buildSingleDestinationUrl(dest: Coord): string {
   });
   return `https://www.google.com/maps/dir/?${params.toString()}`;
 }
+
+// Above this many located stops the exhaustive search (n! orders) is replaced
+// by nearest-neighbour. 8 stops = 40 320 orders, instant.
+const MAX_EXHAUSTIVE_STOPS = 8;
+
+/**
+ * Order stops for the shortest round trip that starts and ends at `home`
+ * (straight-line distance — a good proxy inside one city, not road distance).
+ * Exact up to MAX_EXHAUSTIVE_STOPS located stops, nearest-neighbour beyond.
+ * Stops without coordinates come last, in input order.
+ */
+export function optimizeRoundTrip<
+  T extends { latitude: number | null; longitude: number | null },
+>(home: Coord, stops: T[]): T[] {
+  const located = stops.filter(hasCoords);
+  const unlocated = stops.filter((s) => !hasCoords(s));
+  const coordOf = (s: T): Coord => ({ latitude: s.latitude!, longitude: s.longitude! });
+
+  if (located.length > MAX_EXHAUSTIVE_STOPS) {
+    const byId = optimizeStops(
+      home,
+      located.map((s, i) => ({ id: String(i), latitude: s.latitude, longitude: s.longitude, dependsOn: [] }))
+    );
+    return [...byId.map((s) => located[Number(s.id)]), ...unlocated];
+  }
+
+  let best: T[] = located;
+  let bestKm = Infinity;
+  const visit = (route: T[], rest: T[], km: number, at: Coord) => {
+    if (km >= bestKm) return;
+    if (rest.length === 0) {
+      const total = km + haversineKm(at, home);
+      if (total < bestKm) {
+        bestKm = total;
+        best = route;
+      }
+      return;
+    }
+    for (const next of rest) {
+      const coord = coordOf(next);
+      visit([...route, next], rest.filter((s) => s !== next), km + haversineKm(at, coord), coord);
+    }
+  };
+  visit([], located, 0, home);
+
+  return [...best, ...unlocated];
+}
+
+/**
+ * Google Maps directions deep link for a round trip: `home` → each stop in the
+ * given order → `home`. Every place is a "lat,lng" pair or a street address —
+ * Google resolves both. Only the first MAX_WAYPOINTS stops fit in one link.
+ * Returns null without stops.
+ */
+export function buildRoundTripUrl(home: string, stops: string[]): string | null {
+  if (stops.length === 0) return null;
+  const params = new URLSearchParams({
+    api: '1',
+    travelmode: 'driving',
+    origin: home,
+    destination: home,
+    waypoints: stops.slice(0, MAX_WAYPOINTS).join('|'),
+  });
+  return `https://www.google.com/maps/dir/?${params.toString()}`;
+}
+
+/** Most stops one Google Maps directions link can carry. */
+export const MAX_ROUTE_STOPS = MAX_WAYPOINTS;

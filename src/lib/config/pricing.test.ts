@@ -10,6 +10,7 @@ import {
   oreToNok,
   nokToOre,
   formatKr,
+  formatKrExact,
   formatNok,
   formatNokWhole,
   getEmptyIroningDetails,
@@ -57,6 +58,12 @@ describe('formatNok / formatNokWhole / formatKr', () => {
   it('formats whole kroner with unit', () => {
     expect(formatKr(11900)).toBe('119 kr');
     expect(formatKr(50000)).toBe('500 kr');
+  });
+
+  it('keeps the øre only when there are any', () => {
+    expect(formatKrExact(35000)).toBe('350 kr');
+    expect(formatKrExact(56651)).toBe('566,51 kr');
+    expect(formatKrExact(0)).toBe('0 kr');
   });
 });
 

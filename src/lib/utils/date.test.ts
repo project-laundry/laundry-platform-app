@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   addDays,
   addMonths,
@@ -7,7 +7,6 @@ import {
   getNextOccurrenceOfWeekday,
   isWeekdayInSchedule,
   calculateNextBillingDate,
-  isToday,
   todayInOslo,
   daysBetweenISODates,
 } from './date';
@@ -103,26 +102,6 @@ describe('calculateNextBillingDate', () => {
     const result = calculateNextBillingDate(new Date(2026, 0, 15), 'monthly');
     expect(result).not.toBeNull();
     expect(new Date(result as string).getMonth()).toBe(1);
-  });
-});
-
-describe('isToday', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 5, 7, 9, 0, 0));
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it('is true for the current day regardless of time', () => {
-    expect(isToday(new Date(2026, 5, 7, 23, 0, 0))).toBe(true);
-  });
-
-  it('is false for other days', () => {
-    expect(isToday(new Date(2026, 5, 8))).toBe(false);
-    expect(isToday(new Date(2026, 5, 6))).toBe(false);
   });
 });
 

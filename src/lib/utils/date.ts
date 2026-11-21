@@ -145,22 +145,6 @@ export function calculateNextBillingDate(
 }
 
 /**
- * Check if a date is today
- * @param date - The date to check (Date object or ISO string)
- * @returns true if the date is today
- */
-export function isToday(date: Date | string): boolean {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  const today = new Date();
-
-  return (
-    dateObj.getFullYear() === today.getFullYear() &&
-    dateObj.getMonth() === today.getMonth() &&
-    dateObj.getDate() === today.getDate()
-  );
-}
-
-/**
  * Whole days from one YYYY-MM-DD date to another (positive when `toISODate`
  * is later). Both parse as UTC midnight, so DST never shifts the result.
  */

@@ -15,6 +15,7 @@
     "test:coverage": "vitest run --coverage",
     "seed:test-users": "tsx scripts/seed-test-users.ts",
     "seed:driver-orders": "tsx scripts/seed-driver-test-orders.ts",
+    "seed:cleaner-orders": "tsx scripts/seed-cleaner-orders.ts",
     "webhooks": "tsx scripts/manage-webhooks.ts",
     "test:geocode": "tsx scripts/test-geocode.ts",
     "prepare": "husky"

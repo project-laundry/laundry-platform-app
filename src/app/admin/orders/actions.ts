@@ -491,7 +491,7 @@ export interface AdminMarkReadyResult {
 
 /**
  * Admin fallback when the cleaner never marks the order ready: same guarded
- * transition and Vipps charge as the cleaner's «Marker som klar»
+ * transition and Vipps charge as the cleaner's «Tøyet er klart til levering»
  * (lib/services/ready-order.ts). Requires wash_loads > 0 and a price — set
  * them with the price override first if the cleaner never priced the order.
  * A failed charge still succeeds (the order is ready); the page then shows

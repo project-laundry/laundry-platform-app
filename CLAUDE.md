@@ -113,7 +113,7 @@ src/
 │   ├── dashboard/          # User dashboards (page.tsx = customer dashboard; header gear icon → settings/)
 │   │   ├── settings/       # Customer "Min konto": name + phone (users row via updateUserContact), password (browser supabase.auth.updateUser, links to /auth/forgot-password), subscription pickup address + instructions (rewrites order_defaults.initial_address, same city only, optionally copied onto the not-yet-picked-up order)
 │   │   ├── subscription/   # Subscription details + cancel flow — dormant while SUBSCRIPTIONS_OFFERED is false (redirects to /dashboard unless the customer already has a subscription)
-│   │   ├── cleaner/        # Cleaner dashboard, missions & profile settings (settings/ — incl. availability: is_accepting_orders + weekly_schedule)
+│   │   ├── cleaner/        # Cleaner dashboard: page.tsx = active orders grouped by next step (Dagens runde / Kommende hentinger / Vaskes) + one income row — «Dagens runde» is one trip of pickups due today (+ overdue) AND every ready-to-deliver order, each marked Hent/Lever, ordered as the shortest round trip from the cleaner's base (`optimizeRoundTrip` in `lib/utils/route.ts`, straight-line) and «Åpne ruten» opens it in Google Maps (`buildRoundTripUrl`); [orderId]/ = the order journey, one step card at a time (OrderStep: pickup → wash count + price → deliver; the wash confirm saves the details and marks ready in one go); earnings/ = monthly payout, finished orders, VAT limit; settings/ = profile + availability (is_accepting_orders + weekly_schedule)
 │   │   └── driver/         # Driver dashboard (daily route) — dormant, driver role only
 │   └── orders/             # Customer order flow (3 steps; requires an account from step 1 — proxy.ts redirects signed-out page loads under /orders via orderAuthRedirect in lib/auth/next-path.ts: the three steps → /auth/signup?next=, other order pages → /auth/login?next=)
 │       ├── [orderId]/      # Order cancel/reschedule
@@ -301,7 +301,7 @@ The webhook uses HMAC-SHA256 signature verification with `VIPPS_WEBHOOK_SECRET` 
 - `orders.payment_agreement_id` - FK to `payment_agreements` (for one-time orders without subscription)
 - `orders.customer_estimate` - (JSONB, nullable) Customer's self-reported selection from checkout: `{bags, bedding_sets, iron_everyday_items, iron_formal_items, iron_bedding, estimated_total_ore}`. Informational — the binding price is set by the cleaner
 - `orders.total_cost_ore` - **NULLABLE** (NULL until cleaner sets price)
-- `orders.cleaner_payout_ore` - **NULLABLE** cleaner's share in øre, stamped with `total_cost_ore` at pricing time from `calculateOrderPrice().cleaner_payout_ore` (full price, before promo); frozen with the price. Paid monthly by manual bank transfer by the 10th of the next month — the sentence cleaners see is `CLEANER_PAYOUT_TERMS_TEXT` in `lib/config/pricing.ts`; monthly sums in `lib/utils/payout.ts`
+- `orders.cleaner_payout_ore` - **NULLABLE** cleaner's share in øre, stamped with `total_cost_ore` at pricing time from `calculateOrderPrice().cleaner_payout_ore` (full price, before promo); frozen with the price. Paid monthly by manual bank transfer by the 15th of the next month — the sentence cleaners see is `CLEANER_PAYOUT_TERMS_TEXT` in `lib/config/pricing.ts`; monthly sums in `lib/utils/payout.ts`
 - `orders.actual_weight_kg` - Actual weight after pickup
 - `orders.pricing_notes` - Cleaner's pricing explanation
 - `orders.price_calculated_at` - When cleaner calculated price

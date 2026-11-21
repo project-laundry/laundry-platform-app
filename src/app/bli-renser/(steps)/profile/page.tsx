@@ -114,7 +114,7 @@ function ProfileForm() {
 
         <CleanerFlowSection
           icon={<CalendarDays className="size-5" />}
-          title="Dager du tar imot henting"
+          title="Hvilke dager kan du hente?"
           hint="Du får bare oppdrag med henting på disse dagene. Kan endres når som helst i innstillingene."
           delay={180}
         >

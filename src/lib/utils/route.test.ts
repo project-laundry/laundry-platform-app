@@ -6,6 +6,9 @@ import {
   estimateRouteKm,
   buildGoogleMapsUrl,
   buildSingleDestinationUrl,
+  optimizeRoundTrip,
+  buildRoundTripUrl,
+  MAX_ROUTE_STOPS,
   type Coord,
   type RoutableStop,
 } from './route';
@@ -125,5 +128,71 @@ describe('buildSingleDestinationUrl', () => {
   it('links to the destination', () => {
     const url = buildSingleDestinationUrl({ latitude: 60.39, longitude: 5.32 });
     expect(new URL(url).searchParams.get('destination')).toBe('60.39,5.32');
+  });
+});
+
+describe('optimizeRoundTrip', () => {
+  const home = { latitude: 59.9, longitude: 10.7 };
+  const stop = (id: string, latitude: number | null, longitude: number | null) => ({
+    id,
+    latitude,
+    longitude,
+  });
+
+  it('visits stops along a line in order instead of zig-zagging', () => {
+    const stops = [stop('far', 59.9, 10.9), stop('near', 59.9, 10.75), stop('mid', 59.9, 10.8)];
+    const ids = optimizeRoundTrip(home, stops).map((s) => s.id);
+    // Out-and-back along a line: either direction has the same length.
+    expect([['near', 'mid', 'far'], ['far', 'mid', 'near']]).toContainEqual(ids);
+  });
+
+  it('beats nearest-neighbour when the closest stop is a detour', () => {
+    // Nearest-neighbour from home goes east first (a), then must cross back
+    // west for b and c; the shortest loop sweeps one side then the other.
+    const stops = [stop('a', 59.9, 10.71), stop('b', 59.9, 10.68), stop('c', 59.9, 10.6)];
+    const ordered = optimizeRoundTrip(home, stops);
+    const loopKm = (route: typeof stops) =>
+      estimateRouteKm(home, [...route, { latitude: home.latitude, longitude: home.longitude }]);
+    for (const other of [
+      [stops[0], stops[1], stops[2]],
+      [stops[0], stops[2], stops[1]],
+      [stops[1], stops[0], stops[2]],
+    ]) {
+      expect(loopKm(ordered)).toBeLessThanOrEqual(loopKm(other) + 1e-9);
+    }
+  });
+
+  it('puts stops without coordinates last, in input order', () => {
+    const stops = [stop('x', null, null), stop('a', 59.9, 10.8), stop('y', null, null)];
+    expect(optimizeRoundTrip(home, stops).map((s) => s.id)).toEqual(['a', 'x', 'y']);
+  });
+
+  it('falls back to nearest-neighbour above the exhaustive limit and keeps every stop', () => {
+    const stops = Array.from({ length: 10 }, (_, i) => stop(String(i), 59.9, 10.7 + (10 - i) * 0.01));
+    const ids = optimizeRoundTrip(home, stops).map((s) => s.id);
+    expect(ids).toEqual(['9', '8', '7', '6', '5', '4', '3', '2', '1', '0']);
+  });
+
+  it('returns an empty list for no stops', () => {
+    expect(optimizeRoundTrip(home, [])).toEqual([]);
+  });
+});
+
+describe('buildRoundTripUrl', () => {
+  it('starts and ends at home with the stops as waypoints, in order', () => {
+    const url = new URL(buildRoundTripUrl('59.9,10.7', ['59.91,10.71', 'Storgata 22, 0184 Oslo'])!);
+    expect(url.searchParams.get('origin')).toBe('59.9,10.7');
+    expect(url.searchParams.get('destination')).toBe('59.9,10.7');
+    expect(url.searchParams.get('waypoints')).toBe('59.91,10.71|Storgata 22, 0184 Oslo');
+  });
+
+  it('carries at most MAX_ROUTE_STOPS stops', () => {
+    const stops = Array.from({ length: 12 }, (_, i) => `59.9,10.${i}`);
+    const url = new URL(buildRoundTripUrl('home', stops)!);
+    expect(url.searchParams.get('waypoints')!.split('|')).toHaveLength(MAX_ROUTE_STOPS);
+  });
+
+  it('returns null without stops', () => {
+    expect(buildRoundTripUrl('home', [])).toBeNull();
   });
 });
