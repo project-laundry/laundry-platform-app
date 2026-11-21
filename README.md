@@ -9,7 +9,7 @@ A peer-to-peer laundry platform connecting customers with local cleaners in Berg
 - **Admin Dashboard**: Assign orders, manage driver operations, oversee platform
 - **Vipps Integration**: FLEXIBLE pricing model with per-order billing
 - **Multi-Role System**: Customers, cleaners, and admins with role-based access
-- **Subscription Management**: Weekly, biweekly, and monthly pickup frequencies
+- **Subscription Management** (built, hidden in the first version behind `SUBSCRIPTIONS_OFFERED`): Weekly, biweekly, and monthly pickup frequencies
 
 ## Tech Stack
 

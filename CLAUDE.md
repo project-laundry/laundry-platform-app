@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is **NooraCare**, a peer-to-peer laundry platform that connects customers with local cleaners in Bergen and Oslo, Norway. The platform offers subscription-based pickup and delivery laundry services.
+This is **NooraCare**, a peer-to-peer laundry platform that connects customers with local cleaners in Bergen and Oslo, Norway. The platform offers pickup and delivery laundry services. The first version sells one-time orders only; subscriptions are built but hidden.
 
 The application supports four user roles:
 
-- **Customers**: Schedule laundry pickups via subscription plans
+- **Customers**: Order laundry pickups — one-time orders only in the first version. Subscriptions (recurring pickups) are built but hidden behind `SUBSCRIPTIONS_OFFERED = false` in `lib/config/subscriptions.ts`: the server turns every checkout into a one-time order and the UI shows no frequency choice or subscription wording. Keep this code; it is intentionally dormant. A customer who already has a subscription still reaches `/dashboard/subscription` to cancel it
 - **Cleaners**: Accept missions, pick up at the customer, wash, and deliver back
 - **Drivers** (dormant): Built to pick up and deliver along a daily optimized route, but not used in the first version — cleaners pick up and deliver, only the driver role can open the driver dashboard, and no UI links to the driver pages. Keep this code; it is intentionally unused
 - **Admins**: Manage operations and platform oversight
@@ -112,14 +112,14 @@ src/
 │   │   └── success/        # Application submitted
 │   ├── dashboard/          # User dashboards (page.tsx = customer dashboard; header gear icon → settings/)
 │   │   ├── settings/       # Customer "Min konto": name + phone (users row via updateUserContact), password (browser supabase.auth.updateUser, links to /auth/forgot-password), subscription pickup address + instructions (rewrites order_defaults.initial_address, same city only, optionally copied onto the not-yet-picked-up order)
-│   │   ├── subscription/   # Subscription details + cancel flow
+│   │   ├── subscription/   # Subscription details + cancel flow — dormant while SUBSCRIPTIONS_OFFERED is false (redirects to /dashboard unless the customer already has a subscription)
 │   │   ├── cleaner/        # Cleaner dashboard, missions & profile settings (settings/ — incl. availability: is_accepting_orders + weekly_schedule)
 │   │   └── driver/         # Driver dashboard (daily route) — dormant, driver role only
 │   └── orders/             # Customer order flow (3 steps; steps 1–2 work logged out, step 3 asks the customer to log in before Vipps)
 │       ├── [orderId]/      # Order cancel/reschedule
 │       ├── details/        # Customer order details
 │       ├── wash/           # Step 1: what to wash (bags, bedding, ironing)
-│       ├── pickup/         # Step 2: address + pickup date + frequency
+│       ├── pickup/         # Step 2: address + pickup date (the frequency section is hidden while SUBSCRIPTIONS_OFFERED is false)
 │       ├── confirm/        # Step 3: review + promo code + required terms/angrerett consent + Vipps handoff
 │       ├── success/        # Order success (polls getCheckoutStatusAction: DB agreement status + first-order presence; Vipps only as abort fallback while pending)
 │       ├── layout.tsx      # Step route guards (redirects to /orders/wash)
@@ -140,6 +140,7 @@ src/
 │   ├── config/
 │   │   ├── company.ts      # COMPANY (legal name, org number, postal address, phone, e-mail, Instagram/Facebook URLs) + formatOrgNumber/phoneHref/formatPostalAddress — the ONLY place these values live; footer, /kontakt, the legal pages and bli-renser/success read from it. Confirm the values before launch
 │   │   ├── pricing.ts      # Pricing constants and both calculators: calculateOrderPrice (cleaner-binding: per 5kg load + 3 ironing groups) and calculateCustomerEstimate (customer estimate: per bag/set/piece). Ironing groups exist in the model but are NOT offered in the first version — hidden on every public surface, see BUSINESS_LOGIC.md "Ironing". CLEANER_MIN_PAYOUT_PER_ORDER_ORE is the "minst 350 kr per oppdrag" cleaner marketing leads with (70 % of the 500 kr order minimum)
+│   │   ├── subscriptions.ts # SUBSCRIPTIONS_OFFERED (false in the first version) — the one switch that hides recurring pickups: order flow, dashboard empty state, Min konto, /salgsvilkar section 7, /personvern, admin customer card; createSubscriptionAction forces 'on_demand' while it is false. See BUSINESS_LOGIC.md "Subscriptions (not in the first version)"
 │   │   └── terms.ts        # TERMS_VERSION (ISO date of the current /salgsvilkar text, bump on every terms change) + formatTermsVersion; stamped into payment_agreements.provider_metadata.terms_consent at checkout
 │   ├── database/           # Database CRUD operations
 │   │   ├── admin-attention.ts  # Today/overdue/waiting/failed lists for /admin and the digest; every list is `T[] | null` (null = query failed). Rules: overdue pickup = scheduled_date < today (Oslo) and not picked up; ready too long = ready_for_delivery_at older than READY_TOO_LONG_DAYS; payments = failed + orphan pending + stale pending (STALE_PENDING_DAYS, lib/utils/payment-status.ts); "order not generated" = active subscription/agreement older than ACTIVATION_GRACE_MINUTES with no (active) order. delivery_date is never used for lateness

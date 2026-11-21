@@ -18,6 +18,7 @@ import { getWeekdayFromDate, isWeekdayInSchedule, addDays, toISODateString, toda
 import { validateCheckoutInput } from "@/lib/validation/checkout";
 import { DAYS_PICKUP_TO_DELIVERY, MIN_DAYS_NOTICE } from "@/lib/config/order-timing";
 import { TERMS_VERSION } from "@/lib/config/terms";
+import { SUBSCRIPTIONS_OFFERED } from "@/lib/config/subscriptions";
 import { translateFrequency } from "@/lib/utils/i18n";
 import {
   getMostRecentOrderAddressByCustomerId,
@@ -187,9 +188,14 @@ export async function createSubscriptionAction(
   // Determine the subscription frequency
   // - For recurring orders: use the selected frequency
   // - For single orders: 'on_demand' (no subscription created)
-  const frequency: SubscriptionFrequency = input.isRecurring && input.frequency
-    ? input.frequency
-    : 'on_demand';
+  // While subscriptions aren't offered (SUBSCRIPTIONS_OFFERED = false) every
+  // checkout is a single order, whatever the client sent — a browser that
+  // persisted `isRecurring: true` before the choice was hidden, or a
+  // hand-crafted request, must not be able to create a subscription.
+  const frequency: SubscriptionFrequency =
+    SUBSCRIPTIONS_OFFERED && input.isRecurring && input.frequency
+      ? input.frequency
+      : 'on_demand';
 
   const isRecurring = frequency !== 'on_demand';
 
@@ -520,7 +526,7 @@ export async function forceAcceptAgreementAction(
     // Timeout - webhook didn't activate subscription in time
     return {
       success: false,
-      error: 'Avtalen ble godkjent, men aktivering tok for lang tid. Sjekk abonnementsstatus i dashboard.',
+      error: 'Avtalen ble godkjent, men aktivering tok for lang tid. Sjekk status i dashbordet.',
     };
   } catch (error) {
     console.error('Force accept agreement failed:', error);

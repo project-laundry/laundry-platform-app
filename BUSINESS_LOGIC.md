@@ -119,6 +119,20 @@ Customer subscribes Dec 26, 2025:
 
 Ironing (stryking) is **not offered at launch**. The pricing model, `calculateOrderPrice`, `orders.customer_estimate` and the cleaner dashboard still carry the three ironing groups so the feature can be switched on later without a schema change, but no customer-facing surface shows it: the landing pages, the cleaner FAQ, the price calculator, the order flow (`/orders/wash`) and the customer's order edit all go through `SelectionEditor`, whose ironing section follows the `IRONING_OFFERED` flag in `lib/config/pricing.ts` (false). The same flag drives `withoutUnofferedIroning`, which zeroes ironing counts in the checkout/order-edit server actions, in the persisted order-flow store (v2 migration — browsers that saved a selection before ironing was hidden) and when an existing order's estimate is loaded for editing, so stale counts never show up in a customer's estimate. Ironing counts therefore stay 0, `needs_ironing` is always false, and the cleaner never sees ironing to register. The contact page, sales terms and privacy policy don't mention ironing either. Before ironing goes live: flip `IRONING_OFFERED`, add it back to the cleaner payout box, FAQ and the legal/contact copy, and confirm cleaners are vetted for it in onboarding.
 
+### Subscriptions (not in the first version)
+
+Recurring pickups (abonnement / "fast henting") are **not offered at launch** — customers place one-time orders only. The subscription model, the rolling-window order generation, the Vipps webhook handling and the `/dashboard/subscription` pages are all kept so the feature can be switched on later without a schema change. The switch is `SUBSCRIPTIONS_OFFERED` in `lib/config/subscriptions.ts` (false):
+
+- **Server:** `createSubscriptionAction` forces the frequency to `on_demand` while the flag is false, whatever the client sends, so no `Subscription` row can be created. Every checkout follows the one-time path described above.
+- **Order flow:** `/orders/pickup` hides the "Hvor ofte?" section and never saves a recurring choice; `/orders/confirm` hides the "Hyppighet" row and never sends one.
+- **Customer surfaces:** the dashboard empty state, "Min konto" (the subscription address section) and the order-cancel success page show no subscription wording to a customer without a subscription.
+- **Legal:** `/salgsvilkar` does not render its subscription clauses (section 7 is skipped and later sections are renumbered through `sectionNumber`), and `/personvern` does not mention handling subscriptions.
+- **Admin:** the "Abonnement" card on the customer page is only rendered for a customer who has a subscription.
+
+Surfaces that only render when a subscription row exists are deliberately untouched, so an account that already has a subscription can still see and cancel it: the dashboard subscription strip, `/dashboard/subscription` and its cancel flow, the "Kanseller abonnementet" option when cancelling an order, the cleaner's frequency badge, and the admin attention rows.
+
+Before subscriptions go live: flip `SUBSCRIPTIONS_OFFERED`, bump `TERMS_VERSION` and the `/personvern` date (the legal text changes back), and re-run the recurring checkout and cancellation paths end to end.
+
 ### Promo Codes & Discounts
 
 **Core Principle:** Codes are **shared** (one code, many customers) but redeemable **once per customer**. A discount applies to the **first order** of an agreement only, and is **platform-absorbed** (the cleaner is paid 70% of the full service price; only the customer's charge is reduced).

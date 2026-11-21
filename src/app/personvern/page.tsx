@@ -4,6 +4,7 @@ import { MarketingNav } from '@/components/landing/MarketingNav';
 import { Footer } from "@/components/landing/Footer";
 import { CompanyContactCard } from "@/components/legal/CompanyContactCard";
 import { COMPANY } from "@/lib/config/company";
+import { SUBSCRIPTIONS_OFFERED } from "@/lib/config/subscriptions";
 
 export const metadata: Metadata = {
   title: "Personvernerklæring | NooraCare",
@@ -35,7 +36,7 @@ export default function PersonvernPage() {
                 Personvernerklæring
               </h1>
               <p className="text-sm text-medium-gray">
-                Sist oppdatert: 20.10.2026
+                Sist oppdatert: 21.11.2026
               </p>
               <p className="text-sm text-medium-gray mt-2">
                 Denne erklæringen gjelder for kunder. Er du tilknyttet
@@ -158,7 +159,9 @@ export default function PersonvernPage() {
                     Levere tjenesten du har bestilt
                   </span>{" "}
                   – opprette konto, ta imot bestillinger, koordinere henting
-                  og levering, håndtere abonnementer. Rettslig grunnlag:
+                  og levering
+                  {SUBSCRIPTIONS_OFFERED ? ", håndtere abonnementer" : ""}.
+                  Rettslig grunnlag:
                   oppfyllelse av avtale (GDPR art. 6 nr. 1 bokstav b).
                 </li>
                 <li>

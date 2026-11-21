@@ -129,7 +129,8 @@ details live — the footer, `/kontakt` and the legal pages all read from it.
    the one marked *Production* → *Visit*, a `*.vercel.app` host; log in with your Vercel account if
    Deployment Protection asks). After launch do the same on `https://nooracare.no`.
    1. Sign in as a customer, run `/orders/wash` → `/orders/pickup` → `/orders/confirm` with
-      **Fast** (recurring) frequency. The confirm step must **not** show "Auto-godkjenn avtale".
+      a pickup date at least 2 days ahead (there is no frequency choice — every order is a one-time
+      order). The confirm step must **not** show "Auto-godkjenn avtale".
    2. Approve the agreement in the real Vipps app. (Pre-launch the Vipps return lands on
       `nooracare.no/orders/success`, where the gate may bounce you to `/` because your session
       cookie lives on the `*.vercel.app` host — expected; the checks below are what count.)
@@ -138,11 +139,12 @@ details live — the footer, `/kontakt` and the legal pages all read from it.
       A **401** / `Invalid authentication` means the secret in Vercel does not match the
       registration — redo step 7.
    4. Supabase **production** project (`aalxmczclyunlyziqdqn`) → Table editor:
-      `payment_agreements` newest row `status = active`; `subscriptions` newest row
-      `status = active`; one new `orders` row for that subscription.
-   5. Back in the app: `/dashboard/subscription` → `/dashboard/subscription/cancel` → confirm.
-      Logs: a second webhook `POST` 200 with `Agreement stopped`; DB: `payment_agreements.status =
-      stopped`, `subscriptions.status = cancelled`, the order `cancelled`.
+      `payment_agreements` newest row `status = active`; one new `orders` row with that
+      `payment_agreement_id` and `subscription_id` empty; no new `subscriptions` row.
+   5. Back in the app: open the order from `/dashboard` and cancel it (DB: the order `cancelled`).
+      Cancelling a one-time order does not stop its Vipps agreement, so stop the agreement
+      «NooraCare - Vask» in the Vipps app. Logs: a second webhook `POST` 200 with
+      `Agreement stopped`; DB: `payment_agreements.status = stopped`.
    6. `portal.vippsmobilepay.com` → *For developers* → *Webhooks* → errors tab is empty.
 
 9. **Production Auth e-mails and URLs** — run the **production column** of

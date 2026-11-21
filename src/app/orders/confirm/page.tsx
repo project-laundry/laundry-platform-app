@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { calculateCustomerEstimate } from '@/lib/config/pricing';
+import { SUBSCRIPTIONS_OFFERED } from '@/lib/config/subscriptions';
 import type { OrderSelection } from '@/types/order-flow';
 import { createClient } from '@/lib/supabase/client';
 import { withNext } from '@/lib/auth/next-path';
@@ -167,12 +168,16 @@ export default function ConfirmPage() {
     setSubmitError(null);
     setIsSubmitting(true);
 
+    // While subscriptions aren't offered, never send a recurring choice that
+    // an older visit left in localStorage (the server ignores it as well).
+    const isRecurring = SUBSCRIPTIONS_OFFERED && (orderData.isRecurring || false);
+
     try {
       const result = await createSubscriptionAction({
         location: orderData.city!,
         selection,
-        isRecurring: orderData.isRecurring || false,
-        frequency: orderData.frequency || undefined,
+        isRecurring,
+        frequency: isRecurring ? orderData.frequency || undefined : undefined,
         firstPickupDate: orderData.firstPickupDate!,
         pickupAddress: {
           street: orderData.address!.street,
@@ -292,18 +297,20 @@ export default function ConfirmPage() {
         />
         <SummaryRow
           icon={<CalendarDays className="size-5" />}
-          title="Første henting"
+          title={SUBSCRIPTIONS_OFFERED ? 'Første henting' : 'Henting'}
           value={formatPickupDate(orderData?.firstPickupDate)}
         />
-        <SummaryRow
-          icon={<RefreshCw className="size-5" />}
-          title="Hyppighet"
-          value={
-            orderData?.isRecurring && orderData.frequency
-              ? `Fast – ${FREQUENCY_LABELS[orderData.frequency]}`
-              : 'Én gang'
-          }
-        />
+        {SUBSCRIPTIONS_OFFERED && (
+          <SummaryRow
+            icon={<RefreshCw className="size-5" />}
+            title="Hyppighet"
+            value={
+              orderData?.isRecurring && orderData.frequency
+                ? `Fast – ${FREQUENCY_LABELS[orderData.frequency]}`
+                : 'Én gang'
+            }
+          />
+        )}
 
         {/* The one thing that makes people hesitate at the Vipps button sits
             right here, not under the price list. */}

@@ -41,6 +41,16 @@ vi.mock('@/lib/database/orders', () => ({
 vi.mock('@/lib/services/order-generation', () => ({ checkAndGenerateNextOrders: vi.fn() }));
 vi.mock('@/app/dashboard/subscription/actions', () => ({ cancelSubscriptionAction: vi.fn() }));
 
+// SUBSCRIPTIONS_OFFERED is a constant (false in the first version). The getter
+// lets each test choose the value: `true` by default so the recurring checkout
+// path stays covered, `false` in the "subscriptions not offered" block.
+const flags = vi.hoisted(() => ({ subscriptionsOffered: true }));
+vi.mock('@/lib/config/subscriptions', () => ({
+  get SUBSCRIPTIONS_OFFERED() {
+    return flags.subscriptionsOffered;
+  },
+}));
+
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getCustomerByUserId } from '@/lib/database/customers';
 import {
@@ -124,6 +134,7 @@ function happyPathMocks() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  flags.subscriptionsOffered = true;
 });
 
 describe('createSubscriptionAction — auth & customer guards', () => {
@@ -424,6 +435,45 @@ describe('createSubscriptionAction — one-time orders', () => {
 
     const result = await createSubscriptionAction(oneTimeInput);
     expect(result.error).toBe('Failed to create payment agreement');
+  });
+});
+
+describe('createSubscriptionAction — subscriptions not offered', () => {
+  beforeEach(() => {
+    flags.subscriptionsOffered = false;
+  });
+
+  it('turns a recurring request into a one-time checkout: no subscription, order_defaults on the agreement', async () => {
+    happyPathMocks();
+
+    // baseInput asks for a weekly subscription (isRecurring: true)
+    const result = await createSubscriptionAction(baseInput);
+
+    expect(createSubscription).not.toHaveBeenCalled();
+    // one-time orders borrow the 'monthly' Vipps interval
+    expect(createVippsAgreement).toHaveBeenCalledWith(expect.objectContaining({ frequency: 'monthly' }));
+    expect(createPaymentAgreement).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider_metadata: expect.objectContaining({
+          order_defaults: expect.objectContaining({
+            location_city: 'Oslo',
+            first_pickup_date: PICKUP_DATE,
+          }),
+        }),
+      })
+    );
+    expect(result).toEqual({ redirectUrl: 'https://vipps.example/redirect', agreementId: 'agr-1' });
+  });
+
+  it('skips the one-subscription-per-customer check, so an existing subscription neither blocks checkout nor gets cancelled', async () => {
+    happyPathMocks();
+    m(getActiveSubscriptionByCustomerId).mockResolvedValue({ id: 'existing-sub', status: 'active' });
+
+    const result = await createSubscriptionAction(baseInput);
+
+    expect(getActiveSubscriptionByCustomerId).not.toHaveBeenCalled();
+    expect(cancelSubscriptionAction).not.toHaveBeenCalled();
+    expect(result.redirectUrl).toBe('https://vipps.example/redirect');
   });
 });
 

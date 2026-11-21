@@ -37,6 +37,9 @@ export function CancelConfirmationForm({
       // Build success URL with query params
       const params = new URLSearchParams();
       params.set('orderNumber', orderNumber);
+      if (hasSubscription) {
+        params.set('hasSubscription', 'true');
+      }
       if (alsoCancelSubscription) {
         params.set('subscriptionCancelled', 'true');
       }

@@ -8,14 +8,18 @@ interface SuccessPageProps {
   searchParams: Promise<{
     orderNumber?: string;
     subscriptionCancelled?: string;
+    hasSubscription?: string;
     nextOrderId?: string;
   }>;
 }
 
 export default async function CancelSuccessPage({ searchParams }: SuccessPageProps) {
-  const { orderNumber, subscriptionCancelled, nextOrderId } = await searchParams;
+  const { orderNumber, subscriptionCancelled, hasSubscription, nextOrderId } = await searchParams;
 
   const isSubscriptionCancelled = subscriptionCancelled === 'true';
+  // Set by CancelConfirmationForm only when the cancelled order belonged to a
+  // subscription. A one-time order must never be told its "abonnement" continues.
+  const orderHadSubscription = hasSubscription === 'true';
 
   // Fetch next order details if available
   let nextOrder = null;
@@ -138,14 +142,16 @@ export default async function CancelSuccessPage({ searchParams }: SuccessPagePro
                       <span className="mr-2 mt-0.5 font-medium tabular-nums text-nordic-blue">2.</span>
                       Neste henting er planlagt til {nextPickupDate}.
                     </li>
-                  ) : (
+                  ) : orderHadSubscription ? (
                     <li className="flex items-start">
                       <span className="mr-2 mt-0.5 font-medium tabular-nums text-nordic-blue">2.</span>
                       Abonnementet ditt fortsetter som normalt.
                     </li>
-                  )}
+                  ) : null}
                   <li className="flex items-start">
-                    <span className="mr-2 mt-0.5 font-medium tabular-nums text-nordic-blue">3.</span>
+                    <span className="mr-2 mt-0.5 font-medium tabular-nums text-nordic-blue">
+                      {nextOrder || orderHadSubscription ? '3.' : '2.'}
+                    </span>
                     Du kan se og administrere bestillinger fra dashbordet.
                   </li>
                 </>

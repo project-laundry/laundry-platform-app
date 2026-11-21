@@ -6,6 +6,7 @@ import { requireRole } from '@/lib/auth/require-role';
 import { getCustomerByUserId } from '@/lib/database/customers';
 import { getActiveSubscriptionByCustomerId } from '@/lib/database/subscriptions';
 import { getActiveOrdersBySubscriptionId } from '@/lib/database/orders';
+import { SUBSCRIPTIONS_OFFERED } from '@/lib/config/subscriptions';
 import { SettingsSection } from './SettingsSection';
 import { ContactForm } from './ContactForm';
 import { PasswordForm } from './PasswordForm';
@@ -84,22 +85,26 @@ export default async function CustomerSettingsPage() {
           <PasswordForm />
         </SettingsSection>
 
-        <SettingsSection icon={<MapPin className="size-5" />} title="Henteadresse for abonnementet">
-          {address && locationCity ? (
-            <SubscriptionAddressForm
-              initialStreet={address.street}
-              initialPostalCode={address.postal_code}
-              locationCity={locationCity}
-              initialSpecialInstructions={address.special_instructions ?? ''}
-              hasUpcomingOrder={hasUpcomingOrder}
-            />
-          ) : (
-            <p className="text-sm text-medium-gray">
-              Du har ikke et aktivt abonnement. Adressen for enkeltbestillinger endrer du fra
-              bestillingssiden.
-            </p>
-          )}
-        </SettingsSection>
+        {/* While subscriptions aren't offered, only a customer who already has
+            an active one (created before they were hidden) sees this section. */}
+        {(SUBSCRIPTIONS_OFFERED || (address && locationCity)) && (
+          <SettingsSection icon={<MapPin className="size-5" />} title="Henteadresse for abonnementet">
+            {address && locationCity ? (
+              <SubscriptionAddressForm
+                initialStreet={address.street}
+                initialPostalCode={address.postal_code}
+                locationCity={locationCity}
+                initialSpecialInstructions={address.special_instructions ?? ''}
+                hasUpcomingOrder={hasUpcomingOrder}
+              />
+            ) : (
+              <p className="text-sm text-medium-gray">
+                Du har ikke et aktivt abonnement. Adressen for enkeltbestillinger endrer du fra
+                bestillingssiden.
+              </p>
+            )}
+          </SettingsSection>
+        )}
       </main>
     </div>
   );

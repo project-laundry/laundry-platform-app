@@ -12,6 +12,7 @@ import {
 } from '@/lib/config/postal-codes';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { calculateCustomerEstimate } from '@/lib/config/pricing';
+import { SUBSCRIPTIONS_OFFERED } from '@/lib/config/subscriptions';
 import type { Weekday } from '@/types/database';
 import { buildDateChips } from './date-chips';
 import {
@@ -199,6 +200,10 @@ function PickupForm() {
       setValidating(false);
     }
 
+    // While subscriptions aren't offered the "Hvor ofte?" section is hidden,
+    // so a recurring choice restored from localStorage must not be saved.
+    const recurring = SUBSCRIPTIONS_OFFERED && isRecurring;
+
     updateOrderData({
       city: derivedCity,
       address: {
@@ -207,8 +212,8 @@ function PickupForm() {
         specialInstructions: instructions,
       },
       firstPickupDate: pickupDate,
-      isRecurring,
-      frequency: isRecurring ? frequency : null,
+      isRecurring: recurring,
+      frequency: recurring ? frequency : null,
     });
 
     router.push('/orders/confirm');
@@ -300,7 +305,7 @@ function PickupForm() {
         delay={120}
         icon={<CalendarDays className="size-5" />}
         title="Når passer det?"
-        subtitle="Velg første hentedato."
+        subtitle={SUBSCRIPTIONS_OFFERED ? 'Velg første hentedato.' : 'Velg hentedato.'}
       >
         {!derivedCity ? (
           <p className="text-sm text-medium-gray">
@@ -349,6 +354,7 @@ function PickupForm() {
         )}
       </Section>
 
+      {SUBSCRIPTIONS_OFFERED && (
       <Section
         delay={180}
         icon={<RefreshCw className="size-5" />}
@@ -403,6 +409,7 @@ function PickupForm() {
           </div>
         )}
       </Section>
+      )}
     </OrderFlowShell>
   );
 }

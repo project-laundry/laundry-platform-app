@@ -19,6 +19,7 @@ import {
 } from '@/lib/database/admin-attention';
 import { AttentionSection, type AttentionRow } from '@/components/admin/AttentionSection';
 import { formatKr } from '@/lib/config/pricing';
+import { SUBSCRIPTIONS_OFFERED } from '@/lib/config/subscriptions';
 import { daysBetweenISODates } from '@/lib/utils/date';
 import { getOrderStatusLabel } from '@/lib/utils/order-status';
 import { formatAgeLabel } from '@/lib/utils/relative-time';
@@ -222,7 +223,11 @@ export default async function AdminOverviewPage() {
           icon={Repeat}
           tone="destructive"
           rows={notGeneratedRows}
-          emptyText="Alle aktive abonnement og avtaler har ordre."
+          emptyText={
+            SUBSCRIPTIONS_OFFERED
+              ? 'Alle aktive abonnement og avtaler har ordre.'
+              : 'Alle aktive Vipps-avtaler har ordre.'
+          }
         />
       </div>
     </div>
