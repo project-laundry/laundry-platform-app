@@ -1,5 +1,7 @@
 // Pre-launch gate, keyed on the hostname. The customer side is launched:
-// the landing page, login, signup and the order flow are public. What is
+// the landing page, login and signup are public, and the order flow is open
+// to anyone with an account (src/proxy.ts asks signed-out visitors to sign up
+// or log in first). What is
 // still gated on the production domain is the cleaner side — anonymous
 // visitors reach the /bli-renser coming-soon page, but cleaner signup,
 // onboarding and the parked /bli-renser/lansering redirect to "/". test.nooracare.no, localhost and Vercel previews

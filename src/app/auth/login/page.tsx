@@ -131,7 +131,7 @@ function LoginForm() {
     const { error } = await supabase.auth.resend({
       type: 'signup',
       email: formData.email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      options: { emailRedirectTo: `${window.location.origin}${withNext('/auth/callback', next)}` },
     });
     if (error) {
       setResendStatus('error');

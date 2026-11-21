@@ -2,8 +2,10 @@
 
 // Step 3 — review everything, then hand off to Vipps to approve the payment
 // agreement (nothing is charged until the cleaner has priced the pickup).
-// Steps 1–2 work logged out; this step asks the visitor to log in first, and
-// the login/signup pages bring them back here (the order lives in localStorage).
+// The whole flow requires an account (src/proxy.ts sends signed-out visitors to
+// signup/login). The login prompt here only shows if the session ended while
+// the customer was in the flow; the order lives in localStorage, so they
+// continue here afterwards.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';

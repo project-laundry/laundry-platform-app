@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { AlertCircle, ChevronLeft } from 'lucide-react';
+import { safeNextPath, withNext } from '@/lib/auth/next-path';
 
 export const metadata: Metadata = {
   title: 'Lenken virker ikke – NooraCare',
@@ -9,9 +10,17 @@ export const metadata: Metadata = {
 
 /**
  * Landing page for a failed e-mail confirmation (auth/callback redirects here
- * when the token is missing, already used, or expired).
+ * when the token is missing, already used, or expired). ?next= is where the
+ * link was heading; the login button keeps it.
  */
-export default function AuthErrorPage() {
+export default async function AuthErrorPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string | string[] }>;
+}) {
+  const { next: rawNext } = await searchParams;
+  const next = safeNextPath(typeof rawNext === 'string' ? rawNext : null);
+
   return (
     <div className="flex min-h-screen flex-col bg-cream text-dark-gray">
       {/* Atmospheric backdrop — soft sea-green wash over warm cream. */}
@@ -55,7 +64,7 @@ export default function AuthErrorPage() {
             </div>
 
             <Link
-              href="/auth/login"
+              href={withNext('/auth/login', next)}
               className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-nordic-blue px-6 py-3.5 font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98]"
             >
               Gå til innlogging

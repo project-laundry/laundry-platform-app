@@ -75,7 +75,7 @@ npm run test:watch # Run tests in watch mode
 ```
 src/
 ├── app/                    # Next.js App Router pages
-│   ├── page.tsx            # Customer landing page (launched): photo hero with the QuickOrderCard order starter (bag stepper + estimate → /orders/wash with the selection pre-filled), the illustrated how-it-works story, the price tiles and the closing «Bestill henting» block. actions.ts (joinWaitlistAction; no consent checkbox — submitting is the consent) now only serves the cleaner waitlist on /bli-renser. No testimonials until there are real ones
+│   ├── page.tsx            # Customer landing page (launched): photo hero with one «Bestill henting» button (→ /orders/wash; signed-out visitors are sent to signup first and back afterwards), the illustrated how-it-works story, the price tiles and the closing «Bestill henting» block. actions.ts (joinWaitlistAction; no consent checkbox — submitting is the consent) now only serves the cleaner waitlist on /bli-renser. No testimonials until there are real ones
 │   ├── opengraph-image.tsx # Social share image for /, rendered by lib/og-image.tsx (bli-renser has its own)
 │   ├── not-found.tsx       # Root 404 (unmatched URLs + every notFound() call)
 │   ├── admin/              # Admin dashboard (layout = shell + role guard; page = overview: count tiles + attention sections «I dag» / «Forsinket» / «Venter på tildeling» / «Betalinger å følge opp» / «Ordre ikke generert» from lib/database/admin-attention.ts; a failed query shows an error, never 0 or an empty list)
@@ -95,12 +95,12 @@ src/
 │   ├── auth/               # Authentication flow
 │   │   ├── address/        # Address input step
 │   │   ├── callback/       # Supabase e-mail link landing: `?token_hash=&type=` (verifyOtp) or PKCE `?code=` (exchangeCodeForSession); sanitizes ?next=; recovery links (type=recovery or next=/auth/reset-password) always go to reset-password, failures to forgot-password?expired=1
-│   │   ├── error/          # Invalid/expired confirmation link (callback redirects here for non-recovery links)
+│   │   ├── error/          # Invalid/expired confirmation link (callback redirects here for non-recovery links, keeping ?next= for the login button)
 │   │   ├── forgot-password/ # Password reset step 1: e-mail → resetPasswordForEmail (redirectTo = callback?next=/auth/reset-password); always shows "sent"; ?expired=1 shows the expired-link note
-│   │   ├── login/          # Login page (honors ?next= for same-site paths — the order flow sends anonymous customers here from step 3); "Glemt passord?" → forgot-password
+│   │   ├── login/          # Login page (honors ?next= for same-site paths — signed-out visitors to the order flow are sent to signup/login by proxy.ts and returned through it); "Glemt passord?" → forgot-password
 │   │   ├── reset-password/ # Password reset step 2: server page requires a session (else → forgot-password?expired=1), ResetPasswordForm calls updateUser({ password }) then → /dashboard
-│   │   ├── signup/         # Sign up page (passes ?next= through to the confirmation callback)
-│   │   └── success/        # Registration success
+│   │   ├── signup/         # Sign up page (passes ?next= through to the confirmation callback and to auth/success)
+│   │   └── success/        # Registration success («sjekk e-posten»; its login/retry links keep ?next=)
 │   ├── bli-renser/         # Cleaner coming-soon page + waitlist; real cleaner landing parked at bli-renser/lansering; onboarding flow below. faq.ts = the cleaner FAQ shared by both pages (coming-soon picks a subset via pickFaq)
 │   │   ├── signup/         # Account creation (+ signup/success: "check your email")
 │   │   ├── (steps)/        # Route group: server layout = cleaner-only + no-profile guard; StepGuard = step order
@@ -115,7 +115,7 @@ src/
 │   │   ├── subscription/   # Subscription details + cancel flow — dormant while SUBSCRIPTIONS_OFFERED is false (redirects to /dashboard unless the customer already has a subscription)
 │   │   ├── cleaner/        # Cleaner dashboard, missions & profile settings (settings/ — incl. availability: is_accepting_orders + weekly_schedule)
 │   │   └── driver/         # Driver dashboard (daily route) — dormant, driver role only
-│   └── orders/             # Customer order flow (3 steps; steps 1–2 work logged out, step 3 asks the customer to log in before Vipps)
+│   └── orders/             # Customer order flow (3 steps; requires an account from step 1 — proxy.ts redirects signed-out page loads under /orders via orderAuthRedirect in lib/auth/next-path.ts: the three steps → /auth/signup?next=, other order pages → /auth/login?next=)
 │       ├── [orderId]/      # Order cancel/reschedule
 │       ├── details/        # Customer order details
 │       ├── wash/           # Step 1: what to wash (bags, bedding, ironing)
@@ -127,8 +127,8 @@ src/
 ├── assets/brand/          # Logo PNGs (primary/secondary/submerke, normal + negativ); favicons are app/icon.png + app/apple-icon.png
 ├── components/             # Reusable UI components
 │   ├── auth/               # Auth components (empty)
-│   ├── coming-soon/        # Shared shell (light hero with optional photo, StepList, FaqList, CrossPromo) for the customer landing page and the cleaner coming-soon page — the hero shows the WaitlistForm unless it gets an `action` (the customer page passes QuickOrderCard); HowItWorksStory.tsx = the illustrated 5-step story on the customer page; launch.ts holds the cleaner launch window label and the waitlist offer cap
-│   ├── landing/            # Navbar (legal/contact/price pages), Footer, QuickOrderCard (the hero's order starter on /)
+│   ├── coming-soon/        # Shared shell (light hero with optional photo, StepList, FaqList, CrossPromo) for the customer landing page and the cleaner coming-soon page — the hero shows the WaitlistForm unless it gets an `action` (the customer page passes its «Bestill henting» button); HowItWorksStory.tsx = the illustrated 5-step story on the customer page; launch.ts holds the cleaner launch window label and the waitlist offer cap
+│   ├── landing/            # Navbar (legal/contact/price pages), Footer
 │   ├── forms/              # Form components (empty)
 │   ├── layout/             # Layout components (empty)
 │   ├── legal/              # CompanyContactCard — the company details box shared by /salgsvilkar, /personvern and /personvern-renser (values from lib/config/company.ts)
@@ -177,7 +177,7 @@ src/
 ├── types/
 │   ├── database.ts         # Complete entity types and enums
 │   └── index.ts            # General type exports
-└── proxy.ts                # Supabase session refresh + pre-launch gate
+└── proxy.ts                # Supabase session refresh + pre-launch gate + order-flow login requirement
 ```
 
 **Customer-facing wording:** customers count **poser** (`PRICING.per_bag_ore`), and the per-bag price is never shown without the order minimum next to it ("119 kr per pose, minste bestilling 500 kr") — on its own it reads as a 119 kr order. Cleaners count **vask** — one full machine, up to 5 kg (`PRICING.price_per_load_ore`); mention the kilos only where a cleaner needs the definition (FAQ, payout box, dashboard), never on customer surfaces. Cleaner earnings are quoted as the guaranteed minimum per order (`CLEANER_MIN_PAYOUT_PER_ORDER_ORE`), not a per-load figure. "Nabo" is a sales pitch, not a description: fine in headlines, tab titles, share images and cross-promos, but whoever actually washes is "en lokal renser" / "en godkjent renser i området" — never "i nabolaget". Don't promise turnaround times, free delivery, ironing or a quality guarantee anywhere — see the honest-claims note in `components/coming-soon/HowItWorksStory.tsx`.
@@ -214,7 +214,7 @@ All database operations use dedicated functions in `lib/database/`:
 
 ### Middleware
 
-`src/proxy.ts` (Next 16 proxy convention) refreshes Supabase auth sessions on every request and applies the **pre-launch gate** (`src/lib/prelaunch.ts`), keyed on the hostname: on `nooracare.no` / `www.nooracare.no`, the customer side is open — anonymous visitors reach `/`, `/bli-renser`, the legal/contact pages, the price calculator, `/admin`, the order flow (`/orders/*`), `/auth/login`, `/auth/signup`, `/auth/success`, `/auth/callback`, `/auth/error` and the password-reset pages (`/auth/forgot-password`, `/auth/reset-password`); the cleaner side is not — cleaner signup, onboarding and the parked `/bli-renser/lansering` page redirect to `/`. `test.nooracare.no`, localhost and previews are never gated — Signed-in users pass. Delete the gate when cleaners launch. Role guards live in `src/lib/auth/require-role.ts` (`requireRole` for pages/layouts, `assertRole` for server actions); privileged roles (`admin`, `driver`) can never be chosen at signup — the `handle_new_user` trigger only honors `customer`/`cleaner` metadata.
+`src/proxy.ts` (Next 16 proxy convention) refreshes Supabase auth sessions on every request and applies the **pre-launch gate** (`src/lib/prelaunch.ts`), keyed on the hostname: on `nooracare.no` / `www.nooracare.no`, the customer side is open — anonymous visitors reach `/`, `/bli-renser`, the legal/contact pages, the price calculator, `/admin`, `/auth/login`, `/auth/signup`, `/auth/success`, `/auth/callback`, `/auth/error` and the password-reset pages (`/auth/forgot-password`, `/auth/reset-password`); the cleaner side is not — cleaner signup, onboarding and the parked `/bli-renser/lansering` page redirect to `/`. `test.nooracare.no`, localhost and previews are never gated — Signed-in users pass. Independently of the gate, on every host, a signed-out page load under `/orders/*` is redirected to signup/login with `?next=` (`orderAuthRedirect`). Delete the gate when cleaners launch. Role guards live in `src/lib/auth/require-role.ts` (`requireRole` for pages/layouts, `assertRole` for server actions); privileged roles (`admin`, `driver`) can never be chosen at signup — the `handle_new_user` trigger only honors `customer`/`cleaner` metadata.
 
 ## Maps & Geocoding
 

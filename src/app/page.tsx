@@ -10,12 +10,13 @@ import {
   comingSoonCard,
 } from '@/components/coming-soon/ComingSoonShell';
 import { HowItWorksStory } from '@/components/coming-soon/HowItWorksStory';
-import { QuickOrderCard } from '@/components/landing/QuickOrderCard';
 import { CLEANER_MIN_PAYOUT_PER_ORDER_ORE, PRICING, formatKr } from '@/lib/config/pricing';
 
-// Customer landing page: the hero starts an order (QuickOrderCard → the order
-// flow), followed by the illustrated how-it-works story, the prices and a
-// closing order CTA. No testimonials until there are real ones.
+// Customer landing page: a hero with one «Bestill henting» button, followed by
+// the illustrated how-it-works story, the prices and a closing order CTA. The
+// order flow requires an account, so the button takes signed-out visitors to
+// signup first (src/proxy.ts) and back into the flow afterwards.
+// No testimonials until there are real ones.
 // The description comes from the root layout.
 export const metadata: Metadata = {
   title: 'NooraCare – Slipp klesvasken. En nabo tar den.',
@@ -47,6 +48,20 @@ const PRICES = [
     text: 'Hentet og levert på døren hjemme hos deg.',
   },
 ];
+
+function HeroAction() {
+  return (
+    <div className="text-center lg:text-left">
+      <Link
+        href={ORDER_HREF}
+        className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-nordic-blue px-7 py-4 text-lg font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98] sm:w-auto"
+      >
+        Bestill henting
+        <ArrowRight className="size-5" />
+      </Link>
+    </div>
+  );
+}
 
 function Prices() {
   return (
@@ -128,7 +143,7 @@ export default function HomePage() {
         title="Nå slipper du"
         highlight="klesvasken."
         subtitle="Vi henter skittentøyet hjemme hos deg, vasker og tørker det, og leverer det rent tilbake på døren."
-        action={<QuickOrderCard />}
+        action={<HeroAction />}
         image={{
           src: '/images/hero-bench.jpg',
           alt: 'En stabel brettet tøy og en gul klespose på en benk i lyst tre',

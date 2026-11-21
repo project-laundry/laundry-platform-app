@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { safeNextPath, withNext } from './next-path';
+import { orderAuthRedirect, safeNextPath, withNext } from './next-path';
 
 describe('safeNextPath', () => {
   it('accepts same-site paths', () => {
@@ -22,5 +22,25 @@ describe('withNext', () => {
   it('appends an encoded next param only when there is one', () => {
     expect(withNext('/auth/login', '/orders/confirm')).toBe('/auth/login?next=%2Forders%2Fconfirm');
     expect(withNext('/auth/login', null)).toBe('/auth/login');
+  });
+});
+
+describe('orderAuthRedirect', () => {
+  it('sends the order flow steps to signup with the step as next', () => {
+    expect(orderAuthRedirect('/orders/wash')).toBe('/auth/signup?next=%2Forders%2Fwash');
+    expect(orderAuthRedirect('/orders/confirm')).toBe('/auth/signup?next=%2Forders%2Fconfirm');
+  });
+
+  it('sends other order pages to login and keeps the query string', () => {
+    expect(orderAuthRedirect('/orders/details/abc')).toBe('/auth/login?next=%2Forders%2Fdetails%2Fabc');
+    expect(orderAuthRedirect('/orders/success', '?status=ok')).toBe(
+      '/auth/login?next=%2Forders%2Fsuccess%3Fstatus%3Dok'
+    );
+  });
+
+  it('ignores everything outside /orders', () => {
+    expect(orderAuthRedirect('/')).toBeNull();
+    expect(orderAuthRedirect('/dashboard')).toBeNull();
+    expect(orderAuthRedirect('/orders-archive')).toBeNull();
   });
 });

@@ -60,10 +60,11 @@ Staging/production values are set **per environment** in the Vercel dashboard.
 
 **Pre-launch gate (no env var):** `src/proxy.ts` checks the request host against
 `src/lib/prelaunch.ts`. On `nooracare.no` / `www.nooracare.no` the customer side is open: anonymous
-visitors reach the landing page, the order flow (`/orders/*`), login, signup, the legal/contact pages,
+visitors reach the landing page, login, signup, the legal/contact pages,
 the price calculator, `/admin`, the auth callback and the password-reset pages. The cleaner side is
 still gated: `/bli-renser` is the coming-soon page, and cleaner signup, onboarding and the parked
-`/bli-renser/lansering` page redirect to `/`. `test.nooracare.no`,
+`/bli-renser/lansering` page redirect to `/`. The order flow (`/orders/*`) requires an account on
+every host: the proxy sends signed-out visitors to signup/login with `?next=`. `test.nooracare.no`,
 localhost and Vercel previews are never gated, so the full app is tested on staging. Delete
 the gate when cleaners launch.
 
@@ -74,8 +75,8 @@ Before any of the steps below: open `src/lib/config/company.ts` and confirm ever
 Instagram URL; set `facebookUrl` if a Facebook page exists). It is the only place these
 details live — the footer, `/kontakt` and the legal pages all read from it.
 
-1. Customer side — done in code: `src/app/page.tsx` is the launch landing page (order starter instead
-   of the waitlist form) and the gate lets anonymous visitors into `/orders/*`, login and signup. It
+1. Customer side — done in code: `src/app/page.tsx` is the launch landing page («Bestill henting» instead
+   of the waitlist form) and the gate lets anonymous visitors reach login and signup; the order flow asks for an account first. It
    goes live on `nooracare.no` with the next push to `main`, so finish steps 3 and 6 onwards first.
 2. Cleaner side — when cleaners launch: delete `src/lib/prelaunch.ts`, its test and the gate block in
    `src/proxy.ts`; move `src/app/bli-renser/lansering/page.tsx` to `src/app/bli-renser/page.tsx` and
@@ -157,7 +158,7 @@ details live — the footer, `/kontakt` and the legal pages all read from it.
    launch with the password-reset round trip (reachable through the pre-launch gate) and the
    signup round trip on the `*.vercel.app` production deployment URL, as described there. Until
    this is done, confirmation mails come from `supabase.io`, in English, at a few per hour, and
-   the order flow's return after e-mail confirmation (`?next=/orders/confirm`) is not allowlisted.
+   the order flow's return after e-mail confirmation (`?next=/orders/wash`) is not allowlisted.
 
 10. **Admin digest e-mail.** The `nooracare.no` sending domain is already verified in Resend (see
    [Supabase Auth e-mails](#supabase-auth-e-mails)). Create an API key and add to Vercel
@@ -244,10 +245,10 @@ Do each step on **both** projects unless a column says otherwise. Project refs: 
      button opens `/auth/reset-password` on that same host. `https://resend.com/emails` lists it
      as *Delivered*. If it instead lands on `/auth/forgot-password?expired=1` or on `/`, the
      redirect URL was not allowlisted (step 4) or the Site URL is wrong.
-   - **Staging — signup with return path:** logged out on `https://test.nooracare.no`, run
-     `/orders/wash` → `/orders/pickup` → `/orders/confirm`, choose "Opprett konto", sign up with a
+   - **Staging — signup with return path:** logged out on `https://test.nooracare.no`, click
+     «Bestill henting» on the landing page (lands on `/auth/signup?next=/orders/wash`) and sign up with a
      fresh address. Subject "Bekreft e-postadressen din hos NooraCare"; the button must land on
-     `/orders/confirm` (not `/dashboard`) in the same browser.
+     `/orders/wash` (not `/dashboard`) in the same browser.
    - **Production — signup pre-launch:** signup is gated on `nooracare.no`, so use the
      production deployment's `*.vercel.app` URL (Vercel → Deployments → *Production* → Visit) and
      run the same signup; the link must return to that `*.vercel.app` host's `/dashboard`. After

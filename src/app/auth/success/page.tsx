@@ -1,8 +1,19 @@
 import Link from 'next/link';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { ChevronLeft, MailCheck } from 'lucide-react';
+import { safeNextPath, withNext } from '@/lib/auth/next-path';
 
-export default function SuccessPage() {
+// ?next= is the page the visitor was on their way to (the order flow). The
+// confirmation link carries it too; these links keep it for anyone who logs in
+// or signs up again from here instead.
+export default async function SuccessPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string | string[] }>;
+}) {
+  const { next: rawNext } = await searchParams;
+  const next = safeNextPath(typeof rawNext === 'string' ? rawNext : null);
+
   return (
     <div className="flex min-h-screen flex-col bg-cream text-dark-gray">
       {/* Atmospheric backdrop — soft sea-green wash over warm cream. */}
@@ -63,7 +74,7 @@ export default function SuccessPage() {
 
           {/* Login Button */}
           <Link
-            href="/auth/login"
+            href={withNext('/auth/login', next)}
             className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-nordic-blue px-6 py-3.5 font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98]"
           >
             Gå til innlogging
@@ -73,7 +84,7 @@ export default function SuccessPage() {
           <p className="mt-4 text-sm text-medium-gray">
             Ikke mottatt e-post? Sjekk spam-mappen eller{' '}
             <Link
-              href="/auth/signup"
+              href={withNext('/auth/signup', next)}
               className="font-medium text-nordic-blue underline-offset-2 hover:underline"
             >
               prøv igjen

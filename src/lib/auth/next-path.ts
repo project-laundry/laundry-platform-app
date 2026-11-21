@@ -16,3 +16,19 @@ export function safeNextPath(raw: string | null | undefined): string | null {
 export function withNext(href: string, next: string | null): string {
   return next ? `${href}?next=${encodeURIComponent(next)}` : href;
 }
+
+/** The three steps of the customer order flow. */
+const ORDER_FLOW_STEPS = ['/orders/wash', '/orders/pickup', '/orders/confirm'];
+
+/**
+ * Where a signed-out visitor is sent when they open anything under `/orders`
+ * (used by src/proxy.ts), or null for other paths. The order flow requires an
+ * account from its first step: the steps go to signup (most visitors coming
+ * from the landing page are new), every other order page to login. Both carry
+ * `?next=` so the visitor lands back on the page they asked for.
+ */
+export function orderAuthRedirect(pathname: string, search = ''): string | null {
+  if (pathname !== '/orders' && !pathname.startsWith('/orders/')) return null;
+  const target = ORDER_FLOW_STEPS.includes(pathname) ? '/auth/signup' : '/auth/login';
+  return withNext(target, `${pathname}${search}`);
+}

@@ -1,11 +1,13 @@
 // Session refresh for @supabase/ssr (Next.js 16 proxy convention), plus the
-// pre-launch gate for the production domain (src/lib/prelaunch.ts).
+// pre-launch gate for the production domain (src/lib/prelaunch.ts) and the
+// account requirement for the order flow (orderAuthRedirect).
 // Server components can't always write refreshed auth cookies; running
 // getUser() here once per navigation persists refreshed tokens (see the
 // comment in lib/supabase/server.ts setAll).
 
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { orderAuthRedirect } from '@/lib/auth/next-path';
 import { shouldRedirectToComingSoon } from '@/lib/prelaunch';
 
 export async function proxy(request: NextRequest) {
@@ -46,6 +48,16 @@ export async function proxy(request: NextRequest) {
     })
   ) {
     return NextResponse.redirect(new URL('/', request.url));
+  }
+
+  // The order flow needs an account from step 1: signed-out visitors go to
+  // signup/login and come back through ?next=. Page loads only — a server
+  // action posted with an expired session answers with its own error.
+  if (!user && request.method === 'GET') {
+    const authPath = orderAuthRedirect(request.nextUrl.pathname, request.nextUrl.search);
+    if (authPath) {
+      return NextResponse.redirect(new URL(authPath, request.url));
+    }
   }
 
   return response;

@@ -64,6 +64,9 @@ describe('GET /auth/callback — token_hash links', () => {
       error: { code: 'otp_expired', message: 'Token has expired' },
     });
     expect(location(await get('?token_hash=abc&type=signup'))).toBe(`${ORIGIN}/auth/error`);
+    expect(location(await get('?token_hash=abc&type=signup&next=/orders/wash'))).toBe(
+      `${ORIGIN}/auth/error?next=%2Forders%2Fwash`
+    );
   });
 });
 
