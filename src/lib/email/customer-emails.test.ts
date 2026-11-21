@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { OrderForCustomerEmail } from '@/lib/database/orders';
-import { buildOrderConfirmationEmail, buildOrderPickedUpEmail, buildPickupReminderEmail, buildPaymentFailedEmail, buildOrderDeliveredEmail, buildPriceReceiptEmail, formatKrExact, formatLongDate } from './customer-emails';
+import { buildOrderCancelledEmail, buildPickupRescheduledEmail, buildOrderConfirmationEmail, buildOrderPickedUpEmail, buildPickupReminderEmail, buildPaymentFailedEmail, buildOrderDeliveredEmail, buildPriceReceiptEmail, formatKrExact, formatLongDate } from './customer-emails';
 
 const OPTIONS = { appUrl: 'https://nooracare.no/' };
 
@@ -533,5 +533,122 @@ describe('buildPickupReminderEmail', () => {
 
     expect(html).toContain('Ring på &lt;Hansen&gt; &amp; &quot;Olsen&quot;');
     expect(html).not.toContain('<Hansen>');
+  });
+});
+
+describe('buildOrderCancelledEmail', () => {
+  const ONE_TIME: OrderForCustomerEmail = {
+    ...ORDER,
+    status: 'cancelled',
+    subscription_id: null,
+    subscription: null,
+  };
+
+  it('confirms a customer cancellation of a one-time order: nothing charged, no subscription or Vipps wording', () => {
+    const { subject, text, html } = buildOrderCancelledEmail(ONE_TIME, { nextPickupDate: null }, OPTIONS);
+
+    expect(subject).toBe('Bestilling #ABC123 er kansellert');
+    expect(text).toContain('Hei Kari!');
+    expect(text).toContain('Vi bekrefter at bestilling #ABC123 er kansellert. Tøyet blir ikke hentet.');
+    expect(text).toContain('KANSELLERT HENTING\n\nDato: lørdag 24. oktober 2026\nAdresse: Storgata 1, 0150 Oslo');
+    expect(text).toContain('Ingenting er trukket for denne bestillingen, og du blir ikke belastet for den.');
+    expect(text).toContain('Se bestillingen: https://nooracare.no/orders/details/ord-1');
+    expect(text).not.toContain('Årsak');
+    expect(text).not.toMatch(/abonnement/i);
+    expect(text).not.toContain('Vipps');
+    expect(html).toContain('Bestillingen er kansellert');
+    expect(html).toContain('href="https://nooracare.no/orders/details/ord-1"');
+  });
+
+  it('shows the admin reason, escaped in the HTML, and says NooraCare cancelled', () => {
+    const { text, html } = buildOrderCancelledEmail(
+      { ...ONE_TIME, cancellation_reason: '  Duplikat av <forrige> bestilling  ' },
+      { nextPickupDate: null },
+      OPTIONS
+    );
+
+    expect(text).toContain('Vi har kansellert bestilling #ABC123. Tøyet blir ikke hentet.');
+    expect(text).toContain('Årsak: Duplikat av <forrige> bestilling');
+    expect(text).not.toContain('Vi bekrefter');
+    expect(html).toContain('Årsak: Duplikat av &lt;forrige&gt; bestilling');
+    expect(html).not.toContain('<forrige>');
+  });
+
+  it('names the next pickup when the subscription continues', () => {
+    const { text } = buildOrderCancelledEmail(
+      { ...ORDER, status: 'cancelled', subscription: { frequency: 'weekly', status: 'active' } },
+      { nextPickupDate: '2026-10-31' },
+      OPTIONS
+    );
+
+    expect(text).toContain('ABONNEMENT\n\nAbonnementet ditt fortsetter. Neste henting er lørdag 31. oktober 2026.');
+  });
+
+  it('falls back to "settes opp automatisk" when no next pickup is known', () => {
+    const { text } = buildOrderCancelledEmail(
+      { ...ORDER, status: 'cancelled', subscription: { frequency: 'weekly', status: 'active' } },
+      { nextPickupDate: null },
+      OPTIONS
+    );
+
+    expect(text).toContain('Abonnementet ditt fortsetter. Neste henting settes opp automatisk, og du finner den på Min side.');
+  });
+
+  it('says the subscription is cancelled when the customer cancelled it too, and ignores a next pickup', () => {
+    const { text } = buildOrderCancelledEmail(
+      { ...ORDER, status: 'cancelled', subscription_id: 'sub-1', subscription: { frequency: 'weekly', status: 'cancelled' } },
+      { nextPickupDate: '2026-10-31' },
+      OPTIONS
+    );
+
+    expect(text).toContain('Abonnementet ditt er sagt opp, så det settes ikke opp flere hentinger.');
+    expect(text).not.toContain('Neste henting');
+  });
+});
+
+describe('buildPickupRescheduledEmail', () => {
+  const MOVED: OrderForCustomerEmail = { ...ORDER, scheduled_date: '2026-10-27' };
+
+  it('confirms a customer reschedule with new date, previous date and address', () => {
+    const { subject, text, html } = buildPickupRescheduledEmail(
+      MOVED,
+      { previousPickupDate: '2026-10-24', changedBy: 'customer' },
+      OPTIONS
+    );
+
+    expect(subject).toBe('Ny hentedato for bestilling #ABC123: tirsdag 27. oktober 2026');
+    expect(text).toContain('Hei Kari!');
+    expect(text).toContain('Vi bekrefter at hentedatoen for bestilling #ABC123 er endret.');
+    expect(text).toContain(
+      'HENTING\n\nNy dato: tirsdag 27. oktober 2026\nTidligere dato: lørdag 24. oktober 2026\nAdresse: Storgata 1, 0150 Oslo'
+    );
+    expect(text).toContain('Se bestillingen: https://nooracare.no/orders/details/ord-1');
+    expect(text).not.toContain('Henteinstruksjoner');
+    expect(text).not.toContain('Passer ikke den nye datoen?');
+    expect(text).not.toMatch(/abonnement/i);
+    expect(html).toContain('Ny hentedato');
+  });
+
+  it('includes the pickup instructions when the order has them, escaped in the HTML', () => {
+    const { text, html } = buildPickupRescheduledEmail(
+      { ...MOVED, special_instructions_address: 'Ring på hos "Hansen" & vent' },
+      { previousPickupDate: '2026-10-24', changedBy: 'customer' },
+      OPTIONS
+    );
+
+    expect(text).toContain('Henteinstruksjoner: Ring på hos "Hansen" & vent');
+    expect(html).toContain('Henteinstruksjoner: Ring på hos &quot;Hansen&quot; &amp; vent');
+  });
+
+  it('says NooraCare moved the pickup and invites a reply when an admin changed it', () => {
+    const { text } = buildPickupRescheduledEmail(
+      MOVED,
+      { previousPickupDate: '2026-10-24', changedBy: 'admin' },
+      OPTIONS
+    );
+
+    expect(text).toContain('Vi har endret hentedatoen for bestilling #ABC123.');
+    expect(text).toContain('Passer ikke den nye datoen? Gi oss beskjed ved å svare på denne e-posten.');
+    expect(text).not.toContain('Vi bekrefter');
   });
 });

@@ -16,6 +16,8 @@ vi.mock('@/lib/services/ready-order', () => ({ markOrderReadyAndCharge: vi.fn() 
 vi.mock('@/lib/services/customer-emails', () => ({
   sendPriceReceiptEmail: vi.fn(),
   sendOrderPickedUpEmail: vi.fn(),
+  sendOrderCancelledEmail: vi.fn(),
+  sendPickupRescheduledEmail: vi.fn(),
 }));
 vi.mock('@/lib/services/order-generation', () => ({ checkAndGenerateNextOrders: vi.fn() }));
 vi.mock('@/lib/database/cleaners', () => ({ getAvailableCleanersForCity: vi.fn() }));
@@ -37,7 +39,12 @@ import {
 } from '@/lib/database/orders';
 import { completeDeliveredOrder } from '@/lib/services/complete-order';
 import { markOrderReadyAndCharge } from '@/lib/services/ready-order';
-import { sendOrderPickedUpEmail, sendPriceReceiptEmail } from '@/lib/services/customer-emails';
+import {
+  sendOrderCancelledEmail,
+  sendOrderPickedUpEmail,
+  sendPickupRescheduledEmail,
+  sendPriceReceiptEmail,
+} from '@/lib/services/customer-emails';
 import { checkAndGenerateNextOrders } from '@/lib/services/order-generation';
 import { getAvailableCleanersForCity } from '@/lib/database/cleaners';
 import { getPaymentsByOrderId } from '@/lib/database/payments';
@@ -239,6 +246,7 @@ describe('updateOrderDetailsAction', () => {
       ...EXPECTED_BASE_UPDATE,
       delivery_date: '2026-09-15',
     });
+    expect(sendPickupRescheduledEmail).not.toHaveBeenCalled();
   });
 
   it('rejects a delivery date before the pickup date', async () => {
@@ -270,6 +278,7 @@ describe('updateOrderDetailsAction', () => {
     expect(result).toEqual({ success: true });
     expect(geocodeAddress).not.toHaveBeenCalled();
     expect(updateOrderAdminFields).toHaveBeenCalledWith('ord-1', EXPECTED_BASE_UPDATE);
+    expect(sendPickupRescheduledEmail).not.toHaveBeenCalled();
   });
 
   it('re-geocodes and stores coordinates when the address changed', async () => {
@@ -312,6 +321,33 @@ describe('updateOrderDetailsAction', () => {
     });
   });
 
+  it('e-mails the customer when the admin moves the pickup date', async () => {
+    const result = await updateOrderDetailsAction('ord-1', {
+      ...VALID_INPUT,
+      scheduled_date: '2026-09-11',
+    });
+
+    expect(result).toEqual({ success: true });
+    expect(updateOrderAdminFields).toHaveBeenCalledWith('ord-1', {
+      ...EXPECTED_BASE_UPDATE,
+      scheduled_date: '2026-09-11',
+    });
+    expect(sendPickupRescheduledEmail).toHaveBeenCalledTimes(1);
+    expect(sendPickupRescheduledEmail).toHaveBeenCalledWith('ord-1', EDITABLE_ORDER, 'admin');
+  });
+
+  it('sends no e-mail when a pickup-date change fails to save', async () => {
+    m(updateOrderAdminFields).mockResolvedValue(null);
+
+    const result = await updateOrderDetailsAction('ord-1', {
+      ...VALID_INPUT,
+      scheduled_date: '2026-09-11',
+    });
+
+    expect(result).toEqual({ success: false, error: 'Kunne ikke lagre endringene' });
+    expect(sendPickupRescheduledEmail).not.toHaveBeenCalled();
+  });
+
   it('errors when the write fails', async () => {
     m(updateOrderAdminFields).mockResolvedValue(null);
 
@@ -319,6 +355,7 @@ describe('updateOrderDetailsAction', () => {
 
     expect(result).toEqual({ success: false, error: 'Kunne ikke lagre endringene' });
     expect(revalidatePath).not.toHaveBeenCalled();
+    expect(sendPickupRescheduledEmail).not.toHaveBeenCalled();
   });
 
   it('revalidates the list and the detail page on success', async () => {
@@ -615,6 +652,7 @@ describe('cancelOrderAdminAction', () => {
       error: 'Ordren kan ikke kanselleres etter at den er hentet',
     });
     expect(updateOrderStatusGuarded).not.toHaveBeenCalled();
+    expect(sendOrderCancelledEmail).not.toHaveBeenCalled();
   });
 
   it('cancels with the trimmed reason, guarded on the current status, and regenerates the rolling window', async () => {
@@ -626,6 +664,7 @@ describe('cancelOrderAdminAction', () => {
     });
     expect(getSubscriptionById).toHaveBeenCalledWith('sub-1');
     expect(checkAndGenerateNextOrders).toHaveBeenCalledWith('sub-1');
+    expect(sendOrderCancelledEmail).toHaveBeenCalledWith('ord-1');
     expect(revalidatePath).toHaveBeenCalledWith('/admin/orders');
     expect(revalidatePath).toHaveBeenCalledWith('/admin/orders/ord-1');
   });
@@ -658,6 +697,7 @@ describe('cancelOrderAdminAction', () => {
     expect(result).toEqual({ success: true });
     expect(getSubscriptionById).not.toHaveBeenCalled();
     expect(checkAndGenerateNextOrders).not.toHaveBeenCalled();
+    expect(sendOrderCancelledEmail).toHaveBeenCalledWith('ord-1');
   });
 
   it('still succeeds when next-order generation throws', async () => {
@@ -666,6 +706,7 @@ describe('cancelOrderAdminAction', () => {
     const result = await cancelOrderAdminAction('ord-1', 'Duplikat');
 
     expect(result).toEqual({ success: true });
+    expect(sendOrderCancelledEmail).toHaveBeenCalledWith('ord-1');
   });
 
   it('errors when the guarded write does not apply (status changed meanwhile)', async () => {
@@ -679,6 +720,7 @@ describe('cancelOrderAdminAction', () => {
     });
     expect(checkAndGenerateNextOrders).not.toHaveBeenCalled();
     expect(revalidatePath).not.toHaveBeenCalled();
+    expect(sendOrderCancelledEmail).not.toHaveBeenCalled();
   });
 });
 

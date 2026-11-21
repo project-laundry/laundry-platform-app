@@ -28,6 +28,7 @@ import {
 } from "@/lib/database/orders";
 import { geocodeAddress, validateAddress, type AddressValidationReason } from "@/lib/maps/geocoding";
 import { checkAndGenerateNextOrders } from "@/lib/services/order-generation";
+import { sendOrderCancelledEmail, sendPickupRescheduledEmail } from "@/lib/services/customer-emails";
 import { cancelSubscriptionAction } from "@/app/dashboard/subscription/actions";
 import { validatePostalCode } from "@/lib/validation/cleaner";
 import type {
@@ -923,6 +924,10 @@ export async function cancelOrderAction(
     // If user wants to cancel subscription along with order
     if (alsoCancelSubscription && order.subscription_id) {
       const result = await cancelSubscriptionAction(order.subscription_id);
+      // The order IS cancelled at this point, whatever the subscription step
+      // returned — confirm it (#29). Sent after that step so the e-mail reads
+      // the subscription's real status. Never throws.
+      await sendOrderCancelledEmail(orderId);
       return result;
     }
 
@@ -954,6 +959,10 @@ export async function cancelOrderAction(
         }
       }
     }
+
+    // Cancellation e-mail (#29) — after the rolling window ran, so it can
+    // name the next pickup of a subscription. Never throws.
+    await sendOrderCancelledEmail(orderId);
 
     return { success: true, nextOrderId };
   } catch (error) {
@@ -1079,6 +1088,11 @@ export async function updateOrderPickupDateAction(
       console.error('Error updating pickup date:', error);
       return { success: false, error: 'Kunne ikke oppdatere hentedato' };
     }
+
+    // New-pickup-date e-mail (#29). `order` is the row as read BEFORE the
+    // write: its scheduled_date is the old date and its updated_at keys the
+    // send. Sends nothing when the date is unchanged. Never throws.
+    await sendPickupRescheduledEmail(orderId, order, 'customer');
 
     return {
       success: true,

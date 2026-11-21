@@ -39,6 +39,10 @@ vi.mock('@/lib/database/orders', () => ({
   updateOrderStatus: vi.fn(),
 }));
 vi.mock('@/lib/services/order-generation', () => ({ checkAndGenerateNextOrders: vi.fn() }));
+vi.mock('@/lib/services/customer-emails', () => ({
+  sendOrderCancelledEmail: vi.fn(),
+  sendPickupRescheduledEmail: vi.fn(),
+}));
 vi.mock('@/app/dashboard/subscription/actions', () => ({ cancelSubscriptionAction: vi.fn() }));
 
 // SUBSCRIPTIONS_OFFERED is a constant (false in the first version). The getter
@@ -57,18 +61,20 @@ import {
   getMostRecentOrderAddressByCustomerId,
   getOrderByPaymentAgreementId,
   getOrderWithDetailsByIdAndCustomerId,
+  updateOrderStatus,
 } from '@/lib/database/orders';
 import { calculateCustomerEstimate } from '@/lib/config/pricing';
 import type { OrderSelection } from '@/types/order-flow';
 import { TERMS_VERSION } from '@/lib/config/terms';
 import { validatePromoCode } from '@/lib/database/promo-codes';
-import { createSubscription, getActiveSubscriptionByCustomerId } from '@/lib/database/subscriptions';
+import { createSubscription, getActiveSubscriptionByCustomerId, getSubscriptionById } from '@/lib/database/subscriptions';
 import { createPaymentAgreement, getPaymentAgreementByProviderId, getPaymentAgreementsByCustomerId } from '@/lib/database/payment-agreements';
 import { findAvailableCleaner, getAvailableWeekdaysForCity } from '@/lib/database/cleaners';
 import { createVippsAgreement } from '@/lib/payments/vipps/service';
 import { createVippsRecurringClient } from '@/lib/payments/vipps/recurring-client';
 import { isVippsForceAcceptAllowed, pickVippsTestPhone } from '@/lib/payments/vipps/config';
 import { cancelSubscriptionAction } from '@/app/dashboard/subscription/actions';
+import { sendOrderCancelledEmail, sendPickupRescheduledEmail } from '@/lib/services/customer-emails';
 import {
   createSubscriptionAction,
   forceAcceptAgreementAction,
@@ -76,6 +82,7 @@ import {
   getCheckoutStatusAction,
   getPickupPrefillAction,
   updateOrderSelectionAction,
+  cancelOrderAction,
   updateOrderPickupDateAction,
   type CreateSubscriptionInput,
 } from './actions';
@@ -859,6 +866,8 @@ describe('updateOrderPickupDateAction', () => {
     m(getOrderWithDetailsByIdAndCustomerId).mockResolvedValue({
       id: 'order-1',
       status,
+      scheduled_date: '2030-01-02',
+      updated_at: '2029-12-01T10:00:00+00:00',
       city: 'Oslo',
       cleaner_id: 'cleaner-1',
       cleaner: { id: 'cleaner-1', display_name: 'Kari', weekly_schedule: weeklySchedule },
@@ -875,6 +884,7 @@ describe('updateOrderPickupDateAction', () => {
 
     expect(result).toEqual({ success: false, error: 'Kan ikke endre hentedato etter at ordren er hentet' });
     expect(updateMock).not.toHaveBeenCalled();
+    expect(sendPickupRescheduledEmail).not.toHaveBeenCalled();
   });
 
   it('rejects a weekday with no cleaners in the city', async () => {
@@ -895,6 +905,11 @@ describe('updateOrderPickupDateAction', () => {
     expect(findAvailableCleaner).not.toHaveBeenCalled();
     expect(updateMock).toHaveBeenCalledWith({ scheduled_date: '2030-01-04', delivery_date: '2030-01-06' });
     expect(eqMock).toHaveBeenCalledWith('id', 'order-1');
+    expect(sendPickupRescheduledEmail).toHaveBeenCalledWith(
+      'order-1',
+      expect.objectContaining({ scheduled_date: '2030-01-02', updated_at: '2029-12-01T10:00:00+00:00' }),
+      'customer'
+    );
     expect(result).toEqual({
       success: true,
       newPickupDate: '2030-01-04',
@@ -933,6 +948,7 @@ describe('updateOrderPickupDateAction', () => {
       error: 'Ingen rensere tilgjengelig på denne dagen. Vennligst velg en annen dato.',
     });
     expect(updateMock).not.toHaveBeenCalled();
+    expect(sendPickupRescheduledEmail).not.toHaveBeenCalled();
   });
 
   it('surfaces a database failure', async () => {
@@ -942,5 +958,88 @@ describe('updateOrderPickupDateAction', () => {
     const result = await updateOrderPickupDateAction('order-1', '2030-01-04');
 
     expect(result).toEqual({ success: false, error: 'Kunne ikke oppdatere hentedato' });
+    expect(sendPickupRescheduledEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe('cancelOrderAction — cancellation e-mail', () => {
+  /** Authenticated customer owning a one-time order whose pickup is years away (outside the 24 h window). */
+  function withCancellableOrder(overrides: Record<string, unknown> = {}) {
+    getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
+    m(getOrderWithDetailsByIdAndCustomerId).mockResolvedValue({
+      id: 'order-1',
+      status: 'pickup_scheduled',
+      subscription_id: null,
+      scheduled_date: '2030-01-04',
+      ...overrides,
+    });
+    m(updateOrderStatus).mockResolvedValue({ id: 'order-1', status: 'cancelled' });
+  }
+
+  it('e-mails the customer after a one-time order is cancelled', async () => {
+    withCancellableOrder();
+
+    const result = await cancelOrderAction('order-1');
+
+    expect(result).toEqual({ success: true });
+    expect(updateOrderStatus).toHaveBeenCalledWith('order-1', 'cancelled');
+    expect(sendOrderCancelledEmail).toHaveBeenCalledTimes(1);
+    expect(sendOrderCancelledEmail).toHaveBeenCalledWith('order-1');
+  });
+
+  it('e-mails after the subscription step when only this order of a subscription is cancelled', async () => {
+    withCancellableOrder({ subscription_id: 'sub-1' });
+    m(getSubscriptionById).mockResolvedValue({ id: 'sub-1', status: 'cancelled' });
+
+    const result = await cancelOrderAction('order-1');
+
+    expect(result).toEqual({ success: true });
+    expect(cancelSubscriptionAction).not.toHaveBeenCalled();
+    expect(sendOrderCancelledEmail).toHaveBeenCalledWith('order-1');
+  });
+
+  it('still e-mails when the customer cancels the subscription along with the order', async () => {
+    withCancellableOrder({ subscription_id: 'sub-1' });
+    m(cancelSubscriptionAction).mockResolvedValue({ success: true });
+
+    const result = await cancelOrderAction('order-1', true);
+
+    expect(result).toEqual({ success: true });
+    expect(cancelSubscriptionAction).toHaveBeenCalledWith('sub-1');
+    expect(sendOrderCancelledEmail).toHaveBeenCalledTimes(1);
+    expect(sendOrderCancelledEmail).toHaveBeenCalledWith('order-1');
+  });
+
+  it('sends nothing for an order that is already picked up', async () => {
+    withCancellableOrder({ status: 'in_cleaning' });
+
+    const result = await cancelOrderAction('order-1');
+
+    expect(result.success).toBe(false);
+    expect(updateOrderStatus).not.toHaveBeenCalled();
+    expect(sendOrderCancelledEmail).not.toHaveBeenCalled();
+  });
+
+  it('sends nothing inside the 24-hour window', async () => {
+    withCancellableOrder({ scheduled_date: new Date().toISOString().slice(0, 10) });
+
+    const result = await cancelOrderAction('order-1');
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Kan ikke kansellere ordre mindre enn 24 timer før henting',
+    });
+    expect(sendOrderCancelledEmail).not.toHaveBeenCalled();
+  });
+
+  it('sends nothing when the cancel write fails', async () => {
+    withCancellableOrder();
+    m(updateOrderStatus).mockResolvedValue(null);
+
+    const result = await cancelOrderAction('order-1');
+
+    expect(result).toEqual({ success: false, error: 'Failed to cancel order' });
+    expect(sendOrderCancelledEmail).not.toHaveBeenCalled();
   });
 });

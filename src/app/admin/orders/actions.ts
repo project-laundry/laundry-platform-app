@@ -13,7 +13,12 @@ import {
 } from '@/lib/database/orders';
 import { completeDeliveredOrder } from '@/lib/services/complete-order';
 import { markOrderReadyAndCharge } from '@/lib/services/ready-order';
-import { sendOrderPickedUpEmail, sendPriceReceiptEmail } from '@/lib/services/customer-emails';
+import {
+  sendOrderCancelledEmail,
+  sendOrderPickedUpEmail,
+  sendPickupRescheduledEmail,
+  sendPriceReceiptEmail,
+} from '@/lib/services/customer-emails';
 import { checkAndGenerateNextOrders } from '@/lib/services/order-generation';
 import { getAvailableCleanersForCity } from '@/lib/database/cleaners';
 import { getPaymentsByOrderId } from '@/lib/database/payments';
@@ -194,6 +199,13 @@ export async function updateOrderDetailsAction(
     return { success: false, error: 'Kunne ikke lagre endringene' };
   }
 
+  // A moved pickup must never be silent: tell the customer (#29). Only when
+  // the pickup date itself changed — an address or delivery-date edit sends
+  // nothing. `order` is the row as read before the write. Never throws.
+  if (scheduledDate !== order.scheduled_date) {
+    await sendPickupRescheduledEmail(orderId, order, 'admin');
+  }
+
   revalidatePath('/admin/orders');
   revalidatePath(`/admin/orders/${orderId}`);
   return { success: true };
@@ -349,7 +361,7 @@ const CANCELLATION_REASON_MAX = 500;
 /**
  * Cancel a not-yet-picked-up order (no-show, fraud, duplicate). The reason is
  * required and is written to cancellation_reason, which the customer's order
- * page shows. Admins are deliberately NOT bound by the customer's 24-hour
+ * page and the cancellation e-mail show. Admins are deliberately NOT bound by the customer's 24-hour
  * rule — this is the manual-override path. The subscription is never
  * touched: if it is still active the rolling window generates the
  * replacement order right away, exactly like the customer's
@@ -400,6 +412,10 @@ export async function cancelOrderAdminAction(
       }
     }
   }
+
+  // Cancellation e-mail with the customer-visible reason (#29) — after the
+  // rolling window ran, so it can name a subscription's next pickup. Never throws.
+  await sendOrderCancelledEmail(orderId);
 
   revalidatePath('/admin/orders');
   revalidatePath(`/admin/orders/${orderId}`);

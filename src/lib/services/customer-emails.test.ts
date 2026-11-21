@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
-vi.mock('@/lib/database/orders', () => ({ getOrderForCustomerEmail: vi.fn() }));
+vi.mock('@/lib/database/orders', () => ({ getOrderForCustomerEmail: vi.fn(), getActiveOrdersBySubscriptionId: vi.fn() }));
 vi.mock('@/lib/database/payments', () => ({ getPaymentById: vi.fn(), getPaymentsByOrderId: vi.fn() }));
 vi.mock('@/lib/email/send', () => ({
   sendEmail: vi.fn(),
@@ -14,13 +14,15 @@ vi.mock('@/lib/email/customer-emails', () => ({
   buildOrderPickedUpEmail: vi.fn(() => ({ subject: 'Hentet', text: 'tekst', html: '<p>html</p>' })),
   buildPaymentFailedEmail: vi.fn(() => ({ subject: 'Feilet', text: 'tekst', html: '<p>html</p>' })),
   buildPickupReminderEmail: vi.fn(() => ({ subject: 'Påminnelse', text: 'tekst', html: '<p>html</p>' })),
+  buildOrderCancelledEmail: vi.fn(() => ({ subject: 'Kansellert', text: 'tekst', html: '<p>html</p>' })),
+  buildPickupRescheduledEmail: vi.fn(() => ({ subject: 'Ny dato', text: 'tekst', html: '<p>html</p>' })),
 }));
 
-import { getOrderForCustomerEmail } from '@/lib/database/orders';
+import { getActiveOrdersBySubscriptionId, getOrderForCustomerEmail } from '@/lib/database/orders';
 import { getPaymentById, getPaymentsByOrderId } from '@/lib/database/payments';
 import { sendEmail } from '@/lib/email/send';
-import { buildOrderConfirmationEmail, buildOrderDeliveredEmail, buildOrderPickedUpEmail, buildPaymentFailedEmail, buildPickupReminderEmail, buildPriceReceiptEmail } from '@/lib/email/customer-emails';
-import { sendOrderConfirmationEmail, sendOrderDeliveredEmail, sendOrderPickedUpEmail, sendPaymentFailedEmail, sendPickupReminderEmail, sendPriceReceiptEmail } from './customer-emails';
+import { buildOrderCancelledEmail, buildPickupRescheduledEmail, buildOrderConfirmationEmail, buildOrderDeliveredEmail, buildOrderPickedUpEmail, buildPaymentFailedEmail, buildPickupReminderEmail, buildPriceReceiptEmail } from '@/lib/email/customer-emails';
+import { sendOrderCancelledEmail, sendPickupRescheduledEmail, sendOrderConfirmationEmail, sendOrderDeliveredEmail, sendOrderPickedUpEmail, sendPaymentFailedEmail, sendPickupReminderEmail, sendPriceReceiptEmail } from './customer-emails';
 import type { OrderForCustomerEmail } from '@/lib/database/orders';
 
 const m = (fn: unknown) => fn as Mock;
@@ -309,5 +311,163 @@ describe('sendPickupReminderEmail', () => {
 
     await expect(sendPickupReminderEmail(broken)).resolves.toBe(false);
     expect(sendEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe('sendOrderCancelledEmail', () => {
+  const CANCELLED = { ...ORDER, status: 'cancelled', subscription_id: null, subscription: null };
+
+  it('sends the cancellation keyed on the order id, without a subscription lookup for a one-time order', async () => {
+    m(getOrderForCustomerEmail).mockResolvedValue(CANCELLED);
+
+    await sendOrderCancelledEmail('ord-1');
+
+    expect(getActiveOrdersBySubscriptionId).not.toHaveBeenCalled();
+    expect(buildOrderCancelledEmail).toHaveBeenCalledWith(
+      CANCELLED,
+      { nextPickupDate: null },
+      { appUrl: 'https://nooracare.no' }
+    );
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: ['kari@example.com'],
+        subject: 'Kansellert',
+        idempotencyKey: 'order-cancelled/ord-1',
+      })
+    );
+  });
+
+  it('passes the next not-yet-picked-up pickup of an active subscription', async () => {
+    const order = {
+      ...CANCELLED,
+      subscription_id: 'sub-1',
+      subscription: { frequency: 'weekly', status: 'active' },
+    };
+    m(getOrderForCustomerEmail).mockResolvedValue(order);
+    m(getActiveOrdersBySubscriptionId).mockResolvedValue([
+      { id: 'ord-0', status: 'in_cleaning', scheduled_date: '2026-10-17' },
+      { id: 'ord-2', status: 'pickup_scheduled', scheduled_date: '2026-10-31' },
+    ]);
+
+    await sendOrderCancelledEmail('ord-1');
+
+    expect(getActiveOrdersBySubscriptionId).toHaveBeenCalledWith('sub-1');
+    expect(buildOrderCancelledEmail).toHaveBeenCalledWith(
+      order,
+      { nextPickupDate: '2026-10-31' },
+      { appUrl: 'https://nooracare.no' }
+    );
+  });
+
+  it('does not look for a next pickup when the subscription was cancelled too', async () => {
+    m(getOrderForCustomerEmail).mockResolvedValue({
+      ...CANCELLED,
+      subscription_id: 'sub-1',
+      subscription: { frequency: 'weekly', status: 'cancelled' },
+    });
+
+    await sendOrderCancelledEmail('ord-1');
+
+    expect(getActiveOrdersBySubscriptionId).not.toHaveBeenCalled();
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it('sends nothing when the order is not cancelled in the database', async () => {
+    m(getOrderForCustomerEmail).mockResolvedValue({ ...CANCELLED, status: 'pickup_scheduled' });
+
+    await sendOrderCancelledEmail('ord-1');
+
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('sends nothing when the order is not found', async () => {
+    m(getOrderForCustomerEmail).mockResolvedValue(null);
+
+    await sendOrderCancelledEmail('ord-x');
+
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('never throws when the next-pickup lookup rejects', async () => {
+    m(getOrderForCustomerEmail).mockResolvedValue({
+      ...CANCELLED,
+      subscription_id: 'sub-1',
+      subscription: { frequency: 'weekly', status: 'active' },
+    });
+    m(getActiveOrdersBySubscriptionId).mockRejectedValue(new Error('db down'));
+
+    await expect(sendOrderCancelledEmail('ord-1')).resolves.toBeUndefined();
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe('sendPickupRescheduledEmail', () => {
+  const BEFORE = { scheduled_date: '2026-10-24', updated_at: '2026-10-20T10:00:00+00:00' };
+  const MOVED = { ...ORDER, scheduled_date: '2026-10-27' };
+
+  it('sends old → new, keyed on the row version that was changed', async () => {
+    m(getOrderForCustomerEmail).mockResolvedValue(MOVED);
+
+    await sendPickupRescheduledEmail('ord-1', BEFORE, 'customer');
+
+    expect(buildPickupRescheduledEmail).toHaveBeenCalledWith(
+      MOVED,
+      { previousPickupDate: '2026-10-24', changedBy: 'customer' },
+      { appUrl: 'https://nooracare.no' }
+    );
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subject: 'Ny dato',
+        idempotencyKey: 'pickup-rescheduled/ord-1/2026-10-20T10:00:00+00:00',
+      })
+    );
+  });
+
+  it('gives a later change of the same order its own key, so A → B → A → B is never swallowed', async () => {
+    m(getOrderForCustomerEmail).mockResolvedValue(MOVED);
+
+    await sendPickupRescheduledEmail('ord-1', BEFORE, 'customer');
+    await sendPickupRescheduledEmail('ord-1', { ...BEFORE, updated_at: '2026-10-20T11:30:00+00:00' }, 'customer');
+
+    const keys = m(sendEmail).mock.calls.map(([message]) => message.idempotencyKey);
+    expect(keys).toEqual([
+      'pickup-rescheduled/ord-1/2026-10-20T10:00:00+00:00',
+      'pickup-rescheduled/ord-1/2026-10-20T11:30:00+00:00',
+    ]);
+  });
+
+  it('passes changedBy "admin" through to the builder', async () => {
+    m(getOrderForCustomerEmail).mockResolvedValue(MOVED);
+
+    await sendPickupRescheduledEmail('ord-1', BEFORE, 'admin');
+
+    expect(buildPickupRescheduledEmail).toHaveBeenCalledWith(
+      MOVED,
+      { previousPickupDate: '2026-10-24', changedBy: 'admin' },
+      { appUrl: 'https://nooracare.no' }
+    );
+  });
+
+  it('sends nothing when the same date was saved again', async () => {
+    m(getOrderForCustomerEmail).mockResolvedValue({ ...ORDER, scheduled_date: '2026-10-24' });
+
+    await sendPickupRescheduledEmail('ord-1', BEFORE, 'customer');
+
+    expect(buildPickupRescheduledEmail).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('sends nothing when the order is not found', async () => {
+    m(getOrderForCustomerEmail).mockResolvedValue(null);
+
+    await sendPickupRescheduledEmail('ord-x', BEFORE, 'customer');
+
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('never throws when the database helper rejects', async () => {
+    m(getOrderForCustomerEmail).mockRejectedValue(new Error('db down'));
+
+    await expect(sendPickupRescheduledEmail('ord-1', BEFORE, 'customer')).resolves.toBeUndefined();
   });
 });

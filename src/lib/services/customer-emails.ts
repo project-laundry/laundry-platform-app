@@ -11,13 +11,19 @@
 // runs behind the role-guarded callers.
 
 import { COMPANY } from '@/lib/config/company';
-import { getOrderForCustomerEmail, type OrderForCustomerEmail } from '@/lib/database/orders';
 import {
+  getActiveOrdersBySubscriptionId,
+  getOrderForCustomerEmail,
+  type OrderForCustomerEmail,
+} from '@/lib/database/orders';
+import {
+  buildOrderCancelledEmail,
   buildOrderConfirmationEmail,
   buildOrderDeliveredEmail,
   buildOrderPickedUpEmail,
   buildPaymentFailedEmail,
   buildPickupReminderEmail,
+  buildPickupRescheduledEmail,
   buildPriceReceiptEmail,
   type CustomerEmail,
 } from '@/lib/email/customer-emails';
@@ -252,5 +258,91 @@ export async function sendPickupReminderEmail(order: OrderForCustomerEmail): Pro
   } catch (error) {
     console.error(`[Customer e-mail] Pickup reminder ${idempotencyKey} failed:`, error);
     return false;
+  }
+}
+
+/**
+ * #29 — order cancelled. Called by cancelOrderAction (customer) and
+ * cancelOrderAdminAction (admin) after the cancel write succeeded and after
+ * the subscription step (regenerated next order, or cancelled subscription),
+ * because the e-mail reads both from the database. Keyed on the order id:
+ * cancelled is terminal, so an order has exactly one cancellation e-mail.
+ */
+export async function sendOrderCancelledEmail(orderId: string): Promise<void> {
+  try {
+    const url = appUrl();
+    if (!url) return;
+
+    const order = await getOrderForCustomerEmail(orderId);
+    if (!order) {
+      console.error(`[Customer e-mail] Order ${orderId} not found — cancellation e-mail skipped`);
+      return;
+    }
+    if (order.status !== 'cancelled') {
+      console.error(`[Customer e-mail] Order ${orderId} is ${order.status}, not cancelled — cancellation e-mail skipped`);
+      return;
+    }
+
+    // Subscription orders only (dormant while SUBSCRIPTIONS_OFFERED is false):
+    // the pickup the rolling window set up instead of the cancelled one.
+    let nextPickupDate: string | null = null;
+    if (order.subscription_id && order.subscription?.status === 'active') {
+      const upcoming = await getActiveOrdersBySubscriptionId(order.subscription_id);
+      const next = upcoming.find(
+        (candidate) =>
+          candidate.status === 'pending_assignment' || candidate.status === 'pickup_scheduled'
+      );
+      nextPickupDate = next?.scheduled_date ?? null;
+    }
+
+    await deliver(
+      order,
+      buildOrderCancelledEmail(order, { nextPickupDate }, { appUrl: url }),
+      `order-cancelled/${order.id}`
+    );
+  } catch (error) {
+    console.error(`[Customer e-mail] Cancellation e-mail for ${orderId} failed:`, error);
+  }
+}
+
+/**
+ * #29 — new pickup date. Called by updateOrderPickupDateAction (customer)
+ * and updateOrderDetailsAction (admin) after the write succeeded. `before` is
+ * the order row as the action read it BEFORE the write: its scheduled_date is
+ * the "old" date in the e-mail and its updated_at (bumped by a trigger on
+ * every update) identifies the row version that was changed. Keying on that
+ * version means every real change sends — A → B → A → B within Resend's 24 h
+ * window is four e-mails — while two racing submits of the same change share
+ * a key and send one. Saving the same date again sends nothing.
+ */
+export async function sendPickupRescheduledEmail(
+  orderId: string,
+  before: { scheduled_date: string; updated_at: string },
+  changedBy: 'customer' | 'admin'
+): Promise<void> {
+  try {
+    const url = appUrl();
+    if (!url) return;
+
+    const order = await getOrderForCustomerEmail(orderId);
+    if (!order) {
+      console.error(`[Customer e-mail] Order ${orderId} not found — new-pickup-date e-mail skipped`);
+      return;
+    }
+    if (order.scheduled_date === before.scheduled_date) {
+      return; // same date saved again — nothing changed, nothing to tell
+    }
+
+    await deliver(
+      order,
+      buildPickupRescheduledEmail(
+        order,
+        { previousPickupDate: before.scheduled_date, changedBy },
+        { appUrl: url }
+      ),
+      `pickup-rescheduled/${order.id}/${before.updated_at}`
+    );
+  } catch (error) {
+    console.error(`[Customer e-mail] New-pickup-date e-mail for ${orderId} failed:`, error);
   }
 }

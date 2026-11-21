@@ -610,3 +610,141 @@ export function buildPickupReminderEmail(
     options
   );
 }
+
+// ─── #29 Order cancelled / new pickup date ──────────────────────────────────
+
+export interface OrderCancelledDetails {
+  /**
+   * Pickup date (YYYY-MM-DD) of the subscription's next not-yet-picked-up
+   * order, or null. Only read for an order of an active recurring subscription.
+   */
+  nextPickupDate: string | null;
+}
+
+/**
+ * Sent when an order is cancelled before pickup — by the customer
+ * (cancelOrderAction) or by an admin (cancelOrderAdminAction). The admin's
+ * required reason is stored in cancellation_reason and shown; a customer
+ * cannot enter one, so a non-empty reason means NooraCare cancelled.
+ *
+ * "Ingenting er trukket … du blir ikke belastet" is true for every order
+ * that can be cancelled: a charge is only created once an order is marked
+ * ready (in_cleaning → ready_for_delivery), and only pending_assignment /
+ * pickup_scheduled orders can be cancelled. The Vipps AGREEMENT is
+ * deliberately not mentioned: for a one-time order it stays active until
+ * issue #144 is fixed, so neither "stopped" nor "still active" is safe to say.
+ */
+export function buildOrderCancelledEmail(
+  order: OrderForCustomerEmail,
+  details: OrderCancelledDetails,
+  options: CustomerEmailOptions
+): CustomerEmail {
+  const reason = order.cancellation_reason?.trim() || null;
+  const subscription =
+    order.subscription && order.subscription.frequency !== 'on_demand' ? order.subscription : null;
+
+  const blocks: Block[] = [
+    greeting(order),
+    paragraph(
+      reason
+        ? `Vi har kansellert bestilling #${order.order_number}. Tøyet blir ikke hentet.`
+        : `Vi bekrefter at bestilling #${order.order_number} er kansellert. Tøyet blir ikke hentet.`
+    ),
+  ];
+
+  if (reason) {
+    blocks.push(paragraph(`Årsak: ${reason}`));
+  }
+
+  blocks.push(
+    heading('Kansellert henting'),
+    rows([
+      { label: 'Dato', value: formatLongDate(order.scheduled_date) },
+      { label: 'Adresse', value: `${order.street}, ${order.postal_code} ${order.city}` },
+    ]),
+    heading('Betaling'),
+    paragraph('Ingenting er trukket for denne bestillingen, og du blir ikke belastet for den.')
+  );
+
+  if (subscription?.status === 'active') {
+    blocks.push(
+      heading('Abonnement'),
+      paragraph(
+        details.nextPickupDate
+          ? `Abonnementet ditt fortsetter. Neste henting er ${formatLongDate(details.nextPickupDate)}.`
+          : 'Abonnementet ditt fortsetter. Neste henting settes opp automatisk, og du finner den på Min side.'
+      )
+    );
+  } else if (subscription?.status === 'cancelled' || subscription?.status === 'expired') {
+    blocks.push(
+      heading('Abonnement'),
+      paragraph('Abonnementet ditt er sagt opp, så det settes ikke opp flere hentinger.')
+    );
+  }
+
+  blocks.push(button('Se bestillingen', orderUrl(order, options)), closing());
+
+  return finish(
+    `Bestilling #${order.order_number} er kansellert`,
+    'Bestillingen er kansellert',
+    blocks,
+    options
+  );
+}
+
+export interface PickupDateChange {
+  /** orders.scheduled_date before the change (YYYY-MM-DD). The order passed to the builder already carries the new date. */
+  previousPickupDate: string;
+  /** Who moved the pickup: the customer on the reschedule page, or an admin in the order edit form. */
+  changedBy: 'customer' | 'admin';
+}
+
+/**
+ * Sent when the pickup date of a not-yet-picked-up order changes: old date →
+ * new date, with the address and the pickup instructions, so the customer
+ * has it in writing. When an admin moved the pickup the customer did not ask
+ * for it, so the wording says "vi" and invites a reply.
+ */
+export function buildPickupRescheduledEmail(
+  order: OrderForCustomerEmail,
+  change: PickupDateChange,
+  options: CustomerEmailOptions
+): CustomerEmail {
+  const newDate = formatLongDate(order.scheduled_date);
+  const byAdmin = change.changedBy === 'admin';
+
+  const blocks: Block[] = [
+    greeting(order),
+    paragraph(
+      byAdmin
+        ? `Vi har endret hentedatoen for bestilling #${order.order_number}.`
+        : `Vi bekrefter at hentedatoen for bestilling #${order.order_number} er endret.`
+    ),
+    heading('Henting'),
+    rows([
+      { label: 'Ny dato', value: newDate, strong: true },
+      { label: 'Tidligere dato', value: formatLongDate(change.previousPickupDate) },
+      { label: 'Adresse', value: `${order.street}, ${order.postal_code} ${order.city}` },
+    ]),
+  ];
+
+  const instructions = order.special_instructions_address?.trim();
+  if (instructions) {
+    blocks.push(paragraph(`Henteinstruksjoner: ${instructions}`));
+  }
+
+  if (byAdmin) {
+    blocks.push(
+      paragraph('Passer ikke den nye datoen? Gi oss beskjed ved å svare på denne e-posten.')
+    );
+  }
+
+  blocks.push(button('Se bestillingen', orderUrl(order, options)), closing());
+
+  return finish(
+    `Ny hentedato for bestilling #${order.order_number}: ${newDate}`,
+    'Ny hentedato',
+    blocks,
+    options
+  );
+}
