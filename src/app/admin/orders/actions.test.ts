@@ -14,6 +14,7 @@ vi.mock('@/lib/database/orders', () => ({
 vi.mock('@/lib/services/complete-order', () => ({ completeDeliveredOrder: vi.fn() }));
 vi.mock('@/lib/services/ready-order', () => ({ markOrderReadyAndCharge: vi.fn() }));
 vi.mock('@/lib/services/customer-emails', () => ({
+  sendCleanerConfirmedEmail: vi.fn(),
   sendPriceReceiptEmail: vi.fn(),
   sendOrderPickedUpEmail: vi.fn(),
   sendOrderCancelledEmail: vi.fn(),
@@ -40,6 +41,7 @@ import {
 import { completeDeliveredOrder } from '@/lib/services/complete-order';
 import { markOrderReadyAndCharge } from '@/lib/services/ready-order';
 import {
+  sendCleanerConfirmedEmail,
   sendOrderCancelledEmail,
   sendOrderPickedUpEmail,
   sendPickupRescheduledEmail,
@@ -77,7 +79,10 @@ const ORDER = {
 function happyPathMocks() {
   m(assertRole).mockResolvedValue({ auth: { authUserId: 'admin-1' }, error: null });
   m(getOrderById).mockResolvedValue(ORDER);
-  m(getAvailableCleanersForCity).mockResolvedValue([{ id: 'cl-1' }, { id: 'cl-2' }]);
+  m(getAvailableCleanersForCity).mockResolvedValue([
+    { id: 'cl-1', display_name: 'Ola Hansen' },
+    { id: 'cl-2', display_name: 'Per Rens' },
+  ]);
   m(assignCleanerToOrder).mockResolvedValue({ id: 'ord-1' });
 }
 
@@ -120,6 +125,7 @@ describe('assignCleanerAction', () => {
 
     expect(result).toEqual({ success: true });
     expect(assignCleanerToOrder).toHaveBeenCalledWith('ord-1', 'cl-1');
+    expect(sendCleanerConfirmedEmail).not.toHaveBeenCalled();
   });
 
   it('rejects reassigning to the cleaner who already has the order', async () => {
@@ -158,6 +164,15 @@ describe('assignCleanerAction', () => {
 
     expect(result).toEqual({ success: false, error: 'Kunne ikke tildele renser' });
     expect(revalidatePath).not.toHaveBeenCalled();
+    expect(sendCleanerConfirmedEmail).not.toHaveBeenCalled();
+  });
+
+  it('e-mails the customer that a cleaner is confirmed when the order was pending_assignment', async () => {
+    const result = await assignCleanerAction('ord-1', 'cl-1');
+
+    expect(result).toEqual({ success: true });
+    expect(sendCleanerConfirmedEmail).toHaveBeenCalledTimes(1);
+    expect(sendCleanerConfirmedEmail).toHaveBeenCalledWith('ord-1', 'Ola Hansen');
   });
 });
 

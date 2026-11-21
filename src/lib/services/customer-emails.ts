@@ -17,6 +17,7 @@ import {
   type OrderForCustomerEmail,
 } from '@/lib/database/orders';
 import {
+  buildCleanerConfirmedEmail,
   buildOrderCancelledEmail,
   buildOrderConfirmationEmail,
   buildOrderDeliveredEmail,
@@ -29,6 +30,7 @@ import {
 } from '@/lib/email/customer-emails';
 import { getPaymentById, getPaymentsByOrderId } from '@/lib/database/payments';
 import { CUSTOMER_EMAIL_FROM, sendEmail } from '@/lib/email/send';
+import { todayInOslo } from '@/lib/utils/date';
 
 function appUrl(): string | null {
   const url = process.env.NEXT_PUBLIC_APP_URL;
@@ -344,5 +346,60 @@ export async function sendPickupRescheduledEmail(
     );
   } catch (error) {
     console.error(`[Customer e-mail] New-pickup-date e-mail for ${orderId} failed:`, error);
+  }
+}
+
+/**
+ * #30 — "en renser er bekreftet". Called by the admin's assignCleanerAction
+ * right after a cleaner was assigned to an order that was pending_assignment
+ * (never for a re-assignment between cleaners). The order is re-read here, so
+ * the e-mail shows the pickup date the order has after the assignment.
+ *
+ * Idempotency key: order id + how many cleaners have declined the order.
+ * declineOrder is the only thing that puts an order back in
+ * pending_assignment and it appends to declined_by_cleaner_ids, so the count
+ * is the "assignment round": a double-click or two admins assigning at once
+ * share a key (one e-mail), while an assignment after a decline gets a new
+ * key and is sent again.
+ */
+export async function sendCleanerConfirmedEmail(
+  orderId: string,
+  cleanerDisplayName: string
+): Promise<void> {
+  try {
+    const url = appUrl();
+    if (!url) return;
+
+    const order = await getOrderForCustomerEmail(orderId);
+    if (!order) {
+      console.error(`[Customer e-mail] Order ${orderId} not found — cleaner confirmation skipped`);
+      return;
+    }
+
+    if (order.status !== 'pickup_scheduled') {
+      // Cancelled, declined again or already picked up since the assignment.
+      console.error(
+        `[Customer e-mail] Order ${orderId} is ${order.status}, not pickup_scheduled — cleaner confirmation skipped`
+      );
+      return;
+    }
+
+    if (order.scheduled_date < todayInOslo()) {
+      // Confirming a pickup on a date that has passed would be wrong. The
+      // admin sets the new date first and assigns afterwards.
+      console.error(
+        `[Customer e-mail] Order ${orderId} has a past pickup date (${order.scheduled_date}) — cleaner confirmation skipped`
+      );
+      return;
+    }
+
+    const round = (order.declined_by_cleaner_ids ?? []).length;
+    await deliver(
+      order,
+      buildCleanerConfirmedEmail(order, cleanerDisplayName, { appUrl: url }),
+      `cleaner-confirmed/${order.id}/${round}`
+    );
+  } catch (error) {
+    console.error(`[Customer e-mail] Cleaner confirmation for ${orderId} failed:`, error);
   }
 }

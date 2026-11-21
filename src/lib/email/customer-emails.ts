@@ -204,7 +204,9 @@ function finish(
  * Sent once the first order exists (agreement activated). Sets the
  * expectation that the checkout price is an estimate and the cleaner sets
  * the binding price after pickup. Subscription wording only for a
- * subscription order; a one-time order never mentions one.
+ * subscription order; a one-time order never mentions one. An order created
+ * without a cleaner (status pending_assignment) gets the "we are assigning a
+ * cleaner" variant: nothing is called confirmed and no deadline is promised (#30).
  */
 export function buildOrderConfirmationEmail(
   order: OrderForCustomerEmail,
@@ -214,20 +216,37 @@ export function buildOrderConfirmationEmail(
     order.subscription && order.subscription.frequency !== 'on_demand' ? order.subscription : null;
   const estimate = order.customer_estimate;
   const pickupDate = formatLongDate(order.scheduled_date);
+  // #30: no cleaner was matched at checkout. Nothing is confirmed yet, so the
+  // e-mail says we are assigning one manually and promises no deadline; the
+  // customer hears from us again when an admin assigns (buildCleanerConfirmedEmail).
+  const awaitingCleaner = order.status === 'pending_assignment';
+
+  let intro: string;
+  if (awaitingCleaner) {
+    intro =
+      'Takk for bestillingen! Vi har mottatt den og tildeler nå en lokal renser manuelt. Du trenger ikke gjøre noe – vi tar kontakt så snart en renser er bekreftet.';
+  } else if (subscription) {
+    intro = 'Takk for bestillingen! Abonnementet ditt er i gang, og første henting er bekreftet.';
+  } else {
+    intro = 'Takk for bestillingen! Hentingen din er bekreftet.';
+  }
 
   const blocks: Block[] = [
     greeting(order),
-    paragraph(
-      subscription
-        ? 'Takk for bestillingen! Abonnementet ditt er i gang, og første henting er bekreftet.'
-        : 'Takk for bestillingen! Hentingen din er bekreftet.'
-    ),
+    paragraph(intro),
     heading('Henting'),
     rows([
-      { label: 'Dato', value: pickupDate },
+      { label: awaitingCleaner ? 'Ønsket hentedato' : 'Dato', value: pickupDate },
       { label: 'Adresse', value: `${order.street}, ${order.postal_code} ${order.city}` },
     ]),
   ];
+  if (awaitingCleaner) {
+    blocks.push(
+      paragraph(
+        'Hentedatoen er ikke bekreftet ennå. Du får en ny e-post med bekreftet hentedato så snart en renser er på plass.'
+      )
+    );
+  }
 
   const items = estimate ? estimateRows(estimate) : [];
   if (items.length > 0) {
@@ -259,8 +278,10 @@ export function buildOrderConfirmationEmail(
   blocks.push(button('Se bestillingen', orderUrl(order, options)), closing());
 
   return finish(
-    `Bestilling #${order.order_number} er bekreftet – henting ${pickupDate}`,
-    'Bestillingen din er bekreftet',
+    awaitingCleaner
+      ? `Bestilling #${order.order_number} er mottatt – vi finner en renser til deg`
+      : `Bestilling #${order.order_number} er bekreftet – henting ${pickupDate}`,
+    awaitingCleaner ? 'Bestillingen din er mottatt' : 'Bestillingen din er bekreftet',
     blocks,
     options
   );
@@ -744,6 +765,56 @@ export function buildPickupRescheduledEmail(
   return finish(
     `Ny hentedato for bestilling #${order.order_number}: ${newDate}`,
     'Ny hentedato',
+    blocks,
+    options
+  );
+}
+
+// ─── #30 Cleaner confirmed ──────────────────────────────────────────────────
+
+/**
+ * Sent when an admin assigns a cleaner to an order that was waiting for one
+ * (pending_assignment → pickup_scheduled). Confirms the pickup date the order
+ * has now, the address and the cleaner's display name. The copy stands on its
+ * own — it never refers back to an earlier e-mail — because it is also what
+ * the customer gets when a cleaner declined a confirmed order and the admin
+ * assigns a new one.
+ */
+export function buildCleanerConfirmedEmail(
+  order: OrderForCustomerEmail,
+  cleanerDisplayName: string,
+  options: CustomerEmailOptions
+): CustomerEmail {
+  const pickupDate = formatLongDate(order.scheduled_date);
+  // The whole display name the cleaner chose to show customers (plan amendment:
+  // not just the first word). Never the cleaner's legal name.
+  const cleanerName = cleanerDisplayName.trim();
+
+  const pickupRows: Row[] = [
+    { label: 'Dato', value: pickupDate },
+    { label: 'Adresse', value: `${order.street}, ${order.postal_code} ${order.city}` },
+  ];
+  if (cleanerName) {
+    pickupRows.push({ label: 'Renser', value: cleanerName });
+  }
+
+  const blocks: Block[] = [
+    greeting(order),
+    paragraph(
+      cleanerName
+        ? `Hentingen din er bekreftet. ${cleanerName}, en godkjent renser i området, henter tøyet ditt ${pickupDate}.`
+        : `Hentingen din er bekreftet. En godkjent renser i området henter tøyet ditt ${pickupDate}.`
+    ),
+    heading('Henting'),
+    rows(pickupRows),
+    paragraph('Du trenger ikke gjøre noe mer.'),
+    button('Se bestillingen', orderUrl(order, options)),
+    closing(),
+  ];
+
+  return finish(
+    `Hentingen er bekreftet – ${pickupDate} (bestilling #${order.order_number})`,
+    'Hentingen din er bekreftet',
     blocks,
     options
   );

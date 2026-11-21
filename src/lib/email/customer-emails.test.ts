@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { OrderForCustomerEmail } from '@/lib/database/orders';
-import { buildOrderCancelledEmail, buildPickupRescheduledEmail, buildOrderConfirmationEmail, buildOrderPickedUpEmail, buildPickupReminderEmail, buildPaymentFailedEmail, buildOrderDeliveredEmail, buildPriceReceiptEmail, formatKrExact, formatLongDate } from './customer-emails';
+import { buildCleanerConfirmedEmail, buildOrderCancelledEmail, buildPickupRescheduledEmail, buildOrderConfirmationEmail, buildOrderPickedUpEmail, buildPickupReminderEmail, buildPaymentFailedEmail, buildOrderDeliveredEmail, buildPriceReceiptEmail, formatKrExact, formatLongDate } from './customer-emails';
 
 const OPTIONS = { appUrl: 'https://nooracare.no/' };
 
@@ -58,9 +58,17 @@ const ORDER: OrderForCustomerEmail = {
   cleaner: null,
 };
 
+/** The same order with a cleaner matched at checkout — the normal confirmed case. */
+const SCHEDULED_ORDER: OrderForCustomerEmail = {
+  ...ORDER,
+  cleaner_id: 'cl-1',
+  status: 'pickup_scheduled',
+  assigned_at: '2026-10-20T10:00:00.000Z',
+};
+
 /** The dormant variant: the first order of a weekly subscription. */
 const SUBSCRIPTION_ORDER: OrderForCustomerEmail = {
-  ...ORDER,
+  ...SCHEDULED_ORDER,
   subscription_id: 'sub-1',
   subscription: { frequency: 'weekly', status: 'active' },
 };
@@ -76,7 +84,7 @@ describe('formatting helpers', () => {
 
 describe('buildOrderConfirmationEmail', () => {
   it('confirms a one-time order with pickup, items and estimate, and never mentions a subscription', () => {
-    const { subject, text, html } = buildOrderConfirmationEmail(ORDER, OPTIONS);
+    const { subject, text, html } = buildOrderConfirmationEmail(SCHEDULED_ORDER, OPTIONS);
 
     expect(subject).toBe('Bestilling #ABC123 er bekreftet – henting lørdag 24. oktober 2026');
     expect(text).toContain('Hei Kari!');
@@ -123,6 +131,32 @@ describe('buildOrderConfirmationEmail', () => {
     expect(text).not.toContain('DET DU SENDER');
     expect(text).not.toContain('Estimat:');
     expect(text).toContain('PRIS\n\nEstimatet er veiledende.');
+  });
+
+  it('says a cleaner is being assigned manually when the order has none (pending_assignment)', () => {
+    const { subject, text, html } = buildOrderConfirmationEmail(ORDER, OPTIONS);
+
+    expect(subject).toBe('Bestilling #ABC123 er mottatt – vi finner en renser til deg');
+    expect(text).toContain('tildeler nå en lokal renser manuelt');
+    expect(text).toContain('Du trenger ikke gjøre noe – vi tar kontakt så snart en renser er bekreftet.');
+    expect(text).toContain('Ønsket hentedato: lørdag 24. oktober 2026\nAdresse: Storgata 1, 0150 Oslo');
+    expect(text).toContain('Hentedatoen er ikke bekreftet ennå.');
+    expect(text).not.toContain('Hentingen din er bekreftet');
+    expect(text).not.toContain('\nDato: ');
+    expect(text).not.toMatch(/24 timer|innen/i);
+    expect(html).toContain('Bestillingen din er mottatt');
+    expect(html).not.toContain('Bestillingen din er bekreftet');
+    // The rest of the confirmation is unchanged.
+    expect(text).toContain('Estimat: ca. 589 kr');
+    expect(text).toContain('Se bestillingen: https://nooracare.no/orders/details/ord-1');
+  });
+
+  it('keeps the subscription section but not the "er i gang … bekreftet" intro for a pending subscription order', () => {
+    const { text } = buildOrderConfirmationEmail({ ...SUBSCRIPTION_ORDER, status: 'pending_assignment' }, OPTIONS);
+
+    expect(text).toContain('tildeler nå en lokal renser manuelt');
+    expect(text).not.toContain('første henting er bekreftet');
+    expect(text).toContain('Henting ukentlig.');
   });
 
   it('escapes customer-controlled text in the HTML', () => {
@@ -650,5 +684,57 @@ describe('buildPickupRescheduledEmail', () => {
     expect(text).toContain('Vi har endret hentedatoen for bestilling #ABC123.');
     expect(text).toContain('Passer ikke den nye datoen? Gi oss beskjed ved å svare på denne e-posten.');
     expect(text).not.toContain('Vi bekrefter');
+  });
+});
+
+describe('buildCleanerConfirmedEmail', () => {
+  it('confirms the pickup with date, address, the cleaner display name and the order link', () => {
+    const { subject, text, html } = buildCleanerConfirmedEmail(SCHEDULED_ORDER, 'Ola Hansen', OPTIONS);
+
+    expect(subject).toBe('Hentingen er bekreftet – lørdag 24. oktober 2026 (bestilling #ABC123)');
+    expect(text).toContain('Hei Kari!');
+    expect(text).toContain(
+      'Hentingen din er bekreftet. Ola Hansen, en godkjent renser i området, henter tøyet ditt lørdag 24. oktober 2026.'
+    );
+    expect(text).toContain('Dato: lørdag 24. oktober 2026\nAdresse: Storgata 1, 0150 Oslo\nRenser: Ola Hansen');
+    expect(text).toContain('Du trenger ikke gjøre noe mer.');
+    expect(text).toContain('Se bestillingen: https://nooracare.no/orders/details/ord-1');
+    expect(text).toContain('post@nooracare.no');
+    expect(text).not.toMatch(/nabo|abonnement/i);
+    expect(html).toContain('Hentingen din er bekreftet');
+    expect(html).toContain('href="https://nooracare.no/orders/details/ord-1"');
+  });
+
+  it('trims the display name', () => {
+    const { text } = buildCleanerConfirmedEmail(SCHEDULED_ORDER, '  Bergen Vask  ', OPTIONS);
+
+    expect(text).toContain('Renser: Bergen Vask');
+  });
+
+  it('shows the date the order has now', () => {
+    const { subject, text } = buildCleanerConfirmedEmail(
+      { ...SCHEDULED_ORDER, scheduled_date: '2026-10-27' },
+      'Ola',
+      OPTIONS
+    );
+
+    expect(subject).toContain('tirsdag 27. oktober 2026');
+    expect(text).toContain('Dato: tirsdag 27. oktober 2026');
+  });
+
+  it('leaves the name out when the display name is blank', () => {
+    const { text } = buildCleanerConfirmedEmail(SCHEDULED_ORDER, '   ', OPTIONS);
+
+    expect(text).toContain(
+      'Hentingen din er bekreftet. En godkjent renser i området henter tøyet ditt lørdag 24. oktober 2026.'
+    );
+    expect(text).not.toContain('Renser:');
+  });
+
+  it('escapes the cleaner name in the HTML', () => {
+    const { html } = buildCleanerConfirmedEmail(SCHEDULED_ORDER, '<b>Ola</b> Vask', OPTIONS);
+
+    expect(html).toContain('&lt;b&gt;Ola&lt;/b&gt;');
+    expect(html).not.toContain('<b>Ola</b>');
   });
 });

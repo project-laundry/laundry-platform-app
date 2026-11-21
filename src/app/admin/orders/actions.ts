@@ -14,6 +14,7 @@ import {
 import { completeDeliveredOrder } from '@/lib/services/complete-order';
 import { markOrderReadyAndCharge } from '@/lib/services/ready-order';
 import {
+  sendCleanerConfirmedEmail,
   sendOrderCancelledEmail,
   sendOrderPickedUpEmail,
   sendPickupRescheduledEmail,
@@ -50,6 +51,11 @@ const ASSIGNABLE_STATUSES = ['pending_assignment', 'pickup_scheduled'] as const;
  * (server actions are public endpoints): the order must not be picked up
  * yet, and the cleaner must be an available (approved + accepting) cleaner
  * in the order's own city.
+ *
+ * Assigning an order that was pending_assignment e-mails the customer that
+ * the pickup is confirmed (sendCleanerConfirmedEmail) with the order's
+ * current scheduled_date — this action never changes the date, so correct
+ * the date first when it needs correcting.
  */
 export async function assignCleanerAction(
   orderId: string,
@@ -72,13 +78,21 @@ export async function assignCleanerAction(
   }
 
   const availableCleaners = await getAvailableCleanersForCity(order.city);
-  if (!availableCleaners.some((cleaner) => cleaner.id === cleanerId)) {
+  const cleaner = availableCleaners.find((candidate) => candidate.id === cleanerId);
+  if (!cleaner) {
     return { success: false, error: 'Renseren er ikke tilgjengelig i denne byen' };
   }
 
   const updated = await assignCleanerToOrder(orderId, cleanerId);
   if (!updated) {
     return { success: false, error: 'Kunne ikke tildele renser' };
+  }
+
+  // "En renser er bekreftet" e-mail (#30) — only when the order was waiting
+  // for a cleaner. A re-assignment between cleaners (pickup_scheduled) tells
+  // the customer nothing. Never throws (lib/services/customer-emails.ts).
+  if (order.status === 'pending_assignment') {
+    await sendCleanerConfirmedEmail(orderId, cleaner.display_name);
   }
 
   revalidatePath('/admin/orders');

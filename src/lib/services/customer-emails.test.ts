@@ -16,13 +16,14 @@ vi.mock('@/lib/email/customer-emails', () => ({
   buildPickupReminderEmail: vi.fn(() => ({ subject: 'Påminnelse', text: 'tekst', html: '<p>html</p>' })),
   buildOrderCancelledEmail: vi.fn(() => ({ subject: 'Kansellert', text: 'tekst', html: '<p>html</p>' })),
   buildPickupRescheduledEmail: vi.fn(() => ({ subject: 'Ny dato', text: 'tekst', html: '<p>html</p>' })),
+  buildCleanerConfirmedEmail: vi.fn(() => ({ subject: 'Renser bekreftet', text: 'tekst', html: '<p>html</p>' })),
 }));
 
 import { getActiveOrdersBySubscriptionId, getOrderForCustomerEmail } from '@/lib/database/orders';
 import { getPaymentById, getPaymentsByOrderId } from '@/lib/database/payments';
 import { sendEmail } from '@/lib/email/send';
-import { buildOrderCancelledEmail, buildPickupRescheduledEmail, buildOrderConfirmationEmail, buildOrderDeliveredEmail, buildOrderPickedUpEmail, buildPaymentFailedEmail, buildPickupReminderEmail, buildPriceReceiptEmail } from '@/lib/email/customer-emails';
-import { sendOrderCancelledEmail, sendPickupRescheduledEmail, sendOrderConfirmationEmail, sendOrderDeliveredEmail, sendOrderPickedUpEmail, sendPaymentFailedEmail, sendPickupReminderEmail, sendPriceReceiptEmail } from './customer-emails';
+import { buildCleanerConfirmedEmail, buildOrderCancelledEmail, buildPickupRescheduledEmail, buildOrderConfirmationEmail, buildOrderDeliveredEmail, buildOrderPickedUpEmail, buildPaymentFailedEmail, buildPickupReminderEmail, buildPriceReceiptEmail } from '@/lib/email/customer-emails';
+import { sendCleanerConfirmedEmail, sendOrderCancelledEmail, sendPickupRescheduledEmail, sendOrderConfirmationEmail, sendOrderDeliveredEmail, sendOrderPickedUpEmail, sendPaymentFailedEmail, sendPickupReminderEmail, sendPriceReceiptEmail } from './customer-emails';
 import type { OrderForCustomerEmail } from '@/lib/database/orders';
 
 const m = (fn: unknown) => fn as Mock;
@@ -469,5 +470,81 @@ describe('sendPickupRescheduledEmail', () => {
     m(getOrderForCustomerEmail).mockRejectedValue(new Error('db down'));
 
     await expect(sendPickupRescheduledEmail('ord-1', BEFORE, 'customer')).resolves.toBeUndefined();
+  });
+});
+
+describe('sendCleanerConfirmedEmail', () => {
+  // Far-future pickup so the "past pickup date" guard never depends on today's date.
+  const ASSIGNED_ORDER = {
+    id: 'ord-1',
+    status: 'pickup_scheduled',
+    scheduled_date: '2099-01-05',
+    declined_by_cleaner_ids: null,
+    customer: { user: { email: 'kari@example.com', full_name: 'Kari' } },
+  };
+
+  beforeEach(() => {
+    m(getOrderForCustomerEmail).mockResolvedValue(ASSIGNED_ORDER);
+  });
+
+  it('builds and sends the confirmation, keyed on the order and assignment round 0', async () => {
+    await sendCleanerConfirmedEmail('ord-1', 'Ola Hansen');
+
+    expect(getOrderForCustomerEmail).toHaveBeenCalledWith('ord-1');
+    expect(buildCleanerConfirmedEmail).toHaveBeenCalledWith(ASSIGNED_ORDER, 'Ola Hansen', {
+      appUrl: 'https://nooracare.no',
+    });
+    expect(sendEmail).toHaveBeenCalledWith({
+      from: 'NooraCare <no-reply@nooracare.no>',
+      to: ['kari@example.com'],
+      replyTo: ['post@nooracare.no'],
+      subject: 'Renser bekreftet',
+      text: 'tekst',
+      html: '<p>html</p>',
+      idempotencyKey: 'cleaner-confirmed/ord-1/0',
+    });
+  });
+
+  it('uses a new key after each decline, so a re-assignment is sent again', async () => {
+    m(getOrderForCustomerEmail).mockResolvedValue({
+      ...ASSIGNED_ORDER,
+      declined_by_cleaner_ids: ['cl-1', 'cl-2'],
+    });
+
+    await sendCleanerConfirmedEmail('ord-1', 'Per');
+
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ idempotencyKey: 'cleaner-confirmed/ord-1/2' })
+    );
+  });
+
+  it('sends nothing when the order is no longer pickup_scheduled', async () => {
+    m(getOrderForCustomerEmail).mockResolvedValue({ ...ASSIGNED_ORDER, status: 'cancelled' });
+
+    await sendCleanerConfirmedEmail('ord-1', 'Ola');
+
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('sends nothing when the pickup date has already passed', async () => {
+    m(getOrderForCustomerEmail).mockResolvedValue({ ...ASSIGNED_ORDER, scheduled_date: '2000-01-01' });
+
+    await sendCleanerConfirmedEmail('ord-1', 'Ola');
+
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('sends nothing when the order is not found', async () => {
+    m(getOrderForCustomerEmail).mockResolvedValue(null);
+
+    await sendCleanerConfirmedEmail('ord-x', 'Ola');
+
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('never throws when the database helper rejects', async () => {
+    m(getOrderForCustomerEmail).mockRejectedValue(new Error('db down'));
+
+    await expect(sendCleanerConfirmedEmail('ord-1', 'Ola')).resolves.toBeUndefined();
   });
 });
