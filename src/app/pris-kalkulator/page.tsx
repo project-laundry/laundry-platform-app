@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { MarketingNav } from '@/components/landing/MarketingNav';
+import { Navbar } from '@/components/landing/Navbar';
 import { Footer } from "@/components/landing/Footer";
 import { EstimateCalculator } from "@/components/order-flow/EstimateCalculator";
 
@@ -21,7 +21,7 @@ export default function PrisKalkulatorPage() {
             'radial-gradient(120% 80% at 50% -10%, hsl(var(--sea-green) / 0.16), transparent 60%), radial-gradient(90% 60% at 110% 10%, hsl(var(--nordic-blue) / 0.10), transparent 55%)',
         }}
       />
-      <MarketingNav />
+      <Navbar />
       <main className="pb-16 pt-28">
         <div className="mx-auto max-w-2xl px-5">
           {/* Header */}

@@ -1,13 +1,14 @@
-// Pre-launch gate, keyed on the hostname. On the production domain,
-// anonymous visitors only reach the coming-soon pages and the legal/contact
-// pages; everything else (login, signup, order flow, the parked landing
-// pages) redirects to "/". test.nooracare.no, localhost and Vercel previews
+// Pre-launch gate, keyed on the hostname. The customer side is launched:
+// the landing page, login, signup and the order flow are public. What is
+// still gated on the production domain is the cleaner side — anonymous
+// visitors reach the /bli-renser coming-soon page, but cleaner signup,
+// onboarding and the parked /bli-renser/lansering redirect to "/". test.nooracare.no, localhost and Vercel previews
 // are never gated, so the full app is exercised on staging. A signed-in user
 // passes on production too (sessions are only created on staging today, so
 // this mostly matters once accounts exist). Pure logic lives here so it can
 // be unit-tested; src/proxy.ts wires it to the request.
 //
-// At launch: delete this file, its test and the block in src/proxy.ts.
+// When cleaners launch: delete this file, its test and the block in src/proxy.ts.
 
 const PRODUCTION_HOSTS = ['nooracare.no', 'www.nooracare.no'];
 
@@ -31,12 +32,15 @@ const PUBLIC_PAGES = [
   '/pris-kalkulator',
   '/auth/callback',
   '/auth/error',
+  '/auth/login',
+  '/auth/signup',
+  '/auth/success',
   '/auth/forgot-password',
   '/auth/reset-password',
 ];
 
 /** Trees that stay public (the path itself or anything below it). */
-const PUBLIC_PREFIXES = ['/api', '/admin'];
+const PUBLIC_PREFIXES = ['/api', '/admin', '/orders'];
 
 /** Generated social images (`opengraph-image.tsx`) are served without an
  *  extension, so the proxy matcher doesn't skip them like it does for PNGs. */

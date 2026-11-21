@@ -122,7 +122,7 @@ export default async function CleanerComingSoonPage() {
       <CrossPromo
         text="Vil du heller slippe klesvasken? Vi henter, en nabo vasker, og vi leverer rent tøy hjem til deg."
         href="/"
-        cta="Sett deg på kundelisten"
+        cta="Bestill henting"
       />
     </ComingSoonShell>
   );

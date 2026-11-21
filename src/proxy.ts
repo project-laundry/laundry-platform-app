@@ -36,7 +36,7 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Pre-launch: nooracare.no shows only the coming-soon pages; the full app
+  // Pre-launch gate: on nooracare.no the cleaner side is still coming-soon; the full app
   // lives on test.nooracare.no until launch.
   if (
     shouldRedirectToComingSoon({

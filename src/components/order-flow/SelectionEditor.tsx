@@ -71,7 +71,7 @@ export function SelectionEditor({
         delay={80}
         icon={<ShoppingBag className="size-5" />}
         title="Klær"
-        subtitle="Hvor mange poser sender du? Én pose er omtrent en vanlig handlepose."
+        subtitle="Tell i vanlige handleposer med klær. Du bruker dine egne poser."
       >
         <Stepper
           value={sel.bags}

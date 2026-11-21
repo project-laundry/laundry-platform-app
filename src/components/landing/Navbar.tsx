@@ -8,9 +8,7 @@ import { EnvironmentBadge } from "@/components/ui/EnvironmentBadge";
 import { createClient } from "@/lib/supabase/client";
 import type { UserRole } from "@/types/database";
 
-/** `prelaunch`: rendered on the gated production host (see MarketingNav) —
- *  no auth buttons, the CTA points at the waitlist instead. */
-export function Navbar({ prelaunch = false }: { prelaunch?: boolean }) {
+export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -26,7 +24,6 @@ export function Navbar({ prelaunch = false }: { prelaunch?: boolean }) {
   }, []);
 
   useEffect(() => {
-    if (prelaunch) return; // nobody can sign in on the gated host
     const checkAuth = async () => {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
@@ -51,7 +48,7 @@ export function Navbar({ prelaunch = false }: { prelaunch?: boolean }) {
     };
 
     checkAuth();
-  }, [prelaunch]);
+  }, []);
 
   const navLinks = [
     { href: "/#slik-virker-det", label: "Slik virker det" },
@@ -110,11 +107,7 @@ export function Navbar({ prelaunch = false }: { prelaunch?: boolean }) {
 
           {/* Desktop Auth Buttons */}
           <div className="hidden items-center gap-3 md:flex">
-            {prelaunch ? (
-              <Link href="/" className={primaryPill}>
-                Sett meg på listen
-              </Link>
-            ) : isAuthenticated ? (
+            {isAuthenticated ? (
               <Link href={getDashboardUrl()} className={primaryPill}>
                 Dashboard
               </Link>
@@ -123,8 +116,8 @@ export function Navbar({ prelaunch = false }: { prelaunch?: boolean }) {
                 <Link href="/auth/login" className={outlinePill}>
                   Logg inn
                 </Link>
-                <Link href="/auth/signup" className={primaryPill}>
-                  Kom i gang
+                <Link href="/orders/wash" className={primaryPill}>
+                  Bestill henting
                 </Link>
               </>
             )}
@@ -171,15 +164,7 @@ export function Navbar({ prelaunch = false }: { prelaunch?: boolean }) {
               )
             ))}
             <div className="space-y-3 pt-4">
-              {prelaunch ? (
-                <Link
-                  href="/"
-                  className={`${primaryPill} w-full`}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Sett meg på listen
-                </Link>
-              ) : isAuthenticated ? (
+              {isAuthenticated ? (
                 <Link
                   href={getDashboardUrl()}
                   className={`${primaryPill} w-full`}
@@ -191,8 +176,8 @@ export function Navbar({ prelaunch = false }: { prelaunch?: boolean }) {
                   <Link href="/auth/login" className={`${outlinePill} w-full`}>
                     Logg inn
                   </Link>
-                  <Link href="/auth/signup" className={`${primaryPill} w-full`}>
-                    Kom i gang
+                  <Link href="/orders/wash" className={`${primaryPill} w-full`}>
+                    Bestill henting
                   </Link>
                 </>
               )}

@@ -20,15 +20,19 @@ export const WAITLIST_ID = 'venteliste';
  *  the headline and the form share one left edge at every width. */
 const heroContainer = 'mx-auto w-full max-w-[96rem] px-5 sm:px-8 lg:px-12 xl:px-16';
 
-/** Page shell shared by the two coming-soon pages: Snø backdrop for the
- *  sections, a transparent bar over the light hero, footer. */
+/** Page shell shared by the customer landing page and the cleaner
+ *  coming-soon page: Snø backdrop for the sections, a transparent bar over
+ *  the light hero, footer. `links` are quiet text links left of the pill
+ *  (hidden on phones, where the page itself carries them). */
 export function ComingSoonShell({
   audience,
+  links = [],
   switchHref,
   switchLabel,
   children,
 }: {
   audience: WaitlistAudience;
+  links?: { href: string; label: string }[];
   switchHref: string;
   switchLabel: string;
   children: React.ReactNode;
@@ -49,12 +53,23 @@ export function ComingSoonShell({
       <header className="absolute inset-x-0 top-0 z-30">
         <div className={`flex items-center justify-between gap-4 py-4 ${heroContainer}`}>
           <Wordmark />
-          <Link
-            href={switchHref}
-            className="rounded-full border border-fjord/10 bg-white/70 px-4 py-1.5 text-sm font-medium text-fjord shadow-soft backdrop-blur transition-colors hover:border-sea-green hover:text-sea-green"
-          >
-            {switchLabel}
-          </Link>
+          <nav className="flex items-center gap-7">
+            {links.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="hidden text-sm font-medium text-fjord transition-colors hover:text-sea-green md:block"
+              >
+                {link.label}
+              </Link>
+            ))}
+            <Link
+              href={switchHref}
+              className="rounded-full border border-fjord/10 bg-white/70 px-4 py-1.5 text-sm font-medium text-fjord shadow-soft backdrop-blur transition-colors hover:border-sea-green hover:text-sea-green"
+            >
+              {switchLabel}
+            </Link>
+          </nav>
         </div>
       </header>
 
@@ -90,7 +105,8 @@ export function ComingSoonHero({
   highlight,
   subtitle,
   offer,
-  count,
+  count = null,
+  action,
   image,
 }: {
   audience: WaitlistAudience;
@@ -102,7 +118,10 @@ export function ComingSoonHero({
   /** The concrete reason to sign up today, shown above the form as two short
    *  spans so it never wraps awkwardly on a phone. */
   offer?: { title: string; detail: string };
-  count: number | null;
+  count?: number | null;
+  /** Replaces the waitlist form (and its offer and counter) — the launched
+   *  customer page puts its order starter here. */
+  action?: React.ReactNode;
   /** Hero photo, landscape, subject in the right third, plain wall on the
    *  left. `mobileSrc` is the portrait counterpart (plain wall in the top two
    *  thirds, subject at the bottom) shown under the copy below `lg`.
@@ -118,6 +137,9 @@ export function ComingSoonHero({
 }) {
   // With a photo the copy is centered until the side-by-side layout at `lg`.
   const align = image ? 'mx-auto lg:mx-0' : 'mx-auto';
+  // Beside the photo the card is a little narrower until `xl`, so it stays
+  // clear of the subject on narrow landscape screens.
+  const actionWidth = image ? 'max-w-md lg:max-w-sm xl:max-w-md' : 'max-w-md';
   const copy = (
     <>
       <span className="inline-flex items-center gap-2 rounded-full border border-fjord/10 bg-white/60 px-4 py-1.5 text-sm tracking-wide text-medium-gray backdrop-blur animate-in fade-in slide-in-from-bottom-3 duration-500">
@@ -150,10 +172,11 @@ export function ComingSoonHero({
 
       <div
         id={WAITLIST_ID}
-        className={`mt-8 max-w-md scroll-mt-28 text-left animate-in fade-in slide-in-from-bottom-3 duration-500 ${align}`}
+        className={`mt-8 scroll-mt-28 text-left animate-in fade-in slide-in-from-bottom-3 duration-500 ${actionWidth} ${align}`}
         style={{ animationDelay: '180ms' }}
       >
-        {offer && (
+        {action}
+        {!action && offer && (
           <p className="mb-4 flex items-start gap-2.5 rounded-2xl bg-fersken px-3.5 py-3 text-[clamp(11.5px,calc((100vw_-_100px)/24),14px)] text-fjord sm:px-4 sm:text-sm">
             <Gift className="mt-0.5 hidden size-4 shrink-0 sm:block" />
             <span className="flex flex-wrap items-baseline gap-x-1">
@@ -162,8 +185,8 @@ export function ComingSoonHero({
             </span>
           </p>
         )}
-        <WaitlistForm audience={audience} />
-        {count !== null && count >= MIN_COUNT_TO_SHOW && (
+        {!action && <WaitlistForm audience={audience} />}
+        {!action && count !== null && count >= MIN_COUNT_TO_SHOW && (
           <p className="mt-4 flex items-center justify-center gap-1.5 text-sm text-medium-gray">
             <Users className="size-4 text-sea-green" />
             Bli med <span className="font-semibold tabular-nums text-sea-green">{count}</span> andre

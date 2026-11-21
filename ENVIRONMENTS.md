@@ -59,13 +59,13 @@ Staging/production values are set **per environment** in the Vercel dashboard.
 > digest, declared in `vercel.json`, Production only). Order generation is still webhook-driven.
 
 **Pre-launch gate (no env var):** `src/proxy.ts` checks the request host against
-`src/lib/prelaunch.ts`. On `nooracare.no` / `www.nooracare.no`, anonymous visitors only reach
-the coming-soon pages, legal/contact pages, the price calculator, `/admin`, the auth callback and
-the password-reset pages (`/auth/forgot-password`, `/auth/reset-password`); login, signup,
-the order flow and the parked `/bli-renser/lansering` page redirect to `/`. `test.nooracare.no`,
+`src/lib/prelaunch.ts`. On `nooracare.no` / `www.nooracare.no` the customer side is open: anonymous
+visitors reach the landing page, the order flow (`/orders/*`), login, signup, the legal/contact pages,
+the price calculator, `/admin`, the auth callback and the password-reset pages. The cleaner side is
+still gated: `/bli-renser` is the coming-soon page, and cleaner signup, onboarding and the parked
+`/bli-renser/lansering` page redirect to `/`. `test.nooracare.no`,
 localhost and Vercel previews are never gated, so the full app is tested on staging. Delete
-the gate at launch. Note that this also blocks `/auth/login` on production, so admins cannot
-sign in on `nooracare.no` until the gate is removed.
+the gate when cleaners launch.
 
 ### Launch checklist
 
@@ -74,10 +74,13 @@ Before any of the steps below: open `src/lib/config/company.ts` and confirm ever
 Instagram URL; set `facebookUrl` if a Facebook page exists). It is the only place these
 details live — the footer, `/kontakt` and the legal pages all read from it.
 
-1. Delete `src/lib/prelaunch.ts`, its test, and the gate block in `src/proxy.ts`.
-2. Move `src/app/lansering/page.tsx` to `src/app/page.tsx` and `src/app/bli-renser/lansering/page.tsx`
-   to `src/app/bli-renser/page.tsx`; drop their `robots: { index: false }`; delete the coming-soon
-   pages and `src/components/coming-soon/` (keep `launch.ts` only if something still imports it).
+1. Customer side — done in code: `src/app/page.tsx` is the launch landing page (order starter instead
+   of the waitlist form) and the gate lets anonymous visitors into `/orders/*`, login and signup. It
+   goes live on `nooracare.no` with the next push to `main`, so finish steps 3 and 6 onwards first.
+2. Cleaner side — when cleaners launch: delete `src/lib/prelaunch.ts`, its test and the gate block in
+   `src/proxy.ts`; move `src/app/bli-renser/lansering/page.tsx` to `src/app/bli-renser/page.tsx` and
+   drop its `robots: { index: false }`; delete `WaitlistForm` and the waitlist branch of
+   `ComingSoonHero`.
 3. Create the promo code behind the waitlist offer (first `WAITLIST_OFFER_SPOTS` customer signups get
    the first wash at half price — `src/components/coming-soon/launch.ts`) and put it in the launch
    e-mail to the rows the database already marked:
@@ -86,8 +89,8 @@ details live — the footer, `/kontakt` and the legal pages all read from it.
    ```
    Everyone else on the list gets the plain "we're open" e-mail. Each signup gets exactly one e-mail —
    that is all the consent covers (`/personvern#venteliste`).
-4. Update the share images (`src/app/opengraph-image.tsx`, `src/app/bli-renser/opengraph-image.tsx`)
-   from "Snart slipper du …" to launch copy.
+4. Update the cleaner share image (`src/app/bli-renser/opengraph-image.tsx`) to launch copy when
+   cleaners launch (the customer one already reads "Nå slipper du klesvasken").
 5. Delete all `waitlist_signups` rows no later than six months after launch; a withdrawn consent
    (e-mail to post@nooracare.no) is deleted right away (`/personvern#venteliste`).
 6. **Vipps production credentials in Vercel** — in `portal.vippsmobilepay.com` → *For developers* →

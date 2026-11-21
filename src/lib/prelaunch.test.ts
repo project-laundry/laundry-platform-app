@@ -17,9 +17,14 @@ describe('isGatedHost', () => {
 });
 
 describe('isPublicPrelaunchPath', () => {
-  it('allows the coming-soon, legal, contact and admin surfaces', () => {
+  it('allows the customer, coming-soon, legal, contact and admin surfaces', () => {
     for (const p of [
       '/',
+      '/auth/login',
+      '/auth/signup',
+      '/auth/success',
+      '/orders/wash',
+      '/orders/confirm',
       '/bli-renser',
       '/kontakt',
       '/personvern',
@@ -41,15 +46,12 @@ describe('isPublicPrelaunchPath', () => {
     }
   });
 
-  it('blocks login, signup, the order flow and the parked pages', () => {
+  it('blocks cleaner signup, onboarding, the parked page and the dashboards', () => {
     for (const p of [
-      '/auth/login',
-      '/auth/signup',
       '/bli-renser/signup',
       '/bli-renser/signup/success',
       '/bli-renser/lansering',
       '/bli-renser/business',
-      '/orders/wash',
       '/dashboard',
     ]) {
       expect(isPublicPrelaunchPath(p), p).toBe(false);
@@ -61,12 +63,14 @@ describe('shouldRedirectToComingSoon', () => {
   const prod = { host: 'nooracare.no', hasSession: false };
 
   it('redirects anonymous production visitors away from blocked paths', () => {
-    expect(shouldRedirectToComingSoon({ ...prod, pathname: '/auth/login' })).toBe(true);
-    expect(shouldRedirectToComingSoon({ ...prod, pathname: '/orders/wash' })).toBe(true);
+    expect(shouldRedirectToComingSoon({ ...prod, pathname: '/bli-renser/signup' })).toBe(true);
+    expect(shouldRedirectToComingSoon({ ...prod, pathname: '/dashboard' })).toBe(true);
   });
 
   it('lets anonymous production visitors see public paths', () => {
     expect(shouldRedirectToComingSoon({ ...prod, pathname: '/bli-renser' })).toBe(false);
+    expect(shouldRedirectToComingSoon({ ...prod, pathname: '/orders/wash' })).toBe(false);
+    expect(shouldRedirectToComingSoon({ ...prod, pathname: '/auth/login' })).toBe(false);
   });
 
   it('lets signed-in users through on production', () => {
@@ -77,10 +81,10 @@ describe('shouldRedirectToComingSoon', () => {
 
   it('never redirects on staging or localhost', () => {
     expect(
-      shouldRedirectToComingSoon({ host: 'test.nooracare.no', hasSession: false, pathname: '/auth/login' })
+      shouldRedirectToComingSoon({ host: 'test.nooracare.no', hasSession: false, pathname: '/bli-renser/signup' })
     ).toBe(false);
     expect(
-      shouldRedirectToComingSoon({ host: 'localhost:3000', hasSession: false, pathname: '/auth/signup' })
+      shouldRedirectToComingSoon({ host: 'localhost:3000', hasSession: false, pathname: '/dashboard' })
     ).toBe(false);
   });
 });

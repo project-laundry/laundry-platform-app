@@ -75,7 +75,7 @@ npm run test:watch # Run tests in watch mode
 ```
 src/
 ├── app/                    # Next.js App Router pages
-│   ├── page.tsx            # Landing page: pre-launch waitlist hero + the illustrated how-it-works story (actions.ts: joinWaitlistAction; no consent checkbox — submitting is the consent). At launch, swap the waitlist form for the order CTA; no testimonials until there are real ones
+│   ├── page.tsx            # Customer landing page (launched): photo hero with the QuickOrderCard order starter (bag stepper + estimate → /orders/wash with the selection pre-filled), the illustrated how-it-works story, the price tiles and the closing «Bestill henting» block. actions.ts (joinWaitlistAction; no consent checkbox — submitting is the consent) now only serves the cleaner waitlist on /bli-renser. No testimonials until there are real ones
 │   ├── opengraph-image.tsx # Social share image for /, rendered by lib/og-image.tsx (bli-renser has its own)
 │   ├── not-found.tsx       # Root 404 (unmatched URLs + every notFound() call)
 │   ├── admin/              # Admin dashboard (layout = shell + role guard; page = overview: count tiles + attention sections «I dag» / «Forsinket» / «Venter på tildeling» / «Betalinger å følge opp» / «Ordre ikke generert» from lib/database/admin-attention.ts; a failed query shows an error, never 0 or an empty list)
@@ -127,7 +127,8 @@ src/
 ├── assets/brand/          # Logo PNGs (primary/secondary/submerke, normal + negativ); favicons are app/icon.png + app/apple-icon.png
 ├── components/             # Reusable UI components
 │   ├── auth/               # Auth components (empty)
-│   ├── coming-soon/        # Shared shell (light hero with optional photo, StepList, FaqList, CrossPromo) + WaitlistForm for the two coming-soon pages; HowItWorksStory.tsx = the illustrated 5-step story on the customer page; launch.ts holds the launch window label and the waitlist offer cap
+│   ├── coming-soon/        # Shared shell (light hero with optional photo, StepList, FaqList, CrossPromo) for the customer landing page and the cleaner coming-soon page — the hero shows the WaitlistForm unless it gets an `action` (the customer page passes QuickOrderCard); HowItWorksStory.tsx = the illustrated 5-step story on the customer page; launch.ts holds the cleaner launch window label and the waitlist offer cap
+│   ├── landing/            # Navbar (legal/contact/price pages), Footer, QuickOrderCard (the hero's order starter on /)
 │   ├── forms/              # Form components (empty)
 │   ├── layout/             # Layout components (empty)
 │   ├── legal/              # CompanyContactCard — the company details box shared by /salgsvilkar, /personvern and /personvern-renser (values from lib/config/company.ts)
@@ -171,7 +172,7 @@ src/
 │   │   ├── email.ts        # EMAIL_RE / isValidEmail, shared by the waitlist form (client) and action (server)
 │   │   └── order-number.ts # Order number generation
 │   ├── og-image.tsx        # Shared next/og renderer for the social share images (Fjord + stacked logo; Fraunces fetched at build, falls back silently)
-│   ├── prelaunch.ts        # Host-keyed pre-launch gate used by proxy.ts (see Middleware) — delete at launch
+│   ├── prelaunch.ts        # Host-keyed pre-launch gate used by proxy.ts (see Middleware); customer paths are open, the cleaner side is still gated — delete when cleaners launch
 │   └── notifications.ts    # Notification templates and system
 ├── types/
 │   ├── database.ts         # Complete entity types and enums
@@ -213,7 +214,7 @@ All database operations use dedicated functions in `lib/database/`:
 
 ### Middleware
 
-`src/proxy.ts` (Next 16 proxy convention) refreshes Supabase auth sessions on every request and applies the **pre-launch gate** (`src/lib/prelaunch.ts`), keyed on the hostname: on `nooracare.no` / `www.nooracare.no`, anonymous visitors only reach `/`, `/bli-renser`, the legal/contact pages, the price calculator, `/admin`, `/auth/callback`, `/auth/error` and the password-reset pages (`/auth/forgot-password`, `/auth/reset-password` — the recovery e-mail must work before launch); login, signup, the order flow and the parked `/bli-renser/lansering` page redirect to `/`. `test.nooracare.no`, localhost and previews are never gated — the full app lives on staging until launch. Signed-in users pass. Delete the gate at launch. Role guards live in `src/lib/auth/require-role.ts` (`requireRole` for pages/layouts, `assertRole` for server actions); privileged roles (`admin`, `driver`) can never be chosen at signup — the `handle_new_user` trigger only honors `customer`/`cleaner` metadata.
+`src/proxy.ts` (Next 16 proxy convention) refreshes Supabase auth sessions on every request and applies the **pre-launch gate** (`src/lib/prelaunch.ts`), keyed on the hostname: on `nooracare.no` / `www.nooracare.no`, the customer side is open — anonymous visitors reach `/`, `/bli-renser`, the legal/contact pages, the price calculator, `/admin`, the order flow (`/orders/*`), `/auth/login`, `/auth/signup`, `/auth/success`, `/auth/callback`, `/auth/error` and the password-reset pages (`/auth/forgot-password`, `/auth/reset-password`); the cleaner side is not — cleaner signup, onboarding and the parked `/bli-renser/lansering` page redirect to `/`. `test.nooracare.no`, localhost and previews are never gated — Signed-in users pass. Delete the gate when cleaners launch. Role guards live in `src/lib/auth/require-role.ts` (`requireRole` for pages/layouts, `assertRole` for server actions); privileged roles (`admin`, `driver`) can never be chosen at signup — the `handle_new_user` trigger only honors `customer`/`cleaner` metadata.
 
 ## Maps & Geocoding
 
