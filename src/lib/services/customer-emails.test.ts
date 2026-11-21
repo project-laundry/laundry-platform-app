@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 vi.mock('@/lib/database/orders', () => ({ getOrderForCustomerEmail: vi.fn() }));
-vi.mock('@/lib/database/payments', () => ({ getPaymentById: vi.fn() }));
+vi.mock('@/lib/database/payments', () => ({ getPaymentById: vi.fn(), getPaymentsByOrderId: vi.fn() }));
 vi.mock('@/lib/email/send', () => ({
   sendEmail: vi.fn(),
   CUSTOMER_EMAIL_FROM: 'NooraCare <no-reply@nooracare.no>',
@@ -10,14 +10,15 @@ vi.mock('@/lib/email/send', () => ({
 vi.mock('@/lib/email/customer-emails', () => ({
   buildOrderConfirmationEmail: vi.fn(() => ({ subject: 'Bekreftet', text: 'tekst', html: '<p>html</p>' })),
   buildPriceReceiptEmail: vi.fn(() => ({ subject: 'Pris', text: 'tekst', html: '<p>html</p>' })),
+  buildOrderDeliveredEmail: vi.fn(() => ({ subject: 'Levert', text: 'tekst', html: '<p>html</p>' })),
   buildPaymentFailedEmail: vi.fn(() => ({ subject: 'Feilet', text: 'tekst', html: '<p>html</p>' })),
 }));
 
 import { getOrderForCustomerEmail } from '@/lib/database/orders';
-import { getPaymentById } from '@/lib/database/payments';
+import { getPaymentById, getPaymentsByOrderId } from '@/lib/database/payments';
 import { sendEmail } from '@/lib/email/send';
-import { buildOrderConfirmationEmail, buildPaymentFailedEmail, buildPriceReceiptEmail } from '@/lib/email/customer-emails';
-import { sendOrderConfirmationEmail, sendPaymentFailedEmail, sendPriceReceiptEmail } from './customer-emails';
+import { buildOrderConfirmationEmail, buildOrderDeliveredEmail, buildPaymentFailedEmail, buildPriceReceiptEmail } from '@/lib/email/customer-emails';
+import { sendOrderConfirmationEmail, sendOrderDeliveredEmail, sendPaymentFailedEmail, sendPriceReceiptEmail } from './customer-emails';
 
 const m = (fn: unknown) => fn as Mock;
 
@@ -154,5 +155,61 @@ describe('sendPaymentFailedEmail', () => {
     m(getPaymentById).mockRejectedValue(new Error('db down'));
 
     await expect(sendPaymentFailedEmail('pay-1')).resolves.toBeUndefined();
+  });
+});
+
+describe('sendOrderDeliveredEmail', () => {
+  const PAYMENTS = [{ id: 'pay-1', status: 'pending', amount_ore: 46424, provider_reference: 'chr-1' }];
+
+  beforeEach(() => {
+    m(getPaymentsByOrderId).mockResolvedValue(PAYMENTS);
+  });
+
+  it('loads the order and its payments and sends keyed on the order id', async () => {
+    await sendOrderDeliveredEmail('ord-1');
+
+    expect(getOrderForCustomerEmail).toHaveBeenCalledWith('ord-1');
+    expect(getPaymentsByOrderId).toHaveBeenCalledWith('ord-1');
+    expect(buildOrderDeliveredEmail).toHaveBeenCalledWith(ORDER, PAYMENTS, { appUrl: 'https://nooracare.no' });
+    expect(sendEmail).toHaveBeenCalledWith({
+      from: 'NooraCare <no-reply@nooracare.no>',
+      to: ['kari@example.com'],
+      replyTo: ['post@nooracare.no'],
+      subject: 'Levert',
+      text: 'tekst',
+      html: '<p>html</p>',
+      idempotencyKey: 'order-delivered/ord-1',
+    });
+  });
+
+  it('sends nothing when the order is not found', async () => {
+    m(getOrderForCustomerEmail).mockResolvedValue(null);
+
+    await sendOrderDeliveredEmail('ord-x');
+
+    expect(getPaymentsByOrderId).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('sends nothing when NEXT_PUBLIC_APP_URL is missing', async () => {
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', '');
+
+    await sendOrderDeliveredEmail('ord-1');
+
+    expect(getOrderForCustomerEmail).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('never throws when the payments lookup rejects', async () => {
+    m(getPaymentsByOrderId).mockRejectedValue(new Error('db down'));
+
+    await expect(sendOrderDeliveredEmail('ord-1')).resolves.toBeUndefined();
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('never throws when the send is rejected', async () => {
+    m(sendEmail).mockResolvedValue({ ok: false, error: 'Resend responded 500' });
+
+    await expect(sendOrderDeliveredEmail('ord-1')).resolves.toBeUndefined();
   });
 });

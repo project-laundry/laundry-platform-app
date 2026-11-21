@@ -154,7 +154,7 @@ src/
 │   │   └── subscriptions.ts   # Subscription operations (recurring order management)
 │   ├── email/
 │   │   ├── send.ts         # sendEmail(): the ONE Resend transport (fetch → POST /emails, optional Idempotency-Key, never throws, { ok } | { ok: false, error }); CUSTOMER_EMAIL_FROM. Used by the admin digest and the customer e-mails
-│   │   └── customer-emails.ts # Pure builders for the customer e-mails → { subject, text, html }: buildOrderConfirmationEmail (#23), buildPriceReceiptEmail (#26), buildPaymentFailedEmail (#28). Text and HTML rendered from one block list; HTML wrapper mirrors supabase/templates/
+│   │   └── customer-emails.ts # Pure builders for the customer e-mails → { subject, text, html }: buildOrderConfirmationEmail (#23), buildPriceReceiptEmail (#26), buildPaymentFailedEmail (#28), buildOrderDeliveredEmail (#27). Text and HTML rendered from one block list; HTML wrapper mirrors supabase/templates/
 │   ├── payments/           # Payment processing integrations
 │   │   └── vipps/          # Vipps integration (Recurring API)
 │   │       ├── base-client.ts      # Shared OAuth and HTTP utilities
@@ -164,7 +164,7 @@ src/
 │   │       └── config.ts           # Vipps configuration validation
 │   ├── services/
 │   │   ├── admin-digest.ts      # buildAdminDigest(attention, { appUrl, now }) → { subject, text } (pure, plain text)
-│   │   ├── customer-emails.ts   # sendOrderConfirmationEmail / sendPriceReceiptEmail / sendPaymentFailedEmail — load (getOrderForCustomerEmail, getPaymentById), build, send; NEVER throw, return void (callers: Vipps webhook, ready-order, retryChargeAction)
+│   │   ├── customer-emails.ts   # sendOrderConfirmationEmail / sendPriceReceiptEmail / sendPaymentFailedEmail / sendOrderDeliveredEmail — load (getOrderForCustomerEmail, getPaymentById, getPaymentsByOrderId), build, send; NEVER throw, return void (callers: Vipps webhook, ready-order, retryChargeAction, complete-order)
 │   │   ├── order-generation.ts  # Subscription to orders logic
 │   │   └── staff-accounts.ts    # Staff (driver/admin) account creation: auth user + role flip + cleanup
 │   ├── supabase/
@@ -253,8 +253,9 @@ Transactional e-mails to customers (epic #32): Norwegian, sender `NooraCare <no-
 | Order confirmation (#23) | `generateFirstOrder` in the `agreement-activated` webhook, right after `createOrder` succeeds (subscription and one-time; the duplicate-delivery branch sends nothing). Pickup date + address, what the customer sends, the estimate with the "endelig pris settes av renseren etter henting" explanation, promo line, subscription frequency + cancel link (`/dashboard/subscription`) for subscriptions only (dormant while `SUBSCRIPTIONS_OFFERED` is false) | `order-confirmation/<order.id>` |
 | Price set + receipt (#26) | `markOrderReadyAndCharge` after `createChargeForCompletedOrder` returns (cleaner «Tøyet er klart til levering» → «Bekreft og belast», and the admin fallback «Marker som klar») and `retryChargeAction` for each re-charge; also for a 0-total promo order (no charge). Price lines from `calculateOrderPrice`, promo deduction, estimate comparison, `pricing_notes`, Vipps charge id. Not sent when charge creation throws (`chargeFailed`) | `price-receipt/<payment.id>` (`price-receipt/order-<order.id>` for 0-total) |
 | Payment failed (#28) | `charge-failed` and `charge-creation-failed` webhooks after the payment row is marked `failed` (both handlers fail the row first). Copy states the retry policy: nothing to do, we re-charge within a few days («Belast på nytt»), we get in touch if that fails, delivery is unaffected | `payment-failed/<payment.id>` |
+| Laundry delivered (#27) | `completeDeliveredOrder` (`lib/services/complete-order.ts`), last step after the guarded transition to `completed`, the rolling window and the agreement-stop check — cleaner «Levert til kunden», admin «Marker som levert», dormant driver delivery stop. Delivery date (`delivery_date`) + address, a payment line derived from the order's `payments` rows (nothing charged / captured / in flight; silent when the charge failed or does not exist), dormant subscription paragraph without a date | `order-delivered/<order.id>` |
 
-Not sent (deliberately): per-status updates, `charge-captured` (the receipt went out at charge creation), the synchronous charge-creation failure inside `createChargeForCompletedOrder` (the admin's retry sends the price e-mail instead).
+Not sent (deliberately): per-status updates, `charge-captured` (the receipt went out at charge creation), the synchronous charge-creation failure inside `createChargeForCompletedOrder` (the admin's retry sends the price e-mail instead). `out_for_delivery` (dormant driver flow) sends nothing — the delivered e-mail goes out on `completed` only.
 
 - **Env**: `RESEND_API_KEY` (missing → send skipped and logged), `NEXT_PUBLIC_APP_URL` (links). Staging sends real mail to the test accounts.
 

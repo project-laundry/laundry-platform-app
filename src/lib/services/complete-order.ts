@@ -5,6 +5,7 @@
 
 import { updateOrderStatusGuarded } from '@/lib/database/orders';
 import { checkAndGenerateNextOrders } from '@/lib/services/order-generation';
+import { sendOrderDeliveredEmail } from '@/lib/services/customer-emails';
 import { stopVippsAgreementForCancelledSubscription } from '@/lib/payments/vipps/service';
 import { todayInOslo } from '@/lib/utils/date';
 import type { OrderStatus } from '@/types/database';
@@ -23,6 +24,8 @@ import type { OrderStatus } from '@/types/database';
  *   the function itself refuses while any Vipps charge for the subscription is
  *   still pending (same-day delivery), and the charge-captured webhook
  *   re-triggers it once that charge settles. No-op in every other case.
+ * - Sends the customer the "laundry delivered" e-mail last (sendOrderDeliveredEmail,
+ *   never throws) — for every completed order, subscription or one-time.
  */
 export async function completeDeliveredOrder(
   orderId: string,
@@ -43,6 +46,13 @@ export async function completeDeliveredOrder(
 
     await stopVippsAgreementForCancelledSubscription(updated.subscription_id);
   }
+
+  // Delivered e-mail to the customer (#27). Deliberately LAST: the transition
+  // is committed, the rolling window is already running and the agreement-stop
+  // check has finished, so the e-mail can neither delay nor fail any of them.
+  // Awaited (not fire-and-forget) so the serverless function is not frozen
+  // before Resend answers. Never throws (lib/services/customer-emails.ts).
+  await sendOrderDeliveredEmail(updated.id);
 
   return { success: true };
 }

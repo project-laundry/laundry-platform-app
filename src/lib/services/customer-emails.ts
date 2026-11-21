@@ -14,11 +14,12 @@ import { COMPANY } from '@/lib/config/company';
 import { getOrderForCustomerEmail, type OrderForCustomerEmail } from '@/lib/database/orders';
 import {
   buildOrderConfirmationEmail,
+  buildOrderDeliveredEmail,
   buildPaymentFailedEmail,
   buildPriceReceiptEmail,
   type CustomerEmail,
 } from '@/lib/email/customer-emails';
-import { getPaymentById } from '@/lib/database/payments';
+import { getPaymentById, getPaymentsByOrderId } from '@/lib/database/payments';
 import { CUSTOMER_EMAIL_FROM, sendEmail } from '@/lib/email/send';
 
 function appUrl(): string | null {
@@ -143,5 +144,36 @@ export async function sendPaymentFailedEmail(paymentId: string): Promise<void> {
     );
   } catch (error) {
     console.error(`[Customer e-mail] Payment-failed e-mail for ${paymentId} failed:`, error);
+  }
+}
+
+/**
+ * #27 — laundry delivered. Called by completeDeliveredOrder after the guarded
+ * transition to `completed` (cleaner «Levert til kunden», admin «Marker som
+ * levert», dormant driver delivery stop). One e-mail per order: an order is
+ * completed once, and the key is the order id.
+ */
+export async function sendOrderDeliveredEmail(orderId: string): Promise<void> {
+  try {
+    const url = appUrl();
+    if (!url) return;
+
+    const order = await getOrderForCustomerEmail(orderId);
+    if (!order) {
+      console.error(`[Customer e-mail] Order ${orderId} not found — delivered e-mail skipped`);
+      return;
+    }
+
+    // [] when the order was never charged (0 total) or the read failed (logged
+    // there) — the e-mail then simply carries no payment line.
+    const payments = await getPaymentsByOrderId(order.id);
+
+    await deliver(
+      order,
+      buildOrderDeliveredEmail(order, payments, { appUrl: url }),
+      `order-delivered/${order.id}`
+    );
+  } catch (error) {
+    console.error(`[Customer e-mail] Delivered e-mail for ${orderId} failed:`, error);
   }
 }

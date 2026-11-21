@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { OrderForCustomerEmail } from '@/lib/database/orders';
-import { buildOrderConfirmationEmail, buildPaymentFailedEmail, buildPriceReceiptEmail, formatKrExact, formatLongDate } from './customer-emails';
+import { buildOrderConfirmationEmail, buildPaymentFailedEmail, buildOrderDeliveredEmail, buildPriceReceiptEmail, formatKrExact, formatLongDate } from './customer-emails';
 
 const OPTIONS = { appUrl: 'https://nooracare.no/' };
 
@@ -234,5 +234,109 @@ describe('buildPaymentFailedEmail', () => {
 
     expect(text).toContain('trukket 500 kr for bestilling #ABC123');
     expect(text).not.toContain('Vipps-referanse');
+  });
+});
+
+/** A one-time order the cleaner has just delivered: priced at 464,24 kr. */
+const DELIVERED_ORDER: OrderForCustomerEmail = {
+  ...ORDER,
+  status: 'completed',
+  subscription_id: null,
+  subscription: null,
+  wash_loads: 2,
+  total_cost_ore: 46424,
+  completed_at: '2026-10-27T15:00:00.000Z',
+};
+
+describe('buildOrderDeliveredEmail', () => {
+  it('says when and where the laundry was delivered and links to the order', () => {
+    const { subject, text, html } = buildOrderDeliveredEmail(DELIVERED_ORDER, [], OPTIONS);
+
+    expect(subject).toBe('Tøyet ditt er levert – bestilling #ABC123');
+    expect(text).toContain('Hei Kari!');
+    expect(text).toContain('Tøyet ditt er levert, og bestilling #ABC123 er fullført.');
+    expect(text).toContain('LEVERING\n\nLevert: tirsdag 27. oktober 2026\nAdresse: Storgata 1, 0150 Oslo');
+    expect(text).toContain('Se bestillingen: https://nooracare.no/orders/details/ord-1');
+    expect(html).toContain('<h1');
+    expect(html).toContain('href="https://nooracare.no/orders/details/ord-1"');
+  });
+
+  it('says the amount will be charged while the Vipps charge is still pending', () => {
+    const { text } = buildOrderDeliveredEmail(
+      DELIVERED_ORDER,
+      [{ status: 'pending', amount_ore: 46424, provider_reference: 'chr-1' }],
+      OPTIONS
+    );
+
+    expect(text).toContain(
+      'BETALING\n\n464,24 kr trekkes automatisk via Vipps-avtalen din i løpet av et par dager. Du trenger ikke gjøre noe.'
+    );
+  });
+
+  it('says the amount has been charged once the payment is captured, even next to an older failed row', () => {
+    const { text } = buildOrderDeliveredEmail(
+      DELIVERED_ORDER,
+      [
+        { status: 'captured', amount_ore: 46424, provider_reference: 'chr-2' },
+        { status: 'failed', amount_ore: 46424, provider_reference: 'chr-1' },
+      ],
+      OPTIONS
+    );
+
+    expect(text).toContain('BETALING\n\n464,24 kr er trukket via Vipps-avtalen din.');
+    expect(text).not.toContain('trekkes automatisk');
+  });
+
+  it('says nothing is charged for a 0-total order', () => {
+    const { text } = buildOrderDeliveredEmail({ ...DELIVERED_ORDER, total_cost_ore: 0 }, [], OPTIONS);
+
+    expect(text).toContain('BETALING\n\nIngenting trekkes fra Vipps-avtalen din for denne bestillingen.');
+  });
+
+  it('stays silent about payment when the charge failed, was never created or was refunded', () => {
+    const silent = [
+      [{ status: 'failed' as const, amount_ore: 46424, provider_reference: 'chr-1' }],
+      [{ status: 'pending' as const, amount_ore: 46424, provider_reference: null }],
+      [{ status: 'refunded' as const, amount_ore: 46424, provider_reference: 'chr-1' }],
+      [{ status: 'cancelled' as const, amount_ore: 46424, provider_reference: 'chr-1' }],
+      [],
+    ];
+
+    for (const payments of silent) {
+      const { text } = buildOrderDeliveredEmail(DELIVERED_ORDER, payments, OPTIONS);
+
+      expect(text).not.toContain('BETALING');
+      expect(text).not.toContain('Vipps');
+      expect(text).not.toContain('464,24');
+    }
+  });
+
+  it('never mentions a subscription for a one-time order', () => {
+    const { text } = buildOrderDeliveredEmail(DELIVERED_ORDER, [], OPTIONS);
+
+    expect(text).not.toContain('bonnement');
+    expect(text).not.toContain('Neste henting');
+  });
+
+  it('tells an active subscriber that the next pickup is set up automatically, without a date', () => {
+    const { text } = buildOrderDeliveredEmail(
+      { ...DELIVERED_ORDER, subscription_id: 'sub-1', subscription: { frequency: 'weekly', status: 'active' } },
+      [],
+      OPTIONS
+    );
+
+    expect(text).toContain(
+      'Abonnementet ditt fortsetter. Neste henting settes opp automatisk, og du finner datoen på Min side: https://nooracare.no/dashboard'
+    );
+  });
+
+  it('adds no subscription paragraph when the subscription is cancelled', () => {
+    const { text } = buildOrderDeliveredEmail(
+      { ...DELIVERED_ORDER, subscription_id: 'sub-1', subscription: { frequency: 'weekly', status: 'cancelled' } },
+      [],
+      OPTIONS
+    );
+
+    expect(text).not.toContain('Neste henting');
   });
 });

@@ -396,3 +396,88 @@ export function buildPaymentFailedEmail(
     options
   );
 }
+
+// ─── #27 Order delivered ────────────────────────────────────────────────────
+
+/**
+ * The payment sentence of the delivered e-mail, or null when nothing true and
+ * useful can be said. The charge was created when the order was marked ready,
+ * so at delivery it is usually still pending (due the day after), sometimes
+ * already captured, and occasionally failed. Failed / cancelled / refunded /
+ * never-created charges return null on purpose: that conversation belongs to
+ * the payment-failed e-mail and the admin's retry, not to a delivery note.
+ */
+function deliveredPaymentLine(
+  order: OrderForCustomerEmail,
+  payments: Pick<Payment, 'status' | 'amount_ore' | 'provider_reference'>[]
+): string | null {
+  if (order.total_cost_ore === 0) {
+    return 'Ingenting trekkes fra Vipps-avtalen din for denne bestillingen.';
+  }
+
+  const captured = payments.find((payment) => payment.status === 'captured');
+  if (captured) {
+    return `${formatKrExact(captured.amount_ore)} er trukket via Vipps-avtalen din.`;
+  }
+
+  const inFlight = payments.find(
+    (payment) =>
+      payment.status === 'authorized' ||
+      (payment.status === 'pending' && payment.provider_reference !== null)
+  );
+  if (inFlight) {
+    return `${formatKrExact(inFlight.amount_ore)} trekkes automatisk via Vipps-avtalen din i løpet av et par dager. Du trenger ikke gjøre noe.`;
+  }
+
+  return null;
+}
+
+/**
+ * Sent once when the order becomes `completed` (completeDeliveredOrder).
+ * Closes the loop: delivered when and where, what happens with the payment,
+ * link to the order. `payments` = every payments row of the order. The
+ * subscription paragraph is dormant while subscriptions are hidden (a one-time
+ * order has no subscription) and never states a date — the next order is
+ * generated in the background while this e-mail is built.
+ */
+export function buildOrderDeliveredEmail(
+  order: OrderForCustomerEmail,
+  payments: Pick<Payment, 'status' | 'amount_ore' | 'provider_reference'>[],
+  options: CustomerEmailOptions
+): CustomerEmail {
+  const blocks: Block[] = [
+    greeting(order),
+    paragraph(`Tøyet ditt er levert, og bestilling #${order.order_number} er fullført.`),
+    heading('Levering'),
+    rows([
+      { label: 'Levert', value: formatLongDate(order.delivery_date) },
+      { label: 'Adresse', value: `${order.street}, ${order.postal_code} ${order.city}` },
+    ]),
+  ];
+
+  const paymentLine = deliveredPaymentLine(order, payments);
+  if (paymentLine) {
+    blocks.push(heading('Betaling'), paragraph(paymentLine));
+  }
+
+  if (
+    order.subscription &&
+    order.subscription.status === 'active' &&
+    order.subscription.frequency !== 'on_demand'
+  ) {
+    blocks.push(
+      paragraph(
+        `Abonnementet ditt fortsetter. Neste henting settes opp automatisk, og du finner datoen på Min side: ${baseUrl(options)}/dashboard`
+      )
+    );
+  }
+
+  blocks.push(button('Se bestillingen', orderUrl(order, options)), closing());
+
+  return finish(
+    `Tøyet ditt er levert – bestilling #${order.order_number}`,
+    'Tøyet ditt er levert',
+    blocks,
+    options
+  );
+}
