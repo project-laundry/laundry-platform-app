@@ -16,6 +16,7 @@ vi.mock('@/lib/database/orders', () => ({
 }));
 vi.mock('@/lib/payments/vipps/service', () => ({ createChargeForCompletedOrder: vi.fn() }));
 vi.mock('@/lib/services/complete-order', () => ({ completeDeliveredOrder: vi.fn() }));
+vi.mock('@/lib/services/customer-emails', () => ({ sendPriceReceiptEmail: vi.fn() }));
 
 import { getCleanerByUserId } from '@/lib/database/cleaners';
 import {
@@ -25,6 +26,7 @@ import {
 } from '@/lib/database/orders';
 import { completeDeliveredOrder } from '@/lib/services/complete-order';
 import { createChargeForCompletedOrder } from '@/lib/payments/vipps/service';
+import { sendPriceReceiptEmail } from '@/lib/services/customer-emails';
 import { MAX_WASH_LOADS_PER_ORDER } from '@/lib/config/pricing';
 import {
   markOrderPickedUpAction,
@@ -183,6 +185,7 @@ describe('markOrderReadyForDelivery', () => {
     expect(result).toEqual({ success: true });
     expect(updateOrderStatusGuarded).toHaveBeenCalledWith('ord-1', 'in_cleaning', 'ready_for_delivery');
     expect(createChargeForCompletedOrder).toHaveBeenCalledWith('ord-1', 50000, 'NooraCare vask #NC-1001');
+    expect(sendPriceReceiptEmail).toHaveBeenCalledWith('ord-1', 'pay-1');
   });
 
   it('reports chargeFailed when the Vipps charge throws, keeping the transition', async () => {

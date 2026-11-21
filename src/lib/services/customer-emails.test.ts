@@ -9,12 +9,14 @@ vi.mock('@/lib/email/send', () => ({
 }));
 vi.mock('@/lib/email/customer-emails', () => ({
   buildOrderConfirmationEmail: vi.fn(() => ({ subject: 'Bekreftet', text: 'tekst', html: '<p>html</p>' })),
+  buildPriceReceiptEmail: vi.fn(() => ({ subject: 'Pris', text: 'tekst', html: '<p>html</p>' })),
 }));
 
 import { getOrderForCustomerEmail } from '@/lib/database/orders';
+import { getPaymentById } from '@/lib/database/payments';
 import { sendEmail } from '@/lib/email/send';
-import { buildOrderConfirmationEmail } from '@/lib/email/customer-emails';
-import { sendOrderConfirmationEmail } from './customer-emails';
+import { buildOrderConfirmationEmail, buildPriceReceiptEmail } from '@/lib/email/customer-emails';
+import { sendOrderConfirmationEmail, sendPriceReceiptEmail } from './customer-emails';
 
 const m = (fn: unknown) => fn as Mock;
 
@@ -78,5 +80,41 @@ describe('sendOrderConfirmationEmail', () => {
     m(sendEmail).mockResolvedValue({ ok: false, error: 'Resend responded 500' });
 
     await expect(sendOrderConfirmationEmail('ord-1')).resolves.toBeUndefined();
+  });
+});
+
+describe('sendPriceReceiptEmail', () => {
+  it('loads the payment and sends the receipt keyed on the payment id', async () => {
+    const payment = { id: 'pay-1', provider_reference: 'chr-1' };
+    m(getPaymentById).mockResolvedValue(payment);
+
+    await sendPriceReceiptEmail('ord-1', 'pay-1');
+
+    expect(getPaymentById).toHaveBeenCalledWith('pay-1');
+    expect(buildPriceReceiptEmail).toHaveBeenCalledWith(ORDER, payment, { appUrl: 'https://nooracare.no' });
+    expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ subject: 'Pris', idempotencyKey: 'price-receipt/pay-1' }));
+  });
+
+  it('sends a 0-total receipt without a payment, keyed on the order', async () => {
+    await sendPriceReceiptEmail('ord-1', null);
+
+    expect(getPaymentById).not.toHaveBeenCalled();
+    expect(buildPriceReceiptEmail).toHaveBeenCalledWith(ORDER, null, { appUrl: 'https://nooracare.no' });
+    expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ idempotencyKey: 'price-receipt/order-ord-1' }));
+  });
+
+  it('still sends when the payment row cannot be read', async () => {
+    m(getPaymentById).mockResolvedValue(null);
+
+    await sendPriceReceiptEmail('ord-1', 'pay-1');
+
+    expect(buildPriceReceiptEmail).toHaveBeenCalledWith(ORDER, null, { appUrl: 'https://nooracare.no' });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it('never throws when the send rejects', async () => {
+    m(sendEmail).mockRejectedValue(new Error('boom'));
+
+    await expect(sendPriceReceiptEmail('ord-1', null)).resolves.toBeUndefined();
   });
 });

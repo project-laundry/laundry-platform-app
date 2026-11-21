@@ -251,8 +251,9 @@ Transactional e-mails to customers (epic #32): Norwegian, sender `NooraCare <no-
 | E-mail | Trigger (exact code path) | Key |
 |---|---|---|
 | Order confirmation (#23) | `generateFirstOrder` in the `agreement-activated` webhook, right after `createOrder` succeeds (subscription and one-time; the duplicate-delivery branch sends nothing). Pickup date + address, what the customer sends, the estimate with the "endelig pris settes av renseren etter henting" explanation, promo line, subscription frequency + cancel link (`/dashboard/subscription`) for subscriptions only (dormant while `SUBSCRIPTIONS_OFFERED` is false) | `order-confirmation/<order.id>` |
+| Price set + receipt (#26) | `markOrderReadyAndCharge` after `createChargeForCompletedOrder` returns (cleaner «Tøyet er klart til levering» → «Bekreft og belast», and the admin fallback «Marker som klar») and `retryChargeAction` for each re-charge; also for a 0-total promo order (no charge). Price lines from `calculateOrderPrice`, promo deduction, estimate comparison, `pricing_notes`, Vipps charge id. Not sent when charge creation throws (`chargeFailed`) | `price-receipt/<payment.id>` (`price-receipt/order-<order.id>` for 0-total) |
 
-Not sent (deliberately): per-status updates, `charge-captured`.
+Not sent (deliberately): per-status updates, `charge-captured` (the receipt went out at charge creation), the synchronous charge-creation failure inside `createChargeForCompletedOrder` (the admin's retry sends the price e-mail instead).
 
 - **Env**: `RESEND_API_KEY` (missing → send skipped and logged), `NEXT_PUBLIC_APP_URL` (links). Staging sends real mail to the test accounts.
 

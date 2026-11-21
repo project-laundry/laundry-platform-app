@@ -10,10 +10,16 @@
 // and every price e-mail restates: checkout = estimate, cleaner = binding price.
 
 import { COMPANY } from '@/lib/config/company';
-import { IRONING_OFFERED, formatKr, formatKrExact } from '@/lib/config/pricing';
+import {
+  IRONING_OFFERED,
+  PRICING,
+  calculateOrderPrice,
+  formatKr,
+  formatKrExact,
+} from '@/lib/config/pricing';
 import type { OrderForCustomerEmail } from '@/lib/database/orders';
 import { getSubscriptionFrequencyLabel } from '@/lib/utils/subscription-status';
-import type { CustomerEstimate } from '@/types/database';
+import type { CustomerEstimate, Payment } from '@/types/database';
 
 export interface CustomerEmail {
   subject: string;
@@ -254,6 +260,96 @@ export function buildOrderConfirmationEmail(
   return finish(
     `Bestilling #${order.order_number} er bekreftet – henting ${pickupDate}`,
     'Bestillingen din er bekreftet',
+    blocks,
+    options
+  );
+}
+
+// ─── #26 Price set + receipt ────────────────────────────────────────────────
+
+/**
+ * Sent when the cleaner marks the order ready and the Vipps charge is created
+ * (and again by the admin's «Belast på nytt» for the new charge). Doubles as
+ * the receipt: the full price lines, the promo deduction, the estimate the
+ * customer saw at checkout, and the Vipps reference. `payment` is null for a
+ * 0-total order (100 % promo) — nothing is charged then.
+ */
+export function buildPriceReceiptEmail(
+  order: OrderForCustomerEmail,
+  payment: Pick<Payment, 'provider_reference'> | null,
+  options: CustomerEmailOptions
+): CustomerEmail {
+  const total = order.total_cost_ore ?? 0;
+  const discount = order.promo?.discount_ore ?? 0;
+  const breakdown = calculateOrderPrice({
+    wash_loads: order.wash_loads,
+    ironing_details: order.ironing_details,
+  });
+
+  // The line-by-line breakdown is only shown when it reproduces the stored
+  // total exactly (it always does for a cleaner- or admin-priced order under
+  // the current PRICING); otherwise the receipt shows the total alone.
+  const priceRows: Row[] = [];
+  if (breakdown.total_ore - discount === total) {
+    priceRows.push({
+      label: `Vask – ${order.wash_loads} ${order.wash_loads === 1 ? 'maskin' : 'maskiner'} à ${formatKr(PRICING.price_per_load_ore)}`,
+      value: formatKrExact(breakdown.loads_subtotal_ore),
+    });
+    if (breakdown.ironing_subtotal_ore > 0) {
+      priceRows.push({ label: 'Stryking', value: formatKrExact(breakdown.ironing_subtotal_ore) });
+    }
+    priceRows.push(
+      { label: 'Henting og levering', value: formatKrExact(breakdown.pickup_delivery_ore) },
+      { label: 'Servicegebyr', value: formatKrExact(breakdown.service_fee_ore) }
+    );
+    if (breakdown.minimum_applied) {
+      priceRows.push({ label: 'Minstepris per bestilling', value: formatKrExact(breakdown.total_ore) });
+    }
+    if (order.promo && discount > 0) {
+      priceRows.push({ label: `Rabatt (${order.promo.code})`, value: `−${formatKrExact(discount)}` });
+    }
+  }
+  priceRows.push({ label: 'Totalt', value: formatKrExact(total), strong: true });
+
+  const estimate = order.customer_estimate;
+  const blocks: Block[] = [
+    greeting(order),
+    paragraph('Tøyet ditt er ferdig vasket, og renseren har satt den endelige prisen. Her er kvitteringen din.'),
+    heading(`Bestilling #${order.order_number}`),
+    rows(priceRows),
+    paragraph(
+      estimate
+        ? `Estimatet ved bestilling var ca. ${formatKr(estimate.estimated_total_ore)}. Den endelige prisen er basert på hvor mye tøy du faktisk sendte.`
+        : 'Den endelige prisen er basert på hvor mye tøy du faktisk sendte.'
+    ),
+  ];
+
+  if (order.actual_weight_kg !== null) {
+    blocks.push(rows([{ label: 'Veid', value: `${order.actual_weight_kg} kg` }]));
+  }
+  if (order.pricing_notes) {
+    blocks.push(paragraph(`Fra renseren: «${order.pricing_notes}»`));
+  }
+
+  blocks.push(heading('Betaling'));
+  if (total > 0) {
+    blocks.push(
+      paragraph(
+        `${formatKrExact(total)} trekkes automatisk via Vipps-avtalen din i løpet av et par dager. Du trenger ikke gjøre noe.`
+      )
+    );
+    if (payment?.provider_reference) {
+      blocks.push(rows([{ label: 'Vipps-referanse', value: payment.provider_reference }]));
+    }
+  } else {
+    blocks.push(paragraph('Rabatten dekker hele beløpet – ingenting trekkes fra Vipps-avtalen din.'));
+  }
+
+  blocks.push(button('Se bestillingen', orderUrl(order, options)), closing());
+
+  return finish(
+    `Prisen er satt – ${formatKrExact(total)} for bestilling #${order.order_number}`,
+    'Prisen er satt',
     blocks,
     options
   );

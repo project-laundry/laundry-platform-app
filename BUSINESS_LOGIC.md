@@ -97,7 +97,7 @@ Customer subscribes Dec 26, 2025:
    - Calculates price based on weight, ironing preference, and other factors
    - Sets `total_cost_ore` (after any promo discount) and `cleaner_payout_ore` (the cleaner's share of the full price, before the discount) and optional `pricing_notes`
    - Records `price_calculated_at` timestamp
-4. **Payment Creation:** Cleaner creates Vipps charge for the calculated amount
+4. **Payment Creation:** Cleaner marks the order ready → Vipps charge for the calculated amount → "price set + receipt" e-mail to the customer (see [Customer E-mails](#customer-e-mails))
 5. **Customer Payment:** Customer pays via Vipps for actual service provided
 
 **Pricing Factors:**
@@ -329,8 +329,9 @@ Transactional only (no consent needed), Norwegian, from NooraCare (`no-reply@noo
 | E-mail | When | Must say |
 |---|---|---|
 | Order confirmation | Vipps agreement activated and the first order exists (subscription or one-time) | pickup date + address; bags / bedding sets; estimate «ca. X kr» + "endelig pris settes av renseren etter henting – du betaler for faktisk mengde"; promo code if any; subscriptions only (not in the first version): frequency, next pickup is automatic, how to cancel (`/dashboard/subscription`) |
+| Price set + receipt | Cleaner (or admin fallback) marks the order ready and the Vipps charge is created; again on every admin «Belast på nytt»; also for a 0-total promo order | price lines (machines × 229 kr, pickup/delivery, service fee, minimum if applied), promo deduction, total; the checkout estimate for comparison; `pricing_notes`; "trekkes automatisk via Vipps-avtalen din i løpet av et par dager" + Vipps reference |
 
-Delivery and idempotency are Resend's (idempotency key per order/payment, 24 h); nothing about e-mails is stored in the database. A failed send is logged and never fails the triggering webhook or action. No e-mail is sent for `charge-captured` or for per-status updates.
+Delivery and idempotency are Resend's (idempotency key per order/payment, 24 h); nothing about e-mails is stored in the database. A failed send is logged and never fails the triggering webhook or action. No e-mail is sent for `charge-captured`, for per-status updates, or when charge creation fails synchronously (the admin's retry sends the price e-mail instead).
 
 ---
 
@@ -432,7 +433,7 @@ Charge creation on completion runs for both recurring and one-time orders. `crea
 - Order remains in current status (a charge that fails when the cleaner marks the order ready still leaves the order `ready_for_delivery`; the cleaner delivers as normal)
 - Payment status = `failed` (set by `createChargeForCompletedOrder` on a Vipps error, or by the `charge-failed` webhook later)
 - The cleaner's order page shows "Belastningen av kunden feilet. Admin følger opp betalingen" instead of "Kunden er belastet" (`markOrderReadyForDelivery` returns `chargeFailed: true`; the page re-derives it from the payment rows)
-- Admin re-charges from `/admin/orders/[orderId]` («Belast på nytt», `retryChargeAction`): allowed when the order is `ready_for_delivery`/`out_for_delivery`/`completed`, has a price > 0, has no live payment (`hasLivePayment`: no `authorized`/`captured`/`refunded` row and no non-orphan `pending` row), and the Vipps agreement is still `active`. Each retry is a new `payments` row; the failed rows stay as history
+- Admin re-charges from `/admin/orders/[orderId]` («Belast på nytt», `retryChargeAction`): allowed when the order is `ready_for_delivery`/`out_for_delivery`/`completed`, has a price > 0, has no live payment (`hasLivePayment`: no `authorized`/`captured`/`refunded` row and no non-orphan `pending` row), and the Vipps agreement is still `active`. Each retry is a new `payments` row; the failed rows stay as history. Each successful retry sends the customer the "price set + receipt" e-mail again for the new charge.
 
 **Agreement Stopped/Cancelled:**
 - See [Cancellation](#cancellation) for the full mechanics (order-status split, deferred Vipps stop, webhook-driven vs. customer-initiated paths)

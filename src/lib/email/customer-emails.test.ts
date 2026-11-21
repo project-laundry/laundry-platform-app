@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { OrderForCustomerEmail } from '@/lib/database/orders';
-import { buildOrderConfirmationEmail, formatKrExact, formatLongDate } from './customer-emails';
+import { buildOrderConfirmationEmail, buildPriceReceiptEmail, formatKrExact, formatLongDate } from './customer-emails';
 
 const OPTIONS = { appUrl: 'https://nooracare.no/' };
 
@@ -133,5 +133,81 @@ describe('buildOrderConfirmationEmail', () => {
     expect(html).toContain('Storgata &lt;1&gt; &amp; &quot;A&quot;');
     expect(html).not.toContain('<1>');
     expect(text).toContain('Hei!');
+  });
+});
+
+const WELCOME_PROMO = {
+  promo_code_id: 'promo-1',
+  code: 'WELCOME',
+  discount_type: 'percentage' as const,
+  discount_value: 20,
+  max_discount_ore: null,
+  discount_ore: 11606,
+};
+
+/** The same order priced by the cleaner: 2 machines (458) + 104 + 18,30 = 580,30 kr; WELCOME 20 % → −116,06 → 464,24 kr. */
+const PRICED_ORDER: OrderForCustomerEmail = {
+  ...ORDER,
+  status: 'ready_for_delivery',
+  wash_loads: 2,
+  total_cost_ore: 46424,
+  cleaner_payout_ore: 40621,
+  pricing_notes: 'Mye sengetøy, delt i to maskiner',
+  price_calculated_at: '2026-10-25T14:00:00.000Z',
+  promo: WELCOME_PROMO,
+};
+
+describe('buildPriceReceiptEmail', () => {
+  it('lists the price lines, the promo deduction, the estimate and the Vipps reference', () => {
+    const { subject, text } = buildPriceReceiptEmail(PRICED_ORDER, { provider_reference: 'chr-1' }, OPTIONS);
+
+    expect(subject).toBe('Prisen er satt – 464,24 kr for bestilling #ABC123');
+    expect(text).toContain('BESTILLING #ABC123');
+    expect(text).toContain('Vask – 2 maskiner à 229 kr: 458 kr');
+    expect(text).toContain('Henting og levering: 104 kr');
+    expect(text).toContain('Servicegebyr: 18,30 kr');
+    expect(text).toContain('Rabatt (WELCOME): −116,06 kr');
+    expect(text).toContain('Totalt: 464,24 kr');
+    expect(text).not.toContain('Minstepris');
+    expect(text).toContain('Estimatet ved bestilling var ca. 589 kr.');
+    expect(text).toContain('Fra renseren: «Mye sengetøy, delt i to maskiner»');
+    expect(text).toContain('464,24 kr trekkes automatisk via Vipps-avtalen din');
+    expect(text).toContain('Vipps-referanse: chr-1');
+    expect(text).not.toContain('Veid');
+  });
+
+  it('shows the minimum when it applied and the weight when recorded', () => {
+    const { text } = buildPriceReceiptEmail(
+      { ...PRICED_ORDER, wash_loads: 1, total_cost_ore: 50000, promo: null, pricing_notes: null, actual_weight_kg: 4.5 },
+      { provider_reference: 'chr-2' },
+      OPTIONS
+    );
+
+    expect(text).toContain('Vask – 1 maskin à 229 kr: 229 kr');
+    expect(text).toContain('Minstepris per bestilling: 500 kr');
+    expect(text).toContain('Totalt: 500 kr');
+    expect(text).toContain('Veid: 4.5 kg');
+    expect(text).not.toContain('Rabatt');
+  });
+
+  it('shows only the total when the stored price does not match the formula', () => {
+    const { text } = buildPriceReceiptEmail({ ...PRICED_ORDER, total_cost_ore: 12345, promo: null }, null, OPTIONS);
+
+    expect(text).toContain('Totalt: 123,45 kr');
+    expect(text).not.toContain('Servicegebyr');
+  });
+
+  it('says nothing is charged for a 0-total order', () => {
+    const { subject, text } = buildPriceReceiptEmail(
+      { ...PRICED_ORDER, total_cost_ore: 0, promo: { ...WELCOME_PROMO, discount_value: 100, discount_ore: 58030 } },
+      null,
+      OPTIONS
+    );
+
+    expect(subject).toBe('Prisen er satt – 0 kr for bestilling #ABC123');
+    expect(text).toContain('Rabatt (WELCOME): −580,30 kr');
+    expect(text).toContain('Totalt: 0 kr');
+    expect(text).toContain('ingenting trekkes');
+    expect(text).not.toContain('Vipps-referanse');
   });
 });

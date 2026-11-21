@@ -6,6 +6,7 @@
 
 import { updateOrderStatusGuarded } from '@/lib/database/orders';
 import { createChargeForCompletedOrder } from '@/lib/payments/vipps/service';
+import { sendPriceReceiptEmail } from '@/lib/services/customer-emails';
 import type { Order } from '@/types/database';
 
 export type ReadyOrderInput = Pick<
@@ -21,15 +22,19 @@ export interface ReadyOrderResult {
 
 /**
  * Guarded `in_cleaning → ready_for_delivery`, then the Vipps charge for the
- * locked price. Wash details and price must exist first, because the charge
- * fires here. The guarded transition runs before the charge, so a double-tap
- * can never charge twice (the second call fails the from-status guard).
+ * locked price, then the "price is set" e-mail to the customer. Wash details
+ * and price must exist first, because the charge fires here. The guarded
+ * transition runs before the charge, so a double-tap can never charge (or
+ * e-mail) twice (the second call fails the from-status guard).
  *
  * A Vipps failure is NOT fatal: the laundry is clean and the transition
  * already happened, so the result is `{ success: true, chargeFailed: true }`
- * (createChargeForCompletedOrder has marked the payment row `failed`). An
- * admin re-charges with «Belast på nytt» (retryChargeAction).
- * A 0-total order (100 % promo) skips the charge — Vipps cannot charge 0.
+ * (createChargeForCompletedOrder has marked the payment row `failed`). No
+ * e-mail is sent then — the customer has not been told a price yet; the
+ * admin re-charges with «Belast på nytt» (retryChargeAction), which sends it.
+ * A 0-total order (100 % promo) skips the charge — Vipps cannot charge 0 —
+ * but still gets the e-mail. The e-mail never throws and is never a reason
+ * to fail this call.
  */
 export async function markOrderReadyAndCharge(order: ReadyOrderInput): Promise<ReadyOrderResult> {
   if (order.status !== 'in_cleaning') {
@@ -47,9 +52,10 @@ export async function markOrderReadyAndCharge(order: ReadyOrderInput): Promise<R
     return { success: false, error: 'Kunne ikke oppdatere status' };
   }
 
+  let paymentId: string | null = null;
   if (order.total_cost_ore > 0) {
     try {
-      await createChargeForCompletedOrder(
+      paymentId = await createChargeForCompletedOrder(
         order.id,
         order.total_cost_ore,
         `NooraCare vask #${order.order_number}`
@@ -61,6 +67,8 @@ export async function markOrderReadyAndCharge(order: ReadyOrderInput): Promise<R
   } else {
     console.log(`Order ${order.order_number} total is 0 after discount — skipping Vipps charge`);
   }
+
+  await sendPriceReceiptEmail(order.id, paymentId);
 
   return { success: true };
 }

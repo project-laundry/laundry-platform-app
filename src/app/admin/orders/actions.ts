@@ -13,6 +13,7 @@ import {
 } from '@/lib/database/orders';
 import { completeDeliveredOrder } from '@/lib/services/complete-order';
 import { markOrderReadyAndCharge } from '@/lib/services/ready-order';
+import { sendPriceReceiptEmail } from '@/lib/services/customer-emails';
 import { checkAndGenerateNextOrders } from '@/lib/services/order-generation';
 import { getAvailableCleanersForCity } from '@/lib/database/cleaners';
 import { getPaymentsByOrderId } from '@/lib/database/payments';
@@ -263,6 +264,7 @@ const CHARGED_STATUSES = ['ready_for_delivery', 'out_for_delivery', 'completed']
  * agreement that is still active in our DB. createChargeForCompletedOrder
  * inserts the payment row and, on a Vipps error, marks it failed before
  * rethrowing, so a failed retry is visible on the page as one more row.
+ * Sends the customer the "price is set" e-mail again for the new charge (sendPriceReceiptEmail).
  */
 export async function retryChargeAction(orderId: string): Promise<RetryChargeResult> {
   const { error: authError } = await assertRole(['admin']);
@@ -299,8 +301,9 @@ export async function retryChargeAction(orderId: string): Promise<RetryChargeRes
     return { success: false, error: 'Vipps-avtalen er ikke aktiv lenger — kunden kan ikke belastes via Vipps' };
   }
 
+  let paymentId: string;
   try {
-    await createChargeForCompletedOrder(
+    paymentId = await createChargeForCompletedOrder(
       orderId,
       order.total_cost_ore,
       `NooraCare vask #${order.order_number}`
@@ -312,6 +315,10 @@ export async function retryChargeAction(orderId: string): Promise<RetryChargeRes
     const reason = error instanceof Error ? error.message : String(error);
     return { success: false, error: `Belastningen feilet: ${reason}` };
   }
+
+  // Same "price is set" e-mail the cleaner's mark-ready sends, for the new
+  // charge (new payment id → new idempotency key). Never throws.
+  await sendPriceReceiptEmail(orderId, paymentId);
 
   revalidatePath('/admin/orders');
   revalidatePath(`/admin/orders/${orderId}`);

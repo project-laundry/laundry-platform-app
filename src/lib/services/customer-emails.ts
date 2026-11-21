@@ -12,7 +12,12 @@
 
 import { COMPANY } from '@/lib/config/company';
 import { getOrderForCustomerEmail, type OrderForCustomerEmail } from '@/lib/database/orders';
-import { buildOrderConfirmationEmail, type CustomerEmail } from '@/lib/email/customer-emails';
+import {
+  buildOrderConfirmationEmail,
+  buildPriceReceiptEmail,
+  type CustomerEmail,
+} from '@/lib/email/customer-emails';
+import { getPaymentById } from '@/lib/database/payments';
 import { CUSTOMER_EMAIL_FROM, sendEmail } from '@/lib/email/send';
 
 function appUrl(): string | null {
@@ -68,5 +73,42 @@ export async function sendOrderConfirmationEmail(orderId: string): Promise<void>
     );
   } catch (error) {
     console.error(`[Customer e-mail] Order confirmation for ${orderId} failed:`, error);
+  }
+}
+
+/**
+ * #26 — price set + receipt. Called by markOrderReadyAndCharge right after
+ * the Vipps charge is created (`paymentId` = the new payments row) and by
+ * retryChargeAction for a re-charge. `paymentId` is null for a 0-total order
+ * that is never charged. One e-mail per created charge: the idempotency key
+ * is the payment id (or the order id when nothing is charged).
+ */
+export async function sendPriceReceiptEmail(
+  orderId: string,
+  paymentId: string | null
+): Promise<void> {
+  try {
+    const url = appUrl();
+    if (!url) return;
+
+    const order = await getOrderForCustomerEmail(orderId);
+    if (!order) {
+      console.error(`[Customer e-mail] Order ${orderId} not found — price receipt skipped`);
+      return;
+    }
+
+    const payment = paymentId ? await getPaymentById(paymentId) : null;
+    if (paymentId && !payment) {
+      // The charge exists; the e-mail still goes out, just without the Vipps reference.
+      console.error(`[Customer e-mail] Payment ${paymentId} not found — sending receipt without reference`);
+    }
+
+    await deliver(
+      order,
+      buildPriceReceiptEmail(order, payment, { appUrl: url }),
+      `price-receipt/${paymentId ?? `order-${order.id}`}`
+    );
+  } catch (error) {
+    console.error(`[Customer e-mail] Price receipt for ${orderId} failed:`, error);
   }
 }

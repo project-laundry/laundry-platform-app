@@ -3,9 +3,11 @@ import type { Mock } from 'vitest';
 
 vi.mock('@/lib/database/orders', () => ({ updateOrderStatusGuarded: vi.fn() }));
 vi.mock('@/lib/payments/vipps/service', () => ({ createChargeForCompletedOrder: vi.fn() }));
+vi.mock('@/lib/services/customer-emails', () => ({ sendPriceReceiptEmail: vi.fn() }));
 
 import { updateOrderStatusGuarded } from '@/lib/database/orders';
 import { createChargeForCompletedOrder } from '@/lib/payments/vipps/service';
+import { sendPriceReceiptEmail } from '@/lib/services/customer-emails';
 import { markOrderReadyAndCharge, type ReadyOrderInput } from './ready-order';
 
 const m = (fn: unknown) => fn as Mock;
@@ -31,6 +33,7 @@ describe('markOrderReadyAndCharge', () => {
     expect(result).toEqual({ success: true });
     expect(updateOrderStatusGuarded).toHaveBeenCalledWith('ord-1', 'in_cleaning', 'ready_for_delivery');
     expect(createChargeForCompletedOrder).toHaveBeenCalledWith('ord-1', 50000, 'NooraCare vask #NC-1001');
+    expect(sendPriceReceiptEmail).toHaveBeenCalledWith('ord-1', 'pay-1');
   });
 
   it('reports chargeFailed when the Vipps charge throws, keeping the transition', async () => {
@@ -40,6 +43,7 @@ describe('markOrderReadyAndCharge', () => {
 
     expect(result).toEqual({ success: true, chargeFailed: true });
     expect(updateOrderStatusGuarded).toHaveBeenCalledTimes(1);
+    expect(sendPriceReceiptEmail).not.toHaveBeenCalled();
   });
 
   it('skips the charge for a 0-total order', async () => {
@@ -47,6 +51,7 @@ describe('markOrderReadyAndCharge', () => {
 
     expect(result).toEqual({ success: true });
     expect(createChargeForCompletedOrder).not.toHaveBeenCalled();
+    expect(sendPriceReceiptEmail).toHaveBeenCalledWith('ord-1', null);
   });
 
   it('rejects an order that is not in_cleaning without writing or charging', async () => {
@@ -81,5 +86,6 @@ describe('markOrderReadyAndCharge', () => {
 
     expect(result).toEqual({ success: false, error: 'Kunne ikke oppdatere status' });
     expect(createChargeForCompletedOrder).not.toHaveBeenCalled();
+    expect(sendPriceReceiptEmail).not.toHaveBeenCalled();
   });
 });

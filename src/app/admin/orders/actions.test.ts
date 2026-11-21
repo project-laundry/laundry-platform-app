@@ -13,6 +13,7 @@ vi.mock('@/lib/database/orders', () => ({
 }));
 vi.mock('@/lib/services/complete-order', () => ({ completeDeliveredOrder: vi.fn() }));
 vi.mock('@/lib/services/ready-order', () => ({ markOrderReadyAndCharge: vi.fn() }));
+vi.mock('@/lib/services/customer-emails', () => ({ sendPriceReceiptEmail: vi.fn() }));
 vi.mock('@/lib/services/order-generation', () => ({ checkAndGenerateNextOrders: vi.fn() }));
 vi.mock('@/lib/database/cleaners', () => ({ getAvailableCleanersForCity: vi.fn() }));
 vi.mock('@/lib/database/payments', () => ({ getPaymentsByOrderId: vi.fn() }));
@@ -33,6 +34,7 @@ import {
 } from '@/lib/database/orders';
 import { completeDeliveredOrder } from '@/lib/services/complete-order';
 import { markOrderReadyAndCharge } from '@/lib/services/ready-order';
+import { sendPriceReceiptEmail } from '@/lib/services/customer-emails';
 import { checkAndGenerateNextOrders } from '@/lib/services/order-generation';
 import { getAvailableCleanersForCity } from '@/lib/database/cleaners';
 import { getPaymentsByOrderId } from '@/lib/database/payments';
@@ -530,6 +532,24 @@ describe('retryChargeAction', () => {
       error: 'Belastningen feilet: Vipps create charge failed (500): boom',
     });
     expect(revalidatePath).toHaveBeenCalledWith('/admin/orders/ord-1');
+  });
+
+  it('sends the customer the price e-mail for the new charge', async () => {
+    m(getPaymentsByOrderId).mockResolvedValue([]);
+
+    const result = await retryChargeAction('ord-1');
+
+    expect(result).toEqual({ success: true });
+    expect(sendPriceReceiptEmail).toHaveBeenCalledWith('ord-1', 'pay-2');
+  });
+  it('sends no e-mail when the retry itself fails', async () => {
+    m(getPaymentsByOrderId).mockResolvedValue([]);
+    m(createChargeForCompletedOrder).mockRejectedValue(new Error('Vipps create charge failed (500): boom'));
+
+    const result = await retryChargeAction('ord-1');
+
+    expect(result.success).toBe(false);
+    expect(sendPriceReceiptEmail).not.toHaveBeenCalled();
   });
 });
 
