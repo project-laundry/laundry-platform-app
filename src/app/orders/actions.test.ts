@@ -509,7 +509,11 @@ describe('validatePromoCodeAction', () => {
     m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
     m(validatePromoCode).mockResolvedValue({ valid: true, promo: PROMO });
 
-    expect(await validatePromoCodeAction('WELCOME')).toEqual({ valid: true, discountLabel: '20% rabatt' });
+    expect(await validatePromoCodeAction('WELCOME')).toEqual({
+      valid: true,
+      discountLabel: '20% rabatt',
+      terms: { discount_type: 'percentage', discount_value: 20, max_discount_ore: null },
+    });
   });
 
   it('builds a fixed-amount discount label in kroner', async () => {
@@ -520,7 +524,11 @@ describe('validatePromoCodeAction', () => {
       promo: { ...PROMO, discount_type: 'fixed', discount_value: 10000 }, // 10000 øre = 100 kr
     });
 
-    expect(await validatePromoCodeAction('HUNDRED')).toEqual({ valid: true, discountLabel: '100 kr rabatt' });
+    expect(await validatePromoCodeAction('HUNDRED')).toEqual({
+      valid: true,
+      discountLabel: '100 kr rabatt',
+      terms: { discount_type: 'fixed', discount_value: 10000, max_discount_ore: null },
+    });
   });
 });
 

@@ -5,6 +5,7 @@ import {
   calculateCustomerEstimate,
   computeDiscountOre,
   applyPromoDiscount,
+  estimateAfterPromo,
   estimatedGarments,
   withoutUnofferedIroning,
   oreToNok,
@@ -259,6 +260,31 @@ describe('applyPromoDiscount', () => {
       total_cost_ore: 0,
       promo: { ...promo, discount_value: 100, discount_ore: 50000 },
     });
+  });
+});
+
+describe('estimateAfterPromo', () => {
+  it('returns the estimate unchanged without a promo', () => {
+    expect(estimateAfterPromo(72000, null)).toEqual({ discountOre: 0, totalOre: 72000 });
+    expect(estimateAfterPromo(72000, undefined)).toEqual({ discountOre: 0, totalOre: 72000 });
+  });
+
+  it('subtracts a fixed discount', () => {
+    expect(
+      estimateAfterPromo(72000, { discount_type: 'fixed', discount_value: 40000, max_discount_ore: null })
+    ).toEqual({ discountOre: 40000, totalOre: 32000 });
+  });
+
+  it('subtracts a capped percentage discount', () => {
+    expect(
+      estimateAfterPromo(72000, { discount_type: 'percentage', discount_value: 50, max_discount_ore: 20000 })
+    ).toEqual({ discountOre: 20000, totalOre: 52000 });
+  });
+
+  it('never goes below 0', () => {
+    expect(
+      estimateAfterPromo(50000, { discount_type: 'fixed', discount_value: 90000, max_discount_ore: null })
+    ).toEqual({ discountOre: 50000, totalOre: 0 });
   });
 });
 

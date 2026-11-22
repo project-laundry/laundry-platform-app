@@ -6,7 +6,7 @@ import { createSubscription, getActiveSubscriptionByCustomerId, getSubscriptionB
 import { createPaymentAgreement, getPaymentAgreementByProviderId, getPaymentAgreementsByCustomerId } from "@/lib/database/payment-agreements";
 import { getCustomerByUserId } from "@/lib/database/customers";
 import { validatePromoCode } from "@/lib/database/promo-codes";
-import { calculateCustomerEstimate, oreToNok, withoutUnofferedIroning } from "@/lib/config/pricing";
+import { calculateCustomerEstimate, oreToNok, withoutUnofferedIroning, type PromoTerms } from "@/lib/config/pricing";
 import {
   findAvailableCleaner,
   getAvailableWeekdaysForCity,
@@ -414,6 +414,8 @@ export interface ValidatePromoCodeResult {
   valid: boolean;
   error?: string;
   discountLabel?: string; // e.g. "20% rabatt" or "100 kr rabatt"
+  /** Discount terms, so the confirm page can show the discounted estimate. */
+  terms?: PromoTerms;
 }
 
 /**
@@ -452,7 +454,15 @@ export async function validatePromoCodeAction(
       ? `${result.promo.discount_value}% rabatt`
       : `${oreToNok(result.promo.discount_value)} kr rabatt`;
 
-  return { valid: true, discountLabel };
+  return {
+    valid: true,
+    discountLabel,
+    terms: {
+      discount_type: result.promo.discount_type,
+      discount_value: result.promo.discount_value,
+      max_discount_ore: result.promo.max_discount_ore,
+    },
+  };
 }
 
 /**

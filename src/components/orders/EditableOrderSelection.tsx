@@ -3,16 +3,18 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateOrderSelectionAction } from '@/app/orders/actions';
-import { calculateCustomerEstimate, withoutUnofferedIroning } from '@/lib/config/pricing';
+import { calculateCustomerEstimate, estimateAfterPromo, withoutUnofferedIroning } from '@/lib/config/pricing';
 import { SelectionEditor } from '@/components/order-flow/SelectionEditor';
 import { Breakdown, PriceDisclaimer } from '@/components/order-flow/primitives';
-import type { CustomerEstimate } from '@/types/database';
+import type { CustomerEstimate, OrderPromo } from '@/types/database';
 import type { OrderSelection } from '@/types/order-flow';
 import { Pencil, Check, X, ShoppingBag, BedDouble, AlertCircle } from 'lucide-react';
 
 interface EditableOrderSelectionProps {
   orderId: string;
   initialEstimate: CustomerEstimate | null;
+  /** The order's locked promo, so the edit view's estimate shows the discount. */
+  promo: OrderPromo | null;
   isEditable: boolean;
 }
 
@@ -46,6 +48,7 @@ function getEstimateRows(estimate: CustomerEstimate) {
 export function EditableOrderSelection({
   orderId,
   initialEstimate,
+  promo,
   isEditable,
 }: EditableOrderSelectionProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -59,6 +62,7 @@ export function EditableOrderSelection({
   const router = useRouter();
 
   const price = useMemo(() => calculateCustomerEstimate(draft), [draft]);
+  const { discountOre } = estimateAfterPromo(price.totalOre, promo);
 
   const handleSave = async () => {
     setIsLoading(true);
@@ -97,7 +101,10 @@ export function EditableOrderSelection({
     return (
       <div className="space-y-4">
         <SelectionEditor selection={draft} onChange={setDraft} />
-        <Breakdown price={price} />
+        <Breakdown
+          price={price}
+          discount={promo && discountOre > 0 ? { code: promo.code, amountOre: discountOre } : undefined}
+        />
         <PriceDisclaimer />
         {saveError && (
           <div role="alert" className="flex items-start gap-2 rounded-2xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
