@@ -1,6 +1,7 @@
-// PostHog analytics, cookieless — the pure parts: which hosts send, where
-// autocapture is off, and the event vocabulary. posthog.ts does the SDK
-// calls. See CLAUDE.md "Analytics".
+// PostHog analytics — the pure parts: which hosts send, where autocapture
+// and session replay are off, and the event vocabulary. Cookieless unless the
+// visitor accepts the consent banner. posthog.ts does the SDK calls. See
+// CLAUDE.md "Analytics".
 
 /** Hosts that send analytics: production, and staging with its own PostHog
  *  project. localhost and Vercel preview URLs never send, even with a key. */
@@ -24,6 +25,20 @@ export const AUTOCAPTURE_URL_IGNORELIST = [
   '/orders/details',
   '/orders/[0-9a-f-]{36}',
 ];
+
+/** Session replay (only ever on after «Godta» in the consent banner) never
+ *  records these pages: the same ones as above, plus the auth pages, where
+ *  the visitor's e-mail address is shown as text. */
+export const RECORDING_URL_BLOCKLIST = [...AUTOCAPTURE_URL_IGNORELIST, '/auth'];
+
+/** `pathname` as in window.location.pathname. */
+export function isRecordingAllowed(pathname: string): boolean {
+  return !RECORDING_URL_BLOCKLIST.some((pattern) => new RegExp(pattern).test(pathname));
+}
+
+/** `off` = analytics is not running here (localhost, previews, no key);
+ *  otherwise the visitor's answer to the consent banner. */
+export type AnalyticsConsent = 'off' | 'pending' | 'granted' | 'denied';
 
 /** Every custom event the app sends. Page views, page leaves, autocapture
  *  clicks and heatmap data are automatic and not listed here. */
