@@ -15,7 +15,7 @@ export function isAnalyticsHost(hostname: string | null | undefined): boolean {
 
 /** URLs where autocapture (clicks → clickmaps, CTA tags) stays OFF because
  *  the element text there is customer or cleaner data: admin, dashboards,
- *  the cleaner signup and onboarding steps, and the per-order pages. Regex
+ *  the cleaner signup and onboarding steps, the per-order pages and the evaluation form. Regex
  *  sources, matched by posthog-js against the full URL. Page views are
  *  unaffected. */
 export const AUTOCAPTURE_URL_IGNORELIST = [
@@ -24,6 +24,7 @@ export const AUTOCAPTURE_URL_IGNORELIST = [
   '/bli-renser/.',
   '/orders/details',
   '/orders/[0-9a-f-]{36}',
+  '/evaluering',
 ];
 
 /** Session replay (only ever on after «Godta» in the consent banner) never

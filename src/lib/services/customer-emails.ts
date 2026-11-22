@@ -18,6 +18,7 @@ import {
 } from '@/lib/database/orders';
 import {
   buildCleanerConfirmedEmail,
+  buildEvaluationRequestEmail,
   buildOrderCancelledEmail,
   buildOrderConfirmationEmail,
   buildOrderDeliveredEmail,
@@ -28,6 +29,7 @@ import {
   buildPriceReceiptEmail,
   type CustomerEmail,
 } from '@/lib/email/customer-emails';
+import { countCompletedOrdersByCustomerId } from '@/lib/database/evaluations';
 import { getPaymentById, getPaymentsByOrderId } from '@/lib/database/payments';
 import { CUSTOMER_EMAIL_FROM, sendEmail } from '@/lib/email/send';
 import { todayInOslo } from '@/lib/utils/date';
@@ -185,6 +187,36 @@ export async function sendOrderDeliveredEmail(orderId: string): Promise<void> {
     );
   } catch (error) {
     console.error(`[Customer e-mail] Delivered e-mail for ${orderId} failed:`, error);
+  }
+}
+
+/**
+ * Evaluation form request. Called by completeDeliveredOrder right after the
+ * delivered e-mail. Sent only when this is the customer's FIRST completed
+ * order (exactly one completed order after the transition). A failed count is
+ * treated as "do not send". One e-mail per order (key = order id).
+ */
+export async function sendEvaluationRequestEmail(orderId: string): Promise<void> {
+  try {
+    const url = appUrl();
+    if (!url) return;
+
+    const order = await getOrderForCustomerEmail(orderId);
+    if (!order) {
+      console.error(`[Customer e-mail] Order ${orderId} not found — evaluation request skipped`);
+      return;
+    }
+
+    const completed = await countCompletedOrdersByCustomerId(order.customer_id);
+    if (completed !== 1) return;
+
+    await deliver(
+      order,
+      buildEvaluationRequestEmail(order, { appUrl: url }),
+      `evaluation-request/${order.id}`
+    );
+  } catch (error) {
+    console.error(`[Customer e-mail] Evaluation request for ${orderId} failed:`, error);
   }
 }
 

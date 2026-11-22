@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { OrderForCustomerEmail } from '@/lib/database/orders';
-import { buildCleanerConfirmedEmail, buildOrderCancelledEmail, buildPickupRescheduledEmail, buildOrderConfirmationEmail, buildOrderPickedUpEmail, buildPickupReminderEmail, buildPaymentFailedEmail, buildOrderDeliveredEmail, buildPriceReceiptEmail, formatKrExact, formatLongDate } from './customer-emails';
+import { buildEvaluationRequestEmail, buildCleanerConfirmedEmail, buildOrderCancelledEmail, buildPickupRescheduledEmail, buildOrderConfirmationEmail, buildOrderPickedUpEmail, buildPickupReminderEmail, buildPaymentFailedEmail, buildOrderDeliveredEmail, buildPriceReceiptEmail, formatKrExact, formatLongDate } from './customer-emails';
 
 const OPTIONS = { appUrl: 'https://nooracare.no/' };
 
@@ -741,5 +741,15 @@ describe('buildCleanerConfirmedEmail', () => {
 
     expect(html).toContain('&lt;b&gt;Ola&lt;/b&gt;');
     expect(html).not.toContain('<b>Ola</b>');
+  });
+});
+
+describe('buildEvaluationRequestEmail', () => {
+  it('links to the evaluation form of the order and names the order number', () => {
+    const email = buildEvaluationRequestEmail(ORDER, OPTIONS);
+
+    expect(email.subject).toBe('Hvordan var vasken?');
+    expect(email.text).toContain(`/evaluering/${ORDER.id}`);
+    expect(email.text).toContain(ORDER.order_number);
   });
 });

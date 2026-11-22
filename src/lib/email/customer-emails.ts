@@ -11,6 +11,7 @@
 // confirmation shows the checkout figure as an «Estimat» row and nothing more.
 
 import { COMPANY } from '@/lib/config/company';
+import { evaluationPath } from '@/lib/config/evaluation';
 import { PICKUP_TIME_RANGE } from '@/lib/config/pickup-times';
 import {
   IRONING_OFFERED,
@@ -814,4 +815,28 @@ export function buildCleanerConfirmedEmail(
     blocks,
     options
   );
+}
+
+// ─── Evaluation request ─────────────────────────────────────────────────────
+
+/**
+ * Sent right after the delivered e-mail when the order is the customer's
+ * first completed one (sendEvaluationRequestEmail). One button to the form at
+ * /evaluering/<order id>, which needs no login.
+ */
+export function buildEvaluationRequestEmail(
+  order: OrderForCustomerEmail,
+  options: CustomerEmailOptions
+): CustomerEmail {
+  const blocks: Block[] = [
+    greeting(order),
+    paragraph(
+      `Takk for at du prøvde NooraCare. Vi vil gjerne høre hvordan det gikk med bestilling #${order.order_number}.`
+    ),
+    paragraph('Svarene dine hjelper oss å sette riktig pris og gjøre tjenesten bedre. Det tar ca. 2 minutter.'),
+    button('Svar på spørsmålene', `${baseUrl(options)}${evaluationPath(order.id)}`),
+    closing(),
+  ];
+
+  return finish('Hvordan var vasken?', 'Hvordan var vasken?', blocks, options);
 }

@@ -7,7 +7,10 @@ vi.mock('@/lib/payments/vipps/service', () => ({
   stopVippsAgreementForCancelledSubscription: vi.fn(),
   stopVippsAgreementForOneTimeOrder: vi.fn(),
 }));
-vi.mock('@/lib/services/customer-emails', () => ({ sendOrderDeliveredEmail: vi.fn() }));
+vi.mock('@/lib/services/customer-emails', () => ({
+  sendOrderDeliveredEmail: vi.fn(),
+  sendEvaluationRequestEmail: vi.fn(),
+}));
 
 import { updateOrderStatusGuarded } from '@/lib/database/orders';
 import { checkAndGenerateNextOrders } from '@/lib/services/order-generation';
@@ -15,7 +18,7 @@ import {
   stopVippsAgreementForCancelledSubscription,
   stopVippsAgreementForOneTimeOrder,
 } from '@/lib/payments/vipps/service';
-import { sendOrderDeliveredEmail } from '@/lib/services/customer-emails';
+import { sendEvaluationRequestEmail, sendOrderDeliveredEmail } from '@/lib/services/customer-emails';
 import { completeDeliveredOrder } from './complete-order';
 
 const m = (fn: unknown) => fn as Mock;
@@ -73,6 +76,21 @@ describe('completeDeliveredOrder', () => {
     expect(m(sendOrderDeliveredEmail).mock.invocationCallOrder[0]).toBeGreaterThan(
       m(stopVippsAgreementForOneTimeOrder).mock.invocationCallOrder[0]
     );
+  });
+
+  it('asks for an evaluation right after the delivered e-mail, and not when the transition fails', async () => {
+    await completeDeliveredOrder('ord-1', 'ready_for_delivery');
+
+    expect(sendEvaluationRequestEmail).toHaveBeenCalledWith('ord-1');
+    expect(m(sendEvaluationRequestEmail).mock.invocationCallOrder[0]).toBeGreaterThan(
+      m(sendOrderDeliveredEmail).mock.invocationCallOrder[0]
+    );
+
+    vi.clearAllMocks();
+    m(updateOrderStatusGuarded).mockResolvedValue(null);
+    await completeDeliveredOrder('ord-1', 'ready_for_delivery');
+
+    expect(sendEvaluationRequestEmail).not.toHaveBeenCalled();
   });
 
   it('fails without side effects when the guard does not match', async () => {

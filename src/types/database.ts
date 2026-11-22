@@ -315,6 +315,18 @@ export interface PromoCodeRedemption {
   redeemed_at: string;
 }
 
+/** A customer's answers to the evaluation form for one order (order_evaluations). */
+export interface OrderEvaluation {
+  id: string;
+  order_id: string;
+  customer_id: string;
+  /** EVALUATION_FORM_VERSION at the time of answering. */
+  form_version: string;
+  /** Keyed by the question ids in lib/config/evaluation.ts. */
+  answers: Record<string, number | string | null>;
+  created_at: string;
+}
+
 /**
  * Locked promo snapshot stored in orders.promo and payment_agreements.provider_metadata.promo.
  * Discount terms are captured at checkout so the deal survives even if the code is later

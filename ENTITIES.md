@@ -539,6 +539,23 @@
 
 ---
 
+### OrderEvaluation
+
+**Description:** A customer's answers to the evaluation form (`/evaluering/<order id>`), e-mailed when their first order is delivered. One row per order.
+
+**Fields:**
+
+- `id` (UUID, PK)
+- `order_id` (UUID, FK → orders, UNIQUE, ON DELETE CASCADE) - The evaluated order
+- `customer_id` (UUID, FK → customers, ON DELETE CASCADE) - Copied from the order at submit time
+- `form_version` (text) - `EVALUATION_FORM_VERSION` when answered
+- `answers` (JSONB) - One key per question id in `lib/config/evaluation.ts`; numbers for scales and prices (whole kroner), option values for choices, text or null for free text
+- `created_at` (timestamp)
+
+**Notes:**
+
+- Written only by `submitEvaluationAction` with the service role; RLS is enabled with no policies and anon/authenticated hold no grants.
+
 ### RateLimitHit
 
 **Description:** Fixed-window counters behind `isRateLimited` (`lib/utils/rate-limit.ts`). Not linked to any entity; rows older than a day are deleted by `rate_limit_hit` on every call.

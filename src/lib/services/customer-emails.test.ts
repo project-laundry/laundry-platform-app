@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 vi.mock('@/lib/database/orders', () => ({ getOrderForCustomerEmail: vi.fn(), getActiveOrdersBySubscriptionId: vi.fn() }));
+vi.mock('@/lib/database/evaluations', () => ({ countCompletedOrdersByCustomerId: vi.fn() }));
 vi.mock('@/lib/database/payments', () => ({ getPaymentById: vi.fn(), getPaymentsByOrderId: vi.fn() }));
 vi.mock('@/lib/email/send', () => ({
   sendEmail: vi.fn(),
@@ -17,13 +18,15 @@ vi.mock('@/lib/email/customer-emails', () => ({
   buildOrderCancelledEmail: vi.fn(() => ({ subject: 'Kansellert', text: 'tekst', html: '<p>html</p>' })),
   buildPickupRescheduledEmail: vi.fn(() => ({ subject: 'Ny dato', text: 'tekst', html: '<p>html</p>' })),
   buildCleanerConfirmedEmail: vi.fn(() => ({ subject: 'Renser bekreftet', text: 'tekst', html: '<p>html</p>' })),
+  buildEvaluationRequestEmail: vi.fn(() => ({ subject: 'Evaluering', text: 'tekst', html: '<p>html</p>' })),
 }));
 
 import { getActiveOrdersBySubscriptionId, getOrderForCustomerEmail } from '@/lib/database/orders';
+import { countCompletedOrdersByCustomerId } from '@/lib/database/evaluations';
 import { getPaymentById, getPaymentsByOrderId } from '@/lib/database/payments';
 import { sendEmail } from '@/lib/email/send';
-import { buildCleanerConfirmedEmail, buildOrderCancelledEmail, buildPickupRescheduledEmail, buildOrderConfirmationEmail, buildOrderDeliveredEmail, buildOrderPickedUpEmail, buildPaymentFailedEmail, buildPickupReminderEmail, buildPriceReceiptEmail } from '@/lib/email/customer-emails';
-import { sendCleanerConfirmedEmail, sendOrderCancelledEmail, sendPickupRescheduledEmail, sendOrderConfirmationEmail, sendOrderDeliveredEmail, sendOrderPickedUpEmail, sendPaymentFailedEmail, sendPickupReminderEmail, sendPriceReceiptEmail } from './customer-emails';
+import { buildEvaluationRequestEmail, buildCleanerConfirmedEmail, buildOrderCancelledEmail, buildPickupRescheduledEmail, buildOrderConfirmationEmail, buildOrderDeliveredEmail, buildOrderPickedUpEmail, buildPaymentFailedEmail, buildPickupReminderEmail, buildPriceReceiptEmail } from '@/lib/email/customer-emails';
+import { sendEvaluationRequestEmail, sendCleanerConfirmedEmail, sendOrderCancelledEmail, sendPickupRescheduledEmail, sendOrderConfirmationEmail, sendOrderDeliveredEmail, sendOrderPickedUpEmail, sendPaymentFailedEmail, sendPickupReminderEmail, sendPriceReceiptEmail } from './customer-emails';
 import type { OrderForCustomerEmail } from '@/lib/database/orders';
 
 const m = (fn: unknown) => fn as Mock;
@@ -31,7 +34,7 @@ const m = (fn: unknown) => fn as Mock;
 vi.spyOn(console, 'error').mockImplementation(() => {});
 vi.spyOn(console, 'log').mockImplementation(() => {});
 
-const ORDER = { id: 'ord-1', customer: { user: { email: 'kari@example.com', full_name: 'Kari' } } };
+const ORDER = { id: 'ord-1', customer_id: 'cust-1', customer: { user: { email: 'kari@example.com', full_name: 'Kari' } } };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -217,6 +220,58 @@ describe('sendOrderDeliveredEmail', () => {
     m(sendEmail).mockResolvedValue({ ok: false, error: 'Resend responded 500' });
 
     await expect(sendOrderDeliveredEmail('ord-1')).resolves.toBeUndefined();
+  });
+});
+
+describe('sendEvaluationRequestEmail', () => {
+  beforeEach(() => {
+    m(countCompletedOrdersByCustomerId).mockResolvedValue(1);
+  });
+
+  it('sends for the first completed order, keyed on the order id', async () => {
+    await sendEvaluationRequestEmail('ord-1');
+
+    expect(countCompletedOrdersByCustomerId).toHaveBeenCalledWith('cust-1');
+    expect(buildEvaluationRequestEmail).toHaveBeenCalledWith(ORDER, { appUrl: 'https://nooracare.no' });
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: ['kari@example.com'],
+        subject: 'Evaluering',
+        idempotencyKey: 'evaluation-request/ord-1',
+      })
+    );
+  });
+
+  it('sends nothing for a later order', async () => {
+    m(countCompletedOrdersByCustomerId).mockResolvedValue(2);
+
+    await sendEvaluationRequestEmail('ord-1');
+
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('sends nothing when the count failed', async () => {
+    m(countCompletedOrdersByCustomerId).mockResolvedValue(null);
+
+    await sendEvaluationRequestEmail('ord-1');
+
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('sends nothing and does not count when the order is not found', async () => {
+    m(getOrderForCustomerEmail).mockResolvedValue(null);
+
+    await sendEvaluationRequestEmail('ord-x');
+
+    expect(countCompletedOrdersByCustomerId).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('never throws when the count rejects', async () => {
+    m(countCompletedOrdersByCustomerId).mockRejectedValue(new Error('db down'));
+
+    await expect(sendEvaluationRequestEmail('ord-1')).resolves.toBeUndefined();
+    expect(sendEmail).not.toHaveBeenCalled();
   });
 });
 

@@ -12,6 +12,7 @@ const SECTIONS = [
   { href: '/admin/cleaners', label: 'Rensere' },
   { href: '/admin/customers', label: 'Kunder' },
   { href: '/admin/payments', label: 'Betalinger' },
+  { href: '/admin/evaluations', label: 'Evalueringer' },
   { href: '/admin/promo-codes', label: 'Rabattkoder' },
   { href: '/admin/admins', label: 'Administratorer' },
 ] as const;

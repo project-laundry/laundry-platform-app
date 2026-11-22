@@ -38,6 +38,7 @@ export const ROBOTS_DISALLOW = [
   '/dashboard',
   '/orders',
   '/auth',
+  '/evaluering',
   '/api',
   '/ingest',
   '/bli-renser/business',

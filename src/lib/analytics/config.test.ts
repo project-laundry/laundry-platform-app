@@ -73,6 +73,7 @@ describe('isRecordingAllowed', () => {
       '/bli-renser/signup',
       '/bli-renser/business',
       '/orders/details/8b1d2b2e-1c2d-4e5f-8a9b-0c1d2e3f4a5b',
+      '/evaluering/8b1d2b2e-1c2d-4e5f-8a9b-0c1d2e3f4a5b',
       '/orders/8b1d2b2e-1c2d-4e5f-8a9b-0c1d2e3f4a5b/cancel',
       '/auth/login',
       '/auth/forgot-password',

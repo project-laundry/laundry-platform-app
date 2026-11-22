@@ -27,6 +27,7 @@ describe('robots', () => {
         '/dashboard',
         '/orders',
         '/auth',
+        '/evaluering',
         '/api',
         '/ingest',
         '/bli-renser/business',
