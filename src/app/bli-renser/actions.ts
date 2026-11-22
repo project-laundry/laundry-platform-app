@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { isRateLimited } from "@/lib/utils/rate-limit";
 import { assertRole } from "@/lib/auth/require-role";
 import {
   createCleaner,
@@ -53,6 +54,13 @@ export async function checkTaxIdAvailabilityAction(input: {
 
   const taxId = digitsOnly(input.taxId ?? "");
   if (!validateTaxId(taxId, input.businessType)) {
+    return { taken: false };
+  }
+
+  // Rate limited per cleaner account (#118). A limited caller gets "not
+  // taken"; the UNIQUE constraint still rejects a duplicate on the final step.
+  const { data: { user } } = await (await createClient()).auth.getUser();
+  if (await isRateLimited('tax-id-check', user?.id ?? 'unknown')) {
     return { taken: false };
   }
 

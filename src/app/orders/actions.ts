@@ -27,6 +27,7 @@ import {
   updateOrderStatus,
 } from "@/lib/database/orders";
 import { geocodeAddress, validateAddress, type AddressValidationReason } from "@/lib/maps/geocoding";
+import { isRateLimited } from "@/lib/utils/rate-limit";
 import { checkAndGenerateNextOrders } from "@/lib/services/order-generation";
 import { sendOrderCancelledEmail, sendPickupRescheduledEmail } from "@/lib/services/customer-emails";
 import { cancelSubscriptionAction } from "@/app/dashboard/subscription/actions";
@@ -424,6 +425,11 @@ export async function validatePromoCodeAction(
   const customer = await getCustomerByUserId(user.id);
   if (!customer) {
     return { valid: false, error: "Fant ikke kunde" };
+  }
+
+  // Rate limited per account (#118) so promo codes cannot be guessed in bulk.
+  if (await isRateLimited('promo-check', user.id)) {
+    return { valid: false, error: "For mange forsøk. Prøv igjen om noen minutter." };
   }
 
   const result = await validatePromoCode(code, customer.id);

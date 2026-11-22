@@ -177,6 +177,7 @@ src/
 │   │   ├── server.ts       # Server Supabase client
 │   │   └── index.ts        # Exports
 │   ├── utils/
+│   │   ├── rate-limit.ts   # isRateLimited(action, subject, limit?) — fixed-window counter in Postgres (`rate_limit_hit`, table `rate_limit_hits`), subject hashed, FAILS OPEN; used by checkSignupAvailabilityAction (per IP), validatePromoCodeAction and checkTaxIdAvailabilityAction (per account), 10 calls / 10 min
 │   │   ├── date.ts         # Date/weekday utilities; todayInOslo / tomorrowInOslo for "the customer's day" (the server runs in UTC)
 │   │   ├── email.ts        # isValidEmail (loose e-mail shape check)
 │   │   └── order-number.ts # Order number generation
@@ -386,6 +387,8 @@ The webhook uses HMAC-SHA256 signature verification with `VIPPS_WEBHOOK_SECRET` 
 - Safe to call unconditionally. It stops only when the order is one-time (`subscription_id` NULL, `payment_agreement_id` set), is `cancelled` or `completed`, and its agreement is still `active`. It refuses while a Vipps charge for the order is `pending`/`authorized` (the capture webhook stops the agreement afterwards; orphan pending rows don't count), when the order's payments cannot be read, and for a `completed` order with a price above 0 and no live payment (`hasLivePayment`) — a failed charge must stay retryable with «Belast på nytt», which needs an active agreement.
 - So a completed order stops its agreement at delivery when the total is 0 kr (100 % promo, no charge, no capture webhook) or when the charge was captured but the webhook's stop failed.
 - Our own stop returns as `recurring.agreement-stopped.v1` with `actor = MERCHANT`, which the webhook ignores.
+
+**Charge idempotency (#115):** `createChargeForCompletedOrder` sends `chargeIdempotencyKey(order.id, <number of the order's payment rows with a provider_reference>)` as the Vipps `Idempotency-Key`. A creation attempt that timed out leaves no reference, so «Belast på nytt» re-sends the same key and Vipps returns the original charge instead of creating a second one (verified against the Vipps test API); after a confirmed charge the key moves on, so a retry of a genuinely failed charge is a new charge. If the count cannot be read, no payment row and no charge are created.
 
 **Migration history:** The migration history was squashed into a single baseline
 before production launch — `supabase/migrations/20260606233033_initial_schema.sql`
