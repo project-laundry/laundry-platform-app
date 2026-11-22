@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { TriangleAlert } from 'lucide-react';
+import { AlertCircle, TriangleAlert } from 'lucide-react';
 import { cancelOrderAction } from '@/app/orders/actions';
 
 interface CancelConfirmationFormProps {
@@ -20,16 +20,18 @@ export function CancelConfirmationForm({
 }: CancelConfirmationFormProps) {
   const [selectedOption, setSelectedOption] = useState<CancelOption>('order-only');
   const [isLoading, setIsLoading] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const router = useRouter();
 
   const handleCancel = async () => {
     setIsLoading(true);
+    setSaveError(null);
     try {
       const alsoCancelSubscription = selectedOption === 'subscription';
       const result = await cancelOrderAction(orderId, alsoCancelSubscription);
 
       if (!result.success) {
-        alert(result.error || 'En feil oppstod ved kansellering');
+        setSaveError(result.error || 'Vi klarte ikke å kansellere bestillingen. Prøv igjen.');
         setIsLoading(false);
         return;
       }
@@ -50,10 +52,17 @@ export function CancelConfirmationForm({
       router.push(`/orders/${orderId}/cancel/success?${params.toString()}`);
     } catch (error) {
       console.error('Error cancelling order:', error);
-      alert('En feil oppstod ved kansellering');
+      setSaveError('Noe gikk galt. Last siden på nytt og sjekk om bestillingen er kansellert.');
       setIsLoading(false);
     }
   };
+
+  const errorNote = saveError && (
+    <div role="alert" className="flex items-start gap-2 rounded-2xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
+      <AlertCircle className="mt-0.5 size-4 shrink-0" />
+      <p>{saveError}</p>
+    </div>
+  );
 
   const confirmButton = (
     <button
@@ -68,7 +77,12 @@ export function CancelConfirmationForm({
 
   // For one-time orders, just show the cancel button
   if (!hasSubscription) {
-    return <div className="space-y-4">{confirmButton}</div>;
+    return (
+      <div className="space-y-4">
+        {errorNote}
+        {confirmButton}
+      </div>
+    );
   }
 
   // For subscription orders, show options
@@ -153,7 +167,10 @@ export function CancelConfirmationForm({
       )}
 
       {/* Confirm Button */}
-      <div className="pt-2">{confirmButton}</div>
+      <div className="space-y-4 pt-2">
+        {errorNote}
+        {confirmButton}
+      </div>
     </div>
   );
 }

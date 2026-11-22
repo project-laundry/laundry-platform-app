@@ -14,6 +14,7 @@ import { getAdminOverviewCounts } from '@/lib/database/admin-stats';
 import {
   getAdminAttention,
   paymentIssueLabel,
+  unchargedOrderLabel,
   READY_TOO_LONG_DAYS,
   type AttentionOrder,
 } from '@/lib/database/admin-attention';
@@ -114,14 +115,33 @@ export default async function AdminOverviewPage() {
     orderRow(o, `${formatDate(o.scheduled_date)} · ventet ${formatAgeLabel(o.created_at, now)}`, 'warning')
   );
 
-  const paymentRows = mapRows(attention.paymentsToFollowUp, (payment) => ({
-    key: payment.id,
-    href: payment.order ? `/admin/orders/${payment.order.id}` : '/admin/payments?status=failed',
-    title: `${formatKr(payment.amount_ore)} · ${payment.customer.user.full_name}`,
-    subtitle: `${payment.order ? `#${payment.order.order_number}` : 'Uten ordre'} · ${paymentIssueLabel(payment)}`,
-    meta: formatDate(payment.created_at),
-    metaTone: 'destructive' as const,
-  }));
+  // Orders nobody has charged yet come first: an admin has to press «Belast på nytt».
+  const unchargedOrderRows = mapRows(
+    attention.ordersNotCharged,
+    (order): AttentionRow => ({
+      key: `uncharged-${order.id}`,
+      href: `/admin/orders/${order.id}`,
+      title: `${formatKr(order.total_cost_ore)} · ${order.customer.user.full_name}`,
+      subtitle: `#${order.order_number} · ${unchargedOrderLabel(order)}`,
+      meta: formatDate(order.ready_for_delivery_at ?? order.created_at),
+      metaTone: 'warning',
+    })
+  );
+  const failedPaymentRows = mapRows(
+    attention.paymentsToFollowUp,
+    (payment): AttentionRow => ({
+      key: payment.id,
+      href: payment.order ? `/admin/orders/${payment.order.id}` : '/admin/payments?status=failed',
+      title: `${formatKr(payment.amount_ore)} · ${payment.customer.user.full_name}`,
+      subtitle: `${payment.order ? `#${payment.order.order_number}` : 'Uten ordre'} · ${paymentIssueLabel(payment)}`,
+      meta: formatDate(payment.created_at),
+      metaTone: 'destructive',
+    })
+  );
+  const paymentRows =
+    unchargedOrderRows === null || failedPaymentRows === null
+      ? null
+      : [...unchargedOrderRows, ...failedPaymentRows];
 
   const notGeneratedRows =
     attention.subscriptionsWithoutOrder === null || attention.agreementsWithoutOrder === null
@@ -216,7 +236,7 @@ export default async function AdminOverviewPage() {
           icon={CreditCard}
           tone="destructive"
           rows={paymentRows}
-          emptyText="Ingen feilede eller fastlåste betalinger."
+          emptyText="Ingen betalinger å følge opp."
         />
         <AttentionSection
           title="Ordre ikke generert"

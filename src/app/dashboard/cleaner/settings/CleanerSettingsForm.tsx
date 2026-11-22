@@ -15,7 +15,7 @@ import {
   MACHINE_CONDITION_OPTIONS,
   WEEKDAY_OPTIONS,
 } from '@/lib/config/cleaner-options';
-import { validateBankAccount, validateYear } from '@/lib/validation/cleaner';
+import { bankAccountError, stripNumberFormatting, validateYear } from '@/lib/validation/cleaner';
 import { CLEANER_PAYOUT_TERMS_TEXT } from '@/lib/config/pricing';
 import type {
   Cleaner,
@@ -98,8 +98,12 @@ export function CleanerSettingsForm({ cleaner }: { cleaner: Cleaner }) {
 
     if (!bankAccount) {
       newErrors.bankAccount = 'Kontonummer er påkrevd';
-    } else if (!validateBankAccount(bankAccount)) {
-      newErrors.bankAccount = 'Kontonummer må være 11 siffer';
+    } else if (stripNumberFormatting(bankAccount) !== cleaner.bank_account) {
+      // Same rule as the server action: only a changed number is checked.
+      const bankAccountProblem = bankAccountError(bankAccount);
+      if (bankAccountProblem) {
+        newErrors.bankAccount = bankAccountProblem;
+      }
     }
 
     if (!baseStreet.trim()) {

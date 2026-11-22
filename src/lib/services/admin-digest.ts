@@ -7,9 +7,11 @@ import {
   type AdminAttention,
   type AttentionOrder,
   type AttentionPayment,
+  type AttentionUnchargedOrder,
   type AttentionSubscription,
   type AttentionAgreement,
   READY_TOO_LONG_DAYS,
+  unchargedOrderLabel,
 } from '@/lib/database/admin-attention';
 import { formatKr } from '@/lib/config/pricing';
 import { daysBetweenISODates } from '@/lib/utils/date';
@@ -66,6 +68,9 @@ export function buildAdminDigest(
       payment.order ? `${base}/admin/orders/${payment.order.id}` : `${base}/admin/payments?status=failed`
     }`;
 
+  const unchargedOrderLine = (order: AttentionUnchargedOrder): string =>
+    `- ${formatKr(order.total_cost_ore)} ${order.customer.user.full_name} · #${order.order_number} · ${unchargedOrderLabel(order)}\n  ${base}/admin/orders/${order.id}`;
+
   const subscriptionLine = (subscription: AttentionSubscription): string =>
     `- ${subscription.customer.user.full_name} · abonnement ${getSubscriptionFrequencyLabel(
       subscription.frequency
@@ -89,7 +94,12 @@ export function buildAdminDigest(
   const pendingAssignment = mapLines(attention.pendingAssignment, (o) =>
     orderLine(o, `henting ${o.scheduled_date} · ventet ${formatAgeLabel(o.created_at, now)}`)
   );
-  const payments = mapLines(attention.paymentsToFollowUp, paymentLine);
+  // One section for everything about money: orders nobody has charged yet
+  // first (an admin has to act), then the failed/stuck/cancelled payment rows.
+  const unchargedOrders = mapLines(attention.ordersNotCharged, unchargedOrderLine);
+  const paymentRows = mapLines(attention.paymentsToFollowUp, paymentLine);
+  const payments =
+    unchargedOrders === null || paymentRows === null ? null : [...unchargedOrders, ...paymentRows];
   const notGenerated =
     attention.subscriptionsWithoutOrder === null || attention.agreementsWithoutOrder === null
       ? null

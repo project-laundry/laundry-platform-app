@@ -4,6 +4,8 @@ import {
   buildAdminNewOrderEmail,
   buildAdminOrderUnassignedEmail,
   buildCleanerNewOrderEmail,
+  buildCleanerOrderMovedEmail,
+  buildCleanerPickupRescheduledEmail,
 } from './staff-emails';
 
 const OPTIONS = { appUrl: 'https://nooracare.no/' };
@@ -108,6 +110,77 @@ describe('buildCleanerNewOrderEmail', () => {
     expect(text).not.toContain('Henteinstruksjoner');
     expect(text).not.toContain('KUNDEN HAR OPPGITT');
     expect(text).toContain('Åpne oppdraget: https://nooracare.no/dashboard/cleaner/ord-1');
+  });
+});
+
+describe('buildCleanerPickupRescheduledEmail', () => {
+  it('shows the new and the previous date, the time window and the address, and links to the order page', () => {
+    const { subject, text, html } = buildCleanerPickupRescheduledEmail(
+      ORDER,
+      { previousPickupDate: '2026-10-22' },
+      OPTIONS
+    );
+
+    expect(subject).toBe('Ny hentedato – lørdag 24. oktober 2026 (ordre #ABC123)');
+    expect(text).toContain('Hei Ola!');
+    expect(text).toContain('Hentedatoen for ordre #ABC123 er endret.');
+    expect(text).toContain(
+      'HENTING\n\nNy dato: lørdag 24. oktober 2026\nTidligere dato: torsdag 22. oktober 2026\nTid: kl. 15:00–18:00\nAdresse: Storgata 1, 0150 Oslo'
+    );
+    expect(text).toContain('Henteinstruksjoner: Ring på hos Hansen, 2. etasje');
+    expect(text).toContain('Passer ikke den nye datoen? Avslå oppdraget på oppdragssiden så snart som mulig.');
+    expect(text).toContain('Åpne oppdraget: https://nooracare.no/dashboard/cleaner/ord-1');
+    expect(text).toContain('post@nooracare.no');
+    expect(html).toContain('<h1');
+    expect(html).toContain('Ny hentedato');
+    expect(html).toContain('href="https://nooracare.no/dashboard/cleaner/ord-1"');
+  });
+
+  it('leaves out the instructions when the order has none, and never shows the estimate', () => {
+    const { text, html } = buildCleanerPickupRescheduledEmail(
+      { ...ORDER, special_instructions_address: null },
+      { previousPickupDate: '2026-10-22' },
+      OPTIONS
+    );
+
+    expect(text).not.toContain('Henteinstruksjoner');
+    expect(text).not.toContain('589');
+    expect(html).not.toContain('589');
+  });
+});
+
+describe('buildCleanerOrderMovedEmail', () => {
+  const DETAILS = {
+    orderNumber: 'ABC123',
+    previousPickupDate: '2026-10-22',
+    cleanerFullName: 'Ola Hansen',
+  };
+
+  it('tells the previous cleaner that the order is no longer theirs', () => {
+    const { subject, text, html } = buildCleanerOrderMovedEmail(DETAILS, OPTIONS);
+
+    expect(subject).toBe('Ordre #ABC123 er ikke lenger ditt oppdrag');
+    expect(text).toContain('Hei Ola!');
+    expect(text).toContain(
+      'Hentedatoen for ordre #ABC123 er endret til en dag som ikke er en av hentedagene dine. Oppdraget er derfor ikke lenger ditt.'
+    );
+    expect(text).toContain('Du skal ikke hente tøyet torsdag 22. oktober 2026, og du trenger ikke gjøre noe.');
+    expect(text).toContain('Åpne oversikten: https://nooracare.no/dashboard/cleaner');
+    expect(html).toContain('Oppdraget er flyttet');
+  });
+
+  it('carries no address and no link to the order page', () => {
+    const { text, html } = buildCleanerOrderMovedEmail(DETAILS, OPTIONS);
+
+    expect(text).not.toContain('Adresse');
+    expect(text).not.toContain('/dashboard/cleaner/');
+    expect(html).not.toContain('/dashboard/cleaner/');
+  });
+
+  it('greets without a name when the name is blank', () => {
+    const { text } = buildCleanerOrderMovedEmail({ ...DETAILS, cleanerFullName: '  ' }, OPTIONS);
+
+    expect(text).toContain('Hei!');
   });
 });
 

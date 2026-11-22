@@ -17,10 +17,11 @@ import {
 } from "@/lib/ai/machine-recognition";
 import { getCityFromPostalCode, serviceAreaText } from "@/lib/config/postal-codes";
 import {
+  bankAccountError,
   hasAnyWeekday,
   normalizeWeeklySchedule,
+  taxIdError,
   taxIdTakenMessage,
-  validateBankAccount,
   validateTaxId,
   validateYear,
 } from "@/lib/validation/cleaner";
@@ -143,18 +144,15 @@ export async function createCleanerProfileAction(
     }
 
     const taxId = digitsOnly(data.taxId ?? "");
-    if (!validateTaxId(taxId, data.businessType)) {
-      return {
-        success: false,
-        error: data.businessType === "individual"
-          ? "Fødselsnummer må være 11 siffer"
-          : "Organisasjonsnummer må være 9 siffer",
-      };
+    const taxIdProblem = taxIdError(taxId, data.businessType);
+    if (taxIdProblem) {
+      return { success: false, error: taxIdProblem };
     }
 
     const bankAccount = digitsOnly(data.bankAccount ?? "");
-    if (!validateBankAccount(bankAccount)) {
-      return { success: false, error: "Kontonummer må være 11 siffer" };
+    const bankAccountProblem = bankAccountError(bankAccount);
+    if (bankAccountProblem) {
+      return { success: false, error: bankAccountProblem };
     }
 
     const businessName = data.businessName?.trim() || null;

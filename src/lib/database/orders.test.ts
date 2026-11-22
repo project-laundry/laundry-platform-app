@@ -4,7 +4,12 @@ import type { Mock } from 'vitest';
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: vi.fn() }));
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import { assignCleanerToPendingOrder, declineOrder, getOrderByPaymentAgreementId } from './orders';
+import {
+  assignCleanerToPendingOrder,
+  declineOrder,
+  getOrderByPaymentAgreementId,
+  updateOrderLaundryDetails,
+} from './orders';
 
 const m = (fn: unknown) => fn as Mock;
 
@@ -134,5 +139,74 @@ describe('assignCleanerToPendingOrder', () => {
     maybeSingle.mockResolvedValue({ data: null, error: { message: 'boom' } });
 
     await expect(assignCleanerToPendingOrder('ord-1', 'cl-2')).resolves.toBeNull();
+  });
+});
+
+describe('updateOrderLaundryDetails — cleaner-facing error texts', () => {
+  // read:  from('orders').select('cleaner_id, status').eq('id', id).single()
+  // write: from('orders').update({...}).eq('id', id).select().single()
+  const readSingle = vi.fn();
+  const readEq = vi.fn(() => ({ single: readSingle }));
+  const select = vi.fn(() => ({ eq: readEq }));
+  const writeSingle = vi.fn();
+  const writeSelect = vi.fn(() => ({ single: writeSingle }));
+  const writeEq = vi.fn(() => ({ select: writeSelect }));
+  const update = vi.fn(() => ({ eq: writeEq }));
+
+  const details = {
+    wash_loads: 2,
+    ironing_details: null,
+    total_cost_ore: 59800,
+    cleaner_payout_ore: 41860,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    m(createAdminClient).mockReturnValue({ from: vi.fn(() => ({ select, update })) });
+  });
+
+  it('answers in Norwegian when the order does not exist', async () => {
+    readSingle.mockResolvedValue({ data: null, error: { message: 'no rows' } });
+
+    const result = await updateOrderLaundryDetails('ord-1', 'cl-1', details);
+
+    expect(result).toEqual({ data: null, error: 'Vi fant ikke ordren. Last siden på nytt og prøv igjen.' });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('answers in Norwegian when the order belongs to another cleaner', async () => {
+    readSingle.mockResolvedValue({ data: { cleaner_id: 'cl-2', status: 'in_cleaning' }, error: null });
+
+    const result = await updateOrderLaundryDetails('ord-1', 'cl-1', details);
+
+    expect(result).toEqual({ data: null, error: 'Ordren er ikke lenger tildelt deg. Last siden på nytt.' });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it.each(['completed', 'cancelled'])('answers in Norwegian for a %s order', async (status) => {
+    readSingle.mockResolvedValue({ data: { cleaner_id: 'cl-1', status }, error: null });
+
+    const result = await updateOrderLaundryDetails('ord-1', 'cl-1', details);
+
+    expect(result).toEqual({ data: null, error: 'Ordren er fullført eller kansellert og kan ikke endres.' });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('never returns the raw database message when the write fails', async () => {
+    readSingle.mockResolvedValue({ data: { cleaner_id: 'cl-1', status: 'in_cleaning' }, error: null });
+    writeSingle.mockResolvedValue({ data: null, error: { message: 'duplicate key value violates unique constraint' } });
+
+    const result = await updateOrderLaundryDetails('ord-1', 'cl-1', details);
+
+    expect(result).toEqual({ data: null, error: 'Kunne ikke lagre vaskdetaljene. Prøv igjen.' });
+  });
+
+  it('returns the updated order when the write succeeds', async () => {
+    readSingle.mockResolvedValue({ data: { cleaner_id: 'cl-1', status: 'in_cleaning' }, error: null });
+    writeSingle.mockResolvedValue({ data: { id: 'ord-1', wash_loads: 2 }, error: null });
+
+    const result = await updateOrderLaundryDetails('ord-1', 'cl-1', details);
+
+    expect(result).toEqual({ data: { id: 'ord-1', wash_loads: 2 }, error: null });
   });
 });

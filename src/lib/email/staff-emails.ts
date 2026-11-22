@@ -75,6 +75,81 @@ export function buildCleanerNewOrderEmail(
   );
 }
 
+/**
+ * «Ny hentedato» — sent to the cleaner who keeps an order whose pickup date
+ * was moved (by the customer on the reschedule page or by an admin). The
+ * order passed in already carries the new date.
+ */
+export function buildCleanerPickupRescheduledEmail(
+  order: OrderForStaffEmail,
+  change: { previousPickupDate: string },
+  options: CustomerEmailOptions
+): CustomerEmail {
+  const newDate = formatLongDate(order.scheduled_date);
+  const firstName = order.cleaner?.user.full_name.trim().split(/\s+/)[0];
+  const pickupNote = order.special_instructions_address?.trim() || null;
+
+  const blocks: Block[] = [
+    paragraph(firstName ? `Hei ${firstName}!` : 'Hei!'),
+    paragraph(`Hentedatoen for ordre #${order.order_number} er endret.`),
+    heading('Henting'),
+    rows([
+      { label: 'Ny dato', value: newDate, strong: true },
+      { label: 'Tidligere dato', value: formatLongDate(change.previousPickupDate) },
+      { label: 'Tid', value: `kl. ${PICKUP_TIME_RANGE.start}–${PICKUP_TIME_RANGE.end}` },
+      { label: 'Adresse', value: `${order.street}, ${order.postal_code} ${order.city}` },
+    ]),
+  ];
+
+  if (pickupNote) {
+    blocks.push(paragraph(`Henteinstruksjoner: ${pickupNote}`));
+  }
+
+  blocks.push(
+    paragraph('Passer ikke den nye datoen? Avslå oppdraget på oppdragssiden så snart som mulig.'),
+    button('Åpne oppdraget', `${baseUrl(options)}/dashboard/cleaner/${order.id}`),
+    closing()
+  );
+
+  return finish(
+    `Ny hentedato – ${newDate} (ordre #${order.order_number})`,
+    'Ny hentedato',
+    blocks,
+    options
+  );
+}
+
+/**
+ * «Oppdraget er flyttet» — sent to the cleaner who LOSES an order because the
+ * pickup was moved to a weekday they do not work. Carries no address and no
+ * customer details: the order is no longer theirs.
+ */
+export function buildCleanerOrderMovedEmail(
+  details: { orderNumber: string; previousPickupDate: string; cleanerFullName: string },
+  options: CustomerEmailOptions
+): CustomerEmail {
+  const firstName = details.cleanerFullName.trim().split(/\s+/)[0];
+
+  const blocks: Block[] = [
+    paragraph(firstName ? `Hei ${firstName}!` : 'Hei!'),
+    paragraph(
+      `Hentedatoen for ordre #${details.orderNumber} er endret til en dag som ikke er en av hentedagene dine. Oppdraget er derfor ikke lenger ditt.`
+    ),
+    paragraph(
+      `Du skal ikke hente tøyet ${formatLongDate(details.previousPickupDate)}, og du trenger ikke gjøre noe.`
+    ),
+    button('Åpne oversikten', `${baseUrl(options)}/dashboard/cleaner`),
+    closing(),
+  ];
+
+  return finish(
+    `Ordre #${details.orderNumber} er ikke lenger ditt oppdrag`,
+    'Oppdraget er flyttet',
+    blocks,
+    options
+  );
+}
+
 /** «Ny ordre» — sent to every admin when a first order is created. */
 export function buildAdminNewOrderEmail(
   order: OrderForStaffEmail,

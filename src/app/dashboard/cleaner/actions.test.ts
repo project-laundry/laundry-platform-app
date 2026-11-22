@@ -21,6 +21,7 @@ vi.mock('@/lib/services/staff-emails', () => ({
 }));
 vi.mock('@/lib/payments/vipps/service', () => ({ createChargeForCompletedOrder: vi.fn() }));
 vi.mock('@/lib/services/complete-order', () => ({ completeDeliveredOrder: vi.fn() }));
+vi.mock('@/lib/email/admin-mail', () => ({ sendToAdmins: vi.fn() }));
 vi.mock('@/lib/services/customer-emails', () => ({
   sendPriceReceiptEmail: vi.fn(),
   sendOrderPickedUpEmail: vi.fn(),
@@ -39,6 +40,7 @@ import { sendAdminOrderUnassignedEmail, sendCleanerNewOrderEmail } from '@/lib/s
 import { completeDeliveredOrder } from '@/lib/services/complete-order';
 import { createChargeForCompletedOrder } from '@/lib/payments/vipps/service';
 import { sendOrderPickedUpEmail, sendPriceReceiptEmail } from '@/lib/services/customer-emails';
+import { sendToAdmins } from '@/lib/email/admin-mail';
 import { MAX_WASH_LOADS_PER_ORDER } from '@/lib/config/pricing';
 import {
   declineCleanerOrder,
@@ -56,6 +58,7 @@ beforeEach(() => {
   m(getCleanerByUserId).mockResolvedValue({ id: 'cl-1' });
   m(updateOrderStatusGuarded).mockResolvedValue({ id: 'ord-1' });
   m(completeDeliveredOrder).mockResolvedValue({ success: true });
+  m(sendToAdmins).mockResolvedValue({ recipients: 1, sent: 1 });
 });
 
 describe('markOrderPickedUpAction', () => {
@@ -221,6 +224,34 @@ describe('markOrderReadyForDelivery', () => {
 
     expect(result).toEqual({ success: true });
     expect(createChargeForCompletedOrder).not.toHaveBeenCalled();
+  });
+
+  it('holds the charge and alerts the admins when the price is far above the estimate', async () => {
+    m(getOrderByIdAndCleanerId).mockResolvedValue({
+      ...PRICED_ORDER,
+      wash_loads: 15,
+      total_cost_ore: 460730,
+      promo: null,
+      pricing_notes: null,
+      customer_estimate: {
+        bags: 1,
+        bedding_sets: 0,
+        iron_everyday_items: 0,
+        iron_formal_items: 0,
+        iron_bedding: false,
+        estimated_total_ore: 50000,
+      },
+    });
+
+    const result = await markOrderReadyForDelivery('ord-1');
+
+    expect(result).toEqual({ success: true, chargeHeld: true });
+    expect(updateOrderStatusGuarded).toHaveBeenCalledWith('ord-1', 'in_cleaning', 'ready_for_delivery');
+    expect(createChargeForCompletedOrder).not.toHaveBeenCalled();
+    expect(sendPriceReceiptEmail).not.toHaveBeenCalled();
+    expect(sendToAdmins).toHaveBeenCalledWith(
+      expect.objectContaining({ idempotencyKey: 'price-review/ord-1' })
+    );
   });
 
   it('rejects an order that is not in_cleaning without charging', async () => {

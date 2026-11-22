@@ -14,10 +14,10 @@ config({ path: resolve(__dirname, '../.env.local') });
 
 
 const CUSTOMERS = [
-  { email: 'seed.kunde1@test.no', phone: '+4740000001', name: 'Mari Solberg', street: 'Bogstadveien 27', postal: '0355', lat: 59.9235, lon: 10.7203 },
-  { email: 'seed.kunde2@test.no', phone: '+4740000002', name: 'Jonas Berg', street: 'Thorvald Meyers gate 41', postal: '0555', lat: 59.9232, lon: 10.7589 },
-  { email: 'seed.kunde3@test.no', phone: '+4740000003', name: 'Sara Haugen', street: 'Storgata 22', postal: '0184', lat: 59.9158, lon: 10.7486 },
-  { email: 'seed.kunde4@test.no', phone: '+4740000004', name: 'Henrik Dahl', street: 'Sofienberggata 12', postal: '0558', lat: 59.9211, lon: 10.7644 },
+  { email: 'delivered+seed.kunde1@resend.dev', phone: '+4740000001', name: 'Mari Solberg', street: 'Bogstadveien 27', postal: '0355', lat: 59.9235, lon: 10.7203 },
+  { email: 'delivered+seed.kunde2@resend.dev', phone: '+4740000002', name: 'Jonas Berg', street: 'Thorvald Meyers gate 41', postal: '0555', lat: 59.9232, lon: 10.7589 },
+  { email: 'delivered+seed.kunde3@resend.dev', phone: '+4740000003', name: 'Sara Haugen', street: 'Storgata 22', postal: '0184', lat: 59.9158, lon: 10.7486 },
+  { email: 'delivered+seed.kunde4@resend.dev', phone: '+4740000004', name: 'Henrik Dahl', street: 'Sofienberggata 12', postal: '0558', lat: 59.9211, lon: 10.7644 },
 ];
 
 type SeedStatus =

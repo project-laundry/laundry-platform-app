@@ -1,6 +1,7 @@
 import { config } from 'dotenv';
 import { resolve } from 'path';
 import { createAdminClient } from './lib/admin-client';
+import { testEmail } from './lib/test-user-data';
 
 // Load environment variables from .env.local
 config({ path: resolve(__dirname, '../.env.local') });
@@ -61,7 +62,7 @@ function generateTestCustomer(): TestCustomer {
 
   const timestamp = Date.now();
   const random = randomNumber(1000, 9999);
-  const email = `${emailName}.cust.${timestamp}.${random}@test.no`;
+  const email = testEmail(`${emailName}.cust.${timestamp}.${random}`);
 
   const streetData = randomElement(OSLO_STREETS);
   const streetNumber = randomNumber(streetData.numbers[0], streetData.numbers[1]);

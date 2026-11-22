@@ -20,7 +20,10 @@ import {
   sendPickupRescheduledEmail,
   sendPriceReceiptEmail,
 } from '@/lib/services/customer-emails';
-import { sendCleanerNewOrderEmail } from '@/lib/services/staff-emails';
+import {
+  sendCleanerNewOrderEmail,
+  sendCleanerPickupRescheduledEmails,
+} from '@/lib/services/staff-emails';
 import { checkAndGenerateNextOrders } from '@/lib/services/order-generation';
 import { getAvailableCleanersForCity } from '@/lib/database/cleaners';
 import { getPaymentsByOrderId } from '@/lib/database/payments';
@@ -230,6 +233,10 @@ export async function updateOrderDetailsAction(
   // nothing. `order` is the row as read before the write. Never throws.
   if (scheduledDate !== order.scheduled_date) {
     await sendPickupRescheduledEmail(orderId, order, 'admin');
+    // The cleaner who holds the order gets «Ny hentedato» — this action never
+    // changes the cleaner, and nothing else tells them. Sends nothing when the
+    // order has no cleaner. Never throws (lib/services/staff-emails.ts).
+    await sendCleanerPickupRescheduledEmails(orderId, order);
   }
 
   revalidatePath('/admin/orders');
@@ -483,6 +490,12 @@ const PRICEABLE_STATUSES = ['in_cleaning', 'ready_for_delivery'] as const;
  * locked snapshot, cleaner_payout_ore from the FULL price). Refused once the
  * order has a live payment — the charged amount and the price must never
  * diverge. In ready_for_delivery the admin re-charges with «Belast på nytt».
+ *
+ * A `completed` order is also priceable while it has a price above 0 and no
+ * live payment: a charge held by the price guard (lib/services/ready-order.ts)
+ * or a failed charge can outlive the delivery, and the admin must still be
+ * able to correct the price before pressing «Belast på nytt». Saving a price
+ * never charges anyone.
  */
 export async function overrideOrderPriceAction(
   orderId: string,
@@ -500,10 +513,13 @@ export async function overrideOrderPriceAction(
     return { success: false, error: 'Ordren ble ikke funnet' };
   }
 
-  if (!(PRICEABLE_STATUSES as readonly string[]).includes(order.status)) {
+  const deliveredButUnpaid =
+    order.status === 'completed' && order.total_cost_ore !== null && order.total_cost_ore > 0;
+  if (!(PRICEABLE_STATUSES as readonly string[]).includes(order.status) && !deliveredButUnpaid) {
     return {
       success: false,
-      error: 'Prisen kan bare overstyres mens ordren vaskes eller er klar for levering',
+      error:
+        'Prisen kan bare overstyres mens ordren vaskes eller er klar for levering, eller når en levert ordre ikke er belastet',
     };
   }
 
@@ -549,6 +565,8 @@ export interface AdminMarkReadyResult {
   success: boolean;
   error?: string;
   chargeFailed?: boolean;
+  /** Price guard: the price is far above the customer's estimate, so no charge was created. */
+  chargeHeld?: boolean;
 }
 
 /**
@@ -557,6 +575,8 @@ export interface AdminMarkReadyResult {
  * (lib/services/ready-order.ts). Requires wash_loads > 0 and a price — set
  * them with the price override first if the cleaner never priced the order.
  * A failed charge still succeeds (the order is ready); the page then shows
+ * «Belast på nytt». The price guard applies here too: a price far above the
+ * customer's estimate is not charged (`chargeHeld`) until the admin presses
  * «Belast på nytt».
  */
 export async function adminMarkReadyAction(orderId: string): Promise<AdminMarkReadyResult> {
@@ -575,6 +595,7 @@ export async function adminMarkReadyAction(orderId: string): Promise<AdminMarkRe
 
   revalidatePath('/admin/orders');
   revalidatePath(`/admin/orders/${orderId}`);
+  if (result.chargeHeld) return { success: true, chargeHeld: true };
   return result.chargeFailed ? { success: true, chargeFailed: true } : { success: true };
 }
 

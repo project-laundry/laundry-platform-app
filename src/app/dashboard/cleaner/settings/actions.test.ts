@@ -29,7 +29,7 @@ const existingCleaner = {
 const baseInput: CleanerSettingsInput = {
   displayName: 'Test Renser',
   experienceLevel: 'some',
-  bankAccount: '1234 56 78901',
+  bankAccount: '1234 56 78903',
   baseStreet: 'Gamleveien 2',
   basePostalCode: '5803',
   machineBrand: 'Miele',
@@ -83,6 +83,47 @@ describe('updateCleanerSettingsAction', () => {
 
     expect(result).toEqual({ success: false, error: 'Kontonummer må være 11 siffer' });
     expect(updateCleanerProfile).not.toHaveBeenCalled();
+  });
+
+  it('rejects a changed bank account with a wrong check digit', async () => {
+    const result = await updateCleanerSettingsAction({
+      ...baseInput,
+      bankAccount: '12345678901',
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Kontonummeret er ikke gyldig. Sjekk at du har skrevet det riktig.',
+    });
+    expect(updateCleanerProfile).not.toHaveBeenCalled();
+  });
+
+  it('keeps a stored bank account that fails the checksum when it is not changed', async () => {
+    m(getCleanerByUserId).mockResolvedValue({ ...existingCleaner, bank_account: '12345678901' });
+
+    const result = await updateCleanerSettingsAction({
+      ...baseInput,
+      bankAccount: '1234 56 78901',
+    });
+
+    expect(result).toEqual({ success: true });
+    expect(updateCleanerProfile).toHaveBeenCalledWith(
+      'cl-1',
+      expect.objectContaining({ bank_account: '12345678901' })
+    );
+  });
+
+  it('strips dots from the bank account before saving', async () => {
+    const result = await updateCleanerSettingsAction({
+      ...baseInput,
+      bankAccount: '1234.56.78903',
+    });
+
+    expect(result).toEqual({ success: true });
+    expect(updateCleanerProfile).toHaveBeenCalledWith(
+      'cl-1',
+      expect.objectContaining({ bank_account: '12345678903' })
+    );
   });
 
   it('rejects a non-integer machine capacity', async () => {
@@ -139,7 +180,7 @@ describe('updateCleanerSettingsAction', () => {
       'cl-1',
       expect.objectContaining({
         display_name: 'Test Renser',
-        bank_account: '12345678901',
+        bank_account: '12345678903',
         base_city: 'Bergen',
         machine_capacity_kg: 8,
         machine_year: 2020,

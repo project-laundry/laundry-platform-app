@@ -96,7 +96,7 @@
   - **Validation:** Required if `business_type = 'business'`, max 300 chars
   - **Note:** Stored as text for MVP. Contains legal business registration address for accounting/compliance purposes.
 - `bank_account` (string, required) - Norwegian bank account
-  - **Validation:** 11 digits (Norwegian bank account format)
+  - **Validation:** 11 digits with a valid MOD11 check digit (`validateBankAccount` in `lib/validation/cleaner.ts`); the DB only checks the 11 digits
 - `base_street` (string, required) - Base operation street address
   - **Validation:** Min 3 chars, max 200 chars
 - `base_postal_code` (string, required) - Base operation postal code

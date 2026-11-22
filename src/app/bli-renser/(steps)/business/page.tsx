@@ -8,7 +8,7 @@ import { CleanerFlowSection, CleanerFlowShell } from '@/components/cleaner-flow/
 import { FormInput } from '@/components/forms/FormInput';
 import { FormTextarea } from '@/components/forms/FormTextarea';
 import { FormRadioGroup } from '@/components/forms/FormRadioGroup';
-import { validateTaxId, validateBankAccount, taxIdTakenMessage } from '@/lib/validation/cleaner';
+import { bankAccountError, taxIdError, taxIdTakenMessage } from '@/lib/validation/cleaner';
 import { checkTaxIdAvailabilityAction } from '../../actions';
 import type { CleanerBusinessType } from '@/types/database';
 import { CLEANER_PAYOUT_TERMS_TEXT } from '@/lib/config/pricing';
@@ -34,6 +34,9 @@ function BusinessInfoForm() {
   const [businessName, setBusinessName] = useState(cleanerData?.businessName || '');
   const [businessAddress, setBusinessAddress] = useState(cleanerData?.businessAddress || '');
   const [bankAccount, setBankAccount] = useState(cleanerData?.bankAccount || '');
+  // Typed twice so a single typo cannot send payouts to a stranger. Not
+  // stored: coming back to this step, the already confirmed number fills both.
+  const [bankAccountRepeat, setBankAccountRepeat] = useState(cleanerData?.bankAccount || '');
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [checking, setChecking] = useState(false);
@@ -49,10 +52,9 @@ function BusinessInfoForm() {
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!validateTaxId(taxId, businessType)) {
-      newErrors.taxId = businessType === 'individual'
-        ? 'Fødselsnummer må være 11 siffer'
-        : 'Organisasjonsnummer må være 9 siffer';
+    const taxIdProblem = taxIdError(taxId, businessType);
+    if (taxIdProblem) {
+      newErrors.taxId = taxIdProblem;
     }
 
     if (businessType === 'business') {
@@ -64,8 +66,11 @@ function BusinessInfoForm() {
       }
     }
 
-    if (!validateBankAccount(bankAccount)) {
-      newErrors.bankAccount = 'Kontonummer må være 11 siffer';
+    const bankAccountProblem = bankAccountError(bankAccount);
+    if (bankAccountProblem) {
+      newErrors.bankAccount = bankAccountProblem;
+    } else if (bankAccountRepeat !== bankAccount) {
+      newErrors.bankAccountRepeat = 'Kontonumrene er ikke like';
     }
 
     setErrors(newErrors);
@@ -104,6 +109,7 @@ function BusinessInfoForm() {
   const isFormValid =
     taxId.length === taxIdLength &&
     bankAccount.length === 11 &&
+    bankAccountRepeat.length === 11 &&
     (businessType === 'individual' || (businessName.trim() !== '' && businessAddress.trim() !== ''));
 
   return (
@@ -183,6 +189,15 @@ function BusinessInfoForm() {
             type="tel"
             required
             error={errors.bankAccount}
+          />
+          <FormInput
+            label="Gjenta kontonummer"
+            value={bankAccountRepeat}
+            onChange={(value) => setBankAccountRepeat(digitsOnly(value).slice(0, 11))}
+            placeholder="11 siffer"
+            type="tel"
+            required
+            error={errors.bankAccountRepeat}
           />
         </CleanerFlowSection>
       </form>

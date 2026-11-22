@@ -91,3 +91,14 @@ export function hasLivePayment(
       (payment.status === 'pending' && !isOrphanPendingPayment(payment, now))
   );
 }
+
+/**
+ * True when money for the order has actually been drawn: a `captured` row, or
+ * a `refunded` one (a refund can only follow a capture, and then nothing is
+ * owed). Unlike hasLivePayment this is false for a charge that is still
+ * pending at Vipps — used where "in flight" is not good enough, e.g. when the
+ * Vipps agreement was stopped and Vipps is about to cancel the pending charge.
+ */
+export function hasCapturedPayment(payments: Pick<Payment, 'status'>[]): boolean {
+  return payments.some((payment) => payment.status === 'captured' || payment.status === 'refunded');
+}

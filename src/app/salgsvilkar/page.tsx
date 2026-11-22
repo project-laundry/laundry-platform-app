@@ -260,7 +260,9 @@ export default function SalgsvilkarPage() {
                 >
                   nooracare.no/dashboard
                 </Link>
-                . {pickupNoticeText()}
+                . {pickupNoticeText()} Hentedatoen kan du endre selv til og med
+                dagen før hentedagen. Fra og med hentedagen må du ta kontakt
+                med oss for å endre den.
               </p>
               <p className="leading-relaxed text-dark-gray">
                 Du kan avbestille kostnadsfritt samme sted inntil 24 timer før

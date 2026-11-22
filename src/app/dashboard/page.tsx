@@ -13,6 +13,7 @@ import { NextPickupCard } from '@/components/dashboard/NextPickupCard';
 import { SubscriptionStrip } from '@/components/dashboard/SubscriptionStrip';
 import { OrderRow } from '@/components/dashboard/OrderRow';
 import { HistorySection } from '@/components/dashboard/HistorySection';
+import { HelpContact } from '@/components/ui/HelpContact';
 
 export default async function DashboardPage() {
   // Auth check
@@ -185,6 +186,14 @@ export default async function DashboardPage() {
             </div>
           </>
         )}
+
+        {/* Help — always shown, also for a customer with no orders yet */}
+        <div
+          className="mt-6 animate-in fade-in slide-in-from-bottom-3 duration-500"
+          style={{ animationDelay: '300ms' }}
+        >
+          <HelpContact />
+        </div>
       </main>
     </div>
   );

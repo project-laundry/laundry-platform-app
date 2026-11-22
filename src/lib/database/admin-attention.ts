@@ -9,12 +9,14 @@
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { todayInOslo } from '@/lib/utils/date';
+import { PRICE_REVIEW_ESTIMATE_FACTOR, isChargeHeldForPriceReview } from '@/lib/config/pricing';
 import {
   STALE_PENDING_DAYS,
+  hasLivePayment,
   orphanPendingCutoffIso,
   stalePendingCutoffIso,
 } from '@/lib/utils/payment-status';
-import type { OrderStatus, PaymentStatus, SubscriptionFrequency } from '@/types/database';
+import type { Order, OrderStatus, Payment, PaymentStatus, SubscriptionFrequency } from '@/types/database';
 
 /** A `ready_for_delivery` order older than this is flagged as sitting too long. */
 export const READY_TOO_LONG_DAYS = 2;
@@ -37,6 +39,8 @@ const PICKED_UP_NOT_DELIVERED: OrderStatus[] = [
   'out_for_delivery',
 ];
 const ACTIVE_ORDER_STATUSES: OrderStatus[] = [...NOT_PICKED_UP, ...PICKED_UP_NOT_DELIVERED];
+/** Statuses in which the order has its price and the customer should have been charged. */
+const CHARGED_ORDER_STATUSES: OrderStatus[] = ['ready_for_delivery', 'out_for_delivery', 'completed'];
 
 const CUSTOMER_NAME_SELECT = 'customer:customers!customer_id(user:users!user_id(full_name))';
 
@@ -50,6 +54,23 @@ const PAYMENT_SELECT = `
   id, status, amount_ore, provider_reference, failure_reason, created_at,
   ${CUSTOMER_NAME_SELECT},
   order:orders!order_id(id, order_number)
+`;
+
+// A cancelled payment row plus every payment of its order: the row is only a
+// problem while nothing else has paid (or is paying) for that order.
+const CANCELLED_PAYMENT_SELECT = `
+  id, status, amount_ore, provider_reference, failure_reason, created_at,
+  ${CUSTOMER_NAME_SELECT},
+  order:orders!order_id(id, order_number, total_cost_ore, payments(status, provider_reference, created_at))
+`;
+
+// `payments(id)` is only there for the `.is('payments', null)` filter (orders
+// with no payment row at all); promo and customer_estimate feed the price-guard
+// rule (isChargeHeldForPriceReview).
+const UNCHARGED_ORDER_SELECT = `
+  id, order_number, status, total_cost_ore, promo, customer_estimate, ready_for_delivery_at, created_at,
+  ${CUSTOMER_NAME_SELECT},
+  payments(id)
 `;
 
 export interface AttentionOrder {
@@ -74,6 +95,41 @@ export interface AttentionPayment {
   created_at: string;
   customer: { user: { full_name: string } };
   order: { id: string; order_number: string } | null;
+}
+
+/** What the cancelled-payments query returns; reduced to AttentionPayment before it leaves this file. */
+interface CancelledPaymentRow extends Omit<AttentionPayment, 'order'> {
+  order: {
+    id: string;
+    order_number: string;
+    total_cost_ore: number | null;
+    payments: Pick<Payment, 'status' | 'provider_reference' | 'created_at'>[];
+  } | null;
+}
+
+/** A priced order (ready for delivery or later) that has no payment row at all. */
+export interface AttentionUnchargedOrder {
+  id: string;
+  order_number: string;
+  status: OrderStatus;
+  total_cost_ore: number;
+  ready_for_delivery_at: string | null;
+  created_at: string;
+  customer: { user: { full_name: string } };
+  /**
+   * True when the charge is held for price review (isChargeHeldForPriceReview
+   * in lib/config/pricing.ts). False = no payment row for another reason: the
+   * charge could not be started.
+   */
+  charge_held: boolean;
+}
+
+/** What the uncharged-orders query returns; reduced to AttentionUnchargedOrder before it leaves this file. */
+interface UnchargedOrderRow extends Omit<AttentionUnchargedOrder, 'charge_held'> {
+  promo: Order['promo'];
+  customer_estimate: Order['customer_estimate'];
+  /** Payment rows of the order (filtered to "none" in the query). */
+  payments: { id: string }[];
 }
 
 export interface AttentionSubscription {
@@ -105,7 +161,10 @@ export interface AdminAttention {
   overduePickups: AttentionOrder[] | null;
   readyTooLong: AttentionOrder[] | null;
   pendingAssignment: AttentionOrder[] | null;
+  /** Failed, orphan pending and stale pending rows, plus cancelled charges that left their order unpaid. */
   paymentsToFollowUp: AttentionPayment[] | null;
+  /** Priced orders nobody has charged yet — an admin must press «Belast på nytt». */
+  ordersNotCharged: AttentionUnchargedOrder[] | null;
   subscriptionsWithoutOrder: AttentionSubscription[] | null;
   agreementsWithoutOrder: AttentionAgreement[] | null;
 }
@@ -128,6 +187,9 @@ export function paymentIssueLabel(
   if (payment.status === 'failed') {
     return payment.failure_reason ? `Feilet: ${payment.failure_reason}` : 'Feilet';
   }
+  if (payment.status === 'cancelled') {
+    return 'Kansellert hos Vipps – ordren er ikke betalt';
+  }
   if (payment.provider_reference === null) {
     return 'Belastningen ble aldri opprettet hos Vipps';
   }
@@ -135,7 +197,45 @@ export function paymentIssueLabel(
 }
 
 /**
- * Runs the eight queries in parallel. The order of the array below is fixed
+ * Why an order is in the "not charged" list, in Norwegian. Shared by the
+ * overview row and the digest line.
+ */
+export function unchargedOrderLabel(order: Pick<AttentionUnchargedOrder, 'charge_held'>): string {
+  return order.charge_held
+    ? `Holdt tilbake: pris over ${PRICE_REVIEW_ESTIMATE_FACTOR} ganger estimatet – godkjenn med «Belast på nytt»`
+    : 'Ikke belastet – trykk «Belast på nytt»';
+}
+
+/**
+ * Cancelled charges that left their order unpaid: the order has a price above
+ * 0, no live payment (hasLivePayment: nothing captured, refunded, reserved or
+ * in flight) and the cancelled row is the order's newest payment. When a newer
+ * failed or orphan row exists, that row is already in the follow-up list, so
+ * the cancelled one is left out instead of listing the order twice.
+ */
+function unpaidAfterCancelledCharge(cancelled: CancelledPaymentRow[], now: Date): AttentionPayment[] {
+  return cancelled
+    .filter((payment) => {
+      const order = payment.order;
+      if (!order || order.total_cost_ore === null || order.total_cost_ore <= 0) return false;
+      if (hasLivePayment(order.payments, now)) return false;
+      const createdAt = new Date(payment.created_at).getTime();
+      return order.payments.every((other) => new Date(other.created_at).getTime() <= createdAt);
+    })
+    .map((payment) => ({
+      id: payment.id,
+      status: payment.status,
+      amount_ore: payment.amount_ore,
+      provider_reference: payment.provider_reference,
+      failure_reason: payment.failure_reason,
+      created_at: payment.created_at,
+      customer: payment.customer,
+      order: payment.order ? { id: payment.order.id, order_number: payment.order.order_number } : null,
+    }));
+}
+
+/**
+ * Runs the ten queries in parallel. The order of the array below is fixed
  * and the unit test depends on it (it feeds results back in this order).
  */
 export async function getAdminAttention(now: Date = new Date()): Promise<AdminAttention> {
@@ -155,6 +255,8 @@ export async function getAdminAttention(now: Date = new Date()): Promise<AdminAt
     payments,
     subscriptions,
     agreements,
+    cancelledPayments,
+    unchargedOrders,
   ] = await Promise.all([
     // 1. Pickups due today, not yet picked up.
     supabase
@@ -225,10 +327,31 @@ export async function getAdminAttention(now: Date = new Date()): Promise<AdminAt
       .eq('status', 'active')
       .lt('activated_at', activationCutoff)
       .limit(LIST_LIMIT),
+    // 9. Cancelled charges (the customer stopped the agreement in Vipps before
+    //    the money was drawn). Reduced below to the ones whose order is unpaid.
+    supabase
+      .from('payments')
+      .select(CANCELLED_PAYMENT_SELECT)
+      .eq('status', 'cancelled')
+      .order('created_at', { ascending: false })
+      .limit(LIST_LIMIT),
+    // 10. Priced orders with no payment row at all: the charge was never
+    //     created, so nothing in query 6 or 9 can show them.
+    supabase
+      .from('orders')
+      .select(UNCHARGED_ORDER_SELECT)
+      .in('status', CHARGED_ORDER_STATUSES)
+      .gt('total_cost_ore', 0)
+      .is('payments', null)
+      .order('ready_for_delivery_at', { ascending: true, nullsFirst: true })
+      .limit(LIST_LIMIT),
   ]);
 
   const subscriptionRows = rows<AttentionSubscription>(subscriptions, 'subscriptions');
   const agreementRows = rows<AttentionAgreement>(agreements, 'payment agreements');
+  const paymentRows = rows<AttentionPayment>(payments, 'payments');
+  const cancelledRows = rows<CancelledPaymentRow>(cancelledPayments, 'cancelled payments');
+  const unchargedRows = rows<UnchargedOrderRow>(unchargedOrders, 'uncharged orders');
 
   return {
     today,
@@ -237,7 +360,29 @@ export async function getAdminAttention(now: Date = new Date()): Promise<AdminAt
     overduePickups: rows<AttentionOrder>(overduePickups, 'overdue pickups'),
     readyTooLong: rows<AttentionOrder>(readyTooLong, 'ready too long'),
     pendingAssignment: rows<AttentionOrder>(pendingAssignment, 'pending assignment'),
-    paymentsToFollowUp: rows<AttentionPayment>(payments, 'payments'),
+    paymentsToFollowUp:
+      paymentRows === null || cancelledRows === null
+        ? null
+        : [...paymentRows, ...unpaidAfterCancelledCharge(cancelledRows, now)].sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          ),
+    // The query already asks for orders without payments; the filter keeps the
+    // list right even if that embedded filter is ever ignored.
+    ordersNotCharged:
+      unchargedRows === null
+        ? null
+        : unchargedRows
+            .filter((order) => order.payments.length === 0)
+            .map((order) => ({
+              id: order.id,
+              order_number: order.order_number,
+              status: order.status,
+              total_cost_ore: order.total_cost_ore,
+              ready_for_delivery_at: order.ready_for_delivery_at,
+              created_at: order.created_at,
+              customer: order.customer,
+              charge_held: isChargeHeldForPriceReview(order, order.payments.length),
+            })),
     subscriptionsWithoutOrder:
       subscriptionRows === null ? null : subscriptionRows.filter((s) => s.orders.length === 0),
     agreementsWithoutOrder:

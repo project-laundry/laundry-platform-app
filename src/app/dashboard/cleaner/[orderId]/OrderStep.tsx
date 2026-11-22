@@ -19,6 +19,7 @@ import {
   getEmptyIroningDetails,
   formatKr,
   formatKrExact,
+  isPriceFarAboveEstimate,
   MAX_WASH_LOADS_PER_ORDER,
   PRICING,
 } from '@/lib/config/pricing';
@@ -60,6 +61,14 @@ interface OrderStepProps {
    * it survives reloads; the action result sets it instantly on failure.
    */
   chargeFailed: boolean;
+  /**
+   * True when the ready step created NO charge because the price is far above
+   * the customer's estimate and NooraCare reviews it first (price guard).
+   * Computed by the page from the order and its payment rows.
+   */
+  chargeHeld: boolean;
+  /** orders.customer_estimate.estimated_total_ore — what the customer expected to pay at checkout. */
+  estimatedTotalOre: number | null;
 }
 
 const IRONING_CATEGORIES: IroningGroup[] = ['everyday', 'shirts_dresses', 'bedding'];
@@ -173,6 +182,8 @@ export function OrderStep({
   promo,
   totalCostOre,
   chargeFailed,
+  chargeHeld,
+  estimatedTotalOre,
 }: OrderStepProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -197,6 +208,10 @@ export function OrderStep({
   const price = calculateOrderPrice(laundryDetails);
   const discountOre = promo ? computeDiscountOre(price.total_ore, promo) : 0;
   const customerPaysOre = Math.max(0, price.total_ore - discountOre);
+  // Same rule the server applies in markOrderReadyAndCharge (full price before
+  // promo against the estimate): confirming will NOT charge the customer.
+  const willHoldCharge =
+    customerPaysOre > 0 && isPriceFarAboveEstimate(price.total_ore, estimatedTotalOre);
 
   // Runs the step's writes in order; stops at the first failure.
   const run = async (
@@ -456,7 +471,13 @@ export function OrderStep({
         {confirming ? (
           <div className="space-y-3 animate-in fade-in slide-in-from-top-1 duration-300">
             <p className="text-medium-gray">
-              {customerPaysOre > 0 ? (
+              {willHoldCharge ? (
+                <>
+                  Prisen er mye høyere enn det kunden regnet med (ca.{' '}
+                  <span className="tabular-nums">{formatKr(estimatedTotalOre ?? 0)}</span>). NooraCare
+                  ser over prisen før kunden belastes – sjekk at antall vask stemmer.
+                </>
+              ) : customerPaysOre > 0 ? (
                 <>
                   Prisen sendes til kunden, og Vipps trekker{' '}
                   <span className="font-semibold tabular-nums text-dark-gray">
@@ -471,7 +492,7 @@ export function OrderStep({
             </p>
             <ConfirmRow
               isLoading={isLoading}
-              confirmLabel={customerPaysOre > 0 ? 'Bekreft og belast' : 'Bekreft'}
+              confirmLabel={customerPaysOre > 0 && !willHoldCharge ? 'Bekreft og belast' : 'Bekreft'}
               onCancel={() => setConfirming(false)}
               onConfirm={() =>
                 run([
@@ -502,7 +523,12 @@ export function OrderStep({
         Lever tøyet til {customerFirstName}
       </h2>
 
-      {showChargeFailed ? (
+      {chargeHeld ? (
+        <Warning>
+          Prisen er mye høyere enn det kunden regnet med, så NooraCare ser over den før kunden
+          belastes. Du leverer tøyet som normalt, og utbetalingen din kommer til vanlig tid.
+        </Warning>
+      ) : showChargeFailed ? (
         <Warning>
           Belastningen av kunden feilet. Admin følger opp betalingen – du leverer tøyet som normalt.
         </Warning>

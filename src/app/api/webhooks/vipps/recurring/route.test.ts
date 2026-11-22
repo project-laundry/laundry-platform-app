@@ -27,12 +27,19 @@ vi.mock('@/lib/database/payments', () => ({
   failPaymentWithMetadata: vi.fn(),
   cancelPaymentWithMetadata: vi.fn(),
   refundPaymentWithMetadata: vi.fn(),
+  getPaymentsByOrderId: vi.fn(),
 }));
 vi.mock('@/lib/payments/vipps/service', () => ({
   cancelVippsAgreement: vi.fn(),
   stopVippsAgreementForCancelledSubscription: vi.fn(),
 }));
-vi.mock('@/lib/database/orders', () => ({ createOrder: vi.fn(), getOrderByPaymentAgreementId: vi.fn() }));
+vi.mock('@/lib/database/orders', () => ({
+  createOrder: vi.fn(),
+  getOrderByPaymentAgreementId: vi.fn(),
+  getOrderById: vi.fn(),
+  getActiveOrdersBySubscriptionId: vi.fn(),
+}));
+vi.mock('@/lib/services/error-alerts', () => ({ reportError: vi.fn() }));
 vi.mock('@/lib/database/promo-codes', () => ({ recordPromoRedemption: vi.fn() }));
 vi.mock('@/lib/services/customer-emails', () => ({ sendOrderConfirmationEmail: vi.fn(), sendPaymentFailedEmail: vi.fn() }));
 vi.mock('@/lib/services/staff-emails', () => ({ sendCleanerNewOrderEmail: vi.fn(), sendAdminNewOrderEmail: vi.fn() }));
@@ -56,9 +63,16 @@ import {
   failPaymentWithMetadata,
   cancelPaymentWithMetadata,
   refundPaymentWithMetadata,
+  getPaymentsByOrderId,
 } from '@/lib/database/payments';
 import { cancelVippsAgreement, stopVippsAgreementForCancelledSubscription } from '@/lib/payments/vipps/service';
-import { createOrder, getOrderByPaymentAgreementId } from '@/lib/database/orders';
+import {
+  createOrder,
+  getOrderByPaymentAgreementId,
+  getOrderById,
+  getActiveOrdersBySubscriptionId,
+} from '@/lib/database/orders';
+import { reportError } from '@/lib/services/error-alerts';
 import { recordPromoRedemption } from '@/lib/database/promo-codes';
 import { sendOrderConfirmationEmail, sendPaymentFailedEmail } from '@/lib/services/customer-emails';
 import { sendAdminNewOrderEmail, sendCleanerNewOrderEmail } from '@/lib/services/staff-emails';
@@ -142,7 +156,13 @@ beforeEach(() => {
   m(expireSubscription).mockResolvedValue({ id: 'sub-1', status: 'expired' });
   m(capturePaymentWithMetadata).mockResolvedValue({ id: 'pay-1', status: 'captured' });
   m(failPaymentWithMetadata).mockResolvedValue({ id: 'pay-1', status: 'failed' });
+  m(cancelPaymentWithMetadata).mockResolvedValue({ id: 'pay-1', status: 'cancelled' });
   m(getOrderByPaymentAgreementId).mockResolvedValue(null);
+  // Lookups behind the unpaid-order alerts: nothing found unless a test says so.
+  m(getOrderById).mockResolvedValue(null);
+  m(getPaymentsByOrderId).mockResolvedValue([]);
+  m(getActiveOrdersBySubscriptionId).mockResolvedValue([]);
+  vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://nooracare.no');
 });
 
 describe('POST /api/webhooks/vipps/recurring — authentication & response codes', () => {
@@ -296,16 +316,94 @@ describe('charge events', () => {
     expect(sendPaymentFailedEmail).not.toHaveBeenCalled();
   });
 
-  it('marks the payment cancelled on charge-canceled', async () => {
+  it('marks the payment cancelled on charge-canceled and alerts the admins', async () => {
     m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', status: 'active' });
     m(getPaymentByReference).mockResolvedValue({ id: 'pay-1', amount_ore: 50000 });
 
-    await post(chargePayload({ eventType: 'recurring.charge-canceled.v1', amountCanceled: 50000 }));
+    const res = await post(chargePayload({ eventType: 'recurring.charge-canceled.v1', amountCanceled: 50000 }));
 
+    expect(res.status).toBe(200);
     expect(cancelPaymentWithMetadata).toHaveBeenCalledWith(
       'pay-1',
       expect.objectContaining({ vipps_status: 'CANCELLED', vipps_amount_canceled: 50000 })
     );
+    // No order on the payment row: the alert still goes out, with the ids we have.
+    expect(reportError).toHaveBeenCalledTimes(1);
+    expect(reportError).toHaveBeenCalledWith(
+      'Vipps-belastning kansellert – ordren er ikke betalt',
+      expect.any(Error),
+      expect.objectContaining({ avtale: 'agr-1', charge: 'chr-1', payment: 'pay-1' })
+    );
+  });
+
+  it('names the order in the alert when a cancelled charge leaves it unpaid', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', status: 'stopped' });
+    m(getPaymentByReference).mockResolvedValue({ id: 'pay-1', amount_ore: 59800, order_id: 'ord-1', status: 'pending' });
+    m(getOrderById).mockResolvedValue({ id: 'ord-1', order_number: 'ABC123', status: 'completed', total_cost_ore: 59800 });
+    m(getPaymentsByOrderId).mockResolvedValue([
+      { status: 'cancelled', provider_reference: 'chr-1', created_at: '2026-06-06T10:00:00Z' },
+    ]);
+
+    const res = await post(chargePayload({ eventType: 'recurring.charge-canceled.v1', amountCanceled: 59800 }));
+
+    expect(res.status).toBe(200);
+    expect(getOrderById).toHaveBeenCalledWith('ord-1');
+    expect(reportError).toHaveBeenCalledTimes(1);
+    const [source, error, details] = m(reportError).mock.calls[0];
+    expect(source).toBe('Vipps-belastning kansellert – ordren er ikke betalt');
+    expect((error as Error).message).toContain('598 kr');
+    expect((error as Error).message).toContain('#ABC123');
+    expect(details).toMatchObject({
+      ordre: 'ord-1',
+      ordrenummer: 'ABC123',
+      avtale: 'agr-1',
+      charge: 'chr-1',
+      payment: 'pay-1',
+      lenke: 'https://nooracare.no/admin/orders/ord-1',
+    });
+    expect(details.tiltak).toContain('Belast på nytt');
+  });
+
+  it('sends no alert for a cancelled charge when another payment covers the order', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', status: 'active' });
+    m(getPaymentByReference).mockResolvedValue({ id: 'pay-1', amount_ore: 59800, order_id: 'ord-1', status: 'pending' });
+    m(getOrderById).mockResolvedValue({ id: 'ord-1', order_number: 'ABC123', status: 'completed', total_cost_ore: 59800 });
+    m(getPaymentsByOrderId).mockResolvedValue([
+      { status: 'cancelled', provider_reference: 'chr-1', created_at: '2026-06-06T10:00:00Z' },
+      { status: 'captured', provider_reference: 'chr-2', created_at: '2026-06-06T11:00:00Z' },
+    ]);
+
+    const res = await post(chargePayload({ eventType: 'recurring.charge-canceled.v1', amountCanceled: 59800 }));
+
+    expect(res.status).toBe(200);
+    expect(cancelPaymentWithMetadata).toHaveBeenCalledOnce();
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
+  it('sends no second alert when the charge-canceled webhook is redelivered', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', status: 'active' });
+    m(getPaymentByReference).mockResolvedValue({ id: 'pay-1', amount_ore: 59800, order_id: 'ord-1', status: 'cancelled' });
+
+    const res = await post(chargePayload({ eventType: 'recurring.charge-canceled.v1', amountCanceled: 59800 }));
+
+    expect(res.status).toBe(200);
+    expect(cancelPaymentWithMetadata).toHaveBeenCalledOnce();
+    expect(getOrderById).not.toHaveBeenCalled();
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
+  it('returns 500 when the cancelled write fails, so Vipps retries, and alerts only about the failure', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', status: 'active' });
+    m(getPaymentByReference).mockResolvedValue({ id: 'pay-1', amount_ore: 59800, order_id: 'ord-1', status: 'pending' });
+    m(cancelPaymentWithMetadata).mockResolvedValue(null);
+
+    const res = await post(chargePayload({ eventType: 'recurring.charge-canceled.v1', amountCanceled: 59800 }));
+
+    expect(res.status).toBe(500);
+    expect(getOrderById).not.toHaveBeenCalled();
+    // Only the route's own 500-path report — not the "order is unpaid" alert.
+    expect(reportError).toHaveBeenCalledTimes(1);
+    expect(reportError).toHaveBeenCalledWith('Vipps-webhook feilet (Vipps prøver igjen)', expect.any(Error));
   });
 
   it('marks the payment refunded on a full charge-refunded', async () => {
@@ -556,6 +654,118 @@ describe('agreement lifecycle events', () => {
 
     expect(stopPaymentAgreement).not.toHaveBeenCalled();
     expect(cancelSubscription).not.toHaveBeenCalled();
+    expect(getOrderByPaymentAgreementId).not.toHaveBeenCalled();
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
+  const STOP_SOURCE = 'Vipps-avtale stoppet utenfor NooraCare – ordren kan ikke belastes';
+  const stoppedOrder = (overrides: Record<string, unknown> = {}) => ({
+    id: 'ord-1',
+    order_number: 'ABC123',
+    status: 'pickup_scheduled',
+    total_cost_ore: null,
+    ...overrides,
+  });
+
+  it('alerts the admins when the customer stops the agreement before pickup, and leaves the order alone', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', status: 'active' });
+    m(getSubscriptionByPaymentAgreementId).mockResolvedValue(null); // one-time
+    m(getOrderByPaymentAgreementId).mockResolvedValue(stoppedOrder());
+
+    const res = await post(agreementPayload({ eventType: 'recurring.agreement-stopped.v1', actor: 'USER' }));
+
+    expect(res.status).toBe(200);
+    expect(stopPaymentAgreement).toHaveBeenCalledWith('pa-1');
+    expect(getOrderByPaymentAgreementId).toHaveBeenCalledWith('pa-1');
+    expect(getPaymentsByOrderId).not.toHaveBeenCalled(); // no price yet, nothing to read
+    expect(reportError).toHaveBeenCalledTimes(1);
+    const [source, error, details] = m(reportError).mock.calls[0];
+    expect(source).toBe(STOP_SOURCE);
+    expect((error as Error).message).toContain('#ABC123');
+    expect((error as Error).message).toContain('Planlagt henting');
+    expect(details).toMatchObject({
+      ordre: 'ord-1',
+      ordrenummer: 'ABC123',
+      avtale: 'agr-1',
+      'stoppet av': 'USER',
+      pris: 'ikke satt ennå',
+      lenke: 'https://nooracare.no/admin/orders/ord-1',
+    });
+    expect(details.tiltak).toContain('ikke hentet ennå');
+  });
+
+  it('alerts for a delivered order whose charge was still pending when the agreement was stopped', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', status: 'active' });
+    m(getSubscriptionByPaymentAgreementId).mockResolvedValue(null);
+    m(getOrderByPaymentAgreementId).mockResolvedValue(stoppedOrder({ status: 'completed', total_cost_ore: 59800 }));
+    m(getPaymentsByOrderId).mockResolvedValue([
+      { status: 'pending', provider_reference: 'chr-1', created_at: '2026-06-07T09:00:00Z' },
+    ]);
+
+    const res = await post(agreementPayload({ eventType: 'recurring.agreement-stopped.v1', actor: 'USER' }));
+
+    expect(res.status).toBe(200);
+    expect(getPaymentsByOrderId).toHaveBeenCalledWith('ord-1');
+    expect(reportError).toHaveBeenCalledTimes(1);
+    const [source, , details] = m(reportError).mock.calls[0];
+    expect(source).toBe(STOP_SOURCE);
+    expect(details).toMatchObject({ ordrenummer: 'ABC123', pris: '598 kr' });
+    expect(details.tiltak).toContain('Belast på nytt');
+  });
+
+  it.each([
+    ['is cancelled', stoppedOrder({ status: 'cancelled' }), []],
+    ['costs 0 kr', stoppedOrder({ status: 'completed', total_cost_ore: 0 }), []],
+    ['is completed without a price', stoppedOrder({ status: 'completed' }), []],
+    [
+      'is already paid',
+      stoppedOrder({ status: 'ready_for_delivery', total_cost_ore: 59800 }),
+      [{ status: 'captured', provider_reference: 'chr-1', created_at: '2026-06-07T09:00:00Z' }],
+    ],
+  ])('sends no alert on a customer stop when the order %s', async (_label, order, payments) => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', status: 'active' });
+    m(getSubscriptionByPaymentAgreementId).mockResolvedValue(null);
+    m(getOrderByPaymentAgreementId).mockResolvedValue(order);
+    m(getPaymentsByOrderId).mockResolvedValue(payments);
+
+    const res = await post(agreementPayload({ eventType: 'recurring.agreement-stopped.v1', actor: 'USER' }));
+
+    expect(res.status).toBe(200);
+    expect(stopPaymentAgreement).toHaveBeenCalledWith('pa-1');
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
+  it('alerts once per in-progress order of a subscription whose agreement was stopped', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', status: 'active' });
+    m(getSubscriptionByPaymentAgreementId).mockResolvedValue({ id: 'sub-1', status: 'active' });
+    const first = stoppedOrder({ status: 'in_cleaning' });
+    const second = stoppedOrder({ id: 'ord-2', order_number: 'DEF456', status: 'picked_up' });
+    m(getOrderByPaymentAgreementId).mockResolvedValue(first);
+    m(getActiveOrdersBySubscriptionId).mockResolvedValue([first, second]); // `first` again: must not alert twice
+
+    const res = await post(agreementPayload({ eventType: 'recurring.agreement-stopped.v1', actor: 'USER' }));
+
+    expect(res.status).toBe(200);
+    expect(getActiveOrdersBySubscriptionId).toHaveBeenCalledWith('sub-1');
+    expect(reportError).toHaveBeenCalledTimes(2);
+    expect(m(reportError).mock.calls.map((call) => call[2].ordrenummer)).toEqual(['ABC123', 'DEF456']);
+  });
+
+  it('still answers 200 when the order lookup fails after a customer stop, and reports that instead', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', status: 'active' });
+    m(getSubscriptionByPaymentAgreementId).mockResolvedValue(null);
+    m(getOrderByPaymentAgreementId).mockRejectedValue(new Error('db down'));
+
+    const res = await post(agreementPayload({ eventType: 'recurring.agreement-stopped.v1', actor: 'USER' }));
+
+    expect(res.status).toBe(200);
+    expect(stopPaymentAgreement).toHaveBeenCalledWith('pa-1');
+    expect(reportError).toHaveBeenCalledTimes(1);
+    expect(reportError).toHaveBeenCalledWith(
+      'Kunne ikke sjekke ordre etter stoppet Vipps-avtale',
+      expect.any(Error),
+      { avtale: 'agr-1' }
+    );
   });
 
   it('stops the agreement and cancels an active subscription when the user stops it', async () => {

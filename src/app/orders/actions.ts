@@ -14,9 +14,17 @@ import {
 import { createVippsAgreement, stopVippsAgreementForOneTimeOrder } from "@/lib/payments/vipps/service";
 import { isVippsForceAcceptAllowed, pickVippsTestPhone } from "@/lib/payments/vipps/config";
 import { createVippsRecurringClient } from "@/lib/payments/vipps/recurring-client";
-import { getWeekdayFromDate, isWeekdayInSchedule, addDays, toISODateString, todayInOslo } from "@/lib/utils/date";
-import { validateCheckoutInput } from "@/lib/validation/checkout";
-import { DAYS_PICKUP_TO_DELIVERY, earliestPickupDate } from "@/lib/config/order-timing";
+import { getWeekdayFromDate, isWeekdayInSchedule, addDays, toISODateString, todayInOslo, daysBetweenISODates } from "@/lib/utils/date";
+import { MAX_DAYS_AHEAD, validateCheckoutInput } from "@/lib/validation/checkout";
+import {
+  DAYS_PICKUP_TO_DELIVERY,
+  RESCHEDULE_CLOSED_TEXT,
+  canCancelOrderSelf,
+  canReschedulePickupSelf,
+  earliestPickupDate,
+  selfCancelClosedText,
+} from "@/lib/config/order-timing";
+import { COMPANY } from "@/lib/config/company";
 import { OFFERED_CITIES, serviceAreaText } from "@/lib/config/postal-codes";
 import { TERMS_VERSION } from "@/lib/config/terms";
 import { SUBSCRIPTIONS_OFFERED } from "@/lib/config/subscriptions";
@@ -31,6 +39,7 @@ import { geocodeAddress, validateAddress, type AddressValidationReason } from "@
 import { isRateLimited } from "@/lib/utils/rate-limit";
 import { checkAndGenerateNextOrders } from "@/lib/services/order-generation";
 import { sendOrderCancelledEmail, sendPickupRescheduledEmail } from "@/lib/services/customer-emails";
+import { sendCleanerPickupRescheduledEmails } from "@/lib/services/staff-emails";
 import { cancelSubscriptionAction } from "@/app/dashboard/subscription/actions";
 import { validatePostalCode } from "@/lib/validation/cleaner";
 import type {
@@ -615,17 +624,17 @@ export async function updateOrderSpecialInstructionsAction(
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return { success: false, error: 'Not authenticated' };
+      return { success: false, error: 'Du er logget ut. Logg inn på nytt og prøv igjen.' };
     }
 
     const customer = await getCustomerByUserId(user.id);
     if (!customer) {
-      return { success: false, error: 'Customer not found' };
+      return { success: false, error: 'Vi fant ikke kundeprofilen din. Logg inn på nytt og prøv igjen.' };
     }
 
     const order = await getOrderWithDetailsByIdAndCustomerId(orderId, customer.id);
     if (!order) {
-      return { success: false, error: 'Order not found' };
+      return { success: false, error: 'Vi fant ikke bestillingen. Last siden på nytt og prøv igjen.' };
     }
 
     const editableStatuses: OrderStatus[] = ['pending_assignment', 'pickup_scheduled'];
@@ -644,13 +653,13 @@ export async function updateOrderSpecialInstructionsAction(
 
     if (error) {
       console.error('Error updating special instructions:', error);
-      return { success: false, error: 'Failed to update instructions' };
+      return { success: false, error: 'Vi klarte ikke å lagre instruksjonene. Prøv igjen.' };
     }
 
     return { success: true };
   } catch (error) {
     console.error('Error updating special instructions:', error);
-    return { success: false, error: 'An error occurred' };
+    return { success: false, error: 'Noe gikk galt. Prøv igjen.' };
   }
 }
 
@@ -668,17 +677,17 @@ export async function updateOrderSelectionAction(
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return { success: false, error: 'Not authenticated' };
+      return { success: false, error: 'Du er logget ut. Logg inn på nytt og prøv igjen.' };
     }
 
     const customer = await getCustomerByUserId(user.id);
     if (!customer) {
-      return { success: false, error: 'Customer not found' };
+      return { success: false, error: 'Vi fant ikke kundeprofilen din. Logg inn på nytt og prøv igjen.' };
     }
 
     const order = await getOrderWithDetailsByIdAndCustomerId(orderId, customer.id);
     if (!order) {
-      return { success: false, error: 'Order not found' };
+      return { success: false, error: 'Vi fant ikke bestillingen. Last siden på nytt og prøv igjen.' };
     }
 
     const editableStatuses: OrderStatus[] = ['pending_assignment', 'pickup_scheduled'];
@@ -719,13 +728,13 @@ export async function updateOrderSelectionAction(
 
     if (error) {
       console.error('Error updating order selection:', error);
-      return { success: false, error: 'Failed to update order selection' };
+      return { success: false, error: 'Vi klarte ikke å lagre endringen. Prøv igjen.' };
     }
 
     return { success: true };
   } catch (error) {
     console.error('Error updating order selection:', error);
-    return { success: false, error: 'An error occurred' };
+    return { success: false, error: 'Noe gikk galt. Prøv igjen.' };
   }
 }
 
@@ -781,17 +790,17 @@ export async function updateOrderAddressAction(
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return { success: false, error: 'Not authenticated' };
+      return { success: false, error: 'Du er logget ut. Logg inn på nytt og prøv igjen.' };
     }
 
     const customer = await getCustomerByUserId(user.id);
     if (!customer) {
-      return { success: false, error: 'Customer not found' };
+      return { success: false, error: 'Vi fant ikke kundeprofilen din. Logg inn på nytt og prøv igjen.' };
     }
 
     const order = await getOrderWithDetailsByIdAndCustomerId(orderId, customer.id);
     if (!order) {
-      return { success: false, error: 'Order not found' };
+      return { success: false, error: 'Vi fant ikke bestillingen. Last siden på nytt og prøv igjen.' };
     }
 
     const editableStatuses: OrderStatus[] = ['pending_assignment', 'pickup_scheduled'];
@@ -861,13 +870,13 @@ export async function updateOrderAddressAction(
 
     if (error) {
       console.error('Error updating address:', error);
-      return { success: false, error: 'Failed to update address' };
+      return { success: false, error: 'Vi klarte ikke å lagre adressen. Prøv igjen.' };
     }
 
     return { success: true };
   } catch (error) {
     console.error('Error updating address:', error);
-    return { success: false, error: 'An error occurred' };
+    return { success: false, error: 'Noe gikk galt. Prøv igjen.' };
   }
 }
 
@@ -888,19 +897,19 @@ export async function cancelOrderAction(
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return { success: false, error: 'Not authenticated' };
+      return { success: false, error: 'Du er logget ut. Logg inn på nytt og prøv igjen.' };
     }
 
     // Get customer
     const customer = await getCustomerByUserId(user.id);
     if (!customer) {
-      return { success: false, error: 'Customer not found' };
+      return { success: false, error: 'Vi fant ikke kundeprofilen din. Logg inn på nytt og prøv igjen.' };
     }
 
     // Get order and verify ownership
     const order = await getOrderWithDetailsByIdAndCustomerId(orderId, customer.id);
     if (!order) {
-      return { success: false, error: 'Order not found' };
+      return { success: false, error: 'Vi fant ikke bestillingen. Last siden på nytt og prøv igjen.' };
     }
 
     // Verify order status is cancellable
@@ -908,24 +917,23 @@ export async function cancelOrderAction(
     if (!cancellableStatuses.includes(order.status)) {
       return {
         success: false,
-        error: `Kan ikke kansellere ordre med status: ${order.status}`
+        error: 'Bestillingen kan ikke lenger kanselleres. Last siden på nytt for å se status.'
       };
     }
 
-    // Verify it's more than 24 hours before pickup
-    const now = new Date();
-    const pickupDate = new Date(order.scheduled_date);
-    const hoursUntilPickup = (pickupDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-    if (hoursUntilPickup <= 24) {
+    // Self-cancellation closes at midnight (Norwegian time) at the start of
+    // the day before the pickup day — the rule of the sales terms, section 7.
+    // CancelOrderButton uses the same function.
+    if (!canCancelOrderSelf(order.scheduled_date)) {
       return {
         success: false,
-        error: 'Kan ikke kansellere ordre mindre enn 24 timer før henting'
+        error: `${selfCancelClosedText(order.scheduled_date)} Ta kontakt med oss på ${COMPANY.email}, så hjelper vi deg.`
       };
     }
 
     const cancelled = await updateOrderStatus(orderId, 'cancelled');
     if (!cancelled) {
-      return { success: false, error: 'Failed to cancel order' };
+      return { success: false, error: 'Vi klarte ikke å kansellere bestillingen. Prøv igjen.' };
     }
 
     // One-time order: nothing will ever be charged on its Vipps agreement, so
@@ -981,7 +989,7 @@ export async function cancelOrderAction(
     return { success: true, nextOrderId };
   } catch (error) {
     console.error('Error cancelling order:', error);
-    return { success: false, error: 'An error occurred while cancelling order' };
+    return { success: false, error: 'Noe gikk galt. Last siden på nytt og sjekk om bestillingen er kansellert.' };
   }
 }
 
@@ -1009,17 +1017,17 @@ export async function updateOrderPickupDateAction(
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return { success: false, error: 'Not authenticated' };
+      return { success: false, error: 'Du er logget ut. Logg inn på nytt og prøv igjen.' };
     }
 
     const customer = await getCustomerByUserId(user.id);
     if (!customer) {
-      return { success: false, error: 'Customer not found' };
+      return { success: false, error: 'Vi fant ikke kundeprofilen din. Logg inn på nytt og prøv igjen.' };
     }
 
     const order = await getOrderWithDetailsByIdAndCustomerId(orderId, customer.id);
     if (!order) {
-      return { success: false, error: 'Order not found' };
+      return { success: false, error: 'Vi fant ikke bestillingen. Last siden på nytt og prøv igjen.' };
     }
 
     // Verify order status is editable
@@ -1031,6 +1039,17 @@ export async function updateOrderPickupDateAction(
       };
     }
 
+    // From midnight (Norwegian time) at the start of the pickup day the
+    // customer can no longer move the date: the cleaner has planned the day.
+    // The reschedule page and RescheduleButton use the same function. Admins
+    // are not bound by this (updateOrderDetailsAction).
+    if (!canReschedulePickupSelf(order.scheduled_date)) {
+      return {
+        success: false,
+        error: `${RESCHEDULE_CLOSED_TEXT} Ta kontakt med oss på ${COMPANY.email}, så hjelper vi deg.`
+      };
+    }
+
     // The new date must be bookable right now (same rule as the order flow;
     // ISO dates compare correctly as strings).
     const pickupDate = new Date(newPickupDate);
@@ -1038,6 +1057,14 @@ export async function updateOrderPickupDateAction(
       return {
         success: false,
         error: 'Hentedatoen er ikke lenger tilgjengelig. Velg en ny dato.'
+      };
+    }
+
+    // Same upper bound as checkout (validateCheckoutInput).
+    if (daysBetweenISODates(todayInOslo(), newPickupDate) > MAX_DAYS_AHEAD) {
+      return {
+        success: false,
+        error: `Hentedatoen kan ikke være mer enn ${MAX_DAYS_AHEAD} dager frem i tid.`
       };
     }
 
@@ -1103,6 +1130,11 @@ export async function updateOrderPickupDateAction(
     // write: its scheduled_date is the old date and its updated_at keys the
     // send. Sends nothing when the date is unchanged. Never throws.
     await sendPickupRescheduledEmail(orderId, order, 'customer');
+
+    // Tell the cleaner(s): «Ny hentedato» to the cleaner who keeps the order,
+    // or «Oppdraget er flyttet» to the previous cleaner plus «Nytt oppdrag»
+    // to the new one. Same `order` (the row BEFORE the write). Never throws.
+    await sendCleanerPickupRescheduledEmails(orderId, order);
 
     return {
       success: true,

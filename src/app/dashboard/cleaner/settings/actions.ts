@@ -7,9 +7,10 @@ import { geocodeAddress } from '@/lib/maps/geocoding';
 import { getCityFromPostalCode, serviceAreaText } from '@/lib/config/postal-codes';
 import { EXPERIENCE_LEVEL_OPTIONS, MACHINE_CONDITION_OPTIONS } from '@/lib/config/cleaner-options';
 import {
+  bankAccountError,
   hasAnyWeekday,
   normalizeWeeklySchedule,
-  validateBankAccount,
+  stripNumberFormatting,
   validatePostalCode,
   validateYear,
 } from '@/lib/validation/cleaner';
@@ -77,9 +78,14 @@ export async function updateCleanerSettingsAction(
     if (!EXPERIENCE_LEVELS.includes(input.experienceLevel)) {
       return { success: false, error: 'Ugyldig erfaringsnivå' };
     }
-    const bankAccount = input.bankAccount.replace(/\s/g, '');
-    if (!validateBankAccount(bankAccount)) {
-      return { success: false, error: 'Kontonummer må være 11 siffer' };
+    const bankAccount = stripNumberFormatting(input.bankAccount);
+    // Checked only when it changes: an account number stored before the
+    // checksum existed must not stop the cleaner from saving other settings.
+    if (bankAccount !== cleaner.bank_account) {
+      const bankAccountProblem = bankAccountError(bankAccount);
+      if (bankAccountProblem) {
+        return { success: false, error: bankAccountProblem };
+      }
     }
     const baseStreet = input.baseStreet.trim();
     if (baseStreet.length < 3) {
