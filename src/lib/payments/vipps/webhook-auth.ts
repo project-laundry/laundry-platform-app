@@ -70,11 +70,13 @@ export function validateVippsWebhook(
 
   const expectedAuth = `HMAC-SHA256 SignedHeaders=x-ms-date;host;x-ms-content-sha256&Signature=${expectedSignature}`;
 
-  // 4. Compare with provided authorization header
-  if (authHeader !== expectedAuth) {
-    console.error(`${logPrefix} Signature verification failed`);
-    console.error(`${logPrefix} Expected:`, expectedAuth);
-    console.error(`${logPrefix} Received:`, authHeader);
+  // 4. Compare with provided authorization header, in constant time. The
+  // expected value is never logged: anyone who can read the logs could replay
+  // it as a valid signature.
+  const received = Buffer.from(authHeader);
+  const expected = Buffer.from(expectedAuth);
+  if (received.length !== expected.length || !crypto.timingSafeEqual(received, expected)) {
+    console.error(`${logPrefix} Signature verification failed (host ${hostHeader}, path ${pathAndQuery})`);
     return false;
   }
 

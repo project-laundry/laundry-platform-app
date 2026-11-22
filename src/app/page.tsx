@@ -128,7 +128,6 @@ function Prices() {
 export default function HomePage() {
   return (
     <ComingSoonShell
-      audience="customer"
       links={[
         { href: `/#${HOW_IT_WORKS_ID}`, label: 'Slik virker det' },
         { href: '/pris-kalkulator', label: 'Priser' },
@@ -138,7 +137,6 @@ export default function HomePage() {
       switchLabel="Logg inn"
     >
       <ComingSoonHero
-        audience="customer"
         badge="Nå åpent i Bergen og Oslo"
         title="Nå slipper du"
         highlight="klesvasken."

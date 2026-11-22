@@ -7,6 +7,8 @@ import {
   failPaymentWithMetadata,
   updatePayment,
 } from "@/lib/database/payments";
+import { hasLivePayment, isOrphanPendingPayment } from "@/lib/utils/payment-status";
+import type { Payment } from "@/types/database";
 
 // =============================================================================
 // TYPES
@@ -303,5 +305,92 @@ export async function stopVippsAgreementForCancelledSubscription(
   } catch (error) {
     // Both call sites are post-payment cleanup — never let this break them.
     console.error('[stopVippsAgreementForCancelledSubscription] Failed:', error);
+  }
+}
+
+// =============================================================================
+// ONE-TIME ORDER AGREEMENT STOP - ORDER CANCELLED, OR COMPLETED WITH NOTHING TO CHARGE
+// =============================================================================
+
+/**
+ * Stop the Vipps agreement of a one-time order (no subscription) once nothing
+ * more will be charged on it:
+ * - the order was cancelled (customer or admin; only possible before pickup,
+ *   so no charge exists), or
+ * - the order is completed and its money is settled: a 0 kr total (100 % promo,
+ *   no charge and therefore no charge-captured webhook), or a captured/refunded
+ *   payment (second chance when the stop in the charge-captured webhook failed).
+ *
+ * Safe to call unconditionally: no-op for subscription orders, orders without
+ * an agreement, orders that are neither cancelled nor completed, and agreements
+ * that are not active (already stopped — idempotency guard). It also refuses:
+ * - while a Vipps charge for the order is still pending/authorized — stopping
+ *   the agreement would cancel that charge; the charge-captured webhook stops
+ *   the agreement once it settles (same rule as the subscription stop above,
+ *   orphan pending rows do not count);
+ * - for a completed order with a price above 0 and no live payment (the charge
+ *   failed) — the admin's «Belast på nytt» needs the agreement active.
+ * Never throws: a failed stop is logged and must never fail the cancellation
+ * or the completion that called it.
+ */
+export async function stopVippsAgreementForOneTimeOrder(orderId: string): Promise<void> {
+  try {
+    const { getOrderById } = await import('@/lib/database/orders');
+    const order = await getOrderById(orderId);
+    if (!order || order.subscription_id || !order.payment_agreement_id) {
+      return; // subscription order, manual order, or unknown order
+    }
+    if (order.status !== 'cancelled' && order.status !== 'completed') {
+      return; // still in progress — the agreement is needed for its charge
+    }
+
+    const { getPaymentAgreementById, stopPaymentAgreement } = await import('@/lib/database/payment-agreements');
+    const agreement = await getPaymentAgreementById(order.payment_agreement_id);
+    if (!agreement || agreement.status !== 'active') {
+      return; // already stopped (or never activated) — idempotency guard
+    }
+
+    // Read the order's payments here instead of through getPaymentsByOrderId:
+    // that helper returns [] on a query error, which would read as "nothing to
+    // wait for" and stop the agreement under a pending charge. Fail safe instead.
+    const { createAdminClient } = await import('@/lib/supabase/admin');
+    const { data, error: paymentsError } = await createAdminClient()
+      .from('payments')
+      .select('status, provider_reference, created_at, payment_provider')
+      .eq('order_id', orderId);
+    if (paymentsError || !data) {
+      console.error('[stopVippsAgreementForOneTimeOrder] Could not read payments, not stopping:', paymentsError);
+      return;
+    }
+    const payments = data as Pick<Payment, 'status' | 'provider_reference' | 'created_at' | 'payment_provider'>[];
+
+    const hasUnsettledVippsPayment = payments.some(
+      (payment) =>
+        payment.payment_provider === 'vipps' &&
+        (payment.status === 'authorized' ||
+          (payment.status === 'pending' && !isOrphanPendingPayment(payment)))
+    );
+    if (hasUnsettledVippsPayment) {
+      return; // the charge-captured webhook stops the agreement once it settles
+    }
+
+    if (order.status === 'completed') {
+      if (order.total_cost_ore === null) {
+        return; // no price on a completed order: unknown state, leave it to an admin
+      }
+      if (order.total_cost_ore > 0 && !hasLivePayment(payments)) {
+        return; // not paid yet — «Belast på nytt» needs the agreement active
+      }
+    }
+
+    console.log(`[stopVippsAgreementForOneTimeOrder] Stopping agreement ${agreement.provider_agreement_id} for ${order.status} one-time order ${orderId}`);
+    const vipps = createVippsRecurringClient();
+    await vipps.stopAgreement(agreement.provider_agreement_id);
+    const stopped = await stopPaymentAgreement(agreement.id);
+    if (!stopped) {
+      console.error(`[stopVippsAgreementForOneTimeOrder] Agreement ${agreement.id} is stopped at Vipps but the database row could not be updated`);
+    }
+  } catch (error) {
+    console.error('[stopVippsAgreementForOneTimeOrder] Failed:', error);
   }
 }

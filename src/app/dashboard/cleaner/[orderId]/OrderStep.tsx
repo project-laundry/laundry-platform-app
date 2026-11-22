@@ -52,7 +52,7 @@ interface OrderStepProps {
   initialIroningDetails: IroningDetails | null;
   initialNotes: string | null;
   promo: OrderPromo | null;
-  /** orders.total_cost_ore — what the customer was charged at the ready step. */
+  /** orders.total_cost_ore — the amount sent to Vipps at the ready step (drawn on the due date, not at once). */
   totalCostOre: number | null;
   /**
    * True when the ready-step charge failed and no later payment replaced it:
@@ -254,7 +254,7 @@ export function OrderStep({
         {declining ? (
           <div className="space-y-3 animate-in fade-in slide-in-from-top-1 duration-300">
             <p className="text-medium-gray">
-              Vil du avslå ordre #{orderNumber}? Den blir tildelt en annen renser.
+              Vil du avslå ordre #{orderNumber}? Vi gir oppdraget til en annen renser hvis noen er ledig. Hvis ikke, følger NooraCare det opp.
             </p>
             <div className="flex gap-3">
               <button
@@ -458,11 +458,11 @@ export function OrderStep({
             <p className="text-medium-gray">
               {customerPaysOre > 0 ? (
                 <>
-                  Kunden belastes{' '}
+                  Prisen sendes til kunden, og Vipps trekker{' '}
                   <span className="font-semibold tabular-nums text-dark-gray">
                     {formatKrExact(customerPaysOre)}
                   </span>{' '}
-                  via Vipps når du bekrefter.
+                  i løpet av et par dager.
                 </>
               ) : (
                 'Rabatten dekker hele beløpet, så kunden belastes ikke.'
@@ -510,7 +510,7 @@ export function OrderStep({
         <p className="flex items-center gap-2 text-sm text-sea-green">
           <Check className="size-4 shrink-0" />
           {totalCostOre !== null && totalCostOre > 0
-            ? `Kunden er belastet ${formatKrExact(totalCostOre)}`
+            ? `Betalingen på ${formatKrExact(totalCostOre)} er sendt til Vipps`
             : 'Kunden skal ikke betale noe for denne ordren'}
         </p>
       )}

@@ -6,8 +6,7 @@ import {
 } from '@/lib/config/pricing';
 import { PICKUP_TIME_RANGE } from '@/lib/config/pickup-times';
 
-/** Cleaner FAQ, shared by the coming-soon page (a subset) and the full
- *  landing page so the answers can't drift. Keys let pages pick entries. */
+/** Cleaner FAQ shown on the cleaner landing page (/bli-renser). */
 export const CLEANER_FAQ = {
   where: {
     q: 'Hvor kan jeg være renser?',
@@ -46,9 +45,3 @@ export const CLEANER_FAQ = {
     a: 'Vi går gjennom søknaden din innen 1–2 virkedager. Du ser statusen i dashbordet ditt så snart den er behandlet.',
   },
 } as const;
-
-export type CleanerFaqKey = keyof typeof CLEANER_FAQ;
-
-export function pickFaq(keys: CleanerFaqKey[]) {
-  return keys.map((key) => CLEANER_FAQ[key]);
-}

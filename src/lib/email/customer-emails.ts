@@ -36,22 +36,22 @@ export interface CustomerEmailOptions {
 
 // ─── Content model ──────────────────────────────────────────────────────────
 
-interface Row {
+export interface Row {
   label: string;
   value: string;
   strong?: boolean;
 }
 
-type Block =
+export type Block =
   | { type: 'heading'; text: string }
   | { type: 'paragraph'; text: string }
   | { type: 'rows'; rows: Row[] }
   | { type: 'button'; label: string; url: string };
 
-const heading = (text: string): Block => ({ type: 'heading', text });
-const paragraph = (text: string): Block => ({ type: 'paragraph', text });
-const rows = (list: Row[]): Block => ({ type: 'rows', rows: list });
-const button = (label: string, url: string): Block => ({ type: 'button', label, url });
+export const heading = (text: string): Block => ({ type: 'heading', text });
+export const paragraph = (text: string): Block => ({ type: 'paragraph', text });
+export const rows = (list: Row[]): Block => ({ type: 'rows', rows: list });
+export const button = (label: string, url: string): Block => ({ type: 'button', label, url });
 
 // ─── Formatting helpers ─────────────────────────────────────────────────────
 
@@ -79,7 +79,7 @@ function escapeHtml(value: string): string {
     .replace(/"/g, '&quot;');
 }
 
-function baseUrl(options: CustomerEmailOptions): string {
+export function baseUrl(options: CustomerEmailOptions): string {
   return options.appUrl.replace(/\/$/, '');
 }
 
@@ -92,12 +92,12 @@ function greeting(order: OrderForCustomerEmail): Block {
   return paragraph(firstName ? `Hei ${firstName}!` : 'Hei!');
 }
 
-function closing(): Block {
+export function closing(): Block {
   return paragraph(`Spørsmål? Svar på denne e-posten eller skriv til ${COMPANY.email}.`);
 }
 
 /** "Det du sender" lines from the checkout selection; ironing only while it is offered. */
-function estimateRows(estimate: CustomerEstimate): Row[] {
+export function estimateRows(estimate: CustomerEstimate): Row[] {
   const list: Row[] = [];
   if (estimate.bags > 0) {
     list.push({ label: 'Klær', value: `${estimate.bags} ${estimate.bags === 1 ? 'pose' : 'poser'}` });
@@ -186,7 +186,7 @@ function renderHtml(title: string, blocks: Block[], siteUrl: string): string {
 </html>`;
 }
 
-function finish(
+export function finish(
   subject: string,
   title: string,
   blocks: Block[],
@@ -633,8 +633,10 @@ export interface OrderCancelledDetails {
  * that can be cancelled: a charge is only created once an order is marked
  * ready (in_cleaning → ready_for_delivery), and only pending_assignment /
  * pickup_scheduled orders can be cancelled. The Vipps AGREEMENT is
- * deliberately not mentioned: for a one-time order it stays active until
- * issue #144 is fixed, so neither "stopped" nor "still active" is safe to say.
+ * deliberately not mentioned: for a one-time order it is stopped silently
+ * right after the cancel write (stopVippsAgreementForOneTimeOrder), and a
+ * failed stop is only logged, so neither "stopped" nor "still active" is safe
+ * to say.
  */
 export function buildOrderCancelledEmail(
   order: OrderForCustomerEmail,

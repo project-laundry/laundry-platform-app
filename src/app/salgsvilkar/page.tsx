@@ -5,12 +5,7 @@ import { Footer } from "@/components/landing/Footer";
 import { formatTermsVersion } from "@/lib/config/terms";
 import { CompanyContactCard } from "@/components/legal/CompanyContactCard";
 import { SUBSCRIPTIONS_OFFERED } from "@/lib/config/subscriptions";
-
-/** Section 7 (subscription terms) is not rendered while subscriptions aren't
- *  offered, so every later section moves up one number. */
-function sectionNumber(n: number): number {
-  return SUBSCRIPTIONS_OFFERED || n < 7 ? n : n - 1;
-}
+import { MIN_DAYS_NOTICE } from "@/lib/config/order-timing";
 
 export const metadata: Metadata = {
   title: "Salgsvilkår | NooraCare",
@@ -211,8 +206,10 @@ export default function SalgsvilkarPage() {
               </p>
             </section>
 
-            {/* 7. Subscription terms — not rendered while subscriptions aren't offered */}
-            {SUBSCRIPTIONS_OFFERED && (
+            {/* 7. Subscription terms while subscriptions are offered; otherwise the
+                change and cancellation rules for a single order. Must match
+                cancelOrderAction / updateOrderPickupDateAction in app/orders/actions.ts. */}
+            {SUBSCRIPTIONS_OFFERED ? (
             <section className="mb-10">
               <h2 className="mb-4 font-serif text-2xl font-semibold text-dark-gray">
                 7. Abonnement: bindingstid, endring og oppsigelse
@@ -249,12 +246,43 @@ export default function SalgsvilkarPage() {
                 vanlig måte.
               </p>
             </section>
+            ) : (
+            <section className="mb-10">
+              <h2 className="mb-4 font-serif text-2xl font-semibold text-dark-gray">
+                7. Endring og avbestilling
+              </h2>
+              <p className="leading-relaxed text-dark-gray mb-4">
+                Frem til tøyet er hentet kan du endre adresse, hentedato, hva
+                du sender og instruksjonene dine i bestillingen på{" "}
+                <Link
+                  href="/dashboard"
+                  className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
+                >
+                  nooracare.no/dashboard
+                </Link>
+                . En ny hentedato må være minst {MIN_DAYS_NOTICE} dager frem i
+                tid.
+              </p>
+              <p className="leading-relaxed text-dark-gray">
+                Du kan avbestille kostnadsfritt samme sted inntil 24 timer før
+                hentedagen. Da belastes du ikke, og Vipps-avtalen for
+                bestillingen avsluttes. Senere enn 24 timer før hentedagen kan
+                du ikke avbestille selv – ta kontakt med oss på{" "}
+                <a
+                  href="mailto:post@nooracare.no"
+                  className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
+                >
+                  post@nooracare.no
+                </a>
+                .
+              </p>
+            </section>
             )}
 
             {/* 8. Right of withdrawal */}
             <section className="mb-10">
               <h2 className="mb-4 font-serif text-2xl font-semibold text-dark-gray">
-                {sectionNumber(8)}. Angrerett
+                8. Angrerett
               </h2>
               <p className="leading-relaxed text-dark-gray mb-4">
                 I henhold til angrerettloven har du som forbruker rett til å
@@ -283,7 +311,7 @@ export default function SalgsvilkarPage() {
             {/* 9. Complaints */}
             <section className="mb-10">
               <h2 className="mb-4 font-serif text-2xl font-semibold text-dark-gray">
-                {sectionNumber(9)}. Reklamasjon og mangler
+                9. Reklamasjon og mangler
               </h2>
               <p className="leading-relaxed text-dark-gray mb-4">
                 Hvis tjenesten har en mangel – for eksempel skadet eller
@@ -309,7 +337,7 @@ export default function SalgsvilkarPage() {
             {/* 10. Liability */}
             <section className="mb-10">
               <h2 className="mb-4 font-serif text-2xl font-semibold text-dark-gray">
-                {sectionNumber(10)}. Ansvar
+                10. Ansvar
               </h2>
               <p className="leading-relaxed text-dark-gray mb-4">
                 NooraCare og våre rensere behandler tøyet ditt etter beste
@@ -331,7 +359,7 @@ export default function SalgsvilkarPage() {
             {/* 11. Privacy */}
             <section className="mb-10">
               <h2 className="mb-4 font-serif text-2xl font-semibold text-dark-gray">
-                {sectionNumber(11)}. Personvern
+                11. Personvern
               </h2>
               <p className="leading-relaxed text-dark-gray">
                 NooraCare behandler personopplysninger i samsvar med
@@ -351,7 +379,7 @@ export default function SalgsvilkarPage() {
             {/* 12. Disputes */}
             <section className="mb-10">
               <h2 className="mb-4 font-serif text-2xl font-semibold text-dark-gray">
-                {sectionNumber(12)}. Tvisteløsning
+                12. Tvisteløsning
               </h2>
               <p className="leading-relaxed text-dark-gray mb-4">
                 Vi oppfordrer deg alltid til å ta kontakt med oss først hvis
@@ -379,7 +407,7 @@ export default function SalgsvilkarPage() {
             {/* 13. Changes */}
             <section className="mb-4">
               <h2 className="mb-4 font-serif text-2xl font-semibold text-dark-gray">
-                {sectionNumber(13)}. Endringer i vilkårene
+                13. Endringer i vilkårene
               </h2>
               <p className="leading-relaxed text-dark-gray">
                 NooraCare kan oppdatere disse salgsvilkårene. Vesentlige

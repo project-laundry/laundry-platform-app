@@ -11,7 +11,7 @@ import {
   findAvailableCleaner,
   getAvailableWeekdaysForCity,
 } from "@/lib/database/cleaners";
-import { createVippsAgreement } from "@/lib/payments/vipps/service";
+import { createVippsAgreement, stopVippsAgreementForOneTimeOrder } from "@/lib/payments/vipps/service";
 import { isVippsForceAcceptAllowed, pickVippsTestPhone } from "@/lib/payments/vipps/config";
 import { createVippsRecurringClient } from "@/lib/payments/vipps/recurring-client";
 import { getWeekdayFromDate, isWeekdayInSchedule, addDays, toISODateString, todayInOslo } from "@/lib/utils/date";
@@ -919,6 +919,13 @@ export async function cancelOrderAction(
     const cancelled = await updateOrderStatus(orderId, 'cancelled');
     if (!cancelled) {
       return { success: false, error: 'Failed to cancel order' };
+    }
+
+    // One-time order: nothing will ever be charged on its Vipps agreement, so
+    // stop it now (#144). Never throws — a failed stop is logged and the
+    // cancellation stands.
+    if (!order.subscription_id) {
+      await stopVippsAgreementForOneTimeOrder(orderId);
     }
 
     // If user wants to cancel subscription along with order

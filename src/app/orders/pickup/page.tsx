@@ -13,6 +13,7 @@ import {
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { calculateCustomerEstimate } from '@/lib/config/pricing';
 import { SUBSCRIPTIONS_OFFERED } from '@/lib/config/subscriptions';
+import { PICKUP_TIME_RANGE } from '@/lib/config/pickup-times';
 import type { Weekday } from '@/types/database';
 import { buildDateChips } from './date-chips';
 import {
@@ -350,6 +351,17 @@ function PickupForm() {
               );
             })}
           </div>
+          </div>
+        )}
+        {/* The pickup hours, shown as soon as there is a date to choose
+            (issue #97). Pickup only — delivery has no time window. */}
+        {dateChips.length > 0 && (
+          <div className="mt-3 flex items-start gap-2 rounded-2xl bg-cream/70 px-3.5 py-2.5 text-sm text-medium-gray">
+            <Info className="mt-0.5 size-4 shrink-0 text-sea-green" />
+            <p className="tabular-nums">
+              Vi henter mellom kl. {PICKUP_TIME_RANGE.start} og {PICKUP_TIME_RANGE.end} på
+              dagen du velger.
+            </p>
           </div>
         )}
       </Section>

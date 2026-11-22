@@ -1,37 +1,25 @@
 import { getImageProps } from 'next/image';
 import Link from 'next/link';
-import { ArrowDown, ArrowRight, Gift, Users } from 'lucide-react';
+import { ArrowDown, ArrowRight } from 'lucide-react';
 import { Wordmark } from '@/components/layout/AppHeader';
 import { Footer } from '@/components/landing/Footer';
-import { WaitlistForm } from '@/components/coming-soon/WaitlistForm';
-import type { WaitlistAudience } from '@/types/database';
-
-// Below this many signups the counter does more harm than good, so it's hidden.
-const MIN_COUNT_TO_SHOW = 20;
 
 /** Anchor the "how it works" section gets; the hero and the nav point at it. */
 export const HOW_IT_WORKS_ID = 'slik-virker-det';
-
-/** Anchor on the waitlist form in the hero, so CTAs further down can send
- *  people back up to it. */
-export const WAITLIST_ID = 'venteliste';
 
 /** Horizontal container shared by the bar and the hero copy, so the wordmark,
  *  the headline and the form share one left edge at every width. */
 const heroContainer = 'mx-auto w-full max-w-[96rem] px-5 sm:px-8 lg:px-12 xl:px-16';
 
-/** Page shell shared by the customer landing page and the cleaner
- *  coming-soon page: Snø backdrop for the sections, a transparent bar over
+/** Page shell of the customer landing page: Snø backdrop for the sections, a transparent bar over
  *  the light hero, footer. `links` are quiet text links left of the pill
  *  (hidden on phones, where the page itself carries them). */
 export function ComingSoonShell({
-  audience,
   links = [],
   switchHref,
   switchLabel,
   children,
 }: {
-  audience: WaitlistAudience;
   links?: { href: string; label: string }[];
   switchHref: string;
   switchLabel: string;
@@ -75,7 +63,7 @@ export function ComingSoonShell({
 
       <main>{children}</main>
 
-      <Footer showPricing={audience === 'customer'} />
+      <Footer showPricing />
     </div>
   );
 }
@@ -91,7 +79,7 @@ function Bubbles({ className, tone = 'text-sol' }: { className: string; tone?: s
 }
 
 /** The hero, campaign-style: from `lg` up one landscape photo fills the
- *  whole viewport and the copy and form sit in Fjord type on its empty left
+ *  whole viewport and the copy and action sit in Fjord type on its empty left
  *  side over a soft Snø fade. Below that (phones, tablets in portrait) the
  *  copy comes first, centered, with the portrait photo under it, so the form
  *  stays above the fold and the type never lands on the subject. The
@@ -99,29 +87,20 @@ function Bubbles({ className, tone = 'text-sol' }: { className: string; tone?: s
  *  prompt in the session notes / BRANDBOOK §1 "Light hero". Without a photo
  *  the copy is centered in one column. */
 export function ComingSoonHero({
-  audience,
   badge,
   title,
   highlight,
   subtitle,
-  offer,
-  count = null,
   action,
   image,
 }: {
-  audience: WaitlistAudience;
   badge: string;
   title: string;
   /** Second headline line, underlined with a Morgensol marker stroke. */
   highlight: string;
   subtitle: string;
-  /** The concrete reason to sign up today, shown above the form as two short
-   *  spans so it never wraps awkwardly on a phone. */
-  offer?: { title: string; detail: string };
-  count?: number | null;
-  /** Replaces the waitlist form (and its offer and counter) — the launched
-   *  customer page puts its order starter here. */
-  action?: React.ReactNode;
+  /** What sits under the subtitle — the customer page puts its order starter here. */
+  action: React.ReactNode;
   /** Hero photo, landscape, subject in the right third, plain wall on the
    *  left. `mobileSrc` is the portrait counterpart (plain wall in the top two
    *  thirds, subject at the bottom) shown under the copy below `lg`.
@@ -171,27 +150,10 @@ export function ComingSoonHero({
       </p>
 
       <div
-        id={WAITLIST_ID}
-        className={`mt-8 scroll-mt-28 text-left animate-in fade-in slide-in-from-bottom-3 duration-500 ${actionWidth} ${align}`}
+        className={`mt-8 text-left animate-in fade-in slide-in-from-bottom-3 duration-500 ${actionWidth} ${align}`}
         style={{ animationDelay: '180ms' }}
       >
         {action}
-        {!action && offer && (
-          <p className="mb-4 flex items-start gap-2.5 rounded-2xl bg-fersken px-3.5 py-3 text-[clamp(11.5px,calc((100vw_-_100px)/24),14px)] text-fjord sm:px-4 sm:text-sm">
-            <Gift className="mt-0.5 hidden size-4 shrink-0 sm:block" />
-            <span className="flex flex-wrap items-baseline gap-x-1">
-              <span className="font-semibold">{offer.title}</span>
-              <span>{offer.detail}</span>
-            </span>
-          </p>
-        )}
-        {!action && <WaitlistForm audience={audience} />}
-        {!action && count !== null && count >= MIN_COUNT_TO_SHOW && (
-          <p className="mt-4 flex items-center justify-center gap-1.5 text-sm text-medium-gray">
-            <Users className="size-4 text-sea-green" />
-            Bli med <span className="font-semibold tabular-nums text-sea-green">{count}</span> andre
-          </p>
-        )}
       </div>
     </>
   );
@@ -292,54 +254,6 @@ export const ACCENT_CHIPS = ['bg-sol/35', 'bg-frost/45', 'bg-fersken/40'] as con
 
 export const comingSoonCard =
   'rounded-3xl border border-lin bg-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur sm:p-6';
-
-/** Section header used by both pages. */
-export function SectionHeading({ eyebrow, title }: { eyebrow: string; title: string }) {
-  return (
-    <div className="mb-6">
-      <p className="text-sm font-medium uppercase tracking-[0.18em] text-frost-deep">{eyebrow}</p>
-      <h2 className="mt-1 font-serif text-2xl font-semibold text-dark-gray sm:text-3xl">{title}</h2>
-    </div>
-  );
-}
-
-/** Numbered "how it works" list. */
-export function StepList({ steps }: { steps: { title: string; text: string }[] }) {
-  return (
-    <ol className="grid gap-3 sm:grid-cols-2">
-      {steps.map((step, index) => (
-        <li key={step.title} className={`flex items-start gap-4 ${comingSoonCard}`}>
-          <span
-            className={`flex size-9 shrink-0 items-center justify-center rounded-full font-serif text-lg font-semibold text-fjord ${ACCENT_CHIPS[index % ACCENT_CHIPS.length]}`}
-          >
-            {index + 1}
-          </span>
-          <div>
-            <h3 className="font-serif text-lg font-semibold text-dark-gray">{step.title}</h3>
-            <p className="mt-1 text-sm text-medium-gray">{step.text}</p>
-          </div>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-/** Expandable Q&A list. */
-export function FaqList({ items }: { items: readonly { q: string; a: string }[] }) {
-  return (
-    <div className="grid gap-3">
-      {items.map((item) => (
-        <details key={item.q} className={`group ${comingSoonCard}`}>
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-serif text-lg font-semibold text-dark-gray [&::-webkit-details-marker]:hidden">
-            {item.q}
-            <ArrowDown className="size-4 shrink-0 text-frost-deep transition-transform group-open:rotate-180" />
-          </summary>
-          <p className="mt-3 text-sm text-medium-gray">{item.a}</p>
-        </details>
-      ))}
-    </div>
-  );
-}
 
 /** One line above the footer that sends visitors to the other audience's
  *  page. A marketplace needs both sides, but the other audience is a minority

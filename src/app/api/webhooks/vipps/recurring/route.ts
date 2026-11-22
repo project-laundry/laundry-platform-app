@@ -53,6 +53,7 @@ import { cancelVippsAgreement, stopVippsAgreementForCancelledSubscription } from
 import { createOrder, getOrderByPaymentAgreementId } from '@/lib/database/orders';
 import { buildOrderData } from '@/lib/services/order-generation';
 import { sendOrderConfirmationEmail, sendPaymentFailedEmail } from '@/lib/services/customer-emails';
+import { sendAdminNewOrderEmail, sendCleanerNewOrderEmail } from '@/lib/services/staff-emails';
 import { recordPromoRedemption } from '@/lib/database/promo-codes';
 import { addDays, toISODateString, getWeekdayFromDate, getNextOccurrenceOfWeekday } from '@/lib/utils/date';
 import { DAYS_PICKUP_TO_DELIVERY } from '@/lib/config/order-timing';
@@ -167,7 +168,6 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('[Vipps Recurring Webhook] Received webhook');
-    console.log('[Vipps Recurring Webhook] Payload:', JSON.stringify(body, null, 2));
 
     // Route to appropriate handler based on webhook type
     if (isRecurringChargeWebhook(body)) {
@@ -736,6 +736,12 @@ async function generateFirstOrder(
   // Never throws (lib/services/customer-emails.ts) — an e-mail failure must
   // not make Vipps retry an activation that already succeeded.
   await sendOrderConfirmationEmail(order.id);
+
+  // Staff e-mails: «Nytt oppdrag» to the assigned cleaner (skipped inside when
+  // the order has no cleaner yet) and «Ny ordre» to every admin. Same rules
+  // as the confirmation above: only on the path that just inserted the order,
+  // and they never throw (lib/services/staff-emails.ts).
+  await Promise.all([sendCleanerNewOrderEmail(order.id), sendAdminNewOrderEmail(order.id)]);
 
   // Record the redemption now that a first order exists (committed customer).
   // Idempotent via UNIQUE(promo_code_id, customer_id) — safe on webhook retries.

@@ -192,6 +192,39 @@ export async function assignCleanerToOrder(
   return data;
 }
 
+/**
+ * Automatic re-assignment after a decline: give the order to `cleanerId`
+ * only while it is still waiting (pending_assignment, no cleaner). Returns
+ * null when it no longer is — an admin assigned it or it was cancelled in
+ * the meantime — so the caller never overwrites that.
+ */
+export async function assignCleanerToPendingOrder(
+  orderId: string,
+  cleanerId: string
+): Promise<Order | null> {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from('orders')
+    .update({
+      cleaner_id: cleanerId,
+      status: 'pickup_scheduled' as OrderStatus,
+      assigned_at: new Date().toISOString(),
+    })
+    .eq('id', orderId)
+    .eq('status', 'pending_assignment')
+    .is('cleaner_id', null)
+    .select()
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error assigning cleaner to pending order:', error);
+    return null;
+  }
+
+  return data;
+}
+
 
 /**
  * Update order status
@@ -449,7 +482,10 @@ export async function getOrdersByCleanerId(
 
 /**
  * Cleaner declines an order - resets to pending_assignment
- * Adds cleaner to declined_by_cleaner_ids to avoid re-assignment
+ * Adds cleaner to declined_by_cleaner_ids to avoid re-assignment.
+ * Returns null when the cleaner does not hold the order or it is no longer
+ * pickup_scheduled. The caller (declineCleanerOrder) then tries to hand the
+ * order to the next available cleaner with assignCleanerToPendingOrder.
  */
 export async function declineOrder(
   orderId: string,
@@ -478,6 +514,10 @@ export async function declineOrder(
   const currentDeclined = order.declined_by_cleaner_ids || [];
   const updatedDeclined = [...currentDeclined, cleanerId];
 
+  // Guarded: only while this cleaner still holds the order and it is not
+  // picked up. A decline racing a pickup, a cancellation or an admin
+  // re-assignment then matches no row and returns null instead of
+  // overwriting the other write.
   const { data, error } = await supabase
     .from('orders')
     .update({
@@ -487,8 +527,10 @@ export async function declineOrder(
       declined_by_cleaner_ids: updatedDeclined,
     })
     .eq('id', orderId)
+    .eq('cleaner_id', cleanerId)
+    .eq('status', 'pickup_scheduled')
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
     console.error('Error declining order:', error);
@@ -735,6 +777,41 @@ export async function getOrderForCustomerEmail(
   }
 
   return data as OrderForCustomerEmail | null;
+}
+
+/**
+ * An order with the assigned cleaner's display name and contact, for the
+ * staff e-mails (lib/services/staff-emails.ts): «Nytt oppdrag» to the
+ * cleaner and the admin alerts. Admin client — only called from the Vipps
+ * webhook and role-guarded server actions.
+ */
+export interface OrderForStaffEmail extends Order {
+  cleaner: (Pick<Cleaner, 'display_name'> & { user: Pick<User, 'email' | 'full_name'> }) | null;
+}
+
+export async function getOrderForStaffEmail(
+  orderId: string
+): Promise<OrderForStaffEmail | null> {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select(`
+      *,
+      cleaner:cleaners!orders_cleaner_id_fkey(
+        display_name,
+        user:users!user_id(email, full_name)
+      )
+    `)
+    .eq('id', orderId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[getOrderForStaffEmail] Error fetching order:', error);
+    return null;
+  }
+
+  return data as OrderForStaffEmail | null;
 }
 
 /**

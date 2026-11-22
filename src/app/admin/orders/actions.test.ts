@@ -20,12 +20,16 @@ vi.mock('@/lib/services/customer-emails', () => ({
   sendOrderCancelledEmail: vi.fn(),
   sendPickupRescheduledEmail: vi.fn(),
 }));
+vi.mock('@/lib/services/staff-emails', () => ({ sendCleanerNewOrderEmail: vi.fn() }));
 vi.mock('@/lib/services/order-generation', () => ({ checkAndGenerateNextOrders: vi.fn() }));
 vi.mock('@/lib/database/cleaners', () => ({ getAvailableCleanersForCity: vi.fn() }));
 vi.mock('@/lib/database/payments', () => ({ getPaymentsByOrderId: vi.fn() }));
 vi.mock('@/lib/database/payment-agreements', () => ({ getPaymentAgreementById: vi.fn() }));
 vi.mock('@/lib/database/subscriptions', () => ({ getSubscriptionById: vi.fn() }));
-vi.mock('@/lib/payments/vipps/service', () => ({ createChargeForCompletedOrder: vi.fn() }));
+vi.mock('@/lib/payments/vipps/service', () => ({
+  createChargeForCompletedOrder: vi.fn(),
+  stopVippsAgreementForOneTimeOrder: vi.fn(),
+}));
 vi.mock('@/lib/maps/geocoding', () => ({ geocodeAddress: vi.fn() }));
 
 import { revalidatePath } from 'next/cache';
@@ -47,12 +51,16 @@ import {
   sendPickupRescheduledEmail,
   sendPriceReceiptEmail,
 } from '@/lib/services/customer-emails';
+import { sendCleanerNewOrderEmail } from '@/lib/services/staff-emails';
 import { checkAndGenerateNextOrders } from '@/lib/services/order-generation';
 import { getAvailableCleanersForCity } from '@/lib/database/cleaners';
 import { getPaymentsByOrderId } from '@/lib/database/payments';
 import { getPaymentAgreementById } from '@/lib/database/payment-agreements';
 import { getSubscriptionById } from '@/lib/database/subscriptions';
-import { createChargeForCompletedOrder } from '@/lib/payments/vipps/service';
+import {
+  createChargeForCompletedOrder,
+  stopVippsAgreementForOneTimeOrder,
+} from '@/lib/payments/vipps/service';
 import { geocodeAddress } from '@/lib/maps/geocoding';
 import {
   assignCleanerAction,
@@ -173,6 +181,33 @@ describe('assignCleanerAction', () => {
     expect(result).toEqual({ success: true });
     expect(sendCleanerConfirmedEmail).toHaveBeenCalledTimes(1);
     expect(sendCleanerConfirmedEmail).toHaveBeenCalledWith('ord-1', 'Ola Hansen');
+  });
+
+  it('e-mails the newly assigned cleaner «Nytt oppdrag» on a first assignment', async () => {
+    const result = await assignCleanerAction('ord-1', 'cl-1');
+
+    expect(result).toEqual({ success: true });
+    expect(sendCleanerNewOrderEmail).toHaveBeenCalledTimes(1);
+    expect(sendCleanerNewOrderEmail).toHaveBeenCalledWith('ord-1');
+  });
+
+  it('e-mails the new cleaner on a re-assignment, and still tells the customer nothing', async () => {
+    m(getOrderById).mockResolvedValue({ ...ORDER, status: 'pickup_scheduled', cleaner_id: 'cl-2' });
+
+    const result = await assignCleanerAction('ord-1', 'cl-1');
+
+    expect(result).toEqual({ success: true });
+    expect(sendCleanerNewOrderEmail).toHaveBeenCalledWith('ord-1');
+    expect(sendCleanerConfirmedEmail).not.toHaveBeenCalled();
+  });
+
+  it('sends no «Nytt oppdrag» when the assignment write fails', async () => {
+    m(assignCleanerToOrder).mockResolvedValue(null);
+
+    const result = await assignCleanerAction('ord-1', 'cl-1');
+
+    expect(result.success).toBe(false);
+    expect(sendCleanerNewOrderEmail).not.toHaveBeenCalled();
   });
 });
 
@@ -679,6 +714,7 @@ describe('cancelOrderAdminAction', () => {
     });
     expect(getSubscriptionById).toHaveBeenCalledWith('sub-1');
     expect(checkAndGenerateNextOrders).toHaveBeenCalledWith('sub-1');
+    expect(stopVippsAgreementForOneTimeOrder).not.toHaveBeenCalled();
     expect(sendOrderCancelledEmail).toHaveBeenCalledWith('ord-1');
     expect(revalidatePath).toHaveBeenCalledWith('/admin/orders');
     expect(revalidatePath).toHaveBeenCalledWith('/admin/orders/ord-1');
@@ -713,6 +749,32 @@ describe('cancelOrderAdminAction', () => {
     expect(getSubscriptionById).not.toHaveBeenCalled();
     expect(checkAndGenerateNextOrders).not.toHaveBeenCalled();
     expect(sendOrderCancelledEmail).toHaveBeenCalledWith('ord-1');
+  });
+
+  it('stops the agreement of a one-time order after the cancel write and before the e-mail', async () => {
+    m(getOrderById).mockResolvedValue({ ...CANCELLABLE_ORDER, subscription_id: null });
+
+    const result = await cancelOrderAdminAction('ord-1', 'Duplikat');
+
+    expect(result).toEqual({ success: true });
+    expect(stopVippsAgreementForOneTimeOrder).toHaveBeenCalledTimes(1);
+    expect(stopVippsAgreementForOneTimeOrder).toHaveBeenCalledWith('ord-1');
+    expect(m(stopVippsAgreementForOneTimeOrder).mock.invocationCallOrder[0]).toBeGreaterThan(
+      m(updateOrderStatusGuarded).mock.invocationCallOrder[0]
+    );
+    expect(m(stopVippsAgreementForOneTimeOrder).mock.invocationCallOrder[0]).toBeLessThan(
+      m(sendOrderCancelledEmail).mock.invocationCallOrder[0]
+    );
+  });
+
+  it('does not stop the agreement of a one-time order when the guarded write does not apply', async () => {
+    m(getOrderById).mockResolvedValue({ ...CANCELLABLE_ORDER, subscription_id: null });
+    m(updateOrderStatusGuarded).mockResolvedValue(null);
+
+    const result = await cancelOrderAdminAction('ord-1', 'Duplikat');
+
+    expect(result.success).toBe(false);
+    expect(stopVippsAgreementForOneTimeOrder).not.toHaveBeenCalled();
   });
 
   it('still succeeds when next-order generation throws', async () => {
@@ -803,7 +865,7 @@ describe('overrideOrderPriceAction', () => {
 
     expect(result).toEqual({
       success: false,
-      error: 'Kunden er allerede belastet for denne ordren — prisen kan ikke endres',
+      error: 'Det er allerede sendt en betaling til Vipps for denne ordren — prisen kan ikke endres',
     });
     expect(updateOrderPricingByAdmin).not.toHaveBeenCalled();
   });

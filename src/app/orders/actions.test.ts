@@ -26,6 +26,7 @@ vi.mock('@/lib/database/cleaners', () => ({
 vi.mock('@/lib/payments/vipps/service', () => ({
   createVippsAgreement: vi.fn(),
   cancelVippsAgreement: vi.fn(),
+  stopVippsAgreementForOneTimeOrder: vi.fn(),
 }));
 vi.mock('@/lib/payments/vipps/config', () => ({
   isVippsForceAcceptAllowed: vi.fn(),
@@ -70,7 +71,7 @@ import { validatePromoCode } from '@/lib/database/promo-codes';
 import { createSubscription, getActiveSubscriptionByCustomerId, getSubscriptionById } from '@/lib/database/subscriptions';
 import { createPaymentAgreement, getPaymentAgreementByProviderId, getPaymentAgreementsByCustomerId } from '@/lib/database/payment-agreements';
 import { findAvailableCleaner, getAvailableWeekdaysForCity } from '@/lib/database/cleaners';
-import { createVippsAgreement } from '@/lib/payments/vipps/service';
+import { createVippsAgreement, stopVippsAgreementForOneTimeOrder } from '@/lib/payments/vipps/service';
 import { createVippsRecurringClient } from '@/lib/payments/vipps/recurring-client';
 import { isVippsForceAcceptAllowed, pickVippsTestPhone } from '@/lib/payments/vipps/config';
 import { cancelSubscriptionAction } from '@/app/dashboard/subscription/actions';
@@ -1041,5 +1042,75 @@ describe('cancelOrderAction — cancellation e-mail', () => {
 
     expect(result).toEqual({ success: false, error: 'Failed to cancel order' });
     expect(sendOrderCancelledEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe('cancelOrderAction — one-time agreement stop', () => {
+  /** Authenticated customer owning a one-time order whose pickup is years away (outside the 24 h window). */
+  function withCancellableOrder(overrides: Record<string, unknown> = {}) {
+    getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
+    m(getOrderWithDetailsByIdAndCustomerId).mockResolvedValue({
+      id: 'order-1',
+      status: 'pickup_scheduled',
+      subscription_id: null,
+      scheduled_date: '2030-01-04',
+      ...overrides,
+    });
+    m(updateOrderStatus).mockResolvedValue({ id: 'order-1', status: 'cancelled' });
+  }
+
+  it('stops the agreement of a one-time order after the cancel write and before the e-mail', async () => {
+    withCancellableOrder();
+
+    const result = await cancelOrderAction('order-1');
+
+    expect(result).toEqual({ success: true });
+    expect(stopVippsAgreementForOneTimeOrder).toHaveBeenCalledTimes(1);
+    expect(stopVippsAgreementForOneTimeOrder).toHaveBeenCalledWith('order-1');
+    expect(m(stopVippsAgreementForOneTimeOrder).mock.invocationCallOrder[0]).toBeGreaterThan(
+      m(updateOrderStatus).mock.invocationCallOrder[0]
+    );
+    expect(m(stopVippsAgreementForOneTimeOrder).mock.invocationCallOrder[0]).toBeLessThan(
+      m(sendOrderCancelledEmail).mock.invocationCallOrder[0]
+    );
+  });
+
+  it('does not run the one-time stop when only this order of a subscription is cancelled', async () => {
+    withCancellableOrder({ subscription_id: 'sub-1' });
+    m(getSubscriptionById).mockResolvedValue({ id: 'sub-1', status: 'cancelled' });
+
+    const result = await cancelOrderAction('order-1');
+
+    expect(result).toEqual({ success: true });
+    expect(stopVippsAgreementForOneTimeOrder).not.toHaveBeenCalled();
+  });
+
+  it('does not run the one-time stop when the subscription is cancelled along with the order', async () => {
+    withCancellableOrder({ subscription_id: 'sub-1' });
+    m(cancelSubscriptionAction).mockResolvedValue({ success: true });
+
+    await cancelOrderAction('order-1', true);
+
+    expect(stopVippsAgreementForOneTimeOrder).not.toHaveBeenCalled();
+  });
+
+  it('does not stop anything when the order cannot be cancelled', async () => {
+    withCancellableOrder({ status: 'in_cleaning' });
+
+    const result = await cancelOrderAction('order-1');
+
+    expect(result.success).toBe(false);
+    expect(stopVippsAgreementForOneTimeOrder).not.toHaveBeenCalled();
+  });
+
+  it('does not stop anything when the cancel write fails', async () => {
+    withCancellableOrder();
+    m(updateOrderStatus).mockResolvedValue(null);
+
+    const result = await cancelOrderAction('order-1');
+
+    expect(result).toEqual({ success: false, error: 'Failed to cancel order' });
+    expect(stopVippsAgreementForOneTimeOrder).not.toHaveBeenCalled();
   });
 });

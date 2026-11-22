@@ -20,12 +20,16 @@ import {
   sendPickupRescheduledEmail,
   sendPriceReceiptEmail,
 } from '@/lib/services/customer-emails';
+import { sendCleanerNewOrderEmail } from '@/lib/services/staff-emails';
 import { checkAndGenerateNextOrders } from '@/lib/services/order-generation';
 import { getAvailableCleanersForCity } from '@/lib/database/cleaners';
 import { getPaymentsByOrderId } from '@/lib/database/payments';
 import { getPaymentAgreementById } from '@/lib/database/payment-agreements';
 import { getSubscriptionById } from '@/lib/database/subscriptions';
-import { createChargeForCompletedOrder } from '@/lib/payments/vipps/service';
+import {
+  createChargeForCompletedOrder,
+  stopVippsAgreementForOneTimeOrder,
+} from '@/lib/payments/vipps/service';
 import { hasLivePayment } from '@/lib/utils/payment-status';
 import { geocodeAddress } from '@/lib/maps/geocoding';
 import { validatePostalCode } from '@/lib/validation/cleaner';
@@ -56,6 +60,9 @@ const ASSIGNABLE_STATUSES = ['pending_assignment', 'pickup_scheduled'] as const;
  * the pickup is confirmed (sendCleanerConfirmedEmail) with the order's
  * current scheduled_date — this action never changes the date, so correct
  * the date first when it needs correcting.
+ *
+ * Every successful assignment also e-mails the newly assigned cleaner
+ * «Nytt oppdrag» (sendCleanerNewOrderEmail).
  */
 export async function assignCleanerAction(
   orderId: string,
@@ -94,6 +101,11 @@ export async function assignCleanerAction(
   if (order.status === 'pending_assignment') {
     await sendCleanerConfirmedEmail(orderId, cleaner.display_name);
   }
+
+  // «Nytt oppdrag» to the cleaner who now holds the order — on a first
+  // assignment and on a re-assignment between cleaners alike. Never throws
+  // (lib/services/staff-emails.ts).
+  await sendCleanerNewOrderEmail(orderId);
 
   revalidatePath('/admin/orders');
   revalidatePath(`/admin/orders/${orderId}`);
@@ -414,6 +426,13 @@ export async function cancelOrderAdminAction(
     return { success: false, error: 'Ordren endret status i mellomtiden — last siden på nytt' };
   }
 
+  // One-time order: nothing will ever be charged on its Vipps agreement, so
+  // stop it now (#144). Never throws — a failed stop is logged and the
+  // cancellation stands.
+  if (!order.subscription_id) {
+    await stopVippsAgreementForOneTimeOrder(orderId);
+  }
+
   // Rolling window: same as the customer's cancelOrderAction. A failure here
   // must not undo the cancellation, so it is logged and swallowed.
   if (order.subscription_id) {
@@ -492,7 +511,7 @@ export async function overrideOrderPriceAction(
   if (hasLivePayment(payments)) {
     return {
       success: false,
-      error: 'Kunden er allerede belastet for denne ordren — prisen kan ikke endres',
+      error: 'Det er allerede sendt en betaling til Vipps for denne ordren — prisen kan ikke endres',
     };
   }
 

@@ -22,6 +22,7 @@ import {
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { calculateCustomerEstimate } from '@/lib/config/pricing';
 import { SUBSCRIPTIONS_OFFERED } from '@/lib/config/subscriptions';
+import { getPickupTimeRangeLabel } from '@/lib/config/pickup-times';
 import type { OrderSelection } from '@/types/order-flow';
 import { createClient } from '@/lib/supabase/client';
 import { withNext } from '@/lib/auth/next-path';
@@ -301,6 +302,11 @@ export default function ConfirmPage() {
           icon={<CalendarDays className="size-5" />}
           title={SUBSCRIPTIONS_OFFERED ? 'Første henting' : 'Henting'}
           value={formatPickupDate(orderData?.firstPickupDate)}
+          note={
+            orderData?.firstPickupDate
+              ? `kl. ${getPickupTimeRangeLabel()}`
+              : undefined
+          }
         />
         {SUBSCRIPTIONS_OFFERED && (
           <SummaryRow

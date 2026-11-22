@@ -50,7 +50,7 @@ const STEP_BY_STATUS: Partial<Record<OrderStatus, 'pickup' | 'wash' | 'deliver'>
 };
 const DRIVER_STATUS_INFO: Partial<Record<OrderStatus, string>> = {
   picked_up: 'Tøyet er hentet og på vei til deg.',
-  out_for_delivery: 'Tøyet er på vei til kunden. Kunden er allerede belastet.',
+  out_for_delivery: 'Tøyet er på vei til kunden.',
 };
 
 // Format date for display
