@@ -9,7 +9,7 @@
 // CHARGE EVENTS:
 // - recurring.charge-reserved.v1 → Authorize payment → Capture charge
 // - recurring.charge-captured.v1 → Complete payment
-// - recurring.charge-canceled.v1 → Mark payment as canceled
+// - recurring.charge-canceled.v1 → Mark payment as canceled → alert the admins when that leaves the order unpaid
 // - recurring.charge-refunded.v1 → Process refund
 // - recurring.charge-failed.v1 → Mark payment as failed → payment-failed e-mail to the customer
 // - recurring.charge-creation-failed.v1 → Mark payment as failed → payment-failed e-mail to the customer
@@ -26,6 +26,7 @@
 // Vipps holds back later webhooks until it gets a 200, so never 5xx a permanent error.
 // - recurring.agreement-rejected.v1 → Agreement rejected by user → Stop payment agreement + cancel subscription (if any)
 // - recurring.agreement-stopped.v1 → Agreement stopped by user/merchant/admin → Stop payment agreement + cancel subscription (if any)
+//   → when we did not stop it ourselves: alert the admins about every order that can no longer be charged (never cancels the order)
 // - recurring.agreement-expired.v1 → Agreement expired → Expire payment agreement + expire subscription (if any)
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -48,17 +49,26 @@ import {
   failPaymentWithMetadata,
   cancelPaymentWithMetadata,
   refundPaymentWithMetadata,
+  getPaymentsByOrderId,
 } from '@/lib/database/payments';
 import { cancelVippsAgreement, stopVippsAgreementForCancelledSubscription } from '@/lib/payments/vipps/service';
-import { createOrder, getOrderByPaymentAgreementId } from '@/lib/database/orders';
+import {
+  createOrder,
+  getOrderByPaymentAgreementId,
+  getOrderById,
+  getActiveOrdersBySubscriptionId,
+} from '@/lib/database/orders';
 import { buildOrderData } from '@/lib/services/order-generation';
 import { sendOrderConfirmationEmail, sendPaymentFailedEmail } from '@/lib/services/customer-emails';
 import { sendAdminNewOrderEmail, sendCleanerNewOrderEmail } from '@/lib/services/staff-emails';
 import { recordPromoRedemption } from '@/lib/database/promo-codes';
 import { addDays, toISODateString, getWeekdayFromDate, getNextOccurrenceOfWeekday } from '@/lib/utils/date';
 import { DAYS_PICKUP_TO_DELIVERY } from '@/lib/config/order-timing';
-import type { PaymentAgreement, SubscriptionOrderDefaults, OrderPromo } from '@/types/database';
+import type { Order, OrderStatus, Payment, PaymentAgreement, SubscriptionOrderDefaults, OrderPromo } from '@/types/database';
 import { reportError } from '@/lib/services/error-alerts';
+import { formatKr } from '@/lib/config/pricing';
+import { getOrderStatusLabel } from '@/lib/utils/order-status';
+import { hasCapturedPayment, hasLivePayment } from '@/lib/utils/payment-status';
 
 
 // =============================================================================
@@ -381,16 +391,89 @@ async function handleChargeCanceled(
     return;
   }
 
+  // A redelivered webhook finds the row already cancelled: the admins were
+  // alerted by the first delivery, so only the (re-runnable) write is repeated.
+  const alreadyCancelled = payment.status === 'cancelled';
+
   // Flip the row to cancelled (and stamp cancelled_at); the Vipps details go in metadata.
-  await cancelPaymentWithMetadata(payment.id, {
+  const cancelled = await cancelPaymentWithMetadata(payment.id, {
     vipps_agreement_id: agreementId,
     vipps_charge_id: chargeId,
     vipps_status: 'CANCELLED',
     vipps_amount_canceled: amountCanceled,
     canceled_at: occurred,
   });
+  if (!cancelled) {
+    throw new Error(`Failed to mark payment ${payment.id} as cancelled`);
+  }
 
   console.log(`[Vipps Recurring Webhook] Payment ${payment.id} marked as canceled`);
+
+  if (!alreadyCancelled) {
+    await reportCancelledCharge(payment, chargeId, agreementId);
+  }
+}
+
+/**
+ * Tell the admins that a Vipps charge was cancelled before the money was drawn.
+ *
+ * Nothing in this app cancels a charge (VippsRecurringClient.cancelCharge has
+ * no caller), so the event always comes from outside: the customer stopped the
+ * agreement in the Vipps app while the charge was waiting for its due date, or
+ * someone cancelled the charge in the Vipps portal. Silent only when another
+ * payment already covers the order (captured, refunded, reserved or in flight —
+ * hasLivePayment). Never throws: the payment row is already updated and Vipps
+ * must get its 200.
+ */
+async function reportCancelledCharge(
+  payment: Payment,
+  chargeId: string,
+  agreementId: string
+): Promise<void> {
+  try {
+    const order = payment.order_id ? await getOrderById(payment.order_id) : null;
+
+    if (order) {
+      // Read after the cancel write, so this row counts as cancelled.
+      // getPaymentsByOrderId answers [] on a query error — that reads as
+      // "nothing covers the order" and alerts, which is the safe side.
+      const payments = await getPaymentsByOrderId(order.id);
+      if (hasLivePayment(payments)) {
+        console.log(`[Vipps Recurring Webhook] Charge ${chargeId} canceled, but order ${order.order_number} has another live payment — no alert`);
+        return;
+      }
+    }
+
+    await reportError(
+      'Vipps-belastning kansellert – ordren er ikke betalt',
+      new Error(
+        `Belastningen på ${formatKr(payment.amount_ore)} ${
+          order ? `for ordre #${order.order_number}` : `(betaling ${payment.id})`
+        } ble kansellert hos Vipps før pengene ble trukket`
+      ),
+      {
+        ordre: order?.id ?? payment.order_id,
+        ordrenummer: order?.order_number,
+        avtale: agreementId,
+        charge: chargeId,
+        payment: payment.id,
+        tiltak:
+          'Åpne ordren i /admin. Er Vipps-avtalen fortsatt aktiv: trykk «Belast på nytt». Er avtalen stoppet: kontakt kunden og avtal betaling utenfor appen.',
+        lenke: payment.order_id ? adminOrderUrl(payment.order_id) : undefined,
+      }
+    );
+  } catch (error) {
+    await reportError('Kunne ikke sjekke ordren etter kansellert Vipps-belastning', error, {
+      charge: chargeId,
+      payment: payment.id,
+    });
+  }
+}
+
+/** Link to the admin order page for the alert e-mails; undefined when the app URL is not configured. */
+function adminOrderUrl(orderId: string): string | undefined {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '');
+  return appUrl ? `${appUrl}/admin/orders/${orderId}` : undefined;
 }
 
 /**
@@ -839,6 +922,90 @@ async function handleAgreementStopped(
     // - RESERVED charges are NOT automatically cancelled (merchant can still capture)
     // - PENDING/DUE charges are cancelled
     // - New future charges will result in an error
+  }
+
+  // Somebody other than us stopped the agreement: no order on it can be charged
+  // in the app any more. Tell the admins about each order that still needs
+  // money. The orders themselves are left exactly as they are.
+  await reportOrdersLeftByStoppedAgreement(webhook, paymentAgreement, subscription?.id ?? null);
+}
+
+const NOT_PICKED_UP_STATUSES: OrderStatus[] = ['pending_assignment', 'pickup_scheduled'];
+
+/**
+ * True when the order still needs money that the stopped agreement can no
+ * longer deliver:
+ * - cancelled → never;
+ * - no price yet → yes while the order is in progress (it will be priced and
+ *   charged later), no for a completed order without a price (nothing to ask for);
+ * - price 0 (100 % promo) → never;
+ * - price above 0 → unless the money has actually been drawn (captured or
+ *   refunded). A charge that is still pending does NOT count: Vipps cancels
+ *   pending charges when the agreement is stopped.
+ */
+function orderStillNeedsPayment(order: Order, payments: Pick<Payment, 'status'>[]): boolean {
+  if (order.status === 'cancelled') return false;
+  if (order.total_cost_ore === null) return order.status !== 'completed';
+  if (order.total_cost_ore <= 0) return false;
+  return !hasCapturedPayment(payments);
+}
+
+/**
+ * After an agreement was stopped by the customer (Vipps app) or by Vipps:
+ * e-mail the admins once per order that can no longer be charged. Looks at the
+ * agreement's own order (one-time orders and the first order of a subscription
+ * carry payment_agreement_id) and, for a subscription, at its orders that are
+ * still in progress. Never cancels or changes an order, and never throws — the
+ * agreement is already marked stopped and Vipps must get its 200.
+ */
+async function reportOrdersLeftByStoppedAgreement(
+  webhook: VippsAgreementWebhookBody,
+  paymentAgreement: PaymentAgreement,
+  subscriptionId: string | null
+): Promise<void> {
+  const { agreementId, actor } = webhook;
+
+  try {
+    const orders: Order[] = [];
+    const agreementOrder = await getOrderByPaymentAgreementId(paymentAgreement.id);
+    if (agreementOrder) orders.push(agreementOrder);
+    if (subscriptionId) {
+      for (const order of await getActiveOrdersBySubscriptionId(subscriptionId)) {
+        if (!orders.some((known) => known.id === order.id)) orders.push(order);
+      }
+    }
+
+    for (const order of orders) {
+      // Only a priced order can have payments worth reading.
+      const payments =
+        order.total_cost_ore !== null && order.total_cost_ore > 0
+          ? await getPaymentsByOrderId(order.id)
+          : [];
+      if (!orderStillNeedsPayment(order, payments)) continue;
+
+      const notPickedUp = NOT_PICKED_UP_STATUSES.includes(order.status);
+      await reportError(
+        'Vipps-avtale stoppet utenfor NooraCare – ordren kan ikke belastes',
+        new Error(
+          `Ordre #${order.order_number} (${getOrderStatusLabel(order.status)}) kan ikke belastes i appen: Vipps-avtalen ble stoppet av kunden eller Vipps`
+        ),
+        {
+          ordre: order.id,
+          ordrenummer: order.order_number,
+          avtale: agreementId,
+          'stoppet av': actor ?? 'ukjent',
+          pris: order.total_cost_ore === null ? 'ikke satt ennå' : formatKr(order.total_cost_ore),
+          tiltak: notPickedUp
+            ? 'Tøyet er ikke hentet ennå. Kontakt kunden før hentingen, eller kanseller ordren på ordresiden i /admin. Ordren er IKKE kansellert automatisk.'
+            : 'Kontakt kunden og avtal betaling utenfor appen. «Belast på nytt» virker ikke når avtalen er stoppet. Ordren er IKKE kansellert automatisk.',
+          lenke: adminOrderUrl(order.id),
+        }
+      );
+    }
+  } catch (error) {
+    await reportError('Kunne ikke sjekke ordre etter stoppet Vipps-avtale', error, {
+      avtale: agreementId,
+    });
   }
 }
 

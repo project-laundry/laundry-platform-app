@@ -1,19 +1,28 @@
 import Link from 'next/link';
 import type { OrderStatus } from '@/types/database';
 import { Calendar, ArrowRight } from 'lucide-react';
+import { canReschedulePickupSelf } from '@/lib/config/order-timing';
 
 interface RescheduleButtonProps {
   orderId: string;
   orderStatus: OrderStatus;
+  scheduledDate: string;
 }
 
 export function RescheduleButton({
   orderId,
   orderStatus,
+  scheduledDate,
 }: RescheduleButtonProps) {
   // Only show button for editable statuses
   const editableStatuses: OrderStatus[] = ['pending_assignment', 'pickup_scheduled'];
   if (!editableStatuses.includes(orderStatus)) {
+    return null;
+  }
+
+  // Same rule as updateOrderPickupDateAction: from the pickup day on the
+  // customer can no longer move the date themselves.
+  if (!canReschedulePickupSelf(scheduledDate)) {
     return null;
   }
 

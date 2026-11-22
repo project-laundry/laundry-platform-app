@@ -1,11 +1,13 @@
 import { redirect, notFound } from 'next/navigation';
 import { AppHeader } from '@/components/layout/AppHeader';
 import Link from 'next/link';
-import { CalendarDays, ChevronLeft } from 'lucide-react';
+import { CalendarDays, ChevronLeft, Clock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { getCustomerByUserId } from '@/lib/database/customers';
 import { getOrderWithDetailsByIdAndCustomerId } from '@/lib/database/orders';
 import { getAvailableWeekdaysForCity } from '@/lib/database/cleaners';
+import { COMPANY } from '@/lib/config/company';
+import { RESCHEDULE_CLOSED_TEXT, canReschedulePickupSelf } from '@/lib/config/order-timing';
 import { RescheduleForm } from './RescheduleForm';
 
 interface ReschedulePageProps {
@@ -40,6 +42,10 @@ export default async function RescheduleOrderPage({ params }: ReschedulePageProp
   if (!editableStatuses.includes(order.status)) {
     redirect(`/orders/details/${orderId}`);
   }
+
+  // Same rule as updateOrderPickupDateAction: from the pickup day on the
+  // customer can no longer move the date themselves.
+  const canReschedule = canReschedulePickupSelf(order.scheduled_date);
 
   // Get available weekdays for the order's city
   const availableWeekdays = await getAvailableWeekdaysForCity(order.city);
@@ -84,7 +90,9 @@ export default async function RescheduleOrderPage({ params }: ReschedulePageProp
             <h2 className="mt-6 font-serif text-3xl font-semibold leading-tight text-dark-gray">
               Endre hentedato
             </h2>
-            <p className="mt-3 text-medium-gray">Velg en ny dato for henting</p>
+            {canReschedule && (
+              <p className="mt-3 text-medium-gray">Velg en ny dato for henting</p>
+            )}
           </div>
 
           {/* Current Dates */}
@@ -114,11 +122,27 @@ export default async function RescheduleOrderPage({ params }: ReschedulePageProp
 
           {/* Reschedule Form with Calendar */}
           <div className="mt-6">
-            <RescheduleForm
-              orderId={orderId}
-              currentPickupDate={order.scheduled_date}
-              availableWeekdays={availableWeekdays}
-            />
+            {canReschedule ? (
+              <RescheduleForm
+                orderId={orderId}
+                currentPickupDate={order.scheduled_date}
+                availableWeekdays={availableWeekdays}
+              />
+            ) : (
+              <div className="flex items-start gap-2 rounded-2xl bg-cream/70 px-3.5 py-2.5 text-sm text-medium-gray">
+                <Clock className="mt-0.5 size-4 shrink-0 text-sea-green" />
+                <p>
+                  {RESCHEDULE_CLOSED_TEXT} Ta kontakt med oss på{' '}
+                  <a
+                    href={`mailto:${COMPANY.email}`}
+                    className="font-medium text-sea-green underline-offset-2 hover:underline"
+                  >
+                    {COMPANY.email}
+                  </a>
+                  , så hjelper vi deg.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Back Link */}

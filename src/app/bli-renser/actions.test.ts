@@ -32,8 +32,8 @@ const m = (fn: unknown) => fn as Mock;
 
 const baseData: CleanerOnboardingData = {
   businessType: 'individual',
-  taxId: '12345678901',
-  bankAccount: '12345678901',
+  taxId: '01819000553',
+  bankAccount: '12345678903',
   baseStreet: 'Testveien 1',
   basePostalCode: '5803',
   // Deliberately wrong: the server must ignore this and derive from the postal code.
@@ -105,14 +105,14 @@ describe('createCleanerProfileAction', () => {
   it('strips formatting from the tax id and bank account before saving', async () => {
     const result = await createCleanerProfileAction({
       ...baseData,
-      taxId: '123456 78901',
-      bankAccount: '1234.56.78901',
+      taxId: '018190 00553',
+      bankAccount: '1234.56.78903',
     });
 
     expect(result.success).toBe(true);
     expect(createCleaner).toHaveBeenCalledWith(
       'user-1',
-      expect.objectContaining({ tax_id: '12345678901', bank_account: '12345678901' })
+      expect.objectContaining({ tax_id: '01819000553', bank_account: '12345678903' })
     );
   });
 
@@ -136,11 +136,53 @@ describe('createCleanerProfileAction', () => {
     expect(createCleaner).not.toHaveBeenCalled();
   });
 
-  it('requires business name and address for a registered business', async () => {
+  it('rejects a bank account with a wrong check digit', async () => {
+    const result = await createCleanerProfileAction({
+      ...baseData,
+      bankAccount: '12345678901',
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Kontonummeret er ikke gyldig. Sjekk at du har skrevet det riktig.',
+    });
+    expect(createCleaner).not.toHaveBeenCalled();
+  });
+
+  it('rejects a fødselsnummer with a wrong control digit', async () => {
+    const result = await createCleanerProfileAction({
+      ...baseData,
+      taxId: '01819000554',
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Fødselsnummeret er ikke gyldig. Sjekk at du har skrevet det riktig.',
+    });
+    expect(createCleaner).not.toHaveBeenCalled();
+  });
+
+  it('rejects an organisasjonsnummer with a wrong check digit', async () => {
     const result = await createCleanerProfileAction({
       ...baseData,
       businessType: 'business',
       taxId: '123456789',
+      businessName: 'Vask AS',
+      businessAddress: 'Vaskeveien 1, 5003 Bergen',
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Organisasjonsnummeret er ikke gyldig. Sjekk at du har skrevet det riktig.',
+    });
+    expect(createCleaner).not.toHaveBeenCalled();
+  });
+
+  it('requires business name and address for a registered business', async () => {
+    const result = await createCleanerProfileAction({
+      ...baseData,
+      businessType: 'business',
+      taxId: '123456785',
       businessName: 'Vask AS',
       businessAddress: '',
     });
@@ -247,7 +289,7 @@ describe('createCleanerProfileAction', () => {
       error:
         'Fødselsnummeret er allerede registrert på en annen renserkonto. Ta kontakt med oss hvis du mener dette er feil.',
     });
-    expect(isTaxIdTaken).toHaveBeenCalledWith('12345678901');
+    expect(isTaxIdTaken).toHaveBeenCalledWith('01819000553');
     expect(geocodeAddress).not.toHaveBeenCalled();
     expect(createCleaner).not.toHaveBeenCalled();
   });
@@ -258,7 +300,7 @@ describe('createCleanerProfileAction', () => {
     const result = await createCleanerProfileAction({
       ...baseData,
       businessType: 'business',
-      taxId: '123456789',
+      taxId: '123456785',
       businessName: 'Vask AS',
       businessAddress: 'Vaskeveien 1, 0150 Oslo',
     });
@@ -309,29 +351,29 @@ describe('checkTaxIdAvailabilityAction', () => {
     m(isTaxIdTaken).mockResolvedValue(true);
 
     const result = await checkTaxIdAvailabilityAction({
-      taxId: '123456 78901',
+      taxId: '018190 00553',
       businessType: 'individual',
     });
 
     expect(result).toEqual({ taken: true });
-    expect(isTaxIdTaken).toHaveBeenCalledWith('12345678901');
+    expect(isTaxIdTaken).toHaveBeenCalledWith('01819000553');
   });
 
   it('reports not taken when the lookup finds nothing', async () => {
     const result = await checkTaxIdAvailabilityAction({
-      taxId: '12345678901',
+      taxId: '01819000553',
       businessType: 'individual',
     });
 
     expect(result).toEqual({ taken: false });
-    expect(isTaxIdTaken).toHaveBeenCalledWith('12345678901');
+    expect(isTaxIdTaken).toHaveBeenCalledWith('01819000553');
   });
 
   it('skips the lookup when the caller is not a cleaner', async () => {
     m(assertRole).mockResolvedValue({ auth: null, error: 'Ingen tilgang' });
 
     const result = await checkTaxIdAvailabilityAction({
-      taxId: '12345678901',
+      taxId: '01819000553',
       businessType: 'individual',
     });
 
@@ -341,8 +383,18 @@ describe('checkTaxIdAvailabilityAction', () => {
 
   it('skips the lookup when the tax id has the wrong length for the business type', async () => {
     const result = await checkTaxIdAvailabilityAction({
-      taxId: '12345678901',
+      taxId: '01819000553',
       businessType: 'business',
+    });
+
+    expect(result).toEqual({ taken: false });
+    expect(isTaxIdTaken).not.toHaveBeenCalled();
+  });
+
+  it('skips the lookup when the tax id fails the checksum', async () => {
+    const result = await checkTaxIdAvailabilityAction({
+      taxId: '01819000554',
+      businessType: 'individual',
     });
 
     expect(result).toEqual({ taken: false });

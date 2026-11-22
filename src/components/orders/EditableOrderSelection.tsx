@@ -8,7 +8,7 @@ import { SelectionEditor } from '@/components/order-flow/SelectionEditor';
 import { Breakdown, PriceDisclaimer } from '@/components/order-flow/primitives';
 import type { CustomerEstimate } from '@/types/database';
 import type { OrderSelection } from '@/types/order-flow';
-import { Pencil, Check, X, ShoppingBag, BedDouble } from 'lucide-react';
+import { Pencil, Check, X, ShoppingBag, BedDouble, AlertCircle } from 'lucide-react';
 
 interface EditableOrderSelectionProps {
   orderId: string;
@@ -55,17 +55,19 @@ export function EditableOrderSelection({
       : { bags: 0, beddingSets: 0, everydayItems: 0, formalItems: 0, ironBedding: false }
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const router = useRouter();
 
   const price = useMemo(() => calculateCustomerEstimate(draft), [draft]);
 
   const handleSave = async () => {
     setIsLoading(true);
+    setSaveError(null);
     try {
       const result = await updateOrderSelectionAction(orderId, draft);
 
       if (!result.success) {
-        alert(result.error || 'En feil oppstod');
+        setSaveError(result.error || 'Noe gikk galt. Prøv igjen.');
         setIsLoading(false);
         return;
       }
@@ -74,7 +76,7 @@ export function EditableOrderSelection({
       router.refresh();
     } catch (error) {
       console.error('Error updating order selection:', error);
-      alert('En feil oppstod');
+      setSaveError('Noe gikk galt. Prøv igjen.');
     } finally {
       setIsLoading(false);
     }
@@ -82,6 +84,7 @@ export function EditableOrderSelection({
 
   const handleCancel = () => {
     if (initialEstimate) setDraft(toSelection(initialEstimate));
+    setSaveError(null);
     setIsEditing(false);
   };
 
@@ -96,6 +99,12 @@ export function EditableOrderSelection({
         <SelectionEditor selection={draft} onChange={setDraft} />
         <Breakdown price={price} />
         <PriceDisclaimer />
+        {saveError && (
+          <div role="alert" className="flex items-start gap-2 rounded-2xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
+            <AlertCircle className="mt-0.5 size-4 shrink-0" />
+            <p>{saveError}</p>
+          </div>
+        )}
         <div className="flex gap-2">
           <button
             type="button"

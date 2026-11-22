@@ -124,6 +124,24 @@ function generateWeeklySchedule() {
   };
 }
 
+/**
+ * Every address a seed script invents: Resend's test inbox, which accepts
+ * every message. Never use invented domains (@test.no, @example.com) — mail
+ * to them bounces, and bounces hurt the nooracare.no sending domain; the
+ * app's sendEmail refuses them anyway. The label is reduced to a-z, 0-9,
+ * "." and "-" and cut to 54 characters, so "delivered+<label>" fits the
+ * 64-character limit of an e-mail local part.
+ */
+export function testEmail(label: string): string {
+  const safe = label
+    .toLowerCase()
+    .replace(/[æøå]/g, (m) => ({ æ: 'ae', ø: 'o', å: 'a' }[m] || m))
+    .replace(/[^a-z0-9.-]+/g, '-')
+    .replace(/^[.-]+|[.-]+$/g, '')
+    .slice(0, 54);
+  return `delivered+${safe}@resend.dev`;
+}
+
 export function generateRandomCleaner(
   city: 'Bergen' | 'Oslo' = 'Bergen',
   type: 'individual' | 'business' | 'mixed' = 'mixed'
@@ -143,9 +161,7 @@ export function generateRandomCleaner(
 
   const timestamp = Date.now();
   const random = randomNumber(1000, 9999);
-  // Resend's test inbox: accepts every address, so the order and auth e-mails
-  // the app sends to seeded users never bounce (bounces hurt nooracare.no).
-  const email = `delivered+${emailName}.${timestamp}.${random}@resend.dev`;
+  const email = testEmail(`${emailName}.${timestamp}.${random}`);
 
   const streets = city === 'Bergen' ? BERGEN_STREETS : OSLO_STREETS;
   const streetData = randomElement(streets);

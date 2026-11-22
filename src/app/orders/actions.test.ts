@@ -44,6 +44,7 @@ vi.mock('@/lib/services/customer-emails', () => ({
   sendOrderCancelledEmail: vi.fn(),
   sendPickupRescheduledEmail: vi.fn(),
 }));
+vi.mock('@/lib/services/staff-emails', () => ({ sendCleanerPickupRescheduledEmails: vi.fn() }));
 vi.mock('@/app/dashboard/subscription/actions', () => ({ cancelSubscriptionAction: vi.fn() }));
 
 // SUBSCRIPTIONS_OFFERED is a constant (false in the first version). The getter
@@ -76,6 +77,8 @@ import { createVippsRecurringClient } from '@/lib/payments/vipps/recurring-clien
 import { isVippsForceAcceptAllowed, pickVippsTestPhone } from '@/lib/payments/vipps/config';
 import { cancelSubscriptionAction } from '@/app/dashboard/subscription/actions';
 import { sendOrderCancelledEmail, sendPickupRescheduledEmail } from '@/lib/services/customer-emails';
+import { sendCleanerPickupRescheduledEmails } from '@/lib/services/staff-emails';
+import { todayInOslo, tomorrowInOslo } from '@/lib/utils/date';
 import {
   createSubscriptionAction,
   forceAcceptAgreementAction,
@@ -83,6 +86,8 @@ import {
   getCheckoutStatusAction,
   getPickupPrefillAction,
   updateOrderSelectionAction,
+  updateOrderSpecialInstructionsAction,
+  updateOrderAddressAction,
   cancelOrderAction,
   updateOrderPickupDateAction,
   type CreateSubscriptionInput,
@@ -746,7 +751,7 @@ describe('updateOrderSelectionAction', () => {
   it('rejects an unauthenticated user', async () => {
     getUser.mockResolvedValue({ data: { user: null } });
     const result = await updateOrderSelectionAction('order-1', selection);
-    expect(result).toEqual({ success: false, error: 'Not authenticated' });
+    expect(result).toEqual({ success: false, error: 'Du er logget ut. Logg inn på nytt og prøv igjen.' });
     expect(updateMock).not.toHaveBeenCalled();
   });
 
@@ -754,7 +759,7 @@ describe('updateOrderSelectionAction', () => {
     getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
     m(getCustomerByUserId).mockResolvedValue(null);
     const result = await updateOrderSelectionAction('order-1', selection);
-    expect(result).toEqual({ success: false, error: 'Customer not found' });
+    expect(result).toEqual({ success: false, error: 'Vi fant ikke kundeprofilen din. Logg inn på nytt og prøv igjen.' });
   });
 
   it("rejects an order that isn't the customer's", async () => {
@@ -762,7 +767,7 @@ describe('updateOrderSelectionAction', () => {
     m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
     m(getOrderWithDetailsByIdAndCustomerId).mockResolvedValue(null);
     const result = await updateOrderSelectionAction('order-1', selection);
-    expect(result).toEqual({ success: false, error: 'Order not found' });
+    expect(result).toEqual({ success: false, error: 'Vi fant ikke bestillingen. Last siden på nytt og prøv igjen.' });
   });
 
   it('rejects editing after pickup', async () => {
@@ -848,7 +853,7 @@ describe('updateOrderSelectionAction', () => {
     eqMock.mockResolvedValue({ error: { message: 'boom' } });
 
     const result = await updateOrderSelectionAction('order-1', selection);
-    expect(result).toEqual({ success: false, error: 'Failed to update order selection' });
+    expect(result).toEqual({ success: false, error: 'Vi klarte ikke å lagre endringen. Prøv igjen.' });
   });
 });
 
@@ -860,14 +865,26 @@ describe('updateOrderPickupDateAction', () => {
   const WORKS_EVERY_DAY = { mon: true, tue: true, wed: true, thu: true, fri: true, sat: true, sun: true };
   const WORKS_NEVER = { mon: false, tue: false, wed: false, thu: false, fri: false, sat: false, sun: false };
 
+  // Dates relative to today (Norwegian calendar): the action compares against
+  // the real clock (pickup-day cutoff, earliest date, 60 days ahead).
+  const plusDays = (isoDate: string, days: number) =>
+    new Date(Date.parse(isoDate) + days * 86_400_000).toISOString().slice(0, 10);
+  const OLD_DATE = plusDays(todayInOslo(), 5);
+  const NEW_DATE = plusDays(todayInOslo(), 7);
+  const NEW_DELIVERY_DATE = plusDays(NEW_DATE, 2);
+
   /** Authenticated customer owning a pickup_scheduled order with an assigned cleaner. */
-  function withScheduledOrder(weeklySchedule = WORKS_EVERY_DAY, status = 'pickup_scheduled') {
+  function withScheduledOrder(
+    weeklySchedule = WORKS_EVERY_DAY,
+    status = 'pickup_scheduled',
+    scheduledDate = OLD_DATE
+  ) {
     getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
     m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
     m(getOrderWithDetailsByIdAndCustomerId).mockResolvedValue({
       id: 'order-1',
       status,
-      scheduled_date: '2030-01-02',
+      scheduled_date: scheduledDate,
       updated_at: '2029-12-01T10:00:00+00:00',
       city: 'Bergen',
       cleaner_id: 'cleaner-1',
@@ -881,18 +898,86 @@ describe('updateOrderPickupDateAction', () => {
   it('rejects rescheduling after pickup', async () => {
     withScheduledOrder(WORKS_EVERY_DAY, 'picked_up');
 
-    const result = await updateOrderPickupDateAction('order-1', '2030-01-04');
+    const result = await updateOrderPickupDateAction('order-1', NEW_DATE);
 
     expect(result).toEqual({ success: false, error: 'Kan ikke endre hentedato etter at ordren er hentet' });
     expect(updateMock).not.toHaveBeenCalled();
     expect(sendPickupRescheduledEmail).not.toHaveBeenCalled();
+    expect(sendCleanerPickupRescheduledEmails).not.toHaveBeenCalled();
+  });
+
+  it('refuses on the pickup day itself and tells the customer to contact us', async () => {
+    withScheduledOrder(WORKS_EVERY_DAY, 'pickup_scheduled', todayInOslo());
+
+    const result = await updateOrderPickupDateAction('order-1', NEW_DATE);
+
+    expect(result).toEqual({
+      success: false,
+      error:
+        'Du kan ikke lenger endre hentedatoen selv. Det er mulig til og med dagen før hentedagen. Ta kontakt med oss på post@nooracare.no, så hjelper vi deg.',
+    });
+    expect(updateMock).not.toHaveBeenCalled();
+    expect(sendPickupRescheduledEmail).not.toHaveBeenCalled();
+    expect(sendCleanerPickupRescheduledEmails).not.toHaveBeenCalled();
+  });
+
+  it('refuses when the pickup day is already past', async () => {
+    withScheduledOrder(WORKS_EVERY_DAY, 'pending_assignment', plusDays(todayInOslo(), -1));
+
+    const result = await updateOrderPickupDateAction('order-1', NEW_DATE);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('Du kan ikke lenger endre hentedatoen selv.');
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it('still allows a change the day before the pickup day', async () => {
+    withScheduledOrder(WORKS_EVERY_DAY, 'pickup_scheduled', tomorrowInOslo());
+
+    const result = await updateOrderPickupDateAction('order-1', NEW_DATE);
+
+    expect(result.success).toBe(true);
+    expect(updateMock).toHaveBeenCalled();
+  });
+
+  it('rejects a new date more than 60 days ahead (same limit as checkout)', async () => {
+    withScheduledOrder();
+
+    const result = await updateOrderPickupDateAction('order-1', plusDays(todayInOslo(), 61));
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Hentedatoen kan ikke være mer enn 60 dager frem i tid.',
+    });
+    expect(updateMock).not.toHaveBeenCalled();
+    expect(sendCleanerPickupRescheduledEmails).not.toHaveBeenCalled();
+  });
+
+  it('accepts a new date exactly 60 days ahead', async () => {
+    withScheduledOrder();
+
+    const result = await updateOrderPickupDateAction('order-1', plusDays(todayInOslo(), 60));
+
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a new date in the past', async () => {
+    withScheduledOrder();
+
+    const result = await updateOrderPickupDateAction('order-1', plusDays(todayInOslo(), -1));
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Hentedatoen er ikke lenger tilgjengelig. Velg en ny dato.',
+    });
+    expect(updateMock).not.toHaveBeenCalled();
   });
 
   it('rejects a weekday with no cleaners in the city', async () => {
     withScheduledOrder();
     m(getAvailableWeekdaysForCity).mockResolvedValue([]);
 
-    const result = await updateOrderPickupDateAction('order-1', '2030-01-04');
+    const result = await updateOrderPickupDateAction('order-1', NEW_DATE);
 
     expect(result).toEqual({ success: false, error: 'Ingen rensere tilgjengelig på denne dagen' });
     expect(updateMock).not.toHaveBeenCalled();
@@ -901,48 +986,73 @@ describe('updateOrderPickupDateAction', () => {
   it('keeps the cleaner and writes only the new dates when they work on the new day', async () => {
     withScheduledOrder(WORKS_EVERY_DAY);
 
-    const result = await updateOrderPickupDateAction('order-1', '2030-01-04');
+    const result = await updateOrderPickupDateAction('order-1', NEW_DATE);
 
     expect(findAvailableCleaner).not.toHaveBeenCalled();
-    expect(updateMock).toHaveBeenCalledWith({ scheduled_date: '2030-01-04', delivery_date: '2030-01-06' });
+    expect(updateMock).toHaveBeenCalledWith({ scheduled_date: NEW_DATE, delivery_date: NEW_DELIVERY_DATE });
     expect(eqMock).toHaveBeenCalledWith('id', 'order-1');
     expect(sendPickupRescheduledEmail).toHaveBeenCalledWith(
       'order-1',
-      expect.objectContaining({ scheduled_date: '2030-01-02', updated_at: '2029-12-01T10:00:00+00:00' }),
+      expect.objectContaining({ scheduled_date: OLD_DATE, updated_at: '2029-12-01T10:00:00+00:00' }),
       'customer'
     );
     expect(result).toEqual({
       success: true,
-      newPickupDate: '2030-01-04',
-      newDeliveryDate: '2030-01-06',
+      newPickupDate: NEW_DATE,
+      newDeliveryDate: NEW_DELIVERY_DATE,
       cleanerChanged: false,
       newCleanerName: undefined,
     });
+  });
+
+  it('notifies the cleaner side after the write, with the order as it was before the write', async () => {
+    withScheduledOrder(WORKS_EVERY_DAY);
+
+    await updateOrderPickupDateAction('order-1', NEW_DATE);
+
+    expect(sendCleanerPickupRescheduledEmails).toHaveBeenCalledTimes(1);
+    expect(sendCleanerPickupRescheduledEmails).toHaveBeenCalledWith(
+      'order-1',
+      expect.objectContaining({
+        scheduled_date: OLD_DATE,
+        cleaner_id: 'cleaner-1',
+        updated_at: '2029-12-01T10:00:00+00:00',
+      })
+    );
+    expect(m(sendCleanerPickupRescheduledEmails).mock.invocationCallOrder[0]).toBeGreaterThan(
+      eqMock.mock.invocationCallOrder[0]
+    );
   });
 
   it('reassigns to an available cleaner when the current one does not work on the new day', async () => {
     withScheduledOrder(WORKS_NEVER);
     m(findAvailableCleaner).mockResolvedValue({ id: 'cleaner-2', display_name: 'Ola' });
 
-    const result = await updateOrderPickupDateAction('order-1', '2030-01-04');
+    const result = await updateOrderPickupDateAction('order-1', NEW_DATE);
 
     expect(findAvailableCleaner).toHaveBeenCalledWith('Bergen', expect.any(Date));
     expect(updateMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        scheduled_date: '2030-01-04',
-        delivery_date: '2030-01-06',
+        scheduled_date: NEW_DATE,
+        delivery_date: NEW_DELIVERY_DATE,
         cleaner_id: 'cleaner-2',
         assigned_at: expect.any(String),
       })
     );
     expect(result).toMatchObject({ success: true, cleanerChanged: true, newCleanerName: 'Ola' });
+    // The previous cleaner id travels in the "before" row, so the service can
+    // tell the old cleaner and the new one.
+    expect(sendCleanerPickupRescheduledEmails).toHaveBeenCalledWith(
+      'order-1',
+      expect.objectContaining({ cleaner_id: 'cleaner-1', scheduled_date: OLD_DATE })
+    );
   });
 
   it('fails when no replacement cleaner is available', async () => {
     withScheduledOrder(WORKS_NEVER);
     m(findAvailableCleaner).mockResolvedValue(null);
 
-    const result = await updateOrderPickupDateAction('order-1', '2030-01-04');
+    const result = await updateOrderPickupDateAction('order-1', NEW_DATE);
 
     expect(result).toEqual({
       success: false,
@@ -950,16 +1060,18 @@ describe('updateOrderPickupDateAction', () => {
     });
     expect(updateMock).not.toHaveBeenCalled();
     expect(sendPickupRescheduledEmail).not.toHaveBeenCalled();
+    expect(sendCleanerPickupRescheduledEmails).not.toHaveBeenCalled();
   });
 
   it('surfaces a database failure', async () => {
     withScheduledOrder();
     eqMock.mockResolvedValue({ error: { message: 'boom' } });
 
-    const result = await updateOrderPickupDateAction('order-1', '2030-01-04');
+    const result = await updateOrderPickupDateAction('order-1', NEW_DATE);
 
     expect(result).toEqual({ success: false, error: 'Kunne ikke oppdatere hentedato' });
     expect(sendPickupRescheduledEmail).not.toHaveBeenCalled();
+    expect(sendCleanerPickupRescheduledEmails).not.toHaveBeenCalled();
   });
 });
 
@@ -1022,16 +1134,38 @@ describe('cancelOrderAction — cancellation e-mail', () => {
     expect(sendOrderCancelledEmail).not.toHaveBeenCalled();
   });
 
-  it('sends nothing inside the 24-hour window', async () => {
-    withCancellableOrder({ scheduled_date: new Date().toISOString().slice(0, 10) });
+  it('refuses on the pickup day and says when self-cancellation closed', async () => {
+    withCancellableOrder({ scheduled_date: todayInOslo() });
 
     const result = await cancelOrderAction('order-1');
 
-    expect(result).toEqual({
-      success: false,
-      error: 'Kan ikke kansellere ordre mindre enn 24 timer før henting',
-    });
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(
+      /^Du kan ikke lenger avbestille selv\. Fristen var midnatt natt til .+, dagen før hentedagen\. Ta kontakt med oss på post@nooracare\.no, så hjelper vi deg\.$/
+    );
+    expect(updateOrderStatus).not.toHaveBeenCalled();
     expect(sendOrderCancelledEmail).not.toHaveBeenCalled();
+  });
+
+  it('refuses the day before the pickup day', async () => {
+    withCancellableOrder({ scheduled_date: tomorrowInOslo() });
+
+    const result = await cancelOrderAction('order-1');
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('Du kan ikke lenger avbestille selv.');
+    expect(updateOrderStatus).not.toHaveBeenCalled();
+    expect(sendOrderCancelledEmail).not.toHaveBeenCalled();
+  });
+
+  it('allows cancelling two days before the pickup day', async () => {
+    const twoDaysAhead = new Date(Date.parse(todayInOslo()) + 2 * 86_400_000).toISOString().slice(0, 10);
+    withCancellableOrder({ scheduled_date: twoDaysAhead });
+
+    const result = await cancelOrderAction('order-1');
+
+    expect(result).toEqual({ success: true });
+    expect(updateOrderStatus).toHaveBeenCalledWith('order-1', 'cancelled');
   });
 
   it('sends nothing when the cancel write fails', async () => {
@@ -1040,7 +1174,7 @@ describe('cancelOrderAction — cancellation e-mail', () => {
 
     const result = await cancelOrderAction('order-1');
 
-    expect(result).toEqual({ success: false, error: 'Failed to cancel order' });
+    expect(result).toEqual({ success: false, error: 'Vi klarte ikke å kansellere bestillingen. Prøv igjen.' });
     expect(sendOrderCancelledEmail).not.toHaveBeenCalled();
   });
 });
@@ -1110,7 +1244,97 @@ describe('cancelOrderAction — one-time agreement stop', () => {
 
     const result = await cancelOrderAction('order-1');
 
-    expect(result).toEqual({ success: false, error: 'Failed to cancel order' });
+    expect(result).toEqual({ success: false, error: 'Vi klarte ikke å kansellere bestillingen. Prøv igjen.' });
     expect(stopVippsAgreementForOneTimeOrder).not.toHaveBeenCalled();
+  });
+});
+
+describe('order edit and cancel actions — customer-facing error texts', () => {
+  const LOGGED_OUT = 'Du er logget ut. Logg inn på nytt og prøv igjen.';
+  const NO_CUSTOMER = 'Vi fant ikke kundeprofilen din. Logg inn på nytt og prøv igjen.';
+  const NO_ORDER = 'Vi fant ikke bestillingen. Last siden på nytt og prøv igjen.';
+  const address = { street: 'Storgata 1', postalCode: '5003', city: 'Bergen' };
+
+  it('tells a signed-out customer to log in again', async () => {
+    getUser.mockResolvedValue({ data: { user: null } });
+
+    expect(await updateOrderSpecialInstructionsAction('order-1', 'Vask kaldt')).toEqual({ success: false, error: LOGGED_OUT });
+    expect(await updateOrderAddressAction('order-1', address)).toEqual({ success: false, error: LOGGED_OUT });
+    expect(await cancelOrderAction('order-1')).toEqual({ success: false, error: LOGGED_OUT });
+  });
+
+  it('answers in Norwegian when the customer record is missing', async () => {
+    getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    m(getCustomerByUserId).mockResolvedValue(null);
+
+    expect(await updateOrderSpecialInstructionsAction('order-1', 'Vask kaldt')).toEqual({ success: false, error: NO_CUSTOMER });
+    expect(await updateOrderAddressAction('order-1', address)).toEqual({ success: false, error: NO_CUSTOMER });
+    expect(await cancelOrderAction('order-1')).toEqual({ success: false, error: NO_CUSTOMER });
+  });
+
+  it("answers in Norwegian for an order that isn't the customer's", async () => {
+    getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
+    m(getOrderWithDetailsByIdAndCustomerId).mockResolvedValue(null);
+
+    expect(await updateOrderSpecialInstructionsAction('order-1', 'Vask kaldt')).toEqual({ success: false, error: NO_ORDER });
+    expect(await updateOrderAddressAction('order-1', address)).toEqual({ success: false, error: NO_ORDER });
+    expect(await cancelOrderAction('order-1')).toEqual({ success: false, error: NO_ORDER });
+  });
+
+  it('never shows the internal status when the order can no longer be cancelled', async () => {
+    getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
+    m(getOrderWithDetailsByIdAndCustomerId).mockResolvedValue({
+      id: 'order-1',
+      status: 'in_cleaning',
+      subscription_id: null,
+      scheduled_date: '2030-01-04',
+    });
+
+    const result = await cancelOrderAction('order-1');
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Bestillingen kan ikke lenger kanselleres. Last siden på nytt for å se status.',
+    });
+    expect(result.error).not.toContain('in_cleaning');
+    expect(updateOrderStatus).not.toHaveBeenCalled();
+  });
+
+  it('answers in Norwegian when saving the wash instructions fails', async () => {
+    getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
+    m(getOrderWithDetailsByIdAndCustomerId).mockResolvedValue({ id: 'order-1', status: 'pickup_scheduled' });
+    const eqMock = vi.fn().mockResolvedValue({ error: { message: 'boom' } });
+    m(createAdminClient).mockReturnValue({ from: vi.fn(() => ({ update: vi.fn(() => ({ eq: eqMock })) })) });
+
+    const result = await updateOrderSpecialInstructionsAction('order-1', 'Vask kaldt');
+
+    expect(result).toEqual({ success: false, error: 'Vi klarte ikke å lagre instruksjonene. Prøv igjen.' });
+  });
+
+  it('answers in Norwegian when an action throws', async () => {
+    getUser.mockRejectedValue(new Error('network down'));
+
+    expect(await updateOrderSpecialInstructionsAction('order-1', 'Vask kaldt')).toEqual({
+      success: false,
+      error: 'Noe gikk galt. Prøv igjen.',
+    });
+    expect(await updateOrderSelectionAction('order-1', {
+      bags: 1,
+      beddingSets: 0,
+      everydayItems: 0,
+      formalItems: 0,
+      ironBedding: false,
+    })).toEqual({ success: false, error: 'Noe gikk galt. Prøv igjen.' });
+    expect(await updateOrderAddressAction('order-1', address)).toEqual({
+      success: false,
+      error: 'Noe gikk galt. Prøv igjen.',
+    });
+    expect(await cancelOrderAction('order-1')).toEqual({
+      success: false,
+      error: 'Noe gikk galt. Last siden på nytt og sjekk om bestillingen er kansellert.',
+    });
   });
 });

@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { adminMarkPickedUpAction, adminMarkReadyAction, adminMarkDeliveredAction } from '../actions';
-import { formatKr } from '@/lib/config/pricing';
+import { PRICE_REVIEW_ESTIMATE_FACTOR, formatKr } from '@/lib/config/pricing';
 
 type LogisticsStatus = 'pickup_scheduled' | 'in_cleaning' | 'ready_for_delivery';
 
@@ -26,6 +26,7 @@ export function AdminLogisticsControl({
   status,
   priced,
   amountOre,
+  holdsCharge,
 }: {
   orderId: string;
   status: LogisticsStatus;
@@ -33,6 +34,8 @@ export function AdminLogisticsControl({
   priced: boolean;
   /** total_cost_ore — shown in the confirm label for in_cleaning. */
   amountOre: number | null;
+  /** Price guard: «Marker som klar» will NOT charge, because the price is far above the customer's estimate. Only consulted for in_cleaning. */
+  holdsCharge: boolean;
 }) {
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +46,7 @@ export function AdminLogisticsControl({
   const isReadyStep = status === 'in_cleaning';
   const blocked = isReadyStep && !priced;
   const confirmLabel =
-    isReadyStep && amountOre !== null && amountOre > 0
+    isReadyStep && !holdsCharge && amountOre !== null && amountOre > 0
       ? `Bekreft: marker som klar og belast ${formatKr(amountOre)}`
       : `Bekreft: ${label.toLowerCase()}`;
 
@@ -59,6 +62,10 @@ export function AdminLogisticsControl({
             : await adminMarkDeliveredAction(orderId);
       if (!result.success) {
         setError(result.error || 'Kunne ikke oppdatere status');
+      } else if ('chargeHeld' in result && result.chargeHeld) {
+        setNotice(
+          'Ordren er klar, men belastningen er holdt tilbake fordi prisen er mye høyere enn kundens estimat — godkjenn den med «Belast på nytt» under Betalinger, eller endre prisen i Pris-kortet først.'
+        );
       } else if ('chargeFailed' in result && result.chargeFailed) {
         setNotice('Ordren er klar, men belastningen feilet — bruk «Belast på nytt» under Betalinger.');
       }
@@ -69,9 +76,11 @@ export function AdminLogisticsControl({
   return (
     <div>
       <p className="text-sm text-medium-gray">
-        {isReadyStep
-          ? 'Gjør ordren klar for levering og sender prisen til kunden. Det kunden skal betale, trekkes via Vipps i løpet av et par dager. Bruk bare hvis renseren har glemt det.'
-          : 'Bruk bare hvis renseren har glemt å registrere det i appen.'}
+        {isReadyStep && holdsCharge
+          ? `Gjør ordren klar for levering. Prisen er mer enn ${PRICE_REVIEW_ESTIMATE_FACTOR} ganger kundens estimat, så den sendes ikke til kunden og belastes ikke før du godkjenner den med «Belast på nytt» under Betalinger. Bruk bare hvis renseren har glemt det.`
+          : isReadyStep
+            ? 'Gjør ordren klar for levering og sender prisen til kunden. Det kunden skal betale, trekkes via Vipps i løpet av et par dager. Bruk bare hvis renseren har glemt det.'
+            : 'Bruk bare hvis renseren har glemt å registrere det i appen.'}
       </p>
       {blocked && (
         <p className="mt-1.5 text-sm text-amber-800">

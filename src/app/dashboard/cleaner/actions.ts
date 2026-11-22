@@ -52,11 +52,13 @@ export async function getCleanerOrderDetails(
  * Cleaners run their own logistics: markOrderPickedUpAction before this,
  * markOrderDeliveredAction after it. The transition, its guards and the
  * charge live in lib/services/ready-order.ts (shared with the admin
- * fallback adminMarkReadyAction).
+ * fallback adminMarkReadyAction). `chargeHeld: true` means the price is far
+ * above the customer's estimate: the order is ready, but nothing is charged
+ * until an admin has reviewed it (price guard, see ready-order.ts).
  */
 export async function markOrderReadyForDelivery(
   orderId: string
-): Promise<{ success: boolean; error?: string; chargeFailed?: boolean }> {
+): Promise<{ success: boolean; error?: string; chargeFailed?: boolean; chargeHeld?: boolean }> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -83,6 +85,7 @@ export async function markOrderReadyForDelivery(
 
   revalidatePath('/dashboard/cleaner');
   revalidatePath(`/dashboard/cleaner/${orderId}`);
+  if (result.chargeHeld) return { success: true, chargeHeld: true };
   return result.chargeFailed ? { success: true, chargeFailed: true } : { success: true };
 }
 

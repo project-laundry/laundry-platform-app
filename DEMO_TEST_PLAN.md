@@ -82,7 +82,7 @@ Log in as the cleaner on `/dashboard/cleaner`.
 
 - [ ] On a second, fresh order: `/orders/[orderId]/reschedule` to a later date. Cleaner stays the same, order still shows in the cleaner list.
 - [ ] `/orders/[orderId]/cancel` → confirm. The order is cancelled, no replacement order is generated, and the success page does not mention «abonnement».
-- [ ] Set a pickup date within 24 h (admin edit) and confirm the cancel button disappears with the notice.
+- [ ] Set the pickup date to tomorrow (admin edit) and confirm the cancel link is replaced by the notice with our e-mail address. Set it to today and confirm «Endre dato» disappears and `/orders/[orderId]/reschedule` shows the "contact us" note.
 - [ ] Subscriptions are hidden (`SUBSCRIPTIONS_OFFERED = false`): `/dashboard/subscription` redirects to `/dashboard`.
 
 ## 9. Cleaner onboarding (if you will show it)

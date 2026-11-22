@@ -2,7 +2,7 @@
 // All prices are stored in øre (1 NOK = 100 øre)
 
 import type { OrderSelection } from '@/types/order-flow';
-import type { OrderPromo } from '@/types/database';
+import type { Order, OrderPromo } from '@/types/database';
 
 // Ironing groups (cleaner-binding pricing and customer estimate share these)
 export type IroningGroup = 'everyday' | 'shirts_dresses' | 'bedding';
@@ -390,4 +390,64 @@ export function applyPromoDiscount(
   if (!promo) return { total_cost_ore: fullTotalOre, promo: null };
   const discount_ore = computeDiscountOre(fullTotalOre, promo);
   return { total_cost_ore: fullTotalOre - discount_ore, promo: { ...promo, discount_ore } };
+}
+
+// ─── Price guard: hold the charge when the price is far above the estimate ───
+// The customer's checkout estimate is informational and the cleaner sets the
+// binding price, so nothing else stops a typo or a misunderstanding from
+// becoming a Vipps charge many times what the customer expects.
+
+/** A cleaner's price above this many times the customer's checkout estimate is
+ *  not charged automatically: the order still becomes ready for delivery, but
+ *  an admin must approve the charge («Belast på nytt») or correct the price. */
+export const PRICE_REVIEW_ESTIMATE_FACTOR = 2;
+
+/**
+ * True when a full service price (BEFORE any promo discount) is more than
+ * PRICE_REVIEW_ESTIMATE_FACTOR times the customer's estimate. Exactly the
+ * factor is still fine. No estimate (null/undefined/0) is never "far above":
+ * orders without an estimate are never held.
+ */
+export function isPriceFarAboveEstimate(
+  fullPriceOre: number,
+  estimatedTotalOre: number | null | undefined
+): boolean {
+  if (estimatedTotalOre == null || estimatedTotalOre <= 0) return false;
+  return fullPriceOre > estimatedTotalOre * PRICE_REVIEW_ESTIMATE_FACTOR;
+}
+
+/**
+ * The price-guard rule for a priced order: there is something to charge
+ * (total above 0) and the full price — total_cost_ore plus the promo discount
+ * that was taken off it — is far above the customer's estimate. The one rule
+ * behind markOrderReadyAndCharge's decision to hold the charge.
+ */
+export function orderPriceNeedsReview(
+  order: Pick<Order, 'total_cost_ore' | 'promo' | 'customer_estimate'>
+): boolean {
+  if (order.total_cost_ore == null || order.total_cost_ore <= 0) return false;
+  const fullPriceOre = order.total_cost_ore + (order.promo?.discount_ore ?? 0);
+  return isPriceFarAboveEstimate(fullPriceOre, order.customer_estimate?.estimated_total_ore);
+}
+
+/**
+ * True while an order's charge is held for price review. Nothing is stored
+ * for this state — it is derived: the order is past the ready step, its price
+ * needs review (orderPriceNeedsReview), and it has no payment row at all.
+ * The first «Belast på nytt» creates a payment row and ends the held state
+ * (from then on the order is an ordinary charged or failed-charge order).
+ * `paymentRowCount` = how many rows the order has in `payments`, any status.
+ */
+export function isChargeHeldForPriceReview(
+  order: Pick<Order, 'status' | 'total_cost_ore' | 'promo' | 'customer_estimate'>,
+  paymentRowCount: number
+): boolean {
+  if (
+    order.status !== 'ready_for_delivery' &&
+    order.status !== 'out_for_delivery' &&
+    order.status !== 'completed'
+  ) {
+    return false;
+  }
+  return paymentRowCount === 0 && orderPriceNeedsReview(order);
 }

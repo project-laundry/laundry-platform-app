@@ -75,7 +75,7 @@ The script generates realistic Norwegian test data including:
 **User Information:**
 - Random Norwegian first and last names (24 first names, 18 last names)
 - Random business names for companies (9 business types + AS/DA suffix)
-- Unique email addresses using timestamp + random number
+- Unique email addresses on Resend's test inbox (`delivered+<name>.<timestamp>.<random>@resend.dev`) — never an invented domain, because mail to it bounces and hurts the `nooracare.no` sending domain
 - Norwegian phone numbers (+47 prefix with realistic mobile prefixes)
 - Password: `password123` for all test users
 
@@ -211,14 +211,14 @@ The script provides clear console output:
 🏢 Type: individual
 👥 Count: 5
 
-[1/5] Creating user: lars.hansen.1732556789123.4567@test.no
+[1/5] Creating user: delivered+lars.hansen.1732556789123.4567@resend.dev
   ✅ Auth user created
   ✅ Role updated to cleaner
   ✅ Address created
   ✅ Cleaner profile created
   🎉 Successfully created Lars Hansen
 
-[2/5] Creating user: kari.olsen.1732556791456.8901@test.no
+[2/5] Creating user: delivered+kari.olsen.1732556791456.8901@resend.dev
   ✅ Auth user created
   ✅ Role updated to cleaner
   ✅ Address created

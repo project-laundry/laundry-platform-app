@@ -14,6 +14,10 @@ import {
   formatNok,
   formatNokWhole,
   getEmptyIroningDetails,
+  PRICE_REVIEW_ESTIMATE_FACTOR,
+  isPriceFarAboveEstimate,
+  orderPriceNeedsReview,
+  isChargeHeldForPriceReview,
   type IroningDetails,
 } from './pricing';
 import type { OrderSelection } from '@/types/order-flow';
@@ -254,6 +258,129 @@ describe('applyPromoDiscount', () => {
     expect(applyPromoDiscount(50000, { ...promo, discount_value: 100 })).toEqual({
       total_cost_ore: 0,
       promo: { ...promo, discount_value: 100, discount_ore: 50000 },
+    });
+  });
+});
+
+
+describe('price guard', () => {
+  const estimate = (estimated_total_ore: number) => ({
+    bags: 1,
+    bedding_sets: 0,
+    iron_everyday_items: 0,
+    iron_formal_items: 0,
+    iron_bedding: false,
+    estimated_total_ore,
+  });
+  const promo = {
+    promo_code_id: 'pc-1',
+    code: 'HALV',
+    discount_type: 'percentage' as const,
+    discount_value: 50,
+    max_discount_ore: null,
+  };
+
+  it('uses a factor of 2', () => {
+    expect(PRICE_REVIEW_ESTIMATE_FACTOR).toBe(2);
+  });
+
+  describe('isPriceFarAboveEstimate', () => {
+    it('is true only above the factor times the estimate', () => {
+      expect(isPriceFarAboveEstimate(100001, 50000)).toBe(true);
+      expect(isPriceFarAboveEstimate(100000, 50000)).toBe(false);
+      expect(isPriceFarAboveEstimate(50000, 50000)).toBe(false);
+    });
+
+    it('is never true without an estimate', () => {
+      expect(isPriceFarAboveEstimate(460730, null)).toBe(false);
+      expect(isPriceFarAboveEstimate(460730, undefined)).toBe(false);
+      expect(isPriceFarAboveEstimate(460730, 0)).toBe(false);
+    });
+
+    it('holds 15 washes against a one-bag estimate, but not 2 washes', () => {
+      const oneBag = calculateCustomerEstimate({ ...emptySelection, bags: 1 }).totalOre;
+      expect(oneBag).toBe(50000);
+      const fifteen = calculateOrderPrice({ wash_loads: 15, ironing_details: null }).total_ore;
+      const two = calculateOrderPrice({ wash_loads: 2, ironing_details: null }).total_ore;
+      expect(fifteen).toBe(460730);
+      expect(isPriceFarAboveEstimate(fifteen, oneBag)).toBe(true);
+      expect(isPriceFarAboveEstimate(two, oneBag)).toBe(false);
+    });
+  });
+
+  describe('orderPriceNeedsReview', () => {
+    it('is true for a price above twice the estimate', () => {
+      expect(
+        orderPriceNeedsReview({ total_cost_ore: 460730, promo: null, customer_estimate: estimate(50000) })
+      ).toBe(true);
+    });
+
+    it('is false at exactly twice the estimate', () => {
+      expect(
+        orderPriceNeedsReview({ total_cost_ore: 100000, promo: null, customer_estimate: estimate(50000) })
+      ).toBe(false);
+    });
+
+    it('is false without an estimate', () => {
+      expect(
+        orderPriceNeedsReview({ total_cost_ore: 460730, promo: null, customer_estimate: null })
+      ).toBe(false);
+    });
+
+    it('is false for an unpriced order and for a 0 total', () => {
+      expect(
+        orderPriceNeedsReview({ total_cost_ore: null, promo: null, customer_estimate: estimate(50000) })
+      ).toBe(false);
+      expect(
+        orderPriceNeedsReview({
+          total_cost_ore: 0,
+          promo: { ...promo, discount_value: 100, discount_ore: 460730 },
+          customer_estimate: estimate(50000),
+        })
+      ).toBe(false);
+    });
+
+    it('compares the full price before the promo discount', () => {
+      // Charged 60000 after a 60000 discount → full price 120000 > 2 × 50000.
+      expect(
+        orderPriceNeedsReview({
+          total_cost_ore: 60000,
+          promo: { ...promo, discount_ore: 60000 },
+          customer_estimate: estimate(50000),
+        })
+      ).toBe(true);
+      // The same charge without a discount is under the limit.
+      expect(
+        orderPriceNeedsReview({ total_cost_ore: 60000, promo: null, customer_estimate: estimate(50000) })
+      ).toBe(false);
+    });
+  });
+
+  describe('isChargeHeldForPriceReview', () => {
+    const held = {
+      status: 'ready_for_delivery' as const,
+      total_cost_ore: 460730,
+      promo: null,
+      customer_estimate: estimate(50000),
+    };
+
+    it('is true for a ready or completed order with no payment rows', () => {
+      expect(isChargeHeldForPriceReview(held, 0)).toBe(true);
+      expect(isChargeHeldForPriceReview({ ...held, status: 'completed' }, 0)).toBe(true);
+    });
+
+    it('is false once the order has any payment row', () => {
+      expect(isChargeHeldForPriceReview(held, 1)).toBe(false);
+    });
+
+    it('is false before the ready step and for a cancelled order', () => {
+      expect(isChargeHeldForPriceReview({ ...held, status: 'in_cleaning' }, 0)).toBe(false);
+      expect(isChargeHeldForPriceReview({ ...held, status: 'cancelled' }, 0)).toBe(false);
+    });
+
+    it('is false when the price is within the limit or there is no estimate', () => {
+      expect(isChargeHeldForPriceReview({ ...held, total_cost_ore: 100000 }, 0)).toBe(false);
+      expect(isChargeHeldForPriceReview({ ...held, customer_estimate: null }, 0)).toBe(false);
     });
   });
 });

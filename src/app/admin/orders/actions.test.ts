@@ -20,7 +20,10 @@ vi.mock('@/lib/services/customer-emails', () => ({
   sendOrderCancelledEmail: vi.fn(),
   sendPickupRescheduledEmail: vi.fn(),
 }));
-vi.mock('@/lib/services/staff-emails', () => ({ sendCleanerNewOrderEmail: vi.fn() }));
+vi.mock('@/lib/services/staff-emails', () => ({
+  sendCleanerNewOrderEmail: vi.fn(),
+  sendCleanerPickupRescheduledEmails: vi.fn(),
+}));
 vi.mock('@/lib/services/order-generation', () => ({ checkAndGenerateNextOrders: vi.fn() }));
 vi.mock('@/lib/database/cleaners', () => ({ getAvailableCleanersForCity: vi.fn() }));
 vi.mock('@/lib/database/payments', () => ({ getPaymentsByOrderId: vi.fn() }));
@@ -51,7 +54,10 @@ import {
   sendPickupRescheduledEmail,
   sendPriceReceiptEmail,
 } from '@/lib/services/customer-emails';
-import { sendCleanerNewOrderEmail } from '@/lib/services/staff-emails';
+import {
+  sendCleanerNewOrderEmail,
+  sendCleanerPickupRescheduledEmails,
+} from '@/lib/services/staff-emails';
 import { checkAndGenerateNextOrders } from '@/lib/services/order-generation';
 import { getAvailableCleanersForCity } from '@/lib/database/cleaners';
 import { getPaymentsByOrderId } from '@/lib/database/payments';
@@ -386,6 +392,25 @@ describe('updateOrderDetailsAction', () => {
     expect(sendPickupRescheduledEmail).toHaveBeenCalledWith('ord-1', EDITABLE_ORDER, 'admin');
   });
 
+  it('tells the cleaner side when the admin moves the pickup date', async () => {
+    await updateOrderDetailsAction('ord-1', {
+      ...VALID_INPUT,
+      scheduled_date: '2026-09-11',
+    });
+
+    expect(sendCleanerPickupRescheduledEmails).toHaveBeenCalledTimes(1);
+    expect(sendCleanerPickupRescheduledEmails).toHaveBeenCalledWith('ord-1', EDITABLE_ORDER);
+  });
+
+  it('tells the cleaner side nothing when the pickup date is unchanged', async () => {
+    await updateOrderDetailsAction('ord-1', {
+      ...VALID_INPUT,
+      delivery_date: '2026-09-15',
+    });
+
+    expect(sendCleanerPickupRescheduledEmails).not.toHaveBeenCalled();
+  });
+
   it('sends no e-mail when a pickup-date change fails to save', async () => {
     m(updateOrderAdminFields).mockResolvedValue(null);
 
@@ -396,6 +421,7 @@ describe('updateOrderDetailsAction', () => {
 
     expect(result).toEqual({ success: false, error: 'Kunne ikke lagre endringene' });
     expect(sendPickupRescheduledEmail).not.toHaveBeenCalled();
+    expect(sendCleanerPickupRescheduledEmails).not.toHaveBeenCalled();
   });
 
   it('errors when the write fails', async () => {
@@ -611,6 +637,17 @@ describe('retryChargeAction', () => {
     expect(result).toEqual({ success: true });
     expect(revalidatePath).toHaveBeenCalledWith('/admin/orders');
     expect(revalidatePath).toHaveBeenCalledWith('/admin/orders/ord-1');
+  });
+
+  it('approves a held charge on a delivered order: charges it and sends the price e-mail', async () => {
+    m(getOrderById).mockResolvedValue({ ...CHARGED_ORDER, status: 'completed', total_cost_ore: 460730 });
+    m(getPaymentsByOrderId).mockResolvedValue([]);
+
+    const result = await retryChargeAction('ord-1');
+
+    expect(result).toEqual({ success: true });
+    expect(createChargeForCompletedOrder).toHaveBeenCalledWith('ord-1', 460730, 'NooraCare vask #NC-1001');
+    expect(sendPriceReceiptEmail).toHaveBeenCalledWith('ord-1', 'pay-2');
   });
 
   it('returns the Vipps error when charge creation fails', async () => {
@@ -936,6 +973,48 @@ describe('overrideOrderPriceAction', () => {
     expect(updateOrderPricingByAdmin).toHaveBeenCalled();
   });
 
+  it('allows a re-price on a delivered order that is not charged (held or failed charge)', async () => {
+    m(getOrderById).mockResolvedValue({ ...IN_CLEANING_ORDER, status: 'completed', total_cost_ore: 460730 });
+    m(getPaymentsByOrderId).mockResolvedValue([]);
+
+    const result = await overrideOrderPriceAction('ord-1', { wash_loads: 2, pricing_notes: '' });
+
+    expect(result).toEqual({ success: true });
+    // 2 × 29900 + 10400 + 1830 = 72030; 70 % = 50421
+    expect(updateOrderPricingByAdmin).toHaveBeenCalledWith(
+      'ord-1',
+      expect.objectContaining({ wash_loads: 2, total_cost_ore: 72030, cleaner_payout_ore: 50421 })
+    );
+  });
+
+  it('rejects a delivered order that is already paid', async () => {
+    m(getOrderById).mockResolvedValue({ ...IN_CLEANING_ORDER, status: 'completed' });
+    m(getPaymentsByOrderId).mockResolvedValue([
+      { status: 'captured', provider_reference: 'chr-1', created_at: '2026-10-16T10:05:00.000Z' },
+    ]);
+
+    const result = await overrideOrderPriceAction('ord-1', { wash_loads: 3, pricing_notes: '' });
+
+    expect(result.success).toBe(false);
+    expect(updateOrderPricingByAdmin).not.toHaveBeenCalled();
+  });
+
+  it('rejects a delivered order with a 0 total or no price, and a cancelled order', async () => {
+    for (const order of [
+      { ...IN_CLEANING_ORDER, status: 'completed', total_cost_ore: 0 },
+      { ...IN_CLEANING_ORDER, status: 'completed', total_cost_ore: null },
+      { ...IN_CLEANING_ORDER, status: 'cancelled' },
+    ]) {
+      m(getOrderById).mockResolvedValue(order);
+
+      const result = await overrideOrderPriceAction('ord-1', { wash_loads: 3, pricing_notes: '' });
+
+      expect(result.success).toBe(false);
+    }
+    expect(getPaymentsByOrderId).not.toHaveBeenCalled();
+    expect(updateOrderPricingByAdmin).not.toHaveBeenCalled();
+  });
+
   it('errors when the write fails', async () => {
     m(updateOrderPricingByAdmin).mockResolvedValue(null);
 
@@ -993,6 +1072,15 @@ describe('adminMarkReadyAction', () => {
     const result = await adminMarkReadyAction('ord-1');
 
     expect(result).toEqual({ success: true, chargeFailed: true });
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/orders/ord-1');
+  });
+
+  it('passes chargeHeld through and still revalidates', async () => {
+    m(markOrderReadyAndCharge).mockResolvedValue({ success: true, chargeHeld: true });
+
+    const result = await adminMarkReadyAction('ord-1');
+
+    expect(result).toEqual({ success: true, chargeHeld: true });
     expect(revalidatePath).toHaveBeenCalledWith('/admin/orders/ord-1');
   });
 

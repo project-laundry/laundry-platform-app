@@ -10,7 +10,12 @@ import {
   PAYMENT_STATUS_VARIANT,
   hasLivePayment,
 } from '@/lib/utils/payment-status';
-import { IRONING_OFFERED, formatKr } from '@/lib/config/pricing';
+import {
+  IRONING_OFFERED,
+  formatKr,
+  isChargeHeldForPriceReview,
+  orderPriceNeedsReview,
+} from '@/lib/config/pricing';
 import { AssignCleanerControl, type CleanerOption } from '../AssignCleanerControl';
 import { OrderEditForm, type OrderEditability } from './OrderEditForm';
 import { AdminLogisticsControl } from './AdminLogisticsControl';
@@ -66,8 +71,19 @@ export default async function AdminOrderDetailPage({
     order.total_cost_ore > 0 &&
     !hasLivePayment(payments);
   // Price override: same gate as overrideOrderPriceAction, which re-checks it.
+  // A delivered order stays priceable while it has a price and nothing is
+  // charged (held or failed charge) — the admin corrects it, then «Belast på nytt».
   const canOverridePrice =
-    PRICEABLE_STATUSES.includes(order.status) && !hasLivePayment(payments);
+    (PRICEABLE_STATUSES.includes(order.status) ||
+      (order.status === 'completed' &&
+        order.total_cost_ore !== null &&
+        order.total_cost_ore > 0)) &&
+    !hasLivePayment(payments);
+  // Price guard (lib/services/ready-order.ts): the charge was never created
+  // because the price is far above the customer's estimate.
+  const chargeHeld = isChargeHeldForPriceReview(order, payments.length);
+  // «Marker som klar» would hold the charge instead of creating it.
+  const readyWillHoldCharge = order.status === 'in_cleaning' && orderPriceNeedsReview(order);
   const cancellable = CANCELLABLE_STATUSES.includes(order.status);
   const priced = order.wash_loads > 0 && order.total_cost_ore !== null;
 
@@ -153,6 +169,7 @@ export default async function AdminOrderDetailPage({
               status={order.status}
               priced={priced}
               amountOre={order.total_cost_ore}
+              holdsCharge={readyWillHoldCharge}
             />
           </div>
         </div>
@@ -197,7 +214,9 @@ export default async function AdminOrderDetailPage({
             <p className="mb-3 text-sm text-medium-gray">
               {order.total_cost_ore === null
                 ? 'Renseren har ikke satt pris. Sett antall vask her for å prise ordren.'
-                : 'Overstyr prisen hvis renseren har priset feil. Kunden er ikke belastet ennå.'}
+                : order.status === 'in_cleaning'
+                  ? 'Overstyr prisen hvis renseren har priset feil. Kunden er ikke belastet ennå.'
+                  : 'Overstyr prisen hvis renseren har priset feil. Kunden er ikke belastet ennå. Å lagre en ny pris belaster ikke kunden – trykk «Belast på nytt» under Betalinger etterpå.'}
             </p>
             <PriceOverrideForm
               orderId={order.id}
@@ -320,7 +339,11 @@ export default async function AdminOrderDetailPage({
         )}
         {canRetryCharge && (
           <div className="mt-3">
-            <RetryChargeControl orderId={order.id} amountOre={order.total_cost_ore ?? 0} />
+            <RetryChargeControl
+              orderId={order.id}
+              amountOre={order.total_cost_ore ?? 0}
+              held={chargeHeld}
+            />
           </div>
         )}
       </div>

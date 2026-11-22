@@ -573,15 +573,15 @@ export async function updateOrderLaundryDetails(
     .single();
 
   if (fetchError || !order) {
-    return { data: null, error: 'Order not found' };
+    return { data: null, error: 'Vi fant ikke ordren. Last siden på nytt og prøv igjen.' };
   }
 
   if (order.cleaner_id !== cleanerId) {
-    return { data: null, error: 'Not authorized to update this order' };
+    return { data: null, error: 'Ordren er ikke lenger tildelt deg. Last siden på nytt.' };
   }
 
   if (order.status === 'completed' || order.status === 'cancelled') {
-    return { data: null, error: 'Cannot update a completed or cancelled order' };
+    return { data: null, error: 'Ordren er fullført eller kansellert og kan ikke endres.' };
   }
 
   const updateData: Record<string, unknown> = {
@@ -607,7 +607,7 @@ export async function updateOrderLaundryDetails(
 
   if (error) {
     console.error('Error updating order laundry details:', error);
-    return { data: null, error: error.message };
+    return { data: null, error: 'Kunne ikke lagre vaskdetaljene. Prøv igjen.' };
   }
 
   return { data: updatedOrder, error: null };

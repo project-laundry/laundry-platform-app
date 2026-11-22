@@ -9,6 +9,7 @@ import { RescheduleButton } from '@/components/orders/RescheduleButton';
 import { EditableSpecialInstructions } from '@/components/orders/EditableSpecialInstructions';
 import { EditableOrderSelection } from '@/components/orders/EditableOrderSelection';
 import { EditableAddress } from '@/components/orders/EditableAddress';
+import { HelpContact } from '@/components/ui/HelpContact';
 import type { OrderStatus, OrderWithRelations } from '@/types/database';
 import { Truck, User, Package, AlertCircle, Info } from 'lucide-react';
 
@@ -136,7 +137,11 @@ export function OrderDetailsView({ order }: { order: OrderWithRelations }) {
                   </div>
                 </div>
                 {isEditable && (
-                  <RescheduleButton orderId={order.id} orderStatus={order.status} />
+                  <RescheduleButton
+                    orderId={order.id}
+                    orderStatus={order.status}
+                    scheduledDate={order.scheduled_date}
+                  />
                 )}
               </div>
 
@@ -280,6 +285,14 @@ export function OrderDetailsView({ order }: { order: OrderWithRelations }) {
             orderStatus={order.status}
             scheduledDate={order.scheduled_date}
           />
+        </section>
+
+        {/* Help — who to contact when something is wrong with the order */}
+        <section
+          className="mt-6 animate-in fade-in slide-in-from-bottom-3 duration-500"
+          style={{ animationDelay: '300ms' }}
+        >
+          <HelpContact orderNumber={order.order_number} />
         </section>
       </main>
     </div>

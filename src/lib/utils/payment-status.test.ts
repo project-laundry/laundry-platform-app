@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  hasCapturedPayment,
   hasLivePayment,
   isOrphanPendingPayment,
   orphanPendingCutoffIso,
@@ -94,5 +95,27 @@ describe('hasLivePayment', () => {
 describe('stalePendingCutoffIso', () => {
   it('is 3 days before now', () => {
     expect(stalePendingCutoffIso(NOW)).toBe('2026-10-13T12:00:00.000Z');
+  });
+});
+
+describe('hasCapturedPayment', () => {
+  it('is false with no rows', () => {
+    expect(hasCapturedPayment([])).toBe(false);
+  });
+
+  it('is true for a captured or a refunded row', () => {
+    expect(hasCapturedPayment([{ status: 'failed' }, { status: 'captured' }])).toBe(true);
+    expect(hasCapturedPayment([{ status: 'refunded' }])).toBe(true);
+  });
+
+  it('is false for pending, authorized, failed and cancelled rows', () => {
+    expect(
+      hasCapturedPayment([
+        { status: 'pending' },
+        { status: 'authorized' },
+        { status: 'failed' },
+        { status: 'cancelled' },
+      ])
+    ).toBe(false);
   });
 });

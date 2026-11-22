@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { retryChargeAction } from '../actions';
-import { formatKr } from '@/lib/config/pricing';
+import { PRICE_REVIEW_ESTIMATE_FACTOR, formatKr } from '@/lib/config/pricing';
 
 /**
  * «Belast på nytt» — the page renders this only when the order should carry a
@@ -11,13 +11,20 @@ import { formatKr } from '@/lib/config/pricing';
  * Two-tap confirm like AdminLogisticsControl; the server action re-validates
  * everything and revalidates the page, so the new payment row appears on
  * success and the failed row appears on a failed retry.
+ *
+ * `held` = the charge was never created because the price is far above the
+ * customer's estimate (price guard). The button is the same — pressing it is
+ * the admin's approval of the price — only the explanation differs.
  */
 export function RetryChargeControl({
   orderId,
   amountOre,
+  held,
 }: {
   orderId: string;
   amountOre: number;
+  /** True while the charge is held for price review (isChargeHeldForPriceReview). */
+  held: boolean;
 }) {
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +45,11 @@ export function RetryChargeControl({
     <div>
       <div className="flex items-start gap-2 rounded-2xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
         <AlertCircle className="mt-0.5 size-4 shrink-0" />
-        <p>Kunden er ikke belastet for denne ordren.</p>
+        <p>
+          {held
+            ? `Belastningen er holdt tilbake fordi renserens pris er mer enn ${PRICE_REVIEW_ESTIMATE_FACTOR} ganger kundens estimat. Kunden er ikke belastet og har ikke fått e-posten med prisen. Trykk «Belast på nytt» for å godkjenne prisen, eller endre antall vask i Pris-kortet først.`
+            : 'Kunden er ikke belastet for denne ordren.'}
+        </p>
       </div>
       <div className="mt-3 flex gap-2">
         {!confirming ? (

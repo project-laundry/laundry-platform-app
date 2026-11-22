@@ -63,7 +63,8 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Everything except static assets, the Vipps webhook endpoint and the PostHog proxy (/ingest).
-    '/((?!_next/static|_next/image|favicon.ico|api/webhooks|ingest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+    // Everything except static assets, robots.txt and sitemap.xml (crawlers need
+    // no session refresh), the Vipps webhook endpoint and the PostHog proxy (/ingest).
+    '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|api/webhooks|ingest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 };

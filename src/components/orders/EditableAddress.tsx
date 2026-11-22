@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateOrderAddressAction, UpdateOrderAddressInput } from '@/app/orders/actions';
-import { MapPin, Pencil, Check, X } from 'lucide-react';
+import { MapPin, Pencil, Check, X, AlertCircle } from 'lucide-react';
 
 interface EditableAddressProps {
   orderId: string;
@@ -33,6 +33,7 @@ export function EditableAddress({
   );
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [saveError, setSaveError] = useState<string | null>(null);
   const router = useRouter();
 
   const validateFields = (): boolean => {
@@ -61,6 +62,7 @@ export function EditableAddress({
   };
 
   const handleSave = async () => {
+    setSaveError(null);
     if (!validateFields()) {
       return;
     }
@@ -77,7 +79,7 @@ export function EditableAddress({
       const result = await updateOrderAddressAction(orderId, addressData);
 
       if (!result.success) {
-        alert(result.error || 'En feil oppstod');
+        setSaveError(result.error || 'Noe gikk galt. Prøv igjen.');
         setIsLoading(false);
         return;
       }
@@ -86,7 +88,7 @@ export function EditableAddress({
       router.refresh();
     } catch (error) {
       console.error('Error updating address:', error);
-      alert('En feil oppstod');
+      setSaveError('Noe gikk galt. Prøv igjen.');
     } finally {
       setIsLoading(false);
     }
@@ -97,6 +99,7 @@ export function EditableAddress({
     setPostalCode(initialAddress.postalCode);
     setSpecialInstructionsAddress(initialAddress.specialInstructionsAddress || '');
     setErrors({});
+    setSaveError(null);
     setIsEditing(false);
   };
 
@@ -199,6 +202,13 @@ export function EditableAddress({
               <p className="mt-1 text-sm text-red-600">{errors.specialInstructionsAddress}</p>
             )}
           </label>
+
+          {saveError && (
+            <div role="alert" className="flex items-start gap-2 rounded-2xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
+              <AlertCircle className="mt-0.5 size-4 shrink-0" />
+              <p>{saveError}</p>
+            </div>
+          )}
 
           {/* Action Buttons */}
           <div className="flex gap-2">

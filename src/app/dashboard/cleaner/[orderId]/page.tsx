@@ -8,7 +8,12 @@ import { getCleanerOrderDetails } from '../actions';
 import { getPaymentsByOrderId } from '@/lib/database/payments';
 import { hasLivePayment } from '@/lib/utils/payment-status';
 import { OrderStep } from './OrderStep';
-import { IRONING_OFFERED, formatKr, formatKrExact } from '@/lib/config/pricing';
+import {
+  IRONING_OFFERED,
+  formatKr,
+  formatKrExact,
+  isChargeHeldForPriceReview,
+} from '@/lib/config/pricing';
 import { monthKeyInOslo, monthLabel, payoutDueDate } from '@/lib/utils/payout';
 import { getPickupTimeRangeLabel } from '@/lib/config/pickup-times';
 import { buildSingleDestinationUrl } from '@/lib/utils/route';
@@ -151,7 +156,12 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
     (order.status === 'ready_for_delivery' || order.status === 'out_for_delivery') &&
     order.total_cost_ore !== null &&
     order.total_cost_ore > 0;
-  const chargeFailed = chargeExpected && !hasLivePayment(await getPaymentsByOrderId(order.id));
+  const payments = chargeExpected ? await getPaymentsByOrderId(order.id) : [];
+  // Price guard: the charge was never created because the price is far above
+  // the customer's estimate and an admin reviews it first. That is not a
+  // failed charge, so it gets its own message.
+  const chargeHeld = chargeExpected && isChargeHeldForPriceReview(order, payments.length);
+  const chargeFailed = chargeExpected && !chargeHeld && !hasLivePayment(payments);
 
   // A completed order is paid out with the month it was completed in.
   const payoutDue = order.completed_at
@@ -247,6 +257,8 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
             promo={order.promo}
             totalCostOre={order.total_cost_ore}
             chargeFailed={chargeFailed}
+            chargeHeld={chargeHeld}
+            estimatedTotalOre={order.customer_estimate?.estimated_total_ore ?? null}
           />
         )}
 
