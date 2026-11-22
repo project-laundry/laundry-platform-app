@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ChevronRight, Inbox, Plus } from 'lucide-react';
 import { getUsersByRole } from '@/lib/database/users';
 import { requireRole } from '@/lib/auth/require-role';
+import { StatusBadge } from '@/components/dashboard/StatusBadge';
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('no-NO', {
@@ -48,9 +49,10 @@ export default async function AdminAdminsPage() {
                   className="flex items-center justify-between gap-3 px-5 py-3.5 transition-colors hover:bg-cream/50"
                 >
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-dark-gray">
-                      {admin.full_name}
-                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate text-sm font-medium text-dark-gray">{admin.full_name}</p>
+                      {admin.deleted_at && <StatusBadge variant="neutral">Deaktivert</StatusBadge>}
+                    </div>
                     <p className="mt-0.5 truncate text-sm text-medium-gray">
                       {admin.email} · {admin.phone}
                     </p>

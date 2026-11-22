@@ -89,7 +89,7 @@ src/
 │   │   ├── evaluations/    # Customer evaluations (read-only): averages per numeric question + every answer set, newest first
 │   │   ├── promo-codes/    # Promo code list, create/edit, redemptions per code
 │   │   ├── drivers/        # Driver list, create/edit (account + profile) — dormant, not in AdminNav
-│   │   └── admins/         # Admin user list, create/edit
+│   │   └── admins/         # Admin user list (deactivated ones marked), create/edit, deactivate/reactivate another admin (AdminActiveButton → setAdminActiveAction)
 │   ├── api/                # API routes
 │   │   ├── cron/
 │   │   │   ├── admin-digest/ # Daily admin digest (Vercel cron in vercel.json, 06:00 UTC, Production only): CRON_SECRET bearer check → getAdminAttention → buildAdminDigest → sendEmail (lib/email/send.ts), plain text to every admin user
@@ -184,7 +184,7 @@ src/
 │   │   ├── error-alerts.ts      # reportError(source, error, details?) — logs and e-mails an unexpected error to every admin, at most once per hour per error; NEVER throws. See Error Alerts
 │   │   ├── order-generation.ts  # Subscription to orders logic
 │   │   ├── staff-emails.ts      # sendCleanerNewOrderEmail(orderId) / sendAdminNewOrderEmail(orderId) / sendAdminOrderUnassignedEmail(orderId, declinedByName) — load (getOrderForStaffEmail, getUsersByRole), build, send; NEVER throw, return void (callers: Vipps webhook, assignCleanerAction, declineCleanerOrder); sendCleanerPickupRescheduledEmails(orderId, before) after a pickup date change (callers: updateOrderPickupDateAction, updateOrderDetailsAction). See `EMAILS.md`
-│   │   └── staff-accounts.ts    # Staff (driver/admin) account creation: auth user + role flip + cleanup
+│   │   └── staff-accounts.ts    # Staff (driver/admin) account creation: auth user + role flip + cleanup; setStaffAccountActive(userId, active) = Supabase Auth ban + users.deleted_at
 │   ├── supabase/
 │   │   ├── client.ts       # Browser Supabase client
 │   │   ├── server.ts       # Server Supabase client
@@ -238,7 +238,7 @@ All database operations use dedicated functions in `lib/database/`:
 
 ### Middleware
 
-`src/proxy.ts` (Next 16 proxy convention) refreshes Supabase auth sessions on every request. On every host, a signed-out page load under `/orders/*` is redirected to signup/login with `?next=` (`orderAuthRedirect`). There is no pre-launch gate any more: both the customer and the cleaner side are public on `nooracare.no`. The matcher skips `/ingest`, the PostHog reverse proxy (`next.config.ts` rewrites to `eu.i.posthog.com`), so analytics requests cost no Supabase call. Because `skipTrailingSlashRedirect` is on for that proxy, the first thing `proxy.ts` does is 308 `/foo/` → `/foo` for app paths, so canonical URLs are unchanged. Role guards live in `src/lib/auth/require-role.ts` (`requireRole` for pages/layouts, `assertRole` for server actions); privileged roles (`admin`, `driver`) can never be chosen at signup — the `handle_new_user` trigger only honors `customer`/`cleaner` metadata.
+`src/proxy.ts` (Next 16 proxy convention) refreshes Supabase auth sessions on every request. On every host, a signed-out page load under `/orders/*` is redirected to signup/login with `?next=` (`orderAuthRedirect`). There is no pre-launch gate any more: both the customer and the cleaner side are public on `nooracare.no`. The matcher skips `/ingest`, the PostHog reverse proxy (`next.config.ts` rewrites to `eu.i.posthog.com`), so analytics requests cost no Supabase call. Because `skipTrailingSlashRedirect` is on for that proxy, the first thing `proxy.ts` does is 308 `/foo/` → `/foo` for app paths, so canonical URLs are unchanged. Role guards live in `src/lib/auth/require-role.ts` (`requireRole` for pages/layouts, `assertRole` for server actions); privileged roles (`admin`, `driver`) can never be chosen at signup — the `handle_new_user` trigger only honors `customer`/`cleaner` metadata. A deactivated administrator (`users.deleted_at` set from `/admin/admins`) is treated as signed out by both guards.
 
 ## Maps & Geocoding
 

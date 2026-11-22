@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 // --- Mock the admin Supabase client (auth admin API + users/customers tables) ---
 const createUser = vi.fn();
 const deleteUser = vi.fn();
+const updateUserById = vi.fn();
 const usersUpdate = vi.fn();
 const usersUpdateEq = vi.fn();
 const usersDelete = vi.fn();
@@ -11,7 +12,7 @@ const customersDeleteEq = vi.fn();
 
 vi.mock('@/lib/supabase/admin', () => ({
   createAdminClient: () => ({
-    auth: { admin: { createUser, deleteUser } },
+    auth: { admin: { createUser, deleteUser, updateUserById } },
     from: (table: string) => {
       if (table === 'users') {
         return { update: usersUpdate, delete: usersDelete };
@@ -24,7 +25,7 @@ vi.mock('@/lib/supabase/admin', () => ({
   }),
 }));
 
-import { createStaffAccount, deleteStaffAccount } from './staff-accounts';
+import { createStaffAccount, deleteStaffAccount, setStaffAccountActive } from './staff-accounts';
 
 const INPUT = {
   full_name: 'Test Sjåfør',
@@ -38,6 +39,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   createUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null });
   deleteUser.mockResolvedValue({ data: null, error: null });
+  updateUserById.mockResolvedValue({ data: null, error: null });
   usersUpdate.mockImplementation(() => ({ eq: usersUpdateEq }));
   usersUpdateEq.mockResolvedValue({ error: null });
   usersDelete.mockImplementation(() => ({ eq: usersDeleteEq }));
@@ -111,5 +113,43 @@ describe('deleteStaffAccount', () => {
 
     expect(usersDeleteEq).toHaveBeenCalledWith('id', 'user-9');
     expect(deleteUser).toHaveBeenCalledWith('user-9');
+  });
+});
+
+describe('setStaffAccountActive', () => {
+  it('deactivates: bans the auth user and sets deleted_at', async () => {
+    const result = await setStaffAccountActive('user-3', false);
+
+    expect(result).toEqual({ error: null });
+    expect(updateUserById).toHaveBeenCalledWith('user-3', { ban_duration: '876000h' });
+    expect(usersUpdate).toHaveBeenCalledWith({ deleted_at: expect.any(String) });
+    expect(usersUpdateEq).toHaveBeenCalledWith('id', 'user-3');
+  });
+
+  it('reactivates: unbans the auth user and clears deleted_at', async () => {
+    const result = await setStaffAccountActive('user-3', true);
+
+    expect(result).toEqual({ error: null });
+    expect(updateUserById).toHaveBeenCalledWith('user-3', { ban_duration: 'none' });
+    expect(usersUpdate).toHaveBeenCalledWith({ deleted_at: null });
+  });
+
+  it('returns an error and writes nothing when the ban call fails', async () => {
+    updateUserById.mockResolvedValue({ data: null, error: { message: 'boom' } });
+
+    const result = await setStaffAccountActive('user-3', false);
+
+    expect(result.error).toBe('Kunne ikke deaktivere kontoen');
+    expect(usersUpdate).not.toHaveBeenCalled();
+  });
+
+  it('undoes the ban change when the users update fails', async () => {
+    usersUpdateEq.mockResolvedValue({ error: { message: 'boom' } });
+
+    const result = await setStaffAccountActive('user-3', false);
+
+    expect(result.error).toBe('Kunne ikke deaktivere kontoen');
+    expect(updateUserById).toHaveBeenCalledTimes(2);
+    expect(updateUserById).toHaveBeenLastCalledWith('user-3', { ban_duration: 'none' });
   });
 });
