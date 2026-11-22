@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { OFFERED_CITIES } from "@/lib/config/postal-codes";
 import { Wordmark } from '@/components/layout/AppHeader';
 import { COMPANY, formatOrgNumber, phoneHref } from '@/lib/config/company';
 
@@ -91,8 +92,9 @@ export function Footer({
               Serviceområder
             </h4>
             <ul className="space-y-3 text-medium-gray">
-              <li>Bergen</li>
-              <li>Oslo</li>
+              {OFFERED_CITIES.map((city) => (
+                <li key={city}>{city}</li>
+              ))}
             </ul>
           </div>
 

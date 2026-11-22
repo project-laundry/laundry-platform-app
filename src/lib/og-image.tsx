@@ -4,6 +4,7 @@
 // build time by next/og.
 
 import { ImageResponse } from 'next/og';
+import { serviceAreaText } from '@/lib/config/postal-codes';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -76,7 +77,7 @@ export async function renderOgImage({
           </div>
           <div style={{ display: 'flex', alignItems: 'center', marginTop: 44, fontSize: 24, color: FROST, fontFamily: 'sans-serif' }}>
             <div style={{ width: 12, height: 12, borderRadius: 999, background: SOL, marginRight: 12 }} />
-            nooracare.no · Bergen og Oslo
+            nooracare.no · {serviceAreaText()}
           </div>
         </div>
       </div>

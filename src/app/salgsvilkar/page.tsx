@@ -6,12 +6,13 @@ import { formatTermsVersion } from "@/lib/config/terms";
 import { CompanyContactCard } from "@/components/legal/CompanyContactCard";
 import { SUBSCRIPTIONS_OFFERED } from "@/lib/config/subscriptions";
 import { MIN_DAYS_NOTICE } from "@/lib/config/order-timing";
+import { serviceAreaText } from "@/lib/config/postal-codes";
 
 export const metadata: Metadata = {
   title: "Salgsvilkår | NooraCare",
   description: SUBSCRIPTIONS_OFFERED
-    ? "Salgsvilkår for NooraCare – peer-to-peer vasketjeneste i Bergen og Oslo. Les om priser, betaling, levering, angrerett, abonnement og reklamasjon."
-    : "Salgsvilkår for NooraCare – peer-to-peer vasketjeneste i Bergen og Oslo. Les om priser, betaling, levering, angrerett og reklamasjon.",
+    ? `Salgsvilkår for NooraCare – peer-to-peer vasketjeneste i ${serviceAreaText()}. Les om priser, betaling, levering, angrerett, abonnement og reklamasjon.`
+    : `Salgsvilkår for NooraCare – peer-to-peer vasketjeneste i ${serviceAreaText()}. Les om priser, betaling, levering, angrerett og reklamasjon.`,
 };
 
 export default function SalgsvilkarPage() {
@@ -83,8 +84,8 @@ export default function SalgsvilkarPage() {
               {SUBSCRIPTIONS_OFFERED ? (
                 <>
                   <p className="leading-relaxed text-dark-gray mb-4">
-                    NooraCare formidler henting, vask og levering av klesvask i
-                    Bergen og Oslo. Tjenesten kan benyttes på
+                    NooraCare formidler henting, vask og levering av klesvask i{" "}
+                    {serviceAreaText()}. Tjenesten kan benyttes på
                     to måter:
                   </p>
                   <ul className="space-y-3 leading-relaxed text-dark-gray list-disc list-outside pl-6">
@@ -102,14 +103,13 @@ export default function SalgsvilkarPage() {
                 </>
               ) : (
                 <p className="leading-relaxed text-dark-gray">
-                  NooraCare formidler henting, vask og levering av klesvask i
-                  Bergen og Oslo. Tjenesten bestilles som enkeltbestillinger –
+                  NooraCare formidler henting, vask og levering av klesvask i{" "}
+                  {serviceAreaText()}. Tjenesten bestilles som enkeltbestillinger –
                   ett oppdrag per bestilling. Betaling skjer via Vipps.
                 </p>
               )}
               <p className="leading-relaxed text-dark-gray mt-4">
-                Tjenesten leveres innenfor de geografiske områdene Bergen og
-                Oslo. NooraCare kan avvise bestillinger som faller utenfor
+                Tjenesten leveres i {serviceAreaText()}. NooraCare kan avvise bestillinger som faller utenfor
                 serviceområdet eller som ikke kan utføres med rimelig innsats.
               </p>
             </section>

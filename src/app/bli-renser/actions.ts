@@ -15,7 +15,7 @@ import {
   type MachineImageMediaType,
   type MachineRecognitionResult,
 } from "@/lib/ai/machine-recognition";
-import { getCityFromPostalCode } from "@/lib/config/postal-codes";
+import { getCityFromPostalCode, serviceAreaText } from "@/lib/config/postal-codes";
 import {
   hasAnyWeekday,
   normalizeWeeklySchedule,
@@ -138,7 +138,7 @@ export async function createCleanerProfileAction(
     if (!baseCity) {
       return {
         success: false,
-        error: "Postnummeret er utenfor serviceområdet vårt (Bergen og Oslo).",
+        error: `Postnummeret er utenfor serviceområdet vårt (${serviceAreaText()}).`,
       };
     }
 

@@ -10,6 +10,7 @@ import {
   comingSoonCard,
 } from '@/components/coming-soon/ComingSoonShell';
 import { HowItWorksStory } from '@/components/coming-soon/HowItWorksStory';
+import { serviceAreaText } from '@/lib/config/postal-codes';
 import { CLEANER_MIN_PAYOUT_PER_ORDER_ORE, PRICING, formatKr } from '@/lib/config/pricing';
 
 // Customer landing page: a hero with one «Bestill henting» button, followed by
@@ -137,7 +138,7 @@ export default function HomePage() {
       switchLabel="Logg inn"
     >
       <ComingSoonHero
-        badge="Nå åpent i Bergen og Oslo"
+        badge={`Nå åpent i ${serviceAreaText()}`}
         title="Nå slipper du"
         highlight="klesvasken."
         subtitle="Vi henter skittentøyet hjemme hos deg, vasker og tørker det, og leverer det rent tilbake på døren."

@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getCleanerByUserId, updateCleanerProfile } from '@/lib/database/cleaners';
 import { geocodeAddress } from '@/lib/maps/geocoding';
-import { getCityFromPostalCode } from '@/lib/config/postal-codes';
+import { getCityFromPostalCode, serviceAreaText } from '@/lib/config/postal-codes';
 import { EXPERIENCE_LEVEL_OPTIONS, MACHINE_CONDITION_OPTIONS } from '@/lib/config/cleaner-options';
 import {
   hasAnyWeekday,
@@ -92,7 +92,7 @@ export async function updateCleanerSettingsAction(
     if (!baseCity) {
       return {
         success: false,
-        error: 'Postnummeret er utenfor serviceområdet vårt (Bergen og Oslo).',
+        error: `Postnummeret er utenfor serviceområdet vårt (${serviceAreaText()}).`,
       };
     }
     const machineBrand = input.machineBrand.trim();

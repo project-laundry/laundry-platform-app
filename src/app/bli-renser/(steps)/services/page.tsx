@@ -8,6 +8,7 @@ import { CleanerFlowSection, CleanerFlowShell } from '@/components/cleaner-flow/
 import { FormInput } from '@/components/forms/FormInput';
 import {
   getCityFromPostalCode,
+  serviceAreaText,
   isValidPostalCodeFormat,
   type SupportedCity,
 } from '@/lib/config/postal-codes';
@@ -116,7 +117,7 @@ function ServicesForm() {
             <div className="flex items-start gap-2 rounded-2xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
               <AlertCircle className="mt-0.5 size-4 shrink-0" />
               <span>
-                Vi er foreløpig bare i Bergen og Oslo. Dette postnummeret er utenfor området vårt.
+                Vi er foreløpig bare i {serviceAreaText()}. Dette postnummeret er utenfor området vårt.
               </span>
             </div>
           )}

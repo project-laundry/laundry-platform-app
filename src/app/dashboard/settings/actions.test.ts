@@ -161,18 +161,16 @@ describe('updateSubscriptionAddressAction', () => {
 
     expect(result).toEqual({
       success: false,
-      error: 'Postnummeret er utenfor serviceområdet vårt (Bergen og Oslo).',
+      error: 'Postnummeret er utenfor serviceområdet vårt (Bergen).',
     });
     expect(validateAddress).not.toHaveBeenCalled();
     expect(updateSubscription).not.toHaveBeenCalled();
   });
 
-  it('rejects a postal code in the other service city without calling Maps', async () => {
+  it('treats an Oslo postal code as outside the service area while only Bergen is offered', async () => {
     const result = await updateSubscriptionAddressAction({ ...ADDRESS_INPUT, postalCode: '0150' });
 
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('Abonnementet ditt gjelder Bergen');
-    expect(result.error).toContain('Oslo');
+    expect(result).toEqual({ success: false, error: 'Postnummeret er utenfor serviceområdet vårt (Bergen).' });
     expect(validateAddress).not.toHaveBeenCalled();
     expect(updateSubscription).not.toHaveBeenCalled();
   });
