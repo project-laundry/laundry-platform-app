@@ -66,12 +66,14 @@ Staging/production values are set **per environment** in the Vercel dashboard.
 side opened. Everything is public on `nooracare.no`; the order flow (`/orders/*`) requires an account
 on every host (the proxy sends signed-out visitors to signup/login with `?next=`).
 
-**Canonical host:** the app assumes `https://nooracare.no` (no `www`) — `NEXT_PUBLIC_APP_URL`, the
-Vipps webhook URL, the Vipps return URL and every e-mail link use it, and session cookies are
-host-only. In Vercel → Settings → Domains, `nooracare.no` must serve the site and `www.nooracare.no`
-must redirect to it (not the other way round): a redirect on the apex host breaks the Vipps webhook
-(Vipps signs the request for the host it was registered with and does not follow redirects) and
-signs customers out on the way back from Vipps. Check: `curl -sI https://nooracare.no/` answers 200.
+**Canonical host:** the app's one host is `https://nooracare.no` (no `www`): session cookies are
+host-only, so a customer must stay on one host from login to the return from Vipps. In Vercel →
+Settings → Domains **both** `nooracare.no` and `www.nooracare.no` are connected to Production (no
+domain-level redirect), and `next.config.ts` redirects every `www.nooracare.no` request to
+`nooracare.no` (307) — except `/api/webhooks/*`. The Vipps webhook must be answered on whichever host
+it was registered with: Vipps does not follow redirects and signs the request for that host. Never
+put a domain-level redirect on `nooracare.no`. Check: `curl -sI https://nooracare.no/` answers 200 and
+`curl -sI https://www.nooracare.no/` answers 307 to `https://nooracare.no/`.
 
 ### Launch checklist
 
