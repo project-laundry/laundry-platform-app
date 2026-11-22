@@ -10,7 +10,7 @@ import { buildErrorAlert, reportError } from './error-alerts';
 vi.spyOn(console, 'error').mockImplementation(() => {});
 
 const NOW = new Date('2026-11-22T14:05:09Z');
-const admin = (email: string, deleted_at: string | null = null) => ({ email, deleted_at }) as never;
+const admin = (email: string, deleted_at: string | null = null) => ({ id: `id-${email}`, email, deleted_at }) as never;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -61,7 +61,7 @@ describe('reportError', () => {
     expect(message.to).toEqual(['a@nooracare.no']);
     expect(message.subject).toBe('NooraCare feil: webhook');
     expect(message.text).toContain('agreement: agr_1');
-    expect(message.idempotencyKey).toMatch(/^error-alert\//);
+    expect(message.idempotencyKey).toMatch(/^error-alert\/[0-9a-f]{16}\/.+\/id-a@nooracare\.no$/);
   });
 
   it('sends nothing when there is no admin', async () => {

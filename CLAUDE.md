@@ -154,6 +154,7 @@ src/
 │   │   ├── promo-codes.ts  # Promo code validation & redemption (shared, once-per-customer)
 │   │   └── subscriptions.ts   # Subscription operations (recurring order management)
 │   ├── email/
+│   │   ├── admin-mail.ts   # sendToAdmins({ subject, text, idempotencyKey? }) → { recipients, sent }: one message PER admin (`users.role = 'admin'`, not deleted), key suffixed with the admin's user id — a bouncing admin address must never suppress the others' copy. Used by the digest, the staff order alerts and the error alerts
 │   │   ├── send.ts         # sendEmail(): the ONE Resend transport (fetch → POST /emails, optional Idempotency-Key, never throws, { ok } | { ok: false, error }); CUSTOMER_EMAIL_FROM. Used by the admin digest and the customer e-mails
 │   │   ├── customer-emails.ts # Pure builders for the customer e-mails → { subject, text, html }: buildOrderConfirmationEmail (#23), buildPriceReceiptEmail (#26), buildPaymentFailedEmail (#28), buildOrderDeliveredEmail (#27), buildOrderPickedUpEmail (#25), buildPickupReminderEmail (#24), buildOrderCancelledEmail + buildPickupRescheduledEmail (#29), buildCleanerConfirmedEmail (#30). Text and HTML rendered from one block list; HTML wrapper mirrors supabase/templates/
 │   │   └── staff-emails.ts # Pure builders for the staff e-mails: buildCleanerNewOrderEmail («Nytt oppdrag», { subject, text, html } with the customer-emails block list and HTML wrapper), buildAdminNewOrderEmail and buildAdminOrderUnassignedEmail (plain text { subject, text })
@@ -247,6 +248,7 @@ Cleaner onboarding step 3 can pre-fill the washing machine fields from a photo. 
 
 Every day at 06:00 UTC a Vercel cron (`vercel.json` → `crons`, Production only) calls `GET /api/cron/admin-digest` with `Authorization: Bearer $CRON_SECRET`. The route e-mails the same lists `/admin` shows (`lib/database/admin-attention.ts` → `lib/services/admin-digest.ts`) as plain text to every `users` row with `role = 'admin'` and `deleted_at IS NULL`, through the shared `sendEmail` transport (`lib/email/send.ts` — Resend REST API with `fetch`, no SDK). It is sent even when there is nothing to do, so a missing e-mail means the cron or sender is broken. Instant alerts for failures are separate — see Error Alerts. The two order alerts to admins («Ny ordre», «Ordre venter på tildeling») are separate — see Staff E-mails.
 
+- **One message per admin** (`sendToAdmins` in `lib/email/admin-mail.ts`), for the digest, the order alerts and the error alerts alike: with every admin on one message, a single bouncing address makes Resend suppress it for all. The digest route answers 502 `{ sent, failed }` when any admin's copy is rejected. Every admin account needs a working mailbox — a bounce also hurts the sending domain.
 - **Env**: `CRON_SECRET`, `RESEND_API_KEY`, optional `ADMIN_DIGEST_FROM` (see `ENVIRONMENTS.md`). The `nooracare.no` sending domain is verified in Resend (shared with the Auth e-mails).
 
 ## Error Alerts

@@ -51,9 +51,9 @@ const PENDING_ORDER = {
 };
 
 const ADMINS = [
-  { email: 'admin1@example.com', deleted_at: null },
-  { email: 'gone@example.com', deleted_at: '2026-01-01T00:00:00.000Z' },
-  { email: 'admin2@example.com', deleted_at: null },
+  { id: 'adm-1', email: 'admin1@example.com', deleted_at: null },
+  { id: 'adm-0', email: 'gone@example.com', deleted_at: '2026-01-01T00:00:00.000Z' },
+  { id: 'adm-2', email: 'admin2@example.com', deleted_at: null },
 ];
 
 beforeEach(() => {
@@ -148,13 +148,21 @@ describe('sendAdminNewOrderEmail', () => {
 
     expect(getUsersByRole).toHaveBeenCalledWith('admin');
     expect(buildAdminNewOrderEmail).toHaveBeenCalledWith(ORDER, { appUrl: 'https://nooracare.no' });
-    expect(sendEmail).toHaveBeenCalledTimes(1);
+    // One message per admin, each with its own idempotency key.
+    expect(sendEmail).toHaveBeenCalledTimes(2);
     expect(sendEmail).toHaveBeenCalledWith({
       from: 'NooraCare <varsel@nooracare.no>',
-      to: ['admin1@example.com', 'admin2@example.com'],
+      to: ['admin1@example.com'],
       subject: 'Ny ordre',
       text: 'tekst',
-      idempotencyKey: 'admin-new-order/ord-1',
+      idempotencyKey: 'admin-new-order/ord-1/adm-1',
+    });
+    expect(sendEmail).toHaveBeenCalledWith({
+      from: 'NooraCare <varsel@nooracare.no>',
+      to: ['admin2@example.com'],
+      subject: 'Ny ordre',
+      text: 'tekst',
+      idempotencyKey: 'admin-new-order/ord-1/adm-2',
     });
   });
 
@@ -204,10 +212,10 @@ describe('sendAdminOrderUnassignedEmail', () => {
     );
     expect(sendEmail).toHaveBeenCalledWith({
       from: 'NooraCare <varsel@nooracare.no>',
-      to: ['admin1@example.com', 'admin2@example.com'],
+      to: ['admin2@example.com'],
       subject: 'Venter',
       text: 'tekst',
-      idempotencyKey: 'admin-order-unassigned/ord-1/2',
+      idempotencyKey: 'admin-order-unassigned/ord-1/2/adm-2',
     });
   });
 

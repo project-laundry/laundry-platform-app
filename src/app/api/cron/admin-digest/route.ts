@@ -4,20 +4,18 @@
 // Called by the Vercel cron declared in vercel.json (06:00 UTC daily, Production
 // only). Vercel sends `Authorization: Bearer <CRON_SECRET>`; anything else is 401.
 // Builds the same attention lists as /admin and e-mails them as plain text to
-// every admin user through the shared Resend transport (lib/email/send.ts).
+// every admin user, one message each (lib/email/admin-mail.ts).
 // Sent even when there is nothing to follow up, so a missing e-mail means the
 // cron or the sender is broken.
 //
 // Response codes: 401 bad/missing secret; 500 missing configuration or no
-// recipients; 502 Resend rejected the send; 200 { sent: <recipient count> }.
+// recipients; 502 when any admin's copy was rejected ({ sent, failed });
+// 200 { sent: <recipient count> }.
 
 import { NextResponse } from 'next/server';
 import { getAdminAttention } from '@/lib/database/admin-attention';
-import { getUsersByRole } from '@/lib/database/users';
 import { buildAdminDigest } from '@/lib/services/admin-digest';
-import { sendEmail } from '@/lib/email/send';
-
-const DEFAULT_FROM = 'NooraCare <varsel@nooracare.no>';
+import { sendToAdmins } from '@/lib/email/admin-mail';
 
 export async function GET(request: Request): Promise<Response> {
   const cronSecret = process.env.CRON_SECRET;
@@ -32,28 +30,19 @@ export async function GET(request: Request): Promise<Response> {
     return NextResponse.json({ error: 'Digest is not configured' }, { status: 500 });
   }
 
-  const recipients = (await getUsersByRole('admin'))
-    .filter((user) => user.deleted_at === null)
-    .map((user) => user.email);
-  if (recipients.length === 0) {
-    console.error('[Admin Digest] No admin users to send to');
-    return NextResponse.json({ error: 'No recipients' }, { status: 500 });
-  }
-
   const attention = await getAdminAttention();
   const { subject, text } = buildAdminDigest(attention, { appUrl, now: new Date() });
 
-  const result = await sendEmail({
-    from: process.env.ADMIN_DIGEST_FROM || DEFAULT_FROM,
-    to: recipients,
-    subject,
-    text,
-  });
-
-  if (!result.ok) {
-    return NextResponse.json({ error: 'Send failed' }, { status: 502 });
+  const { recipients, sent } = await sendToAdmins({ subject, text });
+  if (recipients === 0) {
+    console.error('[Admin Digest] No admin users to send to');
+    return NextResponse.json({ error: 'No recipients' }, { status: 500 });
+  }
+  if (sent < recipients) {
+    console.error(`[Admin Digest] Only ${sent} of ${recipients} admin(s) reached: ${subject}`);
+    return NextResponse.json({ error: 'Send failed', sent, failed: recipients - sent }, { status: 502 });
   }
 
-  console.log(`[Admin Digest] Sent to ${recipients.length} admin(s): ${subject}`);
-  return NextResponse.json({ sent: recipients.length });
+  console.log(`[Admin Digest] Sent to ${recipients} admin(s): ${subject}`);
+  return NextResponse.json({ sent });
 }

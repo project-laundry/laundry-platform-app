@@ -73,17 +73,16 @@ describe('GET /api/cron/admin-digest', () => {
       appUrl: 'https://nooracare.no',
       now: expect.any(Date),
     });
-    expect(fetch).toHaveBeenCalledTimes(1);
+    // One message per admin, so one bad address cannot suppress the others' copy.
+    expect(fetch).toHaveBeenCalledTimes(2);
     const [url, init] = m(fetch).mock.calls[0];
     expect(url).toBe('https://api.resend.com/emails');
     expect(init.method).toBe('POST');
     expect(init.headers.Authorization).toBe('Bearer re_test');
-    expect(JSON.parse(init.body)).toEqual({
-      from: 'NooraCare <varsel@nooracare.no>',
-      to: ['a@nooracare.no', 'b@nooracare.no'],
-      subject: 'Emne',
-      text: 'Innhold',
-    });
+    expect(m(fetch).mock.calls.map(([, call]) => JSON.parse(call.body))).toEqual([
+      { from: 'NooraCare <varsel@nooracare.no>', to: ['a@nooracare.no'], subject: 'Emne', text: 'Innhold' },
+      { from: 'NooraCare <varsel@nooracare.no>', to: ['b@nooracare.no'], subject: 'Emne', text: 'Innhold' },
+    ]);
   });
 
   it('answers 500 when there is no admin to send to', async () => {

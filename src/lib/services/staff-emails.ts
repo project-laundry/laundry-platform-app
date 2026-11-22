@@ -12,7 +12,7 @@
 
 import { COMPANY } from '@/lib/config/company';
 import { getOrderForStaffEmail } from '@/lib/database/orders';
-import { getUsersByRole } from '@/lib/database/users';
+import { sendToAdmins } from '@/lib/email/admin-mail';
 import { CUSTOMER_EMAIL_FROM, sendEmail } from '@/lib/email/send';
 import {
   buildAdminNewOrderEmail,
@@ -20,9 +20,6 @@ import {
   buildCleanerNewOrderEmail,
   type StaffTextEmail,
 } from '@/lib/email/staff-emails';
-
-/** Same default sender as the daily admin digest (app/api/cron/admin-digest/route.ts). */
-const ADMIN_ALERT_DEFAULT_FROM = 'NooraCare <varsel@nooracare.no>';
 
 function appUrl(): string | null {
   const url = process.env.NEXT_PUBLIC_APP_URL;
@@ -33,27 +30,15 @@ function appUrl(): string | null {
   return url;
 }
 
-/** One plain-text e-mail to every admin user — the same recipients as the digest. */
+/** One plain-text e-mail per admin user — the same recipients as the digest. */
 async function deliverToAdmins(email: StaffTextEmail, idempotencyKey: string): Promise<void> {
-  const recipients = (await getUsersByRole('admin'))
-    .filter((user) => user.deleted_at === null)
-    .map((user) => user.email);
-  if (recipients.length === 0) {
+  const { recipients, sent } = await sendToAdmins({ ...email, idempotencyKey });
+  if (recipients === 0) {
     console.error(`[Staff e-mail] No admin users — ${idempotencyKey} not sent`);
-    return;
-  }
-
-  const result = await sendEmail({
-    from: process.env.ADMIN_DIGEST_FROM || ADMIN_ALERT_DEFAULT_FROM,
-    to: recipients,
-    subject: email.subject,
-    text: email.text,
-    idempotencyKey,
-  });
-  if (result.ok) {
-    console.log(`[Staff e-mail] Sent ${idempotencyKey} to ${recipients.length} admin(s)`);
+  } else if (sent < recipients) {
+    console.error(`[Staff e-mail] ${idempotencyKey}: only ${sent} of ${recipients} admin(s) reached`);
   } else {
-    console.error(`[Staff e-mail] Not sent ${idempotencyKey}: ${result.error}`);
+    console.log(`[Staff e-mail] Sent ${idempotencyKey} to ${recipients} admin(s)`);
   }
 }
 
