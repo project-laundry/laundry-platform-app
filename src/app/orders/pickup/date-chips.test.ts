@@ -35,12 +35,18 @@ describe('buildDateChips', () => {
     vi.useRealTimers();
   });
 
-  it('starts at today + MIN_DAYS_NOTICE and returns 10 chips when every weekday is available', () => {
+  it('starts today before the same-day cutoff and returns 10 chips when every weekday is available', () => {
     const chips = buildDateChips(ALL_WEEKDAYS);
 
     expect(chips).toHaveLength(10);
-    expect(chips[0].iso).toBe('2026-08-29'); // Aug 27 + 2 days notice
-    expect(chips[9].iso).toBe('2026-09-07'); // 10 consecutive days
+    expect(chips[0].iso).toBe('2026-08-27'); // same-day pickup, it is 09:00
+    expect(chips[9].iso).toBe('2026-09-05'); // 10 consecutive days
+  });
+
+  it('starts tomorrow once the same-day cutoff has passed', () => {
+    vi.setSystemTime(new Date(2026, 7, 27, 16, 30, 0));
+
+    expect(buildDateChips(ALL_WEEKDAYS)[0].iso).toBe('2026-08-28');
   });
 
   it('stores an iso date matching the day the chip displays', () => {
@@ -59,7 +65,7 @@ describe('buildDateChips', () => {
     for (const chip of chips) {
       expect(['monday', 'thursday']).toContain(getWeekdayFromDate(chip.iso));
     }
-    expect(chips[0].iso).toBe('2026-08-31'); // first Monday ≥ 2 days out
+    expect(chips[0].iso).toBe('2026-08-27'); // today is a Thursday
   });
 
   it('returns no chips when no weekdays are available', () => {

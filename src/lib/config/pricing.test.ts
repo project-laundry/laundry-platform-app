@@ -79,23 +79,23 @@ describe('calculateOrderPrice', () => {
   const noIroning: IroningDetails | null = null;
 
   it('applies the order minimum when the subtotal is below it', () => {
-    // 1 load (22900) + pickup/delivery (10400) + service (1830) = 35130 < 50000
+    // 1 load (29900) + pickup/delivery (10400) + service (1830) = 42130 < 50000
     const result = calculateOrderPrice({ wash_loads: 1, ironing_details: noIroning });
 
-    expect(result.loads_subtotal_ore).toBe(22900);
-    expect(result.subtotal_ore).toBe(35130);
+    expect(result.loads_subtotal_ore).toBe(29900);
+    expect(result.subtotal_ore).toBe(42130);
     expect(result.minimum_applied).toBe(true);
     expect(result.total_ore).toBe(PRICING.minimum_order_ore);
   });
 
   it('uses the actual subtotal when it exceeds the minimum', () => {
-    // 3 loads (68700) + 10400 + 1830 = 80930 >= 50000
+    // 3 loads (89700) + 10400 + 1830 = 101930 >= 50000
     const result = calculateOrderPrice({ wash_loads: 3, ironing_details: noIroning });
 
-    expect(result.loads_subtotal_ore).toBe(68700);
-    expect(result.subtotal_ore).toBe(80930);
+    expect(result.loads_subtotal_ore).toBe(89700);
+    expect(result.subtotal_ore).toBe(101930);
     expect(result.minimum_applied).toBe(false);
-    expect(result.total_ore).toBe(80930);
+    expect(result.total_ore).toBe(101930);
   });
 
   it('includes ironing in the subtotal', () => {
@@ -124,8 +124,8 @@ describe('calculateOrderPrice', () => {
   it('splits total into a 70% cleaner payout and 30% platform share', () => {
     const result = calculateOrderPrice({ wash_loads: 3, ironing_details: noIroning });
 
-    expect(result.cleaner_payout_ore).toBe(Math.round((80930 * 70) / 100)); // 56651
-    expect(result.platform_share_ore).toBe(80930 - result.cleaner_payout_ore);
+    expect(result.cleaner_payout_ore).toBe(Math.round((101930 * 70) / 100)); // 71351
+    expect(result.platform_share_ore).toBe(101930 - result.cleaner_payout_ore);
     expect(result.cleaner_payout_ore + result.platform_share_ore).toBe(result.total_ore);
   });
 });
@@ -141,17 +141,17 @@ describe('calculateCustomerEstimate', () => {
   });
 
   it('applies the minimum for a single bag', () => {
-    // 1 bag (11900) + pickup/delivery (10400) + service (1830) = 24130 < 50000
+    // 1 bag (29900) + pickup/delivery (10400) + service (1830) = 42130 < 50000
     const result = calculateCustomerEstimate({ ...emptySelection, bags: 1 });
 
-    expect(result.itemsSubtotalOre).toBe(11900);
-    expect(result.subtotalOre).toBe(24130);
+    expect(result.itemsSubtotalOre).toBe(29900);
+    expect(result.subtotalOre).toBe(42130);
     expect(result.minimumApplied).toBe(true);
     expect(result.totalOre).toBe(PRICING.minimum_order_ore);
   });
 
   it('sums bags, bedding and ironing above the minimum', () => {
-    // 3 bags (35700) + 2 sets (45800) + 5 formal (24500) + ironed bedding (17000)
+    // 3 bags (89700) + 2 sets (59800) + 5 formal (24500) + ironed bedding (17000)
     const result = calculateCustomerEstimate({
       bags: 3,
       beddingSets: 2,
@@ -160,7 +160,7 @@ describe('calculateCustomerEstimate', () => {
       ironBedding: true,
     });
 
-    expect(result.itemsSubtotalOre).toBe(35700 + 45800 + 24500 + 17000);
+    expect(result.itemsSubtotalOre).toBe(89700 + 59800 + 24500 + 17000);
     expect(result.subtotalOre).toBe(result.itemsSubtotalOre + 10400 + 1830);
     expect(result.minimumApplied).toBe(false);
     expect(result.totalOre).toBe(result.subtotalOre);

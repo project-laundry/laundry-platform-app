@@ -245,14 +245,14 @@ describe('saveLaundryDetails', () => {
     const result = await saveLaundryDetails('ord-1', { wash_loads: 3, ironing_details: null });
 
     expect(result.success).toBe(true);
-    // 3 × 22900 + 10400 + 1830 = 80930; 70 % = 56651
+    // 3 × 29900 + 10400 + 1830 = 101930; 70 % = 71351
     expect(updateOrderLaundryDetails).toHaveBeenCalledWith(
       'ord-1',
       'cl-1',
       expect.objectContaining({
         wash_loads: 3,
-        total_cost_ore: 80930,
-        cleaner_payout_ore: 56651,
+        total_cost_ore: 101930,
+        cleaner_payout_ore: 71351,
         promo: null,
       })
     );
@@ -278,9 +278,9 @@ describe('saveLaundryDetails', () => {
       'ord-1',
       'cl-1',
       expect.objectContaining({
-        total_cost_ore: 40465,
-        cleaner_payout_ore: 56651,
-        promo: expect.objectContaining({ code: 'HALV', discount_ore: 40465 }),
+        total_cost_ore: 50965,
+        cleaner_payout_ore: 71351,
+        promo: expect.objectContaining({ code: 'HALV', discount_ore: 50965 }),
       })
     );
   });

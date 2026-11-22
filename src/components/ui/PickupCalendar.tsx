@@ -4,13 +4,12 @@ import { useState } from 'react';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import type { Weekday } from '@/types/database';
 import { getWeekdayFromDate } from '@/lib/utils/date';
-import { MIN_DAYS_NOTICE } from '@/lib/config/order-timing';
+import { earliestPickupDate } from '@/lib/config/order-timing';
 
 interface PickupCalendarProps {
   availableWeekdays: Weekday[];
   selectedDate: string;
   onDateSelect: (date: string) => void;
-  minimumDaysNotice?: number;
   isLoading?: boolean;
 }
 
@@ -33,7 +32,6 @@ export function PickupCalendar({
   availableWeekdays,
   selectedDate,
   onDateSelect,
-  minimumDaysNotice = MIN_DAYS_NOTICE,
   isLoading = false,
 }: PickupCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(() => {
@@ -54,10 +52,8 @@ export function PickupCalendar({
     const startingDayOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
 
     const days: (CalendarDay | null)[] = [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const minDate = new Date(today);
-    minDate.setDate(today.getDate() + minimumDaysNotice);
+    // First bookable day (YYYY-MM-DD); ISO dates compare correctly as strings.
+    const minDate = earliestPickupDate();
 
     // Add empty cells for days before month starts
     for (let i = 0; i < startingDayOfWeek; i++) {
@@ -69,14 +65,14 @@ export function PickupCalendar({
       const dayDate = new Date(year, month, day);
       const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const weekday = getWeekdayFromDate(dateString);
-      const isAvailable = availableWeekdays.includes(weekday) && dayDate >= minDate;
+      const isAvailable = availableWeekdays.includes(weekday) && dateString >= minDate;
 
       days.push({
         day,
         date: dateString,
         isAvailable,
-        isToday: dayDate.toDateString() === today.toDateString(),
-        isPast: dayDate < minDate,
+        isToday: dayDate.toDateString() === new Date().toDateString(),
+        isPast: dateString < minDate,
       });
     }
 

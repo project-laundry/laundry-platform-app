@@ -177,16 +177,16 @@ const WELCOME_PROMO = {
   discount_type: 'percentage' as const,
   discount_value: 20,
   max_discount_ore: null,
-  discount_ore: 11606,
+  discount_ore: 14406,
 };
 
-/** The same order priced by the cleaner: 2 machines (458) + 104 + 18,30 = 580,30 kr; WELCOME 20 % → −116,06 → 464,24 kr. */
+/** The same order priced by the cleaner: 2 machines (598) + 104 + 18,30 = 720,30 kr; WELCOME 20 % → −144,06 → 576,24 kr. */
 const PRICED_ORDER: OrderForCustomerEmail = {
   ...ORDER,
   status: 'ready_for_delivery',
   wash_loads: 2,
-  total_cost_ore: 46424,
-  cleaner_payout_ore: 40621,
+  total_cost_ore: 57624,
+  cleaner_payout_ore: 50421,
   pricing_notes: 'Mye sengetøy, delt i to maskiner',
   price_calculated_at: '2026-10-25T14:00:00.000Z',
   promo: WELCOME_PROMO,
@@ -196,18 +196,18 @@ describe('buildPriceReceiptEmail', () => {
   it('lists the price lines, the promo deduction and the Vipps reference, without the checkout estimate', () => {
     const { subject, text } = buildPriceReceiptEmail(PRICED_ORDER, { provider_reference: 'chr-1' }, OPTIONS);
 
-    expect(subject).toBe('Prisen er satt – 464,24 kr for bestilling #ABC123');
+    expect(subject).toBe('Prisen er satt – 576,24 kr for bestilling #ABC123');
     expect(text).toContain('BESTILLING #ABC123');
-    expect(text).toContain('Vask – 2 maskiner à 229 kr: 458 kr');
+    expect(text).toContain('Vask – 2 maskiner à 299 kr: 598 kr');
     expect(text).toContain('Henting og levering: 104 kr');
     expect(text).toContain('Servicegebyr: 18,30 kr');
-    expect(text).toContain('Rabatt (WELCOME): −116,06 kr');
-    expect(text).toContain('Totalt: 464,24 kr');
+    expect(text).toContain('Rabatt (WELCOME): −144,06 kr');
+    expect(text).toContain('Totalt: 576,24 kr');
     expect(text).not.toContain('Minstepris');
     expect(text).toContain('Den endelige prisen er basert på hvor mye tøy du faktisk sendte.');
     expect(text).not.toMatch(/estimat/i);
     expect(text).toContain('Fra renseren: «Mye sengetøy, delt i to maskiner»');
-    expect(text).toContain('464,24 kr trekkes automatisk via Vipps-avtalen din');
+    expect(text).toContain('576,24 kr trekkes automatisk via Vipps-avtalen din');
     expect(text).toContain('Vipps-referanse: chr-1');
     expect(text).not.toContain('Veid');
   });
@@ -219,7 +219,7 @@ describe('buildPriceReceiptEmail', () => {
       OPTIONS
     );
 
-    expect(text).toContain('Vask – 1 maskin à 229 kr: 229 kr');
+    expect(text).toContain('Vask – 1 maskin à 299 kr: 299 kr');
     expect(text).toContain('Minstepris per bestilling: 500 kr');
     expect(text).toContain('Totalt: 500 kr');
     expect(text).toContain('Veid: 4.5 kg');
@@ -235,13 +235,13 @@ describe('buildPriceReceiptEmail', () => {
 
   it('says nothing is charged for a 0-total order', () => {
     const { subject, text } = buildPriceReceiptEmail(
-      { ...PRICED_ORDER, total_cost_ore: 0, promo: { ...WELCOME_PROMO, discount_value: 100, discount_ore: 58030 } },
+      { ...PRICED_ORDER, total_cost_ore: 0, promo: { ...WELCOME_PROMO, discount_value: 100, discount_ore: 72030 } },
       null,
       OPTIONS
     );
 
     expect(subject).toBe('Prisen er satt – 0 kr for bestilling #ABC123');
-    expect(text).toContain('Rabatt (WELCOME): −580,30 kr');
+    expect(text).toContain('Rabatt (WELCOME): −720,30 kr');
     expect(text).toContain('Totalt: 0 kr');
     expect(text).toContain('ingenting trekkes');
     expect(text).not.toContain('Vipps-referanse');
@@ -251,13 +251,13 @@ describe('buildPriceReceiptEmail', () => {
 describe('buildPaymentFailedEmail', () => {
   it('names the order and amount, states the retry policy and the Vipps reference', () => {
     const { subject, text } = buildPaymentFailedEmail(
-      { ...ORDER, status: 'ready_for_delivery', wash_loads: 2, total_cost_ore: 46424 },
-      { amount_ore: 46424, provider_reference: 'chr-1' },
+      { ...ORDER, status: 'ready_for_delivery', wash_loads: 2, total_cost_ore: 57624 },
+      { amount_ore: 57624, provider_reference: 'chr-1' },
       OPTIONS
     );
 
     expect(subject).toBe('Betalingen for bestilling #ABC123 gikk ikke gjennom');
-    expect(text).toContain('Vi fikk dessverre ikke trukket 464,24 kr for bestilling #ABC123 via Vipps.');
+    expect(text).toContain('Vi fikk dessverre ikke trukket 576,24 kr for bestilling #ABC123 via Vipps.');
     expect(text).toContain('HVA SKJER NÅ');
     expect(text).toContain('Dette påvirker ikke leveringen av tøyet ditt.');
     expect(text).toContain('nytt forsøk på å trekke beløpet i løpet av noen dager');
@@ -273,14 +273,14 @@ describe('buildPaymentFailedEmail', () => {
   });
 });
 
-/** A one-time order the cleaner has just delivered: priced at 464,24 kr. */
+/** A one-time order the cleaner has just delivered: priced at 576,24 kr. */
 const DELIVERED_ORDER: OrderForCustomerEmail = {
   ...ORDER,
   status: 'completed',
   subscription_id: null,
   subscription: null,
   wash_loads: 2,
-  total_cost_ore: 46424,
+  total_cost_ore: 57624,
   completed_at: '2026-10-27T15:00:00.000Z',
 };
 
@@ -300,12 +300,12 @@ describe('buildOrderDeliveredEmail', () => {
   it('says the amount will be charged while the Vipps charge is still pending', () => {
     const { text } = buildOrderDeliveredEmail(
       DELIVERED_ORDER,
-      [{ status: 'pending', amount_ore: 46424, provider_reference: 'chr-1' }],
+      [{ status: 'pending', amount_ore: 57624, provider_reference: 'chr-1' }],
       OPTIONS
     );
 
     expect(text).toContain(
-      'BETALING\n\n464,24 kr trekkes automatisk via Vipps-avtalen din i løpet av et par dager. Du trenger ikke gjøre noe.'
+      'BETALING\n\n576,24 kr trekkes automatisk via Vipps-avtalen din i løpet av et par dager. Du trenger ikke gjøre noe.'
     );
   });
 
@@ -313,13 +313,13 @@ describe('buildOrderDeliveredEmail', () => {
     const { text } = buildOrderDeliveredEmail(
       DELIVERED_ORDER,
       [
-        { status: 'captured', amount_ore: 46424, provider_reference: 'chr-2' },
-        { status: 'failed', amount_ore: 46424, provider_reference: 'chr-1' },
+        { status: 'captured', amount_ore: 57624, provider_reference: 'chr-2' },
+        { status: 'failed', amount_ore: 57624, provider_reference: 'chr-1' },
       ],
       OPTIONS
     );
 
-    expect(text).toContain('BETALING\n\n464,24 kr er trukket via Vipps-avtalen din.');
+    expect(text).toContain('BETALING\n\n576,24 kr er trukket via Vipps-avtalen din.');
     expect(text).not.toContain('trekkes automatisk');
   });
 
@@ -331,10 +331,10 @@ describe('buildOrderDeliveredEmail', () => {
 
   it('stays silent about payment when the charge failed, was never created or was refunded', () => {
     const silent = [
-      [{ status: 'failed' as const, amount_ore: 46424, provider_reference: 'chr-1' }],
-      [{ status: 'pending' as const, amount_ore: 46424, provider_reference: null }],
-      [{ status: 'refunded' as const, amount_ore: 46424, provider_reference: 'chr-1' }],
-      [{ status: 'cancelled' as const, amount_ore: 46424, provider_reference: 'chr-1' }],
+      [{ status: 'failed' as const, amount_ore: 57624, provider_reference: 'chr-1' }],
+      [{ status: 'pending' as const, amount_ore: 57624, provider_reference: null }],
+      [{ status: 'refunded' as const, amount_ore: 57624, provider_reference: 'chr-1' }],
+      [{ status: 'cancelled' as const, amount_ore: 57624, provider_reference: 'chr-1' }],
       [],
     ];
 
@@ -343,7 +343,7 @@ describe('buildOrderDeliveredEmail', () => {
 
       expect(text).not.toContain('BETALING');
       expect(text).not.toContain('Vipps');
-      expect(text).not.toContain('464,24');
+      expect(text).not.toContain('576,24');
     }
   });
 

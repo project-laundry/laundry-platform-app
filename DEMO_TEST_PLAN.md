@@ -34,7 +34,7 @@ Keep four browser profiles/windows open (customer, cleaner, driver, admin) so yo
 - [ ] `/auth/signup` with the fresh email. Confirmation email arrives, link lands on the dashboard (not `/auth/error`).
 - [ ] Signing up again with the same phone/email shows the clear Norwegian duplicate error.
 - [ ] `/orders/wash`: pick bags + bedding + ironing. Estimate updates live.
-- [ ] `/orders/pickup`: address in the demo city, **pickup date at least 2 days out** (needed so the cancel button appears later). There is no frequency choice: every order is a one-time order.
+- [ ] `/orders/pickup`: address in the demo city, **pickup date at least 2 days out** (same-day pickup is offered until 15:00, but the customer can only cancel until 24 hours before pickup — so pick a later date to test cancelling). There is no frequency choice: every order is a one-time order.
 - [ ] `/orders/confirm`: summary matches. Enter a promo code (create a fresh one in `/admin/promo-codes` for the demo; it can only be redeemed once per customer). Invalid code shows an inline error.
 - [ ] Click pay: redirected to Vipps test, approve in the MT app.
 - [ ] `/orders/success` polls and flips to "active" within ~10 s. If it hangs, the webhook did not arrive: check Vercel logs for `/api/webhooks/vipps/recurring`.

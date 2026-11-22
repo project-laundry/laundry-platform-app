@@ -5,7 +5,7 @@
 // webhook retry. So nothing unchecked may reach the agreement.
 
 import { getCityFromPostalCode, isValidPostalCodeFormat, serviceAreaText } from '@/lib/config/postal-codes';
-import { MIN_DAYS_NOTICE } from '@/lib/config/order-timing';
+import { earliestPickupDate } from '@/lib/config/order-timing';
 import { daysBetweenISODates } from '@/lib/utils/date';
 
 /** The date chips offer about two weeks; anything far beyond that is a stale
@@ -28,7 +28,11 @@ export interface CheckoutAddressInput {
  * Returns a Norwegian, customer-facing error, or null when the input is fine.
  * `todayISO` is today's date in Norway (todayInOslo()).
  */
-export function validateCheckoutInput(input: CheckoutAddressInput, todayISO: string): string | null {
+export function validateCheckoutInput(
+  input: CheckoutAddressInput,
+  todayISO: string,
+  now: Date = new Date()
+): string | null {
   if (input.location !== 'Bergen' && input.location !== 'Oslo') {
     return `Vi henter foreløpig bare i ${serviceAreaText()}`;
   }
@@ -59,8 +63,8 @@ export function validateCheckoutInput(input: CheckoutAddressInput, todayISO: str
   ) {
     return 'Velg en hentedato';
   }
-  const daysAhead = daysBetweenISODates(todayISO, date);
-  if (daysAhead < MIN_DAYS_NOTICE || daysAhead > MAX_DAYS_AHEAD) {
+  // ISO dates compare correctly as strings.
+  if (date < earliestPickupDate(now) || daysBetweenISODates(todayISO, date) > MAX_DAYS_AHEAD) {
     return 'Hentedatoen er ikke lenger tilgjengelig. Velg en ny dato.';
   }
 
