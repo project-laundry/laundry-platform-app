@@ -19,11 +19,8 @@
 // data; ids passed in `details` are the caller's choice.
 
 import { createHash } from 'crypto';
-import { getUsersByRole } from '@/lib/database/users';
-import { sendEmail } from '@/lib/email/send';
+import { sendToAdmins } from '@/lib/email/admin-mail';
 
-/** Same default sender as the daily admin digest. */
-const ALERT_DEFAULT_FROM = 'NooraCare <varsel@nooracare.no>';
 const MAX_STACK_LINES = 12;
 
 export interface ErrorAlert {
@@ -76,24 +73,10 @@ export async function reportError(
   try {
     console.error(`[Error alert] ${source}:`, error);
 
-    const recipients = (await getUsersByRole('admin'))
-      .filter((user) => user.deleted_at === null)
-      .map((user) => user.email);
-    if (recipients.length === 0) {
-      console.error('[Error alert] No admin users — alert not sent');
-      return;
-    }
-
     const alert = buildErrorAlert(source, error, details);
-    const result = await sendEmail({
-      from: process.env.ADMIN_DIGEST_FROM || ALERT_DEFAULT_FROM,
-      to: recipients,
-      subject: alert.subject,
-      text: alert.text,
-      idempotencyKey: alert.idempotencyKey,
-    });
-    if (!result.ok) {
-      console.error(`[Error alert] Not sent ${alert.idempotencyKey}: ${result.error}`);
+    const { recipients, sent } = await sendToAdmins(alert);
+    if (sent < recipients || recipients === 0) {
+      console.error(`[Error alert] ${alert.idempotencyKey}: reached ${sent} of ${recipients} admin(s)`);
     }
   } catch (alertError) {
     console.error('[Error alert] Failed to report an error:', alertError);
