@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { safeNextPath, withNext } from '@/lib/auth/next-path';
+import { nextFromRedirectTo, safeNextPath, withNext } from '@/lib/auth/next-path';
 import { RESET_LINK_EXPIRED_PATH, RESET_PASSWORD_PATH } from '@/lib/auth/password-reset';
 import { type EmailOtpType, type User } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
@@ -8,8 +8,10 @@ import { NextResponse } from 'next/server';
  * Landing route for every Supabase e-mail link (signup confirmation, password
  * recovery). Two link styles are accepted:
  *
- * - `?token_hash=…&type=…` — the `{{ .TokenHash }}` e-mail template. Verified
- *   with verifyOtp; works even when the link is opened in another browser.
+ * - `?token_hash=…&type=…&redirect_to=…` — what the templates in
+ *   supabase/templates/ send. Verified with verifyOtp; works even when the
+ *   link is opened in another browser or on another device. The return path
+ *   is the `next` inside `redirect_to` (the URL the flow gave Supabase).
  * - `?code=…` — the default `{{ .ConfirmationURL }}` template with the PKCE
  *   flow @supabase/ssr always uses. Exchanged with exchangeCodeForSession,
  *   which needs the code-verifier cookie, i.e. the same browser that started
@@ -24,7 +26,8 @@ export async function GET(request: Request) {
   const type = searchParams.get('type') as EmailOtpType | null;
   const code = searchParams.get('code');
   // Same-site paths only — never trust the raw value.
-  const requestedNext = safeNextPath(searchParams.get('next'));
+  const requestedNext =
+    safeNextPath(searchParams.get('next')) ?? nextFromRedirectTo(searchParams.get('redirect_to'));
   const next = requestedNext ?? '/dashboard';
 
   // Recovery links always end on the reset page and, when broken, on the

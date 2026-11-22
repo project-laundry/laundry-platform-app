@@ -206,11 +206,15 @@ the repo: **whenever a template file or its subject changes, paste it again into
 used because `config.toml`'s `[auth]` block holds local-only values (confirmations, 2 mails/hour,
 `127.0.0.1` site URL) that must never reach a hosted project.
 
-All links in the templates are `{{ .ConfirmationURL }}`: Supabase verifies the token itself and
-then redirects to the `emailRedirectTo` the app passed (`/auth/callback`, with `?next=` for the
-order flow and the password reset) carrying `?code=`, which `src/app/auth/callback/route.ts`
-exchanges for a session. That redirect only happens when the target URL is allowlisted (step 4);
-otherwise Supabase silently falls back to the Site URL and the flow breaks.
+All links in the templates are token links, not `{{ .ConfirmationURL }}`:
+`{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=<email|recovery>&redirect_to={{ .RedirectTo }}`.
+`src/app/auth/callback/route.ts` verifies the token itself (`verifyOtp`), so the link works in any
+browser and on any device — the default `{{ .ConfirmationURL }}` link only works in the browser that
+started the flow (PKCE), which fails for everyone who signs up on a laptop and opens the mail on a
+phone. The return path (`?next=` for the order flow) is read from `redirect_to`, the
+`emailRedirectTo` the app passed; only its path is used, never its host. The link always opens on
+the project's **Site URL** host, so that value must be the real site (step 4). The callback still
+accepts the old `?code=` links, so a mail sent before a template change keeps working.
 
 Do each step on **both** projects unless a column says otherwise. Project refs: production
 `aalxmczclyunlyziqdqn`, staging = the GitHub secret `STAGING_PROJECT_ID`.

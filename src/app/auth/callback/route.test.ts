@@ -49,6 +49,24 @@ describe('GET /auth/callback — token_hash links', () => {
     );
   });
 
+  it('takes the return path from the redirect_to the e-mail templates pass, never its host', async () => {
+    // As the template renders it: {{ .RedirectTo }} appended raw.
+    expect(
+      location(await get('?token_hash=abc&type=email&redirect_to=https://nooracare.no/auth/callback?next=%2Forders%2Fwash'))
+    ).toBe(`${ORIGIN}/orders/wash`);
+    // Percent-encoded as a whole.
+    const encoded = encodeURIComponent('https://nooracare.no/auth/callback?next=%2Forders%2Fwash');
+    expect(location(await get(`?token_hash=abc&type=email&redirect_to=${encoded}`))).toBe(`${ORIGIN}/orders/wash`);
+    // No next inside, a foreign next, or not a URL at all: the default.
+    expect(location(await get('?token_hash=abc&type=email&redirect_to=https://nooracare.no/auth/callback'))).toBe(
+      `${ORIGIN}/dashboard`
+    );
+    expect(
+      location(await get('?token_hash=abc&type=email&redirect_to=https://evil.example/x?next=%2F%2Fevil.example'))
+    ).toBe(`${ORIGIN}/dashboard`);
+    expect(location(await get('?token_hash=abc&type=email&redirect_to=nonsense'))).toBe(`${ORIGIN}/dashboard`);
+  });
+
   it('sends a newly confirmed cleaner to onboarding', async () => {
     verifyOtp.mockResolvedValue({ data: { user: cleaner, session: {} }, error: null });
 
