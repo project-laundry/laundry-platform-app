@@ -306,7 +306,7 @@ There are two independent, customer-initiated cancellation actions, plus a Vipps
 
 **Database Constraints:**
 
-- `Order.delivery_date >= Order.scheduled_date` (for laundry orders)
+- `Order.delivery_date >= Order.scheduled_date` while the order is not `completed` (the estimate); a completed order's actual delivery date may be earlier after an early pickup
 - `Order.scheduled_date >= CURRENT_DATE`
 - `Subscription.expires_at >= Subscription.started_at` (if set)
 - `Subscription.next_billing_date > Subscription.started_at` (if set)
