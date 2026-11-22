@@ -142,6 +142,11 @@ export default function PersonvernPage() {
                   og meldinger du sender til kundeservice, samt eventuelle
                   reklamasjoner og dokumentasjon knyttet til disse.
                 </li>
+                <li>
+                  <span className="font-medium">Tilbakemeldinger:</span> svarene
+                  du gir hvis du fyller ut evalueringsskjemaet vi sender etter
+                  en bestilling. Det er frivillig å svare.
+                </li>
               </ul>
               <p className="leading-relaxed text-dark-gray">
                 Vi behandler ikke særlige kategorier av personopplysninger

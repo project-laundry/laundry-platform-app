@@ -53,7 +53,7 @@ const ORDER: OrderForCustomerEmail = {
   mission_accepted_at: null,
   created_at: '2026-10-20T10:00:00.000Z',
   updated_at: '2026-10-20T10:00:00.000Z',
-  customer: { user: { email: 'kari@example.com', full_name: 'Kari Nordmann' } },
+  customer: { email_preferences: {}, user: { email: 'kari@example.com', full_name: 'Kari Nordmann' } },
   subscription: null,
   cleaner: null,
 };
@@ -176,7 +176,7 @@ describe('buildOrderConfirmationEmail', () => {
 
   it('escapes customer-controlled text in the HTML', () => {
     const { html, text } = buildOrderConfirmationEmail(
-      { ...ORDER, street: 'Storgata <1> & "A"', customer: { user: { email: 'x@example.com', full_name: '' } } },
+      { ...ORDER, street: 'Storgata <1> & "A"', customer: { email_preferences: {}, user: { email: 'x@example.com', full_name: '' } } },
       OPTIONS
     );
 
@@ -299,9 +299,26 @@ const DELIVERED_ORDER: OrderForCustomerEmail = {
   completed_at: '2026-10-27T15:00:00.000Z',
 };
 
+describe('customer e-mail footer', () => {
+  it('links to the e-mail settings in text and html', () => {
+    const { text, html } = buildOrderConfirmationEmail(ORDER, OPTIONS);
+
+    expect(text).toContain('Endre hvilke e-poster du får: https://nooracare.no/dashboard/settings/emails');
+    expect(html).toContain('href="https://nooracare.no/dashboard/settings/emails"');
+  });
+});
+
 describe('buildOrderDeliveredEmail', () => {
+  it('leaves out the evaluation section when the customer turned it off (null)', () => {
+    const { text, html } = buildOrderDeliveredEmail(DELIVERED_ORDER, [], null, OPTIONS);
+
+    expect(text).not.toContain('/evaluering/');
+    expect(html).not.toContain('/evaluering/');
+    expect(text).not.toContain('HVORDAN VAR VASKEN?');
+  });
+
   it('says when and where the laundry was delivered and links to the order', () => {
-    const { subject, text, html } = buildOrderDeliveredEmail(DELIVERED_ORDER, [], OPTIONS);
+    const { subject, text, html } = buildOrderDeliveredEmail(DELIVERED_ORDER, [], false, OPTIONS);
 
     expect(subject).toBe('Tøyet ditt er levert – bestilling #ABC123');
     expect(text).toContain('Hei Kari!');
@@ -316,7 +333,7 @@ describe('buildOrderDeliveredEmail', () => {
     const { text } = buildOrderDeliveredEmail(
       DELIVERED_ORDER,
       [{ status: 'pending', amount_ore: 57624, provider_reference: 'chr-1' }],
-      OPTIONS
+      false, OPTIONS
     );
 
     expect(text).toContain(
@@ -331,7 +348,7 @@ describe('buildOrderDeliveredEmail', () => {
         { status: 'captured', amount_ore: 57624, provider_reference: 'chr-2' },
         { status: 'failed', amount_ore: 57624, provider_reference: 'chr-1' },
       ],
-      OPTIONS
+      false, OPTIONS
     );
 
     expect(text).toContain('BETALING\n\n576,24 kr er trukket via Vipps-avtalen din.');
@@ -339,7 +356,7 @@ describe('buildOrderDeliveredEmail', () => {
   });
 
   it('says nothing is charged for a 0-total order', () => {
-    const { text } = buildOrderDeliveredEmail({ ...DELIVERED_ORDER, total_cost_ore: 0 }, [], OPTIONS);
+    const { text } = buildOrderDeliveredEmail({ ...DELIVERED_ORDER, total_cost_ore: 0 }, [], false, OPTIONS);
 
     expect(text).toContain('BETALING\n\nIngenting trekkes fra Vipps-avtalen din for denne bestillingen.');
   });
@@ -354,7 +371,7 @@ describe('buildOrderDeliveredEmail', () => {
     ];
 
     for (const payments of silent) {
-      const { text } = buildOrderDeliveredEmail(DELIVERED_ORDER, payments, OPTIONS);
+      const { text } = buildOrderDeliveredEmail(DELIVERED_ORDER, payments, false, OPTIONS);
 
       expect(text).not.toContain('BETALING');
       expect(text).not.toContain('Vipps');
@@ -363,7 +380,7 @@ describe('buildOrderDeliveredEmail', () => {
   });
 
   it('never mentions a subscription for a one-time order', () => {
-    const { text } = buildOrderDeliveredEmail(DELIVERED_ORDER, [], OPTIONS);
+    const { text } = buildOrderDeliveredEmail(DELIVERED_ORDER, [], false, OPTIONS);
 
     expect(text).not.toContain('bonnement');
     expect(text).not.toContain('Neste henting');
@@ -373,7 +390,7 @@ describe('buildOrderDeliveredEmail', () => {
     const { text } = buildOrderDeliveredEmail(
       { ...DELIVERED_ORDER, subscription_id: 'sub-1', subscription: { frequency: 'weekly', status: 'active' } },
       [],
-      OPTIONS
+      false, OPTIONS
     );
 
     expect(text).toContain(
@@ -385,10 +402,24 @@ describe('buildOrderDeliveredEmail', () => {
     const { text } = buildOrderDeliveredEmail(
       { ...DELIVERED_ORDER, subscription_id: 'sub-1', subscription: { frequency: 'weekly', status: 'cancelled' } },
       [],
-      OPTIONS
+      false, OPTIONS
     );
 
     expect(text).not.toContain('Neste henting');
+  });
+
+  it('asks for the evaluation with the full-form text', () => {
+    const { text } = buildOrderDeliveredEmail(DELIVERED_ORDER, [], true, OPTIONS);
+
+    expect(text).toContain(`/evaluering/${DELIVERED_ORDER.id}`);
+    expect(text).toContain('ca. 2 minutter');
+  });
+
+  it('asks for the evaluation with the short-form text', () => {
+    const { text } = buildOrderDeliveredEmail(DELIVERED_ORDER, [], false, OPTIONS);
+
+    expect(text).toContain(`/evaluering/${DELIVERED_ORDER.id}`);
+    expect(text).toContain('under ett minutt');
   });
 });
 

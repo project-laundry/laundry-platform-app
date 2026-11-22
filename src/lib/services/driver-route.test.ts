@@ -24,6 +24,7 @@ function baseCustomer(over: Partial<Customer & { user: User }> = {}): Customer &
   return {
     id: 'customer-1',
     user_id: 'user-1',
+    email_preferences: {},
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
     deleted_at: null,

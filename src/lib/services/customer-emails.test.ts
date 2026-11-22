@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 vi.mock('@/lib/database/orders', () => ({ getOrderForCustomerEmail: vi.fn(), getActiveOrdersBySubscriptionId: vi.fn() }));
+vi.mock('@/lib/database/evaluations', () => ({ needsFullEvaluation: vi.fn() }));
 vi.mock('@/lib/database/payments', () => ({ getPaymentById: vi.fn(), getPaymentsByOrderId: vi.fn() }));
 vi.mock('@/lib/email/send', () => ({
   sendEmail: vi.fn(),
@@ -20,6 +21,7 @@ vi.mock('@/lib/email/customer-emails', () => ({
 }));
 
 import { getActiveOrdersBySubscriptionId, getOrderForCustomerEmail } from '@/lib/database/orders';
+import { needsFullEvaluation } from '@/lib/database/evaluations';
 import { getPaymentById, getPaymentsByOrderId } from '@/lib/database/payments';
 import { sendEmail } from '@/lib/email/send';
 import { buildCleanerConfirmedEmail, buildOrderCancelledEmail, buildPickupRescheduledEmail, buildOrderConfirmationEmail, buildOrderDeliveredEmail, buildOrderPickedUpEmail, buildPaymentFailedEmail, buildPickupReminderEmail, buildPriceReceiptEmail } from '@/lib/email/customer-emails';
@@ -31,13 +33,14 @@ const m = (fn: unknown) => fn as Mock;
 vi.spyOn(console, 'error').mockImplementation(() => {});
 vi.spyOn(console, 'log').mockImplementation(() => {});
 
-const ORDER = { id: 'ord-1', customer: { user: { email: 'kari@example.com', full_name: 'Kari' } } };
+const ORDER = { id: 'ord-1', customer_id: 'cust-1', customer: { email_preferences: {}, user: { email: 'kari@example.com', full_name: 'Kari' } } };
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://nooracare.no');
   m(getOrderForCustomerEmail).mockResolvedValue(ORDER);
   m(sendEmail).mockResolvedValue({ ok: true });
+  m(needsFullEvaluation).mockResolvedValue(false);
 });
 
 afterEach(() => {
@@ -176,7 +179,8 @@ describe('sendOrderDeliveredEmail', () => {
 
     expect(getOrderForCustomerEmail).toHaveBeenCalledWith('ord-1');
     expect(getPaymentsByOrderId).toHaveBeenCalledWith('ord-1');
-    expect(buildOrderDeliveredEmail).toHaveBeenCalledWith(ORDER, PAYMENTS, { appUrl: 'https://nooracare.no' });
+    expect(buildOrderDeliveredEmail).toHaveBeenCalledWith(ORDER, PAYMENTS, false, { appUrl: 'https://nooracare.no' });
+    expect(needsFullEvaluation).toHaveBeenCalledWith('cust-1');
     expect(sendEmail).toHaveBeenCalledWith({
       from: 'NooraCare <no-reply@nooracare.no>',
       to: ['kari@example.com'],
@@ -186,6 +190,14 @@ describe('sendOrderDeliveredEmail', () => {
       html: '<p>html</p>',
       idempotencyKey: 'order-delivered/ord-1',
     });
+  });
+
+  it('passes true when the customer still gets the first-time questions', async () => {
+    m(needsFullEvaluation).mockResolvedValue(true);
+
+    await sendOrderDeliveredEmail('ord-1');
+
+    expect(buildOrderDeliveredEmail).toHaveBeenCalledWith(ORDER, PAYMENTS, true, { appUrl: 'https://nooracare.no' });
   });
 
   it('sends nothing when the order is not found', async () => {
@@ -546,5 +558,59 @@ describe('sendCleanerConfirmedEmail', () => {
     m(getOrderForCustomerEmail).mockRejectedValue(new Error('db down'));
 
     await expect(sendCleanerConfirmedEmail('ord-1', 'Ola')).resolves.toBeUndefined();
+  });
+});
+
+describe('customer e-mail preferences', () => {
+  const OFF = (kind: string) => ({ ...ORDER, status: 'pickup_scheduled', scheduled_date: '2099-01-05', customer: { ...ORDER.customer, email_preferences: { [kind]: false } } });
+
+  it('sends no picked-up e-mail when picked_up is off', async () => {
+    m(getOrderForCustomerEmail).mockResolvedValue(OFF('picked_up'));
+
+    await sendOrderPickedUpEmail('ord-1', { showPickupTime: true });
+
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('sends no cleaner-confirmed e-mail when cleaner_confirmed is off', async () => {
+    m(getOrderForCustomerEmail).mockResolvedValue(OFF('cleaner_confirmed'));
+
+    await sendCleanerConfirmedEmail('ord-1', 'Ola');
+
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('sends no delivered e-mail when delivered is off', async () => {
+    m(getOrderForCustomerEmail).mockResolvedValue(OFF('delivered'));
+
+    await sendOrderDeliveredEmail('ord-1');
+
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('sends the delivered e-mail without the evaluation section when evaluation is off', async () => {
+    m(getOrderForCustomerEmail).mockResolvedValue(OFF('evaluation'));
+    m(getPaymentsByOrderId).mockResolvedValue([]);
+
+    await sendOrderDeliveredEmail('ord-1');
+
+    expect(buildOrderDeliveredEmail).toHaveBeenCalledWith(expect.anything(), [], null, { appUrl: 'https://nooracare.no' });
+    expect(needsFullEvaluation).not.toHaveBeenCalled();
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports true and sends nothing for a pickup reminder that is off', async () => {
+    const order = OFF('pickup_reminder') as unknown as OrderForCustomerEmail;
+
+    await expect(sendPickupReminderEmail(order)).resolves.toBe(true);
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('still sends the order confirmation when the stored object says it is off', async () => {
+    m(getOrderForCustomerEmail).mockResolvedValue(OFF('order_confirmation'));
+
+    await sendOrderConfirmationEmail('ord-1');
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
   });
 });

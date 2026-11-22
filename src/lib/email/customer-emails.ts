@@ -11,6 +11,8 @@
 // confirmation shows the checkout figure as an «Estimat» row and nothing more.
 
 import { COMPANY } from '@/lib/config/company';
+import { EMAIL_PREFERENCES_PATH } from '@/lib/config/email-preferences';
+import { evaluationPath } from '@/lib/config/evaluation';
 import { PICKUP_TIME_RANGE } from '@/lib/config/pickup-times';
 import {
   IRONING_OFFERED,
@@ -158,7 +160,7 @@ function renderBlockHtml(block: Block): string {
   }
 }
 
-function renderHtml(title: string, blocks: Block[], siteUrl: string): string {
+function renderHtml(title: string, blocks: Block[], siteUrl: string, preferencesUrl?: string): string {
   return `<!DOCTYPE html>
 <html lang="no">
   <head>
@@ -179,7 +181,7 @@ function renderHtml(title: string, blocks: Block[], siteUrl: string): string {
               </td>
             </tr>
           </table>
-          <p style="margin:20px 0 0;font-family:${FONT};font-size:12px;line-height:1.6;color:#586974;">NooraCare · <a href="mailto:${COMPANY.email}" style="color:#3D6A7B;">${COMPANY.email}</a><br /><a href="${escapeHtml(siteUrl)}" style="color:#3D6A7B;">${escapeHtml(siteUrl)}</a></p>
+          <p style="margin:20px 0 0;font-family:${FONT};font-size:12px;line-height:1.6;color:#586974;">NooraCare · <a href="mailto:${COMPANY.email}" style="color:#3D6A7B;">${COMPANY.email}</a><br /><a href="${escapeHtml(siteUrl)}" style="color:#3D6A7B;">${escapeHtml(siteUrl)}</a>${preferencesUrl ? `<br /><a href="${escapeHtml(preferencesUrl)}" style="color:#3D6A7B;">Endre hvilke e-poster du får</a>` : ''}</p>
         </td>
       </tr>
     </table>
@@ -191,13 +193,19 @@ export function finish(
   subject: string,
   title: string,
   blocks: Block[],
-  options: CustomerEmailOptions
+  options: CustomerEmailOptions,
+  preferencesUrl?: string
 ): CustomerEmail {
   return {
     subject,
-    text: renderText(blocks),
-    html: renderHtml(title, blocks, baseUrl(options)),
+    text: renderText(blocks) + (preferencesUrl ? `\nEndre hvilke e-poster du får: ${preferencesUrl}\n` : ''),
+    html: renderHtml(title, blocks, baseUrl(options), preferencesUrl),
   };
+}
+
+/** finish() for the customer e-mails: adds the footer link to the e-mail settings. */
+function finishCustomer(subject: string, title: string, blocks: Block[], options: CustomerEmailOptions): CustomerEmail {
+  return finish(subject, title, blocks, options, `${baseUrl(options)}${EMAIL_PREFERENCES_PATH}`);
 }
 
 // ─── #23 Order confirmation ─────────────────────────────────────────────────
@@ -283,7 +291,7 @@ export function buildOrderConfirmationEmail(
 
   blocks.push(button('Se bestillingen', orderUrl(order, options)), closing());
 
-  return finish(
+  return finishCustomer(
     `Bestilling #${order.order_number} er bekreftet – henting ${pickupDate}`,
     'Bestillingen din er bekreftet',
     blocks,
@@ -368,7 +376,7 @@ export function buildPriceReceiptEmail(
 
   blocks.push(button('Se bestillingen', orderUrl(order, options)), closing());
 
-  return finish(
+  return finishCustomer(
     `Prisen er satt – ${formatKrExact(total)} for bestilling #${order.order_number}`,
     'Prisen er satt',
     blocks,
@@ -410,7 +418,7 @@ export function buildPaymentFailedEmail(
 
   blocks.push(button('Se bestillingen', orderUrl(order, options)), closing());
 
-  return finish(
+  return finishCustomer(
     `Betalingen for bestilling #${order.order_number} gikk ikke gjennom`,
     'Betalingen gikk ikke gjennom',
     blocks,
@@ -459,11 +467,16 @@ function deliveredPaymentLine(
  * link to the order. `payments` = every payments row of the order. The
  * subscription paragraph is dormant while subscriptions are hidden (a one-time
  * order has no subscription) and never states a date — the next order is
- * generated in the background while this e-mail is built.
+ * generated in the background while this e-mail is built. It also asks for
+ * the evaluation (a section with a button to /evaluering/<order id>, no
+ * login); `fullEvaluation` = the customer still gets the first-time questions
+ * (text says about 2 minutes), otherwise the short form (under one minute);
+ * `null` = the customer turned the evaluation question off, so the section is left out.
  */
 export function buildOrderDeliveredEmail(
   order: OrderForCustomerEmail,
   payments: Pick<Payment, 'status' | 'amount_ore' | 'provider_reference'>[],
+  fullEvaluation: boolean | null,
   options: CustomerEmailOptions
 ): CustomerEmail {
   const blocks: Block[] = [
@@ -493,9 +506,21 @@ export function buildOrderDeliveredEmail(
     );
   }
 
+  if (fullEvaluation !== null) {
+    blocks.push(
+      heading('Hvordan var vasken?'),
+      paragraph(
+        fullEvaluation
+          ? 'Vi vil gjerne høre hvordan det gikk. Svarene dine hjelper oss å sette riktig pris og gjøre tjenesten bedre, og det tar ca. 2 minutter.'
+          : 'Vi vil gjerne høre hvordan det gikk. Svarene dine hjelper oss å gjøre tjenesten bedre, og det tar under ett minutt.'
+      ),
+      button('Svar på spørsmålene', `${baseUrl(options)}${evaluationPath(order.id)}`)
+    );
+  }
+
   blocks.push(button('Se bestillingen', orderUrl(order, options)), closing());
 
-  return finish(
+  return finishCustomer(
     `Tøyet ditt er levert – bestilling #${order.order_number}`,
     'Tøyet ditt er levert',
     blocks,
@@ -553,7 +578,7 @@ export function buildOrderPickedUpEmail(
     closing(),
   ];
 
-  return finish(
+  return finishCustomer(
     `Tøyet ditt er hentet – bestilling #${order.order_number}`,
     'Tøyet ditt er hentet',
     blocks,
@@ -617,7 +642,7 @@ export function buildPickupReminderEmail(
     closing()
   );
 
-  return finish(
+  return finishCustomer(
     'Vi henter tøyet ditt i morgen – sett posen klar',
     'Vi henter tøyet ditt i morgen',
     blocks,
@@ -700,7 +725,7 @@ export function buildOrderCancelledEmail(
 
   blocks.push(button('Se bestillingen', orderUrl(order, options)), closing());
 
-  return finish(
+  return finishCustomer(
     `Bestilling #${order.order_number} er kansellert`,
     'Bestillingen er kansellert',
     blocks,
@@ -757,7 +782,7 @@ export function buildPickupRescheduledEmail(
 
   blocks.push(button('Se bestillingen', orderUrl(order, options)), closing());
 
-  return finish(
+  return finishCustomer(
     `Ny hentedato for bestilling #${order.order_number}: ${newDate}`,
     'Ny hentedato',
     blocks,
@@ -808,7 +833,7 @@ export function buildCleanerConfirmedEmail(
     closing(),
   ];
 
-  return finish(
+  return finishCustomer(
     `Renseren din er på plass – henting ${pickupDate} (bestilling #${order.order_number})`,
     'Renseren din er på plass',
     blocks,

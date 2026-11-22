@@ -54,6 +54,7 @@
 - `id` (uuid, PK) - Unique identifier
 - `user_id` (uuid, FK → [User](#1-user).id, unique, required) - Reference to User
   - **On Delete:** CASCADE
+- `email_preferences` (JSONB, default `{}`) - Optional e-mails the customer turned off: `{ <kind>: false }` with the kinds in `lib/config/email-preferences.ts`; a missing key means the e-mail is sent
 - `created_at` (timestamp) - Profile creation timestamp
 - `updated_at` (timestamp) - Last update timestamp
 - `deleted_at` (timestamp, nullable) - Soft delete timestamp
@@ -538,6 +539,23 @@
 - Foreign/Index: promo_code_id, customer_id
 
 ---
+
+### OrderEvaluation
+
+**Description:** A customer's answers to the evaluation form (`/evaluering/<order id>`), linked from the delivered e-mail of every order. One row per order.
+
+**Fields:**
+
+- `id` (UUID, PK)
+- `order_id` (UUID, FK → orders, UNIQUE, ON DELETE CASCADE) - The evaluated order
+- `customer_id` (UUID, FK → customers, ON DELETE CASCADE) - Copied from the order at submit time
+- `form_version` (text) - `EVALUATION_FORM_VERSION` when answered
+- `answers` (JSONB) - One key per question that was asked, id from `lib/config/evaluation.ts` (all twelve the first time a customer answers, five afterwards); numbers for scales and prices (whole kroner), option values for choices, text or null for free text
+- `created_at` (timestamp)
+
+**Notes:**
+
+- Written only by `submitEvaluationAction` with the service role; RLS is enabled with no policies and anon/authenticated hold no grants.
 
 ### RateLimitHit
 

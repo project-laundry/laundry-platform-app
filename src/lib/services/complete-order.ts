@@ -34,7 +34,8 @@ import type { OrderStatus } from '@/types/database';
  *   or a charge that is already captured). It refuses while a charge is still
  *   pending and while a failed charge is waiting for the admin's retry.
  * - Sends the customer the "laundry delivered" e-mail last (sendOrderDeliveredEmail,
- *   never throws) — for every completed order, subscription or one-time.
+ *   never throws) — for every completed order, subscription or one-time. It carries the
+ *   evaluation link («Hvordan var vasken?»).
  */
 export async function completeDeliveredOrder(
   orderId: string,

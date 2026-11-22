@@ -60,6 +60,8 @@ export interface User {
 export interface Customer {
   id: string;
   user_id: string;
+  /** Optional e-mails the customer turned off — see lib/config/email-preferences.ts. */
+  email_preferences: Partial<Record<string, boolean>>;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -313,6 +315,18 @@ export interface PromoCodeRedemption {
   payment_agreement_id: string | null;
   order_id: string | null;
   redeemed_at: string;
+}
+
+/** A customer's answers to the evaluation form for one order (order_evaluations). */
+export interface OrderEvaluation {
+  id: string;
+  order_id: string;
+  customer_id: string;
+  /** EVALUATION_FORM_VERSION at the time of answering. */
+  form_version: string;
+  /** Keyed by the question ids in lib/config/evaluation.ts. */
+  answers: Record<string, number | string | null>;
+  created_at: string;
 }
 
 /**
