@@ -92,8 +92,9 @@ describe('buildOrderConfirmationEmail', () => {
     expect(text).toContain('Dato: lørdag 24. oktober 2026');
     expect(text).toContain('Adresse: Storgata 1, 0150 Oslo');
     expect(text).toContain('DET DU SENDER\n\nKlær: 2 poser\nSengetøy: 1 sett');
-    expect(text).toContain('Estimat: ca. 589 kr');
-    expect(text).toContain('endelige prisen settes av renseren etter henting');
+    expect(text).toContain('PRIS\n\nEstimat: ca. 589 kr');
+    // No explanatory text about the estimate.
+    expect(text).not.toMatch(/Estimatet er veiledende|endelige prisen settes av renseren/);
     expect(text).toContain('Se bestillingen: https://nooracare.no/orders/details/ord-1');
     expect(text).toContain('post@nooracare.no');
     expect(text).not.toContain('ABONNEMENT');
@@ -125,27 +126,26 @@ describe('buildOrderConfirmationEmail', () => {
     expect(text).toContain('Rabattkoden WELCOME trekkes fra den endelige prisen.');
   });
 
-  it('skips the items and estimate rows for an order without a checkout estimate', () => {
+  it('skips the items rows and the whole price section for an order without a checkout estimate', () => {
     const { text } = buildOrderConfirmationEmail({ ...ORDER, customer_estimate: null }, OPTIONS);
 
     expect(text).not.toContain('DET DU SENDER');
-    expect(text).not.toContain('Estimat:');
-    expect(text).toContain('PRIS\n\nEstimatet er veiledende.');
+    expect(text).not.toContain('Estimat');
+    expect(text).not.toContain('PRIS');
   });
 
-  it('says a cleaner is being assigned manually when the order has none (pending_assignment)', () => {
+  it('confirms the pickup and adds that a cleaner is being assigned when the order has none (pending_assignment)', () => {
     const { subject, text, html } = buildOrderConfirmationEmail(ORDER, OPTIONS);
 
-    expect(subject).toBe('Bestilling #ABC123 er mottatt – vi finner en renser til deg');
-    expect(text).toContain('tildeler nå en lokal renser manuelt');
-    expect(text).toContain('Du trenger ikke gjøre noe – vi tar kontakt så snart en renser er bekreftet.');
-    expect(text).toContain('Ønsket hentedato: lørdag 24. oktober 2026\nAdresse: Storgata 1, 0150 Oslo');
-    expect(text).toContain('Hentedatoen er ikke bekreftet ennå.');
-    expect(text).not.toContain('Hentingen din er bekreftet');
-    expect(text).not.toContain('\nDato: ');
+    // The date the customer chose stands; only the cleaner is missing.
+    expect(subject).toBe('Bestilling #ABC123 er bekreftet – henting lørdag 24. oktober 2026');
+    expect(text).toContain(
+      'Hentingen din er bekreftet. Vi tildeler nå en lokal renser – du trenger ikke gjøre noe, og du får en e-post så snart renseren er på plass.'
+    );
+    expect(text).toContain('Dato: lørdag 24. oktober 2026\nAdresse: Storgata 1, 0150 Oslo');
+    expect(text).not.toMatch(/ikke bekreftet|Ønsket hentedato/i);
     expect(text).not.toMatch(/24 timer|innen/i);
-    expect(html).toContain('Bestillingen din er mottatt');
-    expect(html).not.toContain('Bestillingen din er bekreftet');
+    expect(html).toContain('Bestillingen din er bekreftet');
     // The rest of the confirmation is unchanged.
     expect(text).toContain('Estimat: ca. 589 kr');
     expect(text).toContain('Se bestillingen: https://nooracare.no/orders/details/ord-1');
@@ -154,7 +154,7 @@ describe('buildOrderConfirmationEmail', () => {
   it('keeps the subscription section but not the "er i gang … bekreftet" intro for a pending subscription order', () => {
     const { text } = buildOrderConfirmationEmail({ ...SUBSCRIPTION_ORDER, status: 'pending_assignment' }, OPTIONS);
 
-    expect(text).toContain('tildeler nå en lokal renser manuelt');
+    expect(text).toContain('Vi tildeler nå en lokal renser');
     expect(text).not.toContain('første henting er bekreftet');
     expect(text).toContain('Henting ukentlig.');
   });
@@ -193,7 +193,7 @@ const PRICED_ORDER: OrderForCustomerEmail = {
 };
 
 describe('buildPriceReceiptEmail', () => {
-  it('lists the price lines, the promo deduction, the estimate and the Vipps reference', () => {
+  it('lists the price lines, the promo deduction and the Vipps reference, without the checkout estimate', () => {
     const { subject, text } = buildPriceReceiptEmail(PRICED_ORDER, { provider_reference: 'chr-1' }, OPTIONS);
 
     expect(subject).toBe('Prisen er satt – 464,24 kr for bestilling #ABC123');
@@ -204,7 +204,8 @@ describe('buildPriceReceiptEmail', () => {
     expect(text).toContain('Rabatt (WELCOME): −116,06 kr');
     expect(text).toContain('Totalt: 464,24 kr');
     expect(text).not.toContain('Minstepris');
-    expect(text).toContain('Estimatet ved bestilling var ca. 589 kr.');
+    expect(text).toContain('Den endelige prisen er basert på hvor mye tøy du faktisk sendte.');
+    expect(text).not.toMatch(/estimat/i);
     expect(text).toContain('Fra renseren: «Mye sengetøy, delt i to maskiner»');
     expect(text).toContain('464,24 kr trekkes automatisk via Vipps-avtalen din');
     expect(text).toContain('Vipps-referanse: chr-1');
@@ -389,7 +390,7 @@ const PICKED_UP_ORDER: OrderForCustomerEmail = {
 };
 
 describe('buildOrderPickedUpEmail', () => {
-  it('says who picked up the laundry and when, what happens next, and that the price was an estimate', () => {
+  it('says who picked up the laundry and when and what happens next, without any estimate text', () => {
     const { subject, text, html } = buildOrderPickedUpEmail(
       PICKED_UP_ORDER,
       { showPickupTime: true },
@@ -403,8 +404,7 @@ describe('buildOrderPickedUpEmail', () => {
     );
     expect(text).toContain('HVA SKJER NÅ');
     expect(text).toContain('Du får en e-post når prisen er satt, og en ny når tøyet er levert.');
-    expect(text).toContain('Prisen du så da du bestilte (ca. 589 kr), var et estimat.');
-    expect(text).toContain('Renseren setter den endelige prisen');
+    expect(text).not.toMatch(/estimat|589/i);
     expect(text).toContain('Se bestillingen: https://nooracare.no/orders/details/ord-1');
     expect(html).toContain('Tøyet ditt er hentet</h1>');
     expect(html).toContain('href="https://nooracare.no/orders/details/ord-1"');
@@ -465,17 +465,6 @@ describe('buildOrderPickedUpEmail', () => {
     expect(none.text).toContain('Renseren din hentet tøyet ditt lørdag 24. oktober kl. 14:32.');
     expect(blank.text).toContain('Renseren din har hentet tøyet ditt.');
     expect(padded.text).toContain('Bergen Vask, renseren din, har hentet tøyet ditt.');
-  });
-
-  it('omits the amount for an order without a checkout estimate', () => {
-    const { text } = buildOrderPickedUpEmail(
-      { ...PICKED_UP_ORDER, customer_estimate: null },
-      { showPickupTime: true },
-      OPTIONS
-    );
-
-    expect(text).toContain('Prisen du så da du bestilte, var et estimat.');
-    expect(text).not.toContain('ca.');
   });
 
   it('uses Oslo time across midnight and escapes the cleaner name in the HTML', () => {
@@ -691,17 +680,18 @@ describe('buildCleanerConfirmedEmail', () => {
   it('confirms the pickup with date, address, the cleaner display name and the order link', () => {
     const { subject, text, html } = buildCleanerConfirmedEmail(SCHEDULED_ORDER, 'Ola Hansen', OPTIONS);
 
-    expect(subject).toBe('Hentingen er bekreftet – lørdag 24. oktober 2026 (bestilling #ABC123)');
+    expect(subject).toBe('Renseren din er på plass – henting lørdag 24. oktober 2026 (bestilling #ABC123)');
     expect(text).toContain('Hei Kari!');
     expect(text).toContain(
-      'Hentingen din er bekreftet. Ola Hansen, en godkjent renser i området, henter tøyet ditt lørdag 24. oktober 2026.'
+      'Renseren din er på plass. Ola Hansen, en godkjent renser i området, henter tøyet ditt lørdag 24. oktober 2026.'
     );
     expect(text).toContain('Dato: lørdag 24. oktober 2026\nAdresse: Storgata 1, 0150 Oslo\nRenser: Ola Hansen');
     expect(text).toContain('Du trenger ikke gjøre noe mer.');
     expect(text).toContain('Se bestillingen: https://nooracare.no/orders/details/ord-1');
     expect(text).toContain('post@nooracare.no');
     expect(text).not.toMatch(/nabo|abonnement/i);
-    expect(html).toContain('Hentingen din er bekreftet');
+    expect(html).toContain('Renseren din er på plass');
+    expect(text).not.toContain('Hentingen din er bekreftet');
     expect(html).toContain('href="https://nooracare.no/orders/details/ord-1"');
   });
 
@@ -726,7 +716,7 @@ describe('buildCleanerConfirmedEmail', () => {
     const { text } = buildCleanerConfirmedEmail(SCHEDULED_ORDER, '   ', OPTIONS);
 
     expect(text).toContain(
-      'Hentingen din er bekreftet. En godkjent renser i området henter tøyet ditt lørdag 24. oktober 2026.'
+      'Renseren din er på plass. En godkjent renser i området henter tøyet ditt lørdag 24. oktober 2026.'
     );
     expect(text).not.toContain('Renser:');
   });

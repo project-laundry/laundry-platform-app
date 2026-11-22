@@ -7,7 +7,8 @@
 //
 // Wording rules (CLAUDE.md): customers count "poser" (estimate), the binding
 // price is per machine ("maskiner"), kilos only appear as the weighed weight,
-// and every price e-mail restates: checkout = estimate, cleaner = binding price.
+// and the e-mails carry no explanation of estimate vs. binding price — the
+// confirmation shows the checkout figure as an «Estimat» row and nothing more.
 
 import { COMPANY } from '@/lib/config/company';
 import { PICKUP_TIME_RANGE } from '@/lib/config/pickup-times';
@@ -201,12 +202,11 @@ function finish(
 // ─── #23 Order confirmation ─────────────────────────────────────────────────
 
 /**
- * Sent once the first order exists (agreement activated). Sets the
- * expectation that the checkout price is an estimate and the cleaner sets
- * the binding price after pickup. Subscription wording only for a
+ * Sent once the first order exists (agreement activated). Shows the checkout
+ * figure as an «Estimat» row, with no explanatory text. Subscription wording only for a
  * subscription order; a one-time order never mentions one. An order created
  * without a cleaner (status pending_assignment) gets the "we are assigning a
- * cleaner" variant: nothing is called confirmed and no deadline is promised (#30).
+ * cleaner" intro: the pickup is still confirmed and no deadline is promised (#30).
  */
 export function buildOrderConfirmationEmail(
   order: OrderForCustomerEmail,
@@ -216,15 +216,17 @@ export function buildOrderConfirmationEmail(
     order.subscription && order.subscription.frequency !== 'on_demand' ? order.subscription : null;
   const estimate = order.customer_estimate;
   const pickupDate = formatLongDate(order.scheduled_date);
-  // #30: no cleaner was matched at checkout. Nothing is confirmed yet, so the
-  // e-mail says we are assigning one manually and promises no deadline; the
-  // customer hears from us again when an admin assigns (buildCleanerConfirmedEmail).
+  // #30: no cleaner was matched at checkout. The pickup date and address the
+  // customer chose still stand — only the cleaner is missing — so the order is
+  // confirmed like any other and the intro adds that we are assigning a
+  // cleaner (no deadline promised); the customer hears from us again when an
+  // admin assigns (buildCleanerConfirmedEmail).
   const awaitingCleaner = order.status === 'pending_assignment';
 
   let intro: string;
   if (awaitingCleaner) {
     intro =
-      'Takk for bestillingen! Vi har mottatt den og tildeler nå en lokal renser manuelt. Du trenger ikke gjøre noe – vi tar kontakt så snart en renser er bekreftet.';
+      'Takk for bestillingen! Hentingen din er bekreftet. Vi tildeler nå en lokal renser – du trenger ikke gjøre noe, og du får en e-post så snart renseren er på plass.';
   } else if (subscription) {
     intro = 'Takk for bestillingen! Abonnementet ditt er i gang, og første henting er bekreftet.';
   } else {
@@ -236,34 +238,26 @@ export function buildOrderConfirmationEmail(
     paragraph(intro),
     heading('Henting'),
     rows([
-      { label: awaitingCleaner ? 'Ønsket hentedato' : 'Dato', value: pickupDate },
+      { label: 'Dato', value: pickupDate },
       { label: 'Adresse', value: `${order.street}, ${order.postal_code} ${order.city}` },
     ]),
   ];
-  if (awaitingCleaner) {
-    blocks.push(
-      paragraph(
-        'Hentedatoen er ikke bekreftet ennå. Du får en ny e-post med bekreftet hentedato så snart en renser er på plass.'
-      )
-    );
-  }
-
   const items = estimate ? estimateRows(estimate) : [];
   if (items.length > 0) {
     blocks.push(heading('Det du sender'), rows(items));
   }
 
-  blocks.push(heading('Pris'));
+  // The «Pris» section is only the estimate figure and the promo line; with
+  // neither there is nothing to say and the section is left out.
+  const priceBlocks: Block[] = [];
   if (estimate) {
-    blocks.push(rows([{ label: 'Estimat', value: `ca. ${formatKr(estimate.estimated_total_ore)}` }]));
+    priceBlocks.push(rows([{ label: 'Estimat', value: `ca. ${formatKr(estimate.estimated_total_ore)}` }]));
   }
-  blocks.push(
-    paragraph(
-      'Estimatet er veiledende. Den endelige prisen settes av renseren etter henting, ut fra hvor mye tøy du faktisk sender – du betaler for faktisk mengde, ikke for estimatet. Beløpet trekkes via Vipps-avtalen din når tøyet er ferdig vasket, og du får en egen e-post med den endelige prisen.'
-    )
-  );
   if (order.promo) {
-    blocks.push(paragraph(`Rabattkoden ${order.promo.code} trekkes fra den endelige prisen.`));
+    priceBlocks.push(paragraph(`Rabattkoden ${order.promo.code} trekkes fra den endelige prisen.`));
+  }
+  if (priceBlocks.length > 0) {
+    blocks.push(heading('Pris'), ...priceBlocks);
   }
 
   if (subscription) {
@@ -278,10 +272,8 @@ export function buildOrderConfirmationEmail(
   blocks.push(button('Se bestillingen', orderUrl(order, options)), closing());
 
   return finish(
-    awaitingCleaner
-      ? `Bestilling #${order.order_number} er mottatt – vi finner en renser til deg`
-      : `Bestilling #${order.order_number} er bekreftet – henting ${pickupDate}`,
-    awaitingCleaner ? 'Bestillingen din er mottatt' : 'Bestillingen din er bekreftet',
+    `Bestilling #${order.order_number} er bekreftet – henting ${pickupDate}`,
+    'Bestillingen din er bekreftet',
     blocks,
     options
   );
@@ -292,8 +284,8 @@ export function buildOrderConfirmationEmail(
 /**
  * Sent when the cleaner marks the order ready and the Vipps charge is created
  * (and again by the admin's «Belast på nytt» for the new charge). Doubles as
- * the receipt: the full price lines, the promo deduction, the estimate the
- * customer saw at checkout, and the Vipps reference. `payment` is null for a
+ * the receipt: the full price lines, the promo deduction and the Vipps
+ * reference. The checkout estimate is not mentioned. `payment` is null for a
  * 0-total order (100 % promo) — nothing is charged then.
  */
 export function buildPriceReceiptEmail(
@@ -333,17 +325,12 @@ export function buildPriceReceiptEmail(
   }
   priceRows.push({ label: 'Totalt', value: formatKrExact(total), strong: true });
 
-  const estimate = order.customer_estimate;
   const blocks: Block[] = [
     greeting(order),
     paragraph('Tøyet ditt er ferdig vasket, og renseren har satt den endelige prisen. Her er kvitteringen din.'),
     heading(`Bestilling #${order.order_number}`),
     rows(priceRows),
-    paragraph(
-      estimate
-        ? `Estimatet ved bestilling var ca. ${formatKr(estimate.estimated_total_ore)}. Den endelige prisen er basert på hvor mye tøy du faktisk sendte.`
-        : 'Den endelige prisen er basert på hvor mye tøy du faktisk sendte.'
-    ),
+    paragraph('Den endelige prisen er basert på hvor mye tøy du faktisk sendte.'),
   ];
 
   if (order.actual_weight_kg !== null) {
@@ -527,7 +514,7 @@ function formatPickupMoment(iso: string): string {
 /**
  * Sent when the laundry leaves the customer's door (cleaner's «Jeg har hentet
  * tøyet» or the admin fallback). Receipt of custody: who has it, what happens
- * next, and one line on estimate vs. binding price. Deliberately NO delivery
+ * next. Deliberately NO delivery
  * date or deadline — no turnaround promises (CLAUDE.md). `showPickupTime` is
  * false for the admin fallback, whose timestamp is when the admin clicked,
  * not when the bags were collected.
@@ -542,7 +529,6 @@ export function buildOrderPickedUpEmail(
   const who = cleanerName ? `${cleanerName}, renseren din,` : 'Renseren din';
   const when =
     details.showPickupTime && order.picked_up_at ? formatPickupMoment(order.picked_up_at) : null;
-  const estimate = order.customer_estimate;
 
   const blocks: Block[] = [
     greeting(order),
@@ -550,11 +536,6 @@ export function buildOrderPickedUpEmail(
     heading('Hva skjer nå'),
     paragraph(
       'Nå skal tøyet vaskes. Du får en e-post når prisen er satt, og en ny når tøyet er levert.'
-    ),
-    paragraph(
-      estimate
-        ? `Prisen du så da du bestilte (ca. ${formatKr(estimate.estimated_total_ore)}), var et estimat. Renseren setter den endelige prisen ut fra hvor mye tøy du faktisk sendte.`
-        : 'Prisen du så da du bestilte, var et estimat. Renseren setter den endelige prisen ut fra hvor mye tøy du faktisk sendte.'
     ),
     button('Se bestillingen', orderUrl(order, options)),
     closing(),
@@ -774,8 +755,9 @@ export function buildPickupRescheduledEmail(
 
 /**
  * Sent when an admin assigns a cleaner to an order that was waiting for one
- * (pending_assignment → pickup_scheduled). Confirms the pickup date the order
- * has now, the address and the cleaner's display name. The copy stands on its
+ * (pending_assignment → pickup_scheduled). Names the cleaner and repeats the
+ * pickup date the order has now and the address. The pickup itself was
+ * already confirmed, so this announces the cleaner, not the date. The copy stands on its
  * own — it never refers back to an earlier e-mail — because it is also what
  * the customer gets when a cleaner declined a confirmed order and the admin
  * assigns a new one.
@@ -802,8 +784,8 @@ export function buildCleanerConfirmedEmail(
     greeting(order),
     paragraph(
       cleanerName
-        ? `Hentingen din er bekreftet. ${cleanerName}, en godkjent renser i området, henter tøyet ditt ${pickupDate}.`
-        : `Hentingen din er bekreftet. En godkjent renser i området henter tøyet ditt ${pickupDate}.`
+        ? `Renseren din er på plass. ${cleanerName}, en godkjent renser i området, henter tøyet ditt ${pickupDate}.`
+        : `Renseren din er på plass. En godkjent renser i området henter tøyet ditt ${pickupDate}.`
     ),
     heading('Henting'),
     rows(pickupRows),
@@ -813,8 +795,8 @@ export function buildCleanerConfirmedEmail(
   ];
 
   return finish(
-    `Hentingen er bekreftet – ${pickupDate} (bestilling #${order.order_number})`,
-    'Hentingen din er bekreftet',
+    `Renseren din er på plass – henting ${pickupDate} (bestilling #${order.order_number})`,
+    'Renseren din er på plass',
     blocks,
     options
   );
