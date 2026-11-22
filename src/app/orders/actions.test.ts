@@ -104,7 +104,7 @@ const ALL_PICKUP_WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'frid
 const PICKUP_DATE = new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10);
 
 const baseInput: CreateSubscriptionInput = {
-  location: 'Oslo',
+  location: 'Bergen',
   selection: {
     bags: 2,
     beddingSets: 1,
@@ -117,8 +117,8 @@ const baseInput: CreateSubscriptionInput = {
   firstPickupDate: PICKUP_DATE,
   pickupAddress: {
     street: 'Storgata 1',
-    postalCode: '0150',
-    city: 'Oslo',
+    postalCode: '5003',
+    city: 'Bergen',
     country: 'Norge',
     specialInstructions: 'Ring på',
   },
@@ -170,13 +170,13 @@ describe('createSubscriptionAction — address and date validation', () => {
   it.each([
     ['a malformed postal code', withAddress({ postalCode: '01500' })],
     ['a postal code outside the service area', withAddress({ postalCode: '7010' })],
-    ['a postal code in the other city', withAddress({ postalCode: '5003' })],
+    ['an Oslo postal code while only Bergen is offered', withAddress({ postalCode: '0150' })],
     ['a too-short street', withAddress({ street: ' A ' })],
     ['too-long pickup instructions', withAddress({ specialInstructions: 'x'.repeat(501) })],
     ['an unparseable date', { ...baseInput, firstPickupDate: 'i morgen' }],
     ['a pickup date in the past', { ...baseInput, firstPickupDate: '2020-01-06' }],
     ['a pickup date today', { ...baseInput, firstPickupDate: new Date().toISOString().slice(0, 10) }],
-    ['an unknown city', { ...baseInput, location: 'Trondheim' as 'Oslo' }],
+    ['an unknown city', { ...baseInput, location: 'Trondheim' as 'Bergen' }],
   ])('rejects %s before any Vipps agreement is created', async (_label, input) => {
     happyPathMocks();
 
@@ -291,7 +291,7 @@ describe('createSubscriptionAction — terms consent', () => {
       expect.objectContaining({
         provider_metadata: expect.objectContaining({
           terms_consent: expect.objectContaining({ terms_version: TERMS_VERSION, early_start_requested: true }),
-          order_defaults: expect.objectContaining({ location_city: 'Oslo' }),
+          order_defaults: expect.objectContaining({ location_city: 'Bergen' }),
           promo: PROMO,
         }),
       })
@@ -427,7 +427,7 @@ describe('createSubscriptionAction — one-time orders', () => {
       expect.objectContaining({
         provider_metadata: expect.objectContaining({
           order_defaults: expect.objectContaining({
-            location_city: 'Oslo',
+            location_city: 'Bergen',
             customer_estimate: expect.objectContaining({ bags: 2 }),
           }),
         }),
@@ -464,7 +464,7 @@ describe('createSubscriptionAction — subscriptions not offered', () => {
       expect.objectContaining({
         provider_metadata: expect.objectContaining({
           order_defaults: expect.objectContaining({
-            location_city: 'Oslo',
+            location_city: 'Bergen',
             first_pickup_date: PICKUP_DATE,
           }),
         }),
@@ -698,12 +698,12 @@ describe('getPickupPrefillAction', () => {
     m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
     m(getMostRecentOrderAddressByCustomerId).mockResolvedValue({
       street: 'Storgata 1',
-      postal_code: '0150',
+      postal_code: '5003',
       special_instructions_address: 'Ring på',
     });
     expect(await getPickupPrefillAction()).toEqual({
       street: 'Storgata 1',
-      postalCode: '0150',
+      postalCode: '5003',
       specialInstructions: 'Ring på',
     });
     expect(getMostRecentOrderAddressByCustomerId).toHaveBeenCalledWith('cust-1');
@@ -714,7 +714,7 @@ describe('getPickupPrefillAction', () => {
     m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
     m(getMostRecentOrderAddressByCustomerId).mockResolvedValue({
       street: 'Storgata 1',
-      postal_code: '0150',
+      postal_code: '5003',
       special_instructions_address: null,
     });
     const result = await getPickupPrefillAction();
@@ -869,7 +869,7 @@ describe('updateOrderPickupDateAction', () => {
       status,
       scheduled_date: '2030-01-02',
       updated_at: '2029-12-01T10:00:00+00:00',
-      city: 'Oslo',
+      city: 'Bergen',
       cleaner_id: 'cleaner-1',
       cleaner: { id: 'cleaner-1', display_name: 'Kari', weekly_schedule: weeklySchedule },
     });
@@ -926,7 +926,7 @@ describe('updateOrderPickupDateAction', () => {
 
     const result = await updateOrderPickupDateAction('order-1', '2030-01-04');
 
-    expect(findAvailableCleaner).toHaveBeenCalledWith('Oslo', expect.any(Date));
+    expect(findAvailableCleaner).toHaveBeenCalledWith('Bergen', expect.any(Date));
     expect(updateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         scheduled_date: '2030-01-04',

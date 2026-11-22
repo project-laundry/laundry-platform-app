@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is **NooraCare**, a peer-to-peer laundry platform that connects customers with local cleaners in Bergen and Oslo, Norway. The platform offers pickup and delivery laundry services. The first version sells one-time orders only; subscriptions are built but hidden.
+This is **NooraCare**, a peer-to-peer laundry platform that connects customers with local cleaners in Norway. The first version launches in **Bergen only**; Oslo is built but not offered (`OFFERED_CITIES` in `lib/config/postal-codes.ts`). The platform offers pickup and delivery laundry services. The first version sells one-time orders only; subscriptions are built but hidden.
 
 The application supports four user roles:
 
@@ -141,6 +141,7 @@ src/
 │   ├── auth/               # requireRole/assertRole guards (require-role.ts); signup error mapping (signup-errors.ts); password-reset paths + error mapping (password-reset.ts); login error mapping (login-errors.ts); ?next= sanitizing (next-path.ts)
 │   ├── config/
 │   │   ├── company.ts      # COMPANY (legal name, org number, postal address, phone, e-mail, Instagram/Facebook URLs) + formatOrgNumber/phoneHref/formatPostalAddress — the ONLY place these values live; footer, /kontakt, the legal pages and bli-renser/success read from it. Confirm the values before launch
+│   │   ├── postal-codes.ts # POSTAL_CODE_RANGES (Bergen, Oslo) + OFFERED_CITIES (['Bergen'] in the first version) — the one switch for where we operate: getCityFromPostalCode answers null for a city that is not offered, so Oslo postal codes are "outside the service area" in the order flow, address edits, cleaner onboarding and settings; serviceAreaText('og' | 'eller') renders every "vi er i …" sentence (landing badge, footer, FAQ, error messages, /salgsvilkar, share image). To open Oslo, add it to OFFERED_CITIES and bump TERMS_VERSION — keep the Oslo code, it is intentionally dormant
 │   │   ├── pricing.ts      # Pricing constants and both calculators: calculateOrderPrice (cleaner-binding: per 5kg load + 3 ironing groups) and calculateCustomerEstimate (customer estimate: per bag/set/piece). Ironing groups exist in the model but are NOT offered in the first version — hidden on every public surface, see BUSINESS_LOGIC.md "Ironing". CLEANER_MIN_PAYOUT_PER_ORDER_ORE is the "minst 350 kr per oppdrag" cleaner marketing leads with (70 % of the 500 kr order minimum)
 │   │   ├── subscriptions.ts # SUBSCRIPTIONS_OFFERED (false in the first version) — the one switch that hides recurring pickups: order flow, dashboard empty state, Min konto, /salgsvilkar section 7 (which then shows the one-time change/cancellation rules instead), /personvern, admin customer card; createSubscriptionAction forces 'on_demand' while it is false. See BUSINESS_LOGIC.md "Subscriptions (not in the first version)"
 │   │   └── terms.ts        # TERMS_VERSION (ISO date of the current /salgsvilkar text, bump on every terms change) + formatTermsVersion; stamped into payment_agreements.provider_metadata.terms_consent at checkout

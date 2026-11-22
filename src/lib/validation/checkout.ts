@@ -4,7 +4,7 @@
 // has approved — a bad postal code or date there fails order creation on every
 // webhook retry. So nothing unchecked may reach the agreement.
 
-import { getCityFromPostalCode, isValidPostalCodeFormat } from '@/lib/config/postal-codes';
+import { getCityFromPostalCode, isValidPostalCodeFormat, serviceAreaText } from '@/lib/config/postal-codes';
 import { MIN_DAYS_NOTICE } from '@/lib/config/order-timing';
 import { daysBetweenISODates } from '@/lib/utils/date';
 
@@ -30,7 +30,7 @@ export interface CheckoutAddressInput {
  */
 export function validateCheckoutInput(input: CheckoutAddressInput, todayISO: string): string | null {
   if (input.location !== 'Bergen' && input.location !== 'Oslo') {
-    return 'Vi henter foreløpig bare i Bergen og Oslo';
+    return `Vi henter foreløpig bare i ${serviceAreaText()}`;
   }
 
   const street = typeof input.pickupAddress?.street === 'string' ? input.pickupAddress.street.trim() : '';

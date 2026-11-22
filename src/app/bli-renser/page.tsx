@@ -4,6 +4,7 @@ import { Wordmark } from '@/components/layout/AppHeader';
 import { Footer } from '@/components/landing/Footer';
 import { CLEANER_MIN_PAYOUT_PER_ORDER_ORE, PRICING, formatKr } from '@/lib/config/pricing';
 import { PICKUP_TIME_RANGE } from '@/lib/config/pickup-times';
+import { serviceAreaText } from '@/lib/config/postal-codes';
 import { CLEANER_FAQ } from './faq';
 import { ClipboardList, Coins, Package, Truck, WashingMachine } from 'lucide-react';
 
@@ -75,7 +76,7 @@ const FAQ = Object.values(CLEANER_FAQ);
 // coming-soon page. Move it back to src/app/bli-renser/page.tsx at launch.
 export const metadata: Metadata = {
   title: 'Bli renser hos NooraCare',
-  description: `Vask tøy hjemme i din egen maskin og tjen minst ${formatKr(CLEANER_MIN_PAYOUT_PER_ORDER_ORE)} per oppdrag. Vi finner kundene og tar betalingen. Registrer deg som renser i Bergen eller Oslo.`,
+  description: `Vask tøy hjemme i din egen maskin og tjen minst ${formatKr(CLEANER_MIN_PAYOUT_PER_ORDER_ORE)} per oppdrag. Vi finner kundene og tar betalingen. Registrer deg som renser i ${serviceAreaText('eller')}.`,
 };
 
 export default function BecomeCleanerPage() {

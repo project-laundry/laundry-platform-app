@@ -1,15 +1,20 @@
 import { describe, it, expect } from 'vitest';
 import {
+  OFFERED_CITIES,
   getCityFromPostalCode,
   isPostalCodeInServiceArea,
   isValidPostalCodeFormat,
+  serviceAreaText,
 } from './postal-codes';
 
 describe('getCityFromPostalCode', () => {
-  it('maps Oslo postal codes', () => {
-    expect(getCityFromPostalCode('0001')).toBe('Oslo');
-    expect(getCityFromPostalCode('0150')).toBe('Oslo'); // leading zero
-    expect(getCityFromPostalCode('1299')).toBe('Oslo'); // upper bound
+  it('launches in Bergen only: Oslo postal codes are outside the service area', () => {
+    expect(OFFERED_CITIES).toEqual(['Bergen']);
+    expect(getCityFromPostalCode('0001')).toBeNull();
+    expect(getCityFromPostalCode('0150')).toBeNull(); // leading zero
+    expect(getCityFromPostalCode('1299')).toBeNull(); // upper bound
+    expect(serviceAreaText()).toBe('Bergen');
+    expect(serviceAreaText('eller')).toBe('Bergen');
   });
 
   it('maps both Bergen ranges', () => {
@@ -37,7 +42,8 @@ describe('getCityFromPostalCode', () => {
 
 describe('isPostalCodeInServiceArea', () => {
   it('is true within a service area and false outside', () => {
-    expect(isPostalCodeInServiceArea('0150')).toBe(true);
+    expect(isPostalCodeInServiceArea('5003')).toBe(true);
+    expect(isPostalCodeInServiceArea('0150')).toBe(false);
     expect(isPostalCodeInServiceArea('9999')).toBe(false);
   });
 });

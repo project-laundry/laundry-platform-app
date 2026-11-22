@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { serviceAreaText } from "@/lib/config/postal-codes";
 import Link from "next/link";
 import { Mail, Phone, MapPin, Building2, ArrowRight } from "lucide-react";
 import { Navbar } from '@/components/landing/Navbar';
@@ -8,7 +9,7 @@ import { COMPANY, formatOrgNumber, phoneHref } from "@/lib/config/company";
 export const metadata: Metadata = {
   title: "Kontakt | NooraCare",
   description:
-    "Kontakt NooraCare – profesjonell henting og levering av klesvask i Bergen og Oslo. Firmaopplysninger, kontaktinformasjon og priser.",
+    `Kontakt NooraCare – profesjonell henting og levering av klesvask i ${serviceAreaText()}. Firmaopplysninger, kontaktinformasjon og priser.`,
 };
 
 export default function KontaktPage() {
@@ -124,7 +125,7 @@ export default function KontaktPage() {
               </h2>
               <p className="mt-3 leading-relaxed text-medium-gray">
                 NooraCare tilbyr henting og levering av klesvask til
-                privatkunder i Bergen og Oslo. Vi har faste priser per pose
+                privatkunder i {serviceAreaText()}. Vi har faste priser per pose
                 klær og per sett sengetøy.
               </p>
               <Link

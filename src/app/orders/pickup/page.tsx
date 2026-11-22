@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { AlertCircle, CalendarDays, Info, MapPin, RefreshCw } from 'lucide-react';
 import {
   getCityFromPostalCode,
+  serviceAreaText,
   isValidPostalCodeFormat,
   type SupportedCity,
 } from '@/lib/config/postal-codes';
@@ -274,7 +275,7 @@ function PickupForm() {
             <div className="flex items-start gap-2 rounded-2xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
               <AlertCircle className="mt-0.5 size-4 shrink-0" />
               <span>
-                Vi er foreløpig kun i Bergen og Oslo. Dette postnummeret er
+                Vi er foreløpig kun i {serviceAreaText()}. Dette postnummeret er
                 utenfor området vårt.
               </span>
             </div>

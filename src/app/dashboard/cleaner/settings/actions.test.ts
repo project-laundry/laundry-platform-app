@@ -124,7 +124,7 @@ describe('updateCleanerSettingsAction', () => {
 
     expect(result).toEqual({
       success: false,
-      error: 'Postnummeret er utenfor serviceområdet vårt (Bergen og Oslo).',
+      error: 'Postnummeret er utenfor serviceområdet vårt (Bergen).',
     });
     expect(updateCleanerProfile).not.toHaveBeenCalled();
     expect(geocodeAddress).not.toHaveBeenCalled();
@@ -159,26 +159,26 @@ describe('updateCleanerSettingsAction', () => {
     expect('latitude' in updates).toBe(false);
   });
 
-  it('re-geocodes and derives the new city when the address changes', async () => {
+  it('re-geocodes and derives the city when the address changes', async () => {
     m(geocodeAddress).mockResolvedValue({ latitude: 59.91, longitude: 10.75 });
 
     const result = await updateCleanerSettingsAction({
       ...baseInput,
       baseStreet: 'Osloveien 1',
-      basePostalCode: '0150',
+      basePostalCode: '5805',
     });
 
     expect(result).toEqual({ success: true });
     expect(geocodeAddress).toHaveBeenCalledWith({
       street: 'Osloveien 1',
-      postal_code: '0150',
-      city: 'Oslo',
+      postal_code: '5805',
+      city: 'Bergen',
       country: 'Norway',
     });
     expect(updateCleanerProfile).toHaveBeenCalledWith(
       'cl-1',
       expect.objectContaining({
-        base_city: 'Oslo',
+        base_city: 'Bergen',
         latitude: 59.91,
         longitude: 10.75,
       })

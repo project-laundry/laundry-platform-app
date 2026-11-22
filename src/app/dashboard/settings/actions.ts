@@ -10,7 +10,7 @@ import {
 } from '@/lib/database/subscriptions';
 import { updateUpcomingOrdersAddressBySubscriptionId } from '@/lib/database/orders';
 import { validateAddress } from '@/lib/maps/geocoding';
-import { getCityFromPostalCode } from '@/lib/config/postal-codes';
+import { getCityFromPostalCode, serviceAreaText } from '@/lib/config/postal-codes';
 import { validateNorwegianPhone, validatePostalCode } from '@/lib/validation/cleaner';
 import type { SubscriptionOrderDefaults } from '@/types/database';
 
@@ -123,7 +123,7 @@ export async function updateSubscriptionAddressAction(
     if (!city) {
       return {
         success: false,
-        error: 'Postnummeret er utenfor serviceområdet vårt (Bergen og Oslo).',
+        error: `Postnummeret er utenfor serviceområdet vårt (${serviceAreaText()}).`,
       };
     }
     if (city !== defaults.location_city) {

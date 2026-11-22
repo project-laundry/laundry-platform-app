@@ -83,7 +83,7 @@ describe('createCleanerProfileAction', () => {
 
     expect(result).toEqual({
       success: false,
-      error: 'Postnummeret er utenfor serviceområdet vårt (Bergen og Oslo).',
+      error: 'Postnummeret er utenfor serviceområdet vårt (Bergen).',
     });
     expect(createCleaner).not.toHaveBeenCalled();
     expect(geocodeAddress).not.toHaveBeenCalled();

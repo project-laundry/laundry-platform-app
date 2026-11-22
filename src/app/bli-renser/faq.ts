@@ -5,16 +5,17 @@ import {
   formatKr,
 } from '@/lib/config/pricing';
 import { PICKUP_TIME_RANGE } from '@/lib/config/pickup-times';
+import { serviceAreaText } from '@/lib/config/postal-codes';
 
 /** Cleaner FAQ shown on the cleaner landing page (/bli-renser). */
 export const CLEANER_FAQ = {
   where: {
     q: 'Hvor kan jeg være renser?',
-    a: 'Foreløpig i Bergen og Oslo. Postnummeret ditt må ligge i et av områdene våre.',
+    a: `Foreløpig i ${serviceAreaText()}. Postnummeret ditt må ligge i området vårt.`,
   },
   needs: {
     q: 'Hva trenger jeg?',
-    a: 'En egen vaskemaskin hjemme, en adresse i Bergen eller Oslo og mulighet til å hente og levere tøy hos kunder i byen din.',
+    a: `En egen vaskemaskin hjemme, en adresse i ${serviceAreaText('eller')} og mulighet til å hente og levere tøy hos kunder i byen din.`,
   },
   driving: {
     q: 'Må jeg hente eller levere tøy?',

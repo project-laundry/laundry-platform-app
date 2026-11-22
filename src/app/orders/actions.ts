@@ -17,6 +17,7 @@ import { createVippsRecurringClient } from "@/lib/payments/vipps/recurring-clien
 import { getWeekdayFromDate, isWeekdayInSchedule, addDays, toISODateString, todayInOslo } from "@/lib/utils/date";
 import { validateCheckoutInput } from "@/lib/validation/checkout";
 import { DAYS_PICKUP_TO_DELIVERY, MIN_DAYS_NOTICE } from "@/lib/config/order-timing";
+import { OFFERED_CITIES, serviceAreaText } from "@/lib/config/postal-codes";
 import { TERMS_VERSION } from "@/lib/config/terms";
 import { SUBSCRIPTIONS_OFFERED } from "@/lib/config/subscriptions";
 import { translateFrequency } from "@/lib/utils/i18n";
@@ -816,8 +817,8 @@ export async function updateOrderAddressAction(
     }
 
     // Validate city
-    if (!['Bergen', 'Oslo'].includes(addressData.city)) {
-      return { success: false, error: 'By må være Bergen eller Oslo' };
+    if (!(OFFERED_CITIES as readonly string[]).includes(addressData.city)) {
+      return { success: false, error: `By må være ${serviceAreaText('eller')}` };
     }
 
     // Validate address instructions (optional)
