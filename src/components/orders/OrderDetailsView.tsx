@@ -1,5 +1,5 @@
 import { AppHeader, BackLink } from '@/components/layout/AppHeader';
-import { formatKr } from '@/lib/config/pricing';
+import { estimateAfterPromo, formatKr } from '@/lib/config/pricing';
 import { getPickupTimeRangeLabel } from '@/lib/config/pickup-times';
 import { StatusBadge } from '@/components/dashboard/StatusBadge';
 import { getOrderStatusLabel, getOrderStatusVariant } from '@/lib/utils/order-status';
@@ -64,6 +64,10 @@ function timestampForStatus(status: OrderStatus, order: {
 // The route's page.tsx handles auth + data and renders this.
 export function OrderDetailsView({ order }: { order: OrderWithRelations }) {
   const isEditable = order.status === 'pending_assignment' || order.status === 'pickup_scheduled';
+  // Unpriced order: the estimate with the order's promo code applied.
+  const estimateWithPromo = order.customer_estimate
+    ? estimateAfterPromo(order.customer_estimate.estimated_total_ore, order.promo)
+    : null;
   const isCancelled = order.status === 'cancelled';
 
   return (
@@ -197,6 +201,7 @@ export function OrderDetailsView({ order }: { order: OrderWithRelations }) {
                 <EditableOrderSelection
                   orderId={order.id}
                   initialEstimate={order.customer_estimate}
+                  promo={order.promo}
                   isEditable={isEditable}
                 />
               </div>
@@ -240,13 +245,31 @@ export function OrderDetailsView({ order }: { order: OrderWithRelations }) {
                   </>
                 ) : (
                   <>
-                    {order.customer_estimate ? (
-                      <div className="flex items-center justify-between">
-                        <span className="text-medium-gray">Estimat</span>
-                        <span className="font-serif text-2xl font-semibold tabular-nums text-dark-gray">
-                          ca. {formatKr(order.customer_estimate.estimated_total_ore)}
-                        </span>
-                      </div>
+                    {order.customer_estimate && estimateWithPromo ? (
+                      <>
+                        {order.promo && estimateWithPromo.discountOre > 0 ? (
+                          <div className="mb-2 space-y-1.5">
+                            <div className="flex items-center justify-between text-sm text-medium-gray">
+                              <span>Estimat før rabatt</span>
+                              <span className="tabular-nums line-through">
+                                ca. {formatKr(order.customer_estimate.estimated_total_ore)}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm text-sea-green">
+                              <span>Rabatt ({order.promo.code})</span>
+                              <span className="tabular-nums">
+                                −{formatKr(estimateWithPromo.discountOre)}
+                              </span>
+                            </div>
+                          </div>
+                        ) : null}
+                        <div className="flex items-center justify-between">
+                          <span className="text-medium-gray">Estimat</span>
+                          <span className="font-serif text-2xl font-semibold tabular-nums text-dark-gray">
+                            ca. {formatKr(estimateWithPromo.totalOre)}
+                          </span>
+                        </div>
+                      </>
                     ) : null}
                     <div
                       className={`flex items-start gap-2 rounded-2xl bg-cream/70 px-3.5 py-2.5 text-sm text-medium-gray ${

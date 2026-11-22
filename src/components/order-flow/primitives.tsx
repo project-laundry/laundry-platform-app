@@ -298,7 +298,14 @@ function MiniStep({
 }
 
 /** Itemised price breakdown — live on step 1 and as review on the confirm step. */
-export function Breakdown({ price }: { price: PriceResult }) {
+export function Breakdown({
+  price,
+  discount,
+}: {
+  price: PriceResult;
+  /** A promo discount on the estimate: shown as its own row and subtracted from the total. */
+  discount?: { code: string; amountOre: number };
+}) {
   return (
     <div className="overflow-hidden rounded-3xl border border-cream-dark/80 bg-warm-white/80 shadow-[var(--shadow-card)] backdrop-blur">
       {price.hasItems ? (
@@ -330,10 +337,19 @@ export function Breakdown({ price }: { price: PriceResult }) {
             </div>
           )}
 
+          {discount && discount.amountOre > 0 && (
+            <div className="flex items-center justify-between gap-4 px-5 py-3.5 text-sea-green">
+              <p className="font-medium">Rabatt ({discount.code})</p>
+              <p className="shrink-0 font-medium tabular-nums">
+                −{formatKr(discount.amountOre)}
+              </p>
+            </div>
+          )}
+
           <div className="flex items-center justify-between gap-4 px-5 py-3.5">
             <p className="font-medium text-dark-gray">Estimert totalt</p>
             <p className="shrink-0 font-serif text-xl font-semibold tabular-nums text-dark-gray">
-              ca. {formatKr(price.totalOre)}
+              ca. {formatKr(price.totalOre - (discount?.amountOre ?? 0))}
             </p>
           </div>
         </div>

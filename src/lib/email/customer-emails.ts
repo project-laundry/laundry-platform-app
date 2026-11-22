@@ -16,6 +16,7 @@ import {
   IRONING_OFFERED,
   PRICING,
   calculateOrderPrice,
+  estimateAfterPromo,
   formatKr,
   formatKrExact,
 } from '@/lib/config/pricing';
@@ -247,13 +248,24 @@ export function buildOrderConfirmationEmail(
     blocks.push(heading('Det du sender'), rows(items));
   }
 
-  // The «Pris» section is only the estimate figure and the promo line; with
-  // neither there is nothing to say and the section is left out.
+  // The «Pris» section is the estimate figure — with a promo code: estimate
+  // before discount, the discount, and the estimate after it. With neither an
+  // estimate nor a promo there is nothing to say and the section is left out.
   const priceBlocks: Block[] = [];
   if (estimate) {
-    priceBlocks.push(rows([{ label: 'Estimat', value: `ca. ${formatKr(estimate.estimated_total_ore)}` }]));
-  }
-  if (order.promo) {
+    const { discountOre, totalOre } = estimateAfterPromo(estimate.estimated_total_ore, order.promo);
+    if (order.promo && discountOre > 0) {
+      priceBlocks.push(
+        rows([
+          { label: 'Estimat før rabatt', value: `ca. ${formatKr(estimate.estimated_total_ore)}` },
+          { label: `Rabatt (${order.promo.code})`, value: `−${formatKr(discountOre)}` },
+          { label: 'Estimat', value: `ca. ${formatKr(totalOre)}`, strong: true },
+        ])
+      );
+    } else {
+      priceBlocks.push(rows([{ label: 'Estimat', value: `ca. ${formatKr(estimate.estimated_total_ore)}` }]));
+    }
+  } else if (order.promo) {
     priceBlocks.push(paragraph(`Rabattkoden ${order.promo.code} trekkes fra den endelige prisen.`));
   }
   if (priceBlocks.length > 0) {

@@ -20,7 +20,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
-import { calculateCustomerEstimate } from '@/lib/config/pricing';
+import { calculateCustomerEstimate, estimateAfterPromo } from '@/lib/config/pricing';
 import { SUBSCRIPTIONS_OFFERED } from '@/lib/config/subscriptions';
 import { getPickupTimeRangeLabel } from '@/lib/config/pickup-times';
 import type { OrderSelection } from '@/types/order-flow';
@@ -113,6 +113,12 @@ export default function ConfirmPage() {
 
   const selection = orderData?.selection ?? EMPTY_SELECTION;
   const price = useMemo(() => calculateCustomerEstimate(selection), [selection]);
+  // Discount preview: only while the code is validated. The terms come from
+  // validatePromoCodeAction and live in the order-flow store next to the code.
+  const { discountOre, totalOre: discountedTotalOre } = estimateAfterPromo(
+    price.totalOre,
+    promoStatus === 'valid' ? orderData?.promoTerms : null
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -154,11 +160,11 @@ export default function ConfirmPage() {
       if (result.valid) {
         setPromoStatus('valid');
         setPromoMessage(result.discountLabel ? `Kode lagt til – ${result.discountLabel}` : 'Rabattkode lagt til');
-        updateOrderData({ promoCode: code });
+        updateOrderData({ promoCode: code, promoTerms: result.terms });
       } else {
         setPromoStatus('invalid');
         setPromoMessage(result.error || 'Ugyldig rabattkode');
-        updateOrderData({ promoCode: undefined });
+        updateOrderData({ promoCode: undefined, promoTerms: undefined });
       }
     } catch {
       track('promo_code_applied', { valid: false, code: code.toUpperCase(), reason: 'error' });
@@ -171,7 +177,7 @@ export default function ConfirmPage() {
     setPromoInput('');
     setPromoStatus('idle');
     setPromoMessage(null);
-    updateOrderData({ promoCode: undefined });
+    updateOrderData({ promoCode: undefined, promoTerms: undefined });
   };
 
   const handleSubmit = async () => {
@@ -252,7 +258,7 @@ export default function ConfirmPage() {
   return (
     <OrderFlowShell
       step={3}
-      price={price}
+      price={discountOre > 0 ? { ...price, totalOre: discountedTotalOre } : price}
       canAdvance={
         signedIn === true &&
         price.hasItems &&
@@ -363,7 +369,14 @@ export default function ConfirmPage() {
         <h2 className="mb-3 font-serif text-xl font-semibold text-dark-gray">
           Prisoversikt
         </h2>
-        <Breakdown price={price} />
+        <Breakdown
+          price={price}
+          discount={
+            discountOre > 0
+              ? { code: promoInput.trim().toUpperCase(), amountOre: discountOre }
+              : undefined
+          }
+        />
         <PriceDisclaimer />
 
         {/* Promo code: a link until opened, so it doesn't invite a code hunt. */}

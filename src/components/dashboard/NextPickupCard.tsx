@@ -4,7 +4,7 @@ import { StatusBadge } from '@/components/dashboard/StatusBadge';
 import { getOrderStatusLabel, getOrderStatusStep, getOrderStatusVariant } from '@/lib/utils/order-status';
 import { getCompactDateLabel, getRelativeDateDisplay } from '@/lib/utils/date-format';
 import { getPickupTimeRangeLabel } from '@/lib/config/pickup-times';
-import { formatKr } from '@/lib/config/pricing';
+import { estimateAfterPromo, formatKr } from '@/lib/config/pricing';
 import type { OrderWithRelations } from '@/types/database';
 
 // Dense, fully tappable "next pickup" ticket — the dashboard's one prominent element.
@@ -13,7 +13,7 @@ export function NextPickupCard({ order }: { order: OrderWithRelations }) {
     order.total_cost_ore !== null
       ? formatKr(order.total_cost_ore)
       : order.customer_estimate
-        ? `ca. ${formatKr(order.customer_estimate.estimated_total_ore)}`
+        ? `ca. ${formatKr(estimateAfterPromo(order.customer_estimate.estimated_total_ore, order.promo).totalOre)}`
         : 'Pris etter henting';
 
   // Once the laundry is picked up, the pickup date is history — the delivery is

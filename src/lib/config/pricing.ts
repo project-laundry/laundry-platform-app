@@ -392,6 +392,25 @@ export function applyPromoDiscount(
   return { total_cost_ore: fullTotalOre - discount_ore, promo: { ...promo, discount_ore } };
 }
 
+/** The discount terms of a promo code — what `computeDiscountOre` needs. */
+export type PromoTerms = Pick<OrderPromo, 'discount_type' | 'discount_value' | 'max_discount_ore'>;
+
+/**
+ * The customer's estimate with a promo code applied — display only, used
+ * wherever the customer sees the estimate BEFORE the cleaner has priced the
+ * order (checkout summary, order page, dashboard card, confirmation e-mail).
+ * Same rule as the real discount (`applyPromoDiscount`): it comes off the
+ * estimate total, which already includes the order minimum. No promo → the
+ * estimate unchanged with a 0 discount.
+ */
+export function estimateAfterPromo(
+  estimatedTotalOre: number,
+  promo: PromoTerms | null | undefined
+): { discountOre: number; totalOre: number } {
+  const discountOre = promo ? computeDiscountOre(estimatedTotalOre, promo) : 0;
+  return { discountOre, totalOre: estimatedTotalOre - discountOre };
+}
+
 // ─── Price guard: hold the charge when the price is far above the estimate ───
 // The customer's checkout estimate is informational and the cleaner sets the
 // binding price, so nothing else stops a typo or a misunderstanding from

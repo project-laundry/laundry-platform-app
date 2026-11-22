@@ -114,7 +114,7 @@ describe('buildOrderConfirmationEmail', () => {
     expect(text).toContain('https://nooracare.no/dashboard/subscription');
   });
 
-  it('mentions the promo code when one is locked on the order', () => {
+  it('shows the discount and the estimate after it when a promo code is locked on the order', () => {
     const { text } = buildOrderConfirmationEmail(
       {
         ...ORDER,
@@ -123,7 +123,22 @@ describe('buildOrderConfirmationEmail', () => {
       OPTIONS
     );
 
-    expect(text).toContain('Rabattkoden WELCOME trekkes fra den endelige prisen.');
+    expect(text).toContain('PRIS\n\nEstimat før rabatt: ca. 589 kr\nRabatt (WELCOME): −118 kr\nEstimat: ca. 471 kr');
+    expect(text).not.toContain('trekkes fra den endelige prisen');
+  });
+
+  it('keeps the promo sentence for an order with a promo code but no checkout estimate', () => {
+    const { text } = buildOrderConfirmationEmail(
+      {
+        ...ORDER,
+        customer_estimate: null,
+        promo: { promo_code_id: 'promo-1', code: 'WELCOME', discount_type: 'percentage', discount_value: 20, max_discount_ore: null },
+      },
+      OPTIONS
+    );
+
+    expect(text).toContain('PRIS\n\nRabattkoden WELCOME trekkes fra den endelige prisen.');
+    expect(text).not.toContain('Estimat');
   });
 
   it('skips the items rows and the whole price section for an order without a checkout estimate', () => {

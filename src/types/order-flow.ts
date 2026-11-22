@@ -31,4 +31,11 @@ export interface OrderData {
 
   // Promo code (validated at checkout, applied to the first order)
   promoCode?: string;
+  // Discount terms of the validated code — only used to preview the discount
+  // on the confirm step. The server re-validates the code at checkout.
+  promoTerms?: {
+    discount_type: 'percentage' | 'fixed';
+    discount_value: number;
+    max_discount_ore: number | null;
+  };
 }
