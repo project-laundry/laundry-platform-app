@@ -43,7 +43,7 @@ the e-mail settings.
 ### To admins
 
 Plain text from `ADMIN_DIGEST_FROM` (default `NooraCare <varsel@nooracare.no>`), one message
-per admin (`sendToAdmins` in `src/lib/email/admin-mail.ts`).
+per admin (`sendToAdmins` in `src/lib/email/admin-mail.ts`). A deactivated administrator (`users.deleted_at` set — «Deaktiver» on `/admin/admins/<id>`) gets none of these.
 
 | E-mail | Subject starts with | Sent when | Described in |
 |---|---|---|---|

@@ -12,7 +12,10 @@ export interface AuthenticatedUser {
   dbUser: User;
 }
 
-/** The signed-in user's DB record, or null when signed out / record missing. */
+/**
+ * The signed-in user's DB record, or null when signed out, the record is
+ * missing, or the user is a deactivated administrator.
+ */
 export async function getAuthenticatedDbUser(): Promise<AuthenticatedUser | null> {
   const supabase = await createClient();
   const {
@@ -22,6 +25,11 @@ export async function getAuthenticatedDbUser(): Promise<AuthenticatedUser | null
 
   const dbUser = await getUsersById(user.id);
   if (!dbUser) return null;
+
+  // A deactivated administrator (users.deleted_at set from /admin/admins) is
+  // treated as signed out everywhere: pages redirect to login, actions answer
+  // "Ikke autentisert". Other roles are not deactivated this way.
+  if (dbUser.role === 'admin' && dbUser.deleted_at) return null;
 
   return { authUserId: user.id, dbUser };
 }

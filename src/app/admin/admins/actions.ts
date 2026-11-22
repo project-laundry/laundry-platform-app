@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { assertRole } from '@/lib/auth/require-role';
-import { createStaffAccount } from '@/lib/services/staff-accounts';
+import { createStaffAccount, setStaffAccountActive } from '@/lib/services/staff-accounts';
 import { updateUserContact, getUserByIdAsAdmin } from '@/lib/database/users';
 import { validateNorwegianPhone } from '@/lib/validation/cleaner';
 
@@ -76,5 +76,31 @@ export async function updateAdminAction(
   if (error) return { success: false, error };
 
   revalidatePath('/admin/admins');
+  return { success: true };
+}
+
+/**
+ * Deactivate or reactivate another administrator. A deactivated admin gets no
+ * admin e-mails, is refused by the role guards and cannot sign in. Your own
+ * account cannot be deactivated, so one active admin always remains.
+ */
+export async function setAdminActiveAction(userId: string, active: boolean): Promise<StaffActionResult> {
+  const { auth, error: authError } = await assertRole(['admin']);
+  if (authError || !auth) return { success: false, error: authError ?? 'Ikke autentisert' };
+
+  if (!active && auth.authUserId === userId) {
+    return { success: false, error: 'Du kan ikke deaktivere din egen konto' };
+  }
+
+  const target = await getUserByIdAsAdmin(userId);
+  if (!target || target.role !== 'admin') {
+    return { success: false, error: 'Brukeren ble ikke funnet' };
+  }
+
+  const { error } = await setStaffAccountActive(userId, active);
+  if (error) return { success: false, error };
+
+  revalidatePath('/admin/admins');
+  revalidatePath(`/admin/admins/${userId}`);
   return { success: true };
 }

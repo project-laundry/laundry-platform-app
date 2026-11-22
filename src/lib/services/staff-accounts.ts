@@ -10,6 +10,8 @@
 // public.users has NO foreign key to auth.users, so rollback on partial
 // failure must delete BOTH rows: public.users first (it cascades to
 // customers and drivers), then the auth user.
+//
+// setStaffAccountActive deactivates / reactivates an account (ban + users.deleted_at).
 
 import { createAdminClient } from '@/lib/supabase/admin';
 
@@ -98,4 +100,44 @@ export async function deleteStaffAccount(userId: string): Promise<void> {
 
   await supabase.from('users').delete().eq('id', userId);
   await supabase.auth.admin.deleteUser(userId);
+}
+
+/** ~100 years: Supabase Auth has no "forever", only a duration. */
+const BAN_DURATION = '876000h';
+
+/**
+ * Deactivate or reactivate a staff account. Deactivated = the Supabase Auth
+ * user is banned (no new sign-ins, no token refresh) and users.deleted_at is
+ * set, which removes the account from the admin e-mails (lib/email/admin-mail.ts)
+ * and makes the role guards refuse it at once (lib/auth/require-role.ts).
+ * Both steps or neither: when the second step fails the first is undone.
+ */
+export async function setStaffAccountActive(
+  userId: string,
+  active: boolean
+): Promise<{ error: string | null }> {
+  const supabase = createAdminClient();
+
+  const { error: banError } = await supabase.auth.admin.updateUserById(userId, {
+    ban_duration: active ? 'none' : BAN_DURATION,
+  });
+  if (banError) {
+    console.error('Error changing staff account ban:', banError);
+    return { error: active ? 'Kunne ikke aktivere kontoen' : 'Kunne ikke deaktivere kontoen' };
+  }
+
+  const { error: updateError } = await supabase
+    .from('users')
+    .update({ deleted_at: active ? null : new Date().toISOString() })
+    .eq('id', userId);
+
+  if (updateError) {
+    console.error('Error changing staff account deleted_at, undoing the ban change:', updateError);
+    await supabase.auth.admin.updateUserById(userId, {
+      ban_duration: active ? BAN_DURATION : 'none',
+    });
+    return { error: active ? 'Kunne ikke aktivere kontoen' : 'Kunne ikke deaktivere kontoen' };
+  }
+
+  return { error: null };
 }
