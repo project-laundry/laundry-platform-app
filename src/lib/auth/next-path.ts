@@ -12,6 +12,21 @@ export function safeNextPath(raw: string | null | undefined): string | null {
   return raw;
 }
 
+/**
+ * The `?next=` path carried inside a full callback URL, or null. The auth
+ * e-mail templates pass the URL the flow asked Supabase to return to
+ * (`{{ .RedirectTo }}`, e.g. `https://nooracare.no/auth/callback?next=%2Forders%2Fwash`)
+ * as `redirect_to`; only its `next` path is used, never its host.
+ */
+export function nextFromRedirectTo(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  try {
+    return safeNextPath(new URL(raw).searchParams.get('next'));
+  } catch {
+    return null;
+  }
+}
+
 /** `href` with `?next=` appended when there is a path to come back to. */
 export function withNext(href: string, next: string | null): string {
   return next ? `${href}?next=${encodeURIComponent(next)}` : href;
