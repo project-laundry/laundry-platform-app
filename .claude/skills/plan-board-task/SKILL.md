@@ -1,6 +1,6 @@
 ---
 name: plan-board-task
-description: Plan one or more GitHub issues from the NooraCare board (project-laundry/laundry-platform-app) and hand them to the Ready column. For each issue it writes a hand-off-ready plan with the extensive-plan skill, attaches the plan to the issue as a comment, and moves the issue from Backlog/Blocked to Ready. One issue is planned inline; several issues are planned in parallel, one subagent per issue, always on the most capable model (Fable 5.1). Use whenever the user says things like "plan issue #N", "create a plan for the pre-launch tasks", "plan all P0 issues", "make plans for #33 and #71 and move them to Ready", "re-plan the Blocked issues", or asks for plans that should end up on the board — even without the words "board", "Ready" or "skill". Do NOT use for implementing (that is implement-ready-task), for ad-hoc plans that are not tied to a GitHub issue (plain extensive-plan), or for other repos.
+description: Plan one or more GitHub issues from the NooraCare board (project-laundry/laundry-platform-app) and hand them to the Ready column. For each issue it writes a hand-off-ready plan with the extensive-plan skill, attaches the plan to the issue as a comment, and moves the issue from Backlog/Blocked to Ready. One issue is planned inline; several issues are planned in parallel, one subagent per issue, always on the most capable model (Fable 5.2). Use whenever the user says things like "plan issue #N", "create a plan for the pre-launch tasks", "plan all P0 issues", "make plans for #33 and #71 and move them to Ready", "re-plan the Blocked issues", or asks for plans that should end up on the board — even without the words "board", "Ready" or "skill". Do NOT use for implementing (that is implement-ready-task), for ad-hoc plans that are not tied to a GitHub issue (plain extensive-plan), or for other repos.
 ---
 
 # Plan board tasks → Ready
@@ -25,7 +25,7 @@ $A <n> PLAN_<TOPIC>.md --no-move   # post only (used when the user wants to revi
 
 ## 0. Model gate
 
-Plans are written only by the most capable model (today Claude Fable 5.1). The
+Plans are written only by the most capable model (today Claude Fable 5.2). The
 `extensive-plan` skill enforces this itself and refuses on anything lower; this skill
 adds the delegation half: **every subagent you spawn to plan gets `model: "fable"`
 explicitly** — a fresh subagent does not inherit your model. If you are not on the top

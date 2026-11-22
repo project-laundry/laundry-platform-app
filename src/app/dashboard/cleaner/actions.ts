@@ -2,10 +2,11 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { getCleanerByUserId } from '@/lib/database/cleaners';
+import { findAvailableCleaner, getCleanerByUserId } from '@/lib/database/cleaners';
 import {
   getOrderById,
   declineOrder,
+  assignCleanerToPendingOrder,
   updateOrderLaundryDetails,
   updateOrderStatusGuarded,
   getOrderByIdAndCleanerId,
@@ -21,6 +22,9 @@ import {
 } from '@/lib/config/pricing';
 import { completeDeliveredOrder } from '@/lib/services/complete-order';
 import { markOrderReadyAndCharge } from '@/lib/services/ready-order';
+import { sendOrderPickedUpEmail } from '@/lib/services/customer-emails';
+import { sendAdminOrderUnassignedEmail, sendCleanerNewOrderEmail } from '@/lib/services/staff-emails';
+import { todayInOslo } from '@/lib/utils/date';
 
 export type { OrderWithCustomer };
 
@@ -89,6 +93,7 @@ export async function markOrderReadyForDelivery(
  * guarded write, stamping picked_up_at next to in_cleaning_at.
  * No date check: the UI warns before the pickup date, but an early pickup
  * agreed with the customer is allowed.
+ * Sends the customer the "laundry picked up" e-mail (sendOrderPickedUpEmail).
  */
 export async function markOrderPickedUpAction(
   orderId: string
@@ -122,6 +127,12 @@ export async function markOrderPickedUpAction(
   if (!updated) {
     return { success: false, error: 'Kunne ikke oppdatere status — last siden på nytt' };
   }
+
+  // "Laundry picked up" e-mail (#25) — only after the guarded write succeeded,
+  // so a double-tap (second call fails the guard above) never sends twice.
+  // The cleaner taps at the door, so picked_up_at is the real pickup time.
+  // Never throws (lib/services/customer-emails.ts).
+  await sendOrderPickedUpEmail(orderId, { showPickupTime: true });
 
   revalidatePath('/dashboard/cleaner');
   revalidatePath(`/dashboard/cleaner/${orderId}`);
@@ -231,7 +242,7 @@ export async function saveLaundryDetails(
   // in_cleaning: marking it ready CHARGES the customer at the then-current
   // total, so any later edit would silently diverge from the actual charge.
   if (order.status !== 'in_cleaning') {
-    return { success: false, error: 'Vaskdetaljer kan ikke endres etter at ordren er gjort klar og kunden belastet' };
+    return { success: false, error: 'Vaskdetaljer kan ikke endres etter at ordren er gjort klar for levering' };
   }
 
   const { total_cost_ore: totalCostOre, promo: promoUpdate } = applyPromoDiscount(
@@ -259,8 +270,18 @@ export async function saveLaundryDetails(
 }
 
 /**
- * Decline an assigned order
- * Only allowed before the order is started (status: pickup_scheduled)
+ * Decline an assigned order.
+ * Only allowed before the order is started (status: pickup_scheduled).
+ *
+ * After the decline the order is handed straight to the next available
+ * cleaner (the checkout matching, findAvailableCleaner, minus everyone who
+ * has declined this order); that cleaner gets the «Nytt oppdrag» e-mail.
+ * When nobody matches — or the pickup date is already past, which an admin
+ * has to correct first — the order stays pending_assignment and every admin
+ * gets «Ordre venter på tildeling». The customer is told nothing in either
+ * case: an automatic re-assignment is not a customer event, and the
+ * "cleaner confirmed" e-mail is only sent when an ADMIN assigns a
+ * pending_assignment order (assignCleanerAction).
  */
 export async function declineCleanerOrder(
   orderId: string
@@ -289,10 +310,40 @@ export async function declineCleanerOrder(
     return { success: false, error: 'Du kan bare avslå oppdraget før det er startet' };
   }
 
-  const result = await declineOrder(orderId, cleaner.id);
+  // Guarded write: null when this cleaner does not hold the order (any more).
+  const declined = await declineOrder(orderId, cleaner.id);
 
-  if (!result) {
+  if (!declined) {
     return { success: false, error: 'Kunne ikke avslå oppdraget' };
+  }
+
+  // The decline is saved. Everything below is best effort: whatever happens,
+  // the cleaner's decline stands and the action answers success.
+  let reassigned = false;
+  try {
+    if (declined.scheduled_date >= todayInOslo()) {
+      const nextCleaner = await findAvailableCleaner(
+        declined.city,
+        new Date(declined.scheduled_date),
+        declined.declined_by_cleaner_ids ?? [cleaner.id]
+      );
+      if (nextCleaner) {
+        // Guarded: null when an admin assigned or someone cancelled the order
+        // in the meantime — then there is nothing left for us to do.
+        const updated = await assignCleanerToPendingOrder(orderId, nextCleaner.id);
+        reassigned = updated !== null;
+      }
+    }
+  } catch (error) {
+    console.error(`[declineCleanerOrder] Automatic re-assignment of order ${orderId} failed:`, error);
+  }
+
+  // Neither e-mail throws (lib/services/staff-emails.ts). The admin alert
+  // re-checks that the order is still pending_assignment before sending.
+  if (reassigned) {
+    await sendCleanerNewOrderEmail(orderId);
+  } else {
+    await sendAdminOrderUnassignedEmail(orderId, cleaner.display_name);
   }
 
   revalidatePath('/dashboard/cleaner');

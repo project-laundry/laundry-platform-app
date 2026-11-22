@@ -11,13 +11,14 @@ import {
   findAvailableCleaner,
   getAvailableWeekdaysForCity,
 } from "@/lib/database/cleaners";
-import { createVippsAgreement } from "@/lib/payments/vipps/service";
+import { createVippsAgreement, stopVippsAgreementForOneTimeOrder } from "@/lib/payments/vipps/service";
 import { isVippsForceAcceptAllowed, pickVippsTestPhone } from "@/lib/payments/vipps/config";
 import { createVippsRecurringClient } from "@/lib/payments/vipps/recurring-client";
 import { getWeekdayFromDate, isWeekdayInSchedule, addDays, toISODateString, todayInOslo } from "@/lib/utils/date";
 import { validateCheckoutInput } from "@/lib/validation/checkout";
 import { DAYS_PICKUP_TO_DELIVERY, MIN_DAYS_NOTICE } from "@/lib/config/order-timing";
 import { TERMS_VERSION } from "@/lib/config/terms";
+import { SUBSCRIPTIONS_OFFERED } from "@/lib/config/subscriptions";
 import { translateFrequency } from "@/lib/utils/i18n";
 import {
   getMostRecentOrderAddressByCustomerId,
@@ -27,6 +28,7 @@ import {
 } from "@/lib/database/orders";
 import { geocodeAddress, validateAddress, type AddressValidationReason } from "@/lib/maps/geocoding";
 import { checkAndGenerateNextOrders } from "@/lib/services/order-generation";
+import { sendOrderCancelledEmail, sendPickupRescheduledEmail } from "@/lib/services/customer-emails";
 import { cancelSubscriptionAction } from "@/app/dashboard/subscription/actions";
 import { validatePostalCode } from "@/lib/validation/cleaner";
 import type {
@@ -187,9 +189,14 @@ export async function createSubscriptionAction(
   // Determine the subscription frequency
   // - For recurring orders: use the selected frequency
   // - For single orders: 'on_demand' (no subscription created)
-  const frequency: SubscriptionFrequency = input.isRecurring && input.frequency
-    ? input.frequency
-    : 'on_demand';
+  // While subscriptions aren't offered (SUBSCRIPTIONS_OFFERED = false) every
+  // checkout is a single order, whatever the client sent — a browser that
+  // persisted `isRecurring: true` before the choice was hidden, or a
+  // hand-crafted request, must not be able to create a subscription.
+  const frequency: SubscriptionFrequency =
+    SUBSCRIPTIONS_OFFERED && input.isRecurring && input.frequency
+      ? input.frequency
+      : 'on_demand';
 
   const isRecurring = frequency !== 'on_demand';
 
@@ -520,7 +527,7 @@ export async function forceAcceptAgreementAction(
     // Timeout - webhook didn't activate subscription in time
     return {
       success: false,
-      error: 'Avtalen ble godkjent, men aktivering tok for lang tid. Sjekk abonnementsstatus i dashboard.',
+      error: 'Avtalen ble godkjent, men aktivering tok for lang tid. Sjekk status i dashbordet.',
     };
   } catch (error) {
     console.error('Force accept agreement failed:', error);
@@ -914,9 +921,20 @@ export async function cancelOrderAction(
       return { success: false, error: 'Failed to cancel order' };
     }
 
+    // One-time order: nothing will ever be charged on its Vipps agreement, so
+    // stop it now (#144). Never throws — a failed stop is logged and the
+    // cancellation stands.
+    if (!order.subscription_id) {
+      await stopVippsAgreementForOneTimeOrder(orderId);
+    }
+
     // If user wants to cancel subscription along with order
     if (alsoCancelSubscription && order.subscription_id) {
       const result = await cancelSubscriptionAction(order.subscription_id);
+      // The order IS cancelled at this point, whatever the subscription step
+      // returned — confirm it (#29). Sent after that step so the e-mail reads
+      // the subscription's real status. Never throws.
+      await sendOrderCancelledEmail(orderId);
       return result;
     }
 
@@ -948,6 +966,10 @@ export async function cancelOrderAction(
         }
       }
     }
+
+    // Cancellation e-mail (#29) — after the rolling window ran, so it can
+    // name the next pickup of a subscription. Never throws.
+    await sendOrderCancelledEmail(orderId);
 
     return { success: true, nextOrderId };
   } catch (error) {
@@ -1073,6 +1095,11 @@ export async function updateOrderPickupDateAction(
       console.error('Error updating pickup date:', error);
       return { success: false, error: 'Kunne ikke oppdatere hentedato' };
     }
+
+    // New-pickup-date e-mail (#29). `order` is the row as read BEFORE the
+    // write: its scheduled_date is the old date and its updated_at keys the
+    // send. Sends nothing when the date is unchanged. Never throws.
+    await sendPickupRescheduledEmail(orderId, order, 'customer');
 
     return {
       success: true,

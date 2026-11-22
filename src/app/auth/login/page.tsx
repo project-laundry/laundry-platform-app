@@ -7,6 +7,13 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { AlertCircle, ChevronLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { safeNextPath, withNext } from '@/lib/auth/next-path';
+import {
+  LOGIN_FAILED_MESSAGE,
+  RESEND_FAILED_MESSAGE,
+  getResendConfirmationErrorMessage,
+  getSignInErrorMessage,
+  isEmailNotConfirmedError,
+} from '@/lib/auth/login-errors';
 
 // useSearchParams needs a Suspense boundary above it.
 export default function LoginPage() {
@@ -45,6 +52,17 @@ function LoginForm() {
     setResendError(null);
     setLoading(true);
 
+    try {
+      await signIn();
+    } catch (err) {
+      // supabase-js returns auth errors but re-throws anything else.
+      console.error('Login failed unexpectedly:', err);
+      setError(LOGIN_FAILED_MESSAGE);
+      setLoading(false);
+    }
+  };
+
+  const signIn = async () => {
     const supabase = createClient();
 
     // Step 1: Authenticate
@@ -54,21 +72,14 @@ function LoginForm() {
     });
 
     if (signInError) {
-      const isUnconfirmed =
-        (signInError as { code?: string }).code === 'email_not_confirmed' ||
-        /email not confirmed/i.test(signInError.message);
-      if (isUnconfirmed) {
-        setNeedsConfirmation(true);
-        setError('E-postadressen din er ikke bekreftet ennå. Sjekk innboksen din eller send bekreftelsen på nytt.');
-      } else {
-        setError(signInError.message);
-      }
+      setNeedsConfirmation(isEmailNotConfirmedError(signInError));
+      setError(getSignInErrorMessage(signInError));
       setLoading(false);
       return;
     }
 
     if (!authData.user) {
-      setError('Kunne ikke logge inn. Vennligst prøv igjen.');
+      setError(LOGIN_FAILED_MESSAGE);
       setLoading(false);
       return;
     }
@@ -81,7 +92,8 @@ function LoginForm() {
       .single();
 
     if (userError || !userData) {
-      setError('Kunne ikke hente brukerdata. Vennligst prøv igjen.');
+      console.error('Login role lookup failed:', userError);
+      setError(LOGIN_FAILED_MESSAGE);
       setLoading(false);
       return;
     }
@@ -127,18 +139,24 @@ function LoginForm() {
   const handleResend = async () => {
     setResendStatus('sending');
     setResendError(null);
-    const supabase = createClient();
-    const { error } = await supabase.auth.resend({
-      type: 'signup',
-      email: formData.email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-    });
-    if (error) {
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: formData.email,
+        options: { emailRedirectTo: `${window.location.origin}${withNext('/auth/callback', next)}` },
+      });
+      if (error) {
+        setResendStatus('error');
+        setResendError(getResendConfirmationErrorMessage(error));
+        return;
+      }
+      setResendStatus('sent');
+    } catch (err) {
+      console.error('Resending the confirmation e-mail failed unexpectedly:', err);
       setResendStatus('error');
-      setResendError(error.message);
-      return;
+      setResendError(RESEND_FAILED_MESSAGE);
     }
-    setResendStatus('sent');
   };
 
   return (
@@ -196,7 +214,7 @@ function LoginForm() {
                   </button>
                 )}
                 {resendStatus === 'error' && resendError && (
-                  <p className="text-red-700">Kunne ikke sende: {resendError}</p>
+                  <p className="text-red-700">{resendError}</p>
                 )}
               </div>
             )}

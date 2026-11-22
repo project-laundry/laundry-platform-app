@@ -541,7 +541,7 @@
 
 ### WaitlistSignup
 
-**Description:** Pre-launch waitlist collected by the coming-soon pages (`/` for customers, `/bli-renser` for cleaners). Standalone — not linked to users. Delete the table's rows no later than six months after launch (promised in `/personvern#venteliste`).
+**Description:** Pre-launch waitlist that the coming-soon pages collected (`/` for customers, `/bli-renser` for cleaners) until launch; nothing writes to it any more. Standalone — not linked to users. Delete the table's rows no later than six months after launch (promised in `/personvern#venteliste`).
 
 **Fields:**
 
@@ -550,11 +550,11 @@
 - `audience` (text, required) - `customer` | `cleaner`
 - `city` (text, required) - `bergen` | `oslo`
 - `created_at` (timestamp) - Signup time (also the consent timestamp — there is no checkbox; submitting the form is the consent, and the line under the button states exactly what it covers: one e-mail when we open, no newsletter)
-- `offer_eligible` (boolean, required, default false) - `true` on the first `WAITLIST_OFFER_SPOTS` (50) customer signups, set by the `waitlist_signups_mark_offer_eligible` BEFORE INSERT trigger (advisory-locked count of eligible rows) and never recomputed; cleaner rows are always `false`. The launch promo code goes to `WHERE offer_eligible`. The cap is mirrored in `src/components/coming-soon/launch.ts` — change both together
+- `offer_eligible` (boolean, required, default false) - `true` on the first 50 customer signups, set by the `waitlist_signups_mark_offer_eligible` BEFORE INSERT trigger (advisory-locked count of eligible rows) and never recomputed; cleaner rows are always `false`. The launch promo code goes to `WHERE offer_eligible`.
 
 **Notes:**
 
-- Written only by `joinWaitlistAction` (`app/actions.ts`) via the service role; RLS is enabled with no policies.
+- Was written only by the (now deleted) waitlist server action via the service role; RLS is enabled with no policies and anon/authenticated hold no grants.
 - Signing up twice is a silent no-op (`UNIQUE(email, audience)` + upsert ignoring duplicates), so the form never reveals whether an email is already listed.
 - Deleting an eligible row (consent withdrawn) frees the spot for the next *new* customer signup; the existing 51st row is not promoted.
 
@@ -564,7 +564,7 @@
 
 ---
 
-**Note:** For MVP, email/SMS notifications are tracked via provider audit logs (SendGrid, Twilio, etc.) - no database storage needed.
+**Note:** Customer e-mails are sent through Resend and not stored in the database — the Resend dashboard is the delivery log, and duplicate suppression uses Resend idempotency keys rather than a `*_sent_at` column (see BUSINESS_LOGIC.md → Customer E-mails).
 
 ---
 

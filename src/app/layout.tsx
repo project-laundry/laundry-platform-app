@@ -24,7 +24,7 @@ const geistMono = Geist_Mono({
 
 const TITLE = "NooraCare";
 const DESCRIPTION =
-  "NooraCare kobler deg med en renser i nabolaget som vasker klærne dine.";
+  "NooraCare kobler deg med en lokal renser som vasker klærne dine.";
 
 export const metadata: Metadata = {
   // Absolute base for og:image and friends; falls back to localhost in dev.

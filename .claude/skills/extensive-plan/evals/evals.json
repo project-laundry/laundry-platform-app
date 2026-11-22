@@ -1,0 +1,60 @@
+{
+  "skill_name": "extensive-plan",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "right now I have to insert promo codes directly in the database which is annoying. make a plan for an admin page under /admin where I can see all promo codes and create new ones. don't implement anything, just the plan — I'll have another agent do it",
+      "expected_output": "A PLAN_*.md file in the repo with a feasibility verdict, locked product decisions, verified background on the existing promo-code tables and admin pages, per-file implementation steps with ready-to-paste code, tests, a 'what NOT to do' section, and a verification checklist. No source files changed.",
+      "files": [],
+      "expectations": [
+        "no-implementation: No source files were modified; the only deliverable is the plan document, and the response does not claim any code change was made",
+        "plan-file-exists: A standalone markdown plan file was produced in the outputs directory, not just a chat answer",
+        "real-file-paths: At least 5 repository file paths referenced in the plan actually exist in the repo",
+        "ready-to-paste-code: The plan contains concrete code snippets whose referenced symbols/imports actually exist in the repo (spot-check at least 3)",
+        "placement-instructions: Every code snippet says exactly which file and where in that file it goes, not 'add somewhere'",
+        "what-not-to-do: The plan has an explicit section listing things NOT to do / out of scope",
+        "verification-checklist: The plan lists runnable verification commands (npm test / npm run lint / npm run build) plus a numbered manual test recipe",
+        "decisions-documented: Product/UX decisions are explicitly recorded, with non-interactive defaults flagged for user confirmation",
+        "no-vague-instructions: Implementation steps contain no vague directives like 'as needed', 'appropriately', 'handle errors properly', or an unshown 'follow the existing pattern'",
+        "grounded-in-schema: The plan references the real promo_codes table fields and lib/database/promo-codes.ts functions rather than inventing schema"
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "how would we send the customer an email when their laundry has been picked up? we don't have any email sending today I think. analyse what it would take and write a plan",
+      "expected_output": "Analysis of the existing notifications system, an email-provider recommendation with documented judgment call, and a hand-off-ready plan file covering env vars, the trigger point in the order-status flow, templates, tests, and verification. No source files changed.",
+      "files": [],
+      "expectations": [
+        "no-implementation: No source files were modified; the only deliverable is the plan document, and the response does not claim any code change was made",
+        "plan-file-exists: A standalone markdown plan file was produced in the outputs directory, not just a chat answer",
+        "real-file-paths: At least 5 repository file paths referenced in the plan actually exist in the repo",
+        "ready-to-paste-code: The plan contains concrete code snippets whose referenced symbols/imports actually exist in the repo (spot-check at least 3)",
+        "placement-instructions: Every code snippet says exactly which file and where in that file it goes, not 'add somewhere'",
+        "what-not-to-do: The plan has an explicit section listing things NOT to do / out of scope",
+        "verification-checklist: The plan lists runnable verification commands (npm test / npm run lint / npm run build) plus a numbered manual test recipe",
+        "decisions-documented: The email-provider choice is recorded as an explicit judgment call/decision the user can veto",
+        "no-vague-instructions: Implementation steps contain no vague directives like 'as needed', 'appropriately', 'handle errors properly', or an unshown 'follow the existing pattern'",
+        "correct-trigger-point: The plan identifies the actual code path where an order transitions to picked_up status as the email trigger, with the real file/function named",
+        "provider-setup-concrete: New email infrastructure is specified concretely (exact npm dependency, exact env var names, where config validation lives)"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "is it feasible to show which cleaner is assigned (name + photo) on the customer's order details page? if yes make me a plan for it",
+      "expected_output": "A feasibility verdict grounded in the actual schema (cleaner relation already joined in order queries), then a detailed plan file for surfacing display_name and profile_image_url on the customer order details page. No source files changed.",
+      "files": [],
+      "expectations": [
+        "no-implementation: No source files were modified; the only deliverable is the plan document, and the response does not claim any code change was made",
+        "plan-file-exists: A standalone markdown plan file was produced in the outputs directory, not just a chat answer",
+        "real-file-paths: At least 5 repository file paths referenced in the plan actually exist in the repo",
+        "ready-to-paste-code: The plan contains concrete code snippets whose referenced symbols/imports actually exist in the repo (spot-check at least 3)",
+        "placement-instructions: Every code snippet says exactly which file and where in that file it goes, not 'add somewhere'",
+        "what-not-to-do: The plan has an explicit section listing things NOT to do / out of scope",
+        "verification-checklist: The plan lists runnable verification commands (npm test / npm run lint / npm run build) plus a numbered manual test recipe",
+        "decisions-documented: Product/UX decisions (e.g. what to show when no cleaner is assigned yet) are explicitly recorded with defaults flagged for user confirmation",
+        "no-vague-instructions: Implementation steps contain no vague directives like 'as needed', 'appropriately', 'handle errors properly', or an unshown 'follow the existing pattern'",
+        "feasibility-verdict-first: An explicit feasibility verdict grounded in the actual code (the cleaner relation with display_name/profile_image_url already joined in customer order queries) is given before the plan details"
+      ]
+    }
+  ]
+}

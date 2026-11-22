@@ -34,6 +34,8 @@ vi.mock('@/lib/payments/vipps/service', () => ({
 }));
 vi.mock('@/lib/database/orders', () => ({ createOrder: vi.fn(), getOrderByPaymentAgreementId: vi.fn() }));
 vi.mock('@/lib/database/promo-codes', () => ({ recordPromoRedemption: vi.fn() }));
+vi.mock('@/lib/services/customer-emails', () => ({ sendOrderConfirmationEmail: vi.fn(), sendPaymentFailedEmail: vi.fn() }));
+vi.mock('@/lib/services/staff-emails', () => ({ sendCleanerNewOrderEmail: vi.fn(), sendAdminNewOrderEmail: vi.fn() }));
 
 import { validateVippsWebhook } from '@/lib/payments/vipps/webhook-auth';
 import {
@@ -58,6 +60,8 @@ import {
 import { cancelVippsAgreement, stopVippsAgreementForCancelledSubscription } from '@/lib/payments/vipps/service';
 import { createOrder, getOrderByPaymentAgreementId } from '@/lib/database/orders';
 import { recordPromoRedemption } from '@/lib/database/promo-codes';
+import { sendOrderConfirmationEmail, sendPaymentFailedEmail } from '@/lib/services/customer-emails';
+import { sendAdminNewOrderEmail, sendCleanerNewOrderEmail } from '@/lib/services/staff-emails';
 import { POST } from './route';
 
 // Cast helpers
@@ -222,6 +226,7 @@ describe('charge events', () => {
     await post(chargePayload({ eventType: 'recurring.charge-failed.v1', failureReason: 'Insufficient funds', failureCode: 42 }));
 
     expect(failPaymentWithMetadata).toHaveBeenCalledWith('pay-1', 'Insufficient funds', expect.objectContaining({ vipps_status: 'FAILED' }));
+    expect(sendPaymentFailedEmail).toHaveBeenCalledWith('pay-1');
   });
 
   it('marks the payment failed on charge-creation-failed so it can be retried', async () => {
@@ -234,6 +239,7 @@ describe('charge events', () => {
 
     expect(res.status).toBe(200);
     expect(failPaymentWithMetadata).toHaveBeenCalledWith('pay-1', 'Amount too high', expect.objectContaining({ vipps_status: 'FAILED' }));
+    expect(sendPaymentFailedEmail).toHaveBeenCalledWith('pay-1');
   });
 
   it('acknowledges (200) a charge-creation-failed with no payment row', async () => {
@@ -244,6 +250,7 @@ describe('charge events', () => {
 
     expect(res.status).toBe(200);
     expect(failPaymentWithMetadata).not.toHaveBeenCalled();
+    expect(sendPaymentFailedEmail).not.toHaveBeenCalled();
   });
 
   it('acknowledges (200) a captured charge with no payment row — a retry cannot fix that', async () => {
@@ -275,6 +282,18 @@ describe('charge events', () => {
     const res = await post(chargePayload({ eventType: 'recurring.charge-failed.v1', failureReason: 'Insufficient funds', failureCode: 42 }));
 
     expect(res.status).toBe(500);
+    expect(sendPaymentFailedEmail).not.toHaveBeenCalled();
+  });
+
+  it('returns 500 when the creation-failed write fails, so Vipps retries, and sends no e-mail', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ id: 'pa-1', status: 'active' });
+    m(getPaymentByReference).mockResolvedValue({ id: 'pay-1' });
+    m(failPaymentWithMetadata).mockResolvedValue(null);
+
+    const res = await post(chargePayload({ eventType: 'recurring.charge-creation-failed.v1', failureReason: 'x', failureCode: 1 }));
+
+    expect(res.status).toBe(500);
+    expect(sendPaymentFailedEmail).not.toHaveBeenCalled();
   });
 
   it('marks the payment cancelled on charge-canceled', async () => {
@@ -359,6 +378,7 @@ describe('agreement-activated', () => {
       customer_estimate: ORDER_DEFAULTS.customer_estimate,
     });
     expect(recordPromoRedemption).toHaveBeenCalledWith(expect.objectContaining({ promoCodeId: 'promo-1', orderId: 'ord-1' }));
+    expect(sendOrderConfirmationEmail).toHaveBeenCalledWith('ord-1');
   });
 
   it('creates a one-time order from agreement metadata and records no promo when none is present', async () => {
@@ -379,6 +399,7 @@ describe('agreement-activated', () => {
     const orderArg = m(createOrder).mock.calls[0][0];
     expect(orderArg).toMatchObject({ subscription_id: null, payment_agreement_id: 'pa-1' });
     expect(recordPromoRedemption).not.toHaveBeenCalled();
+    expect(sendOrderConfirmationEmail).toHaveBeenCalledWith('ord-2');
   });
 
   it('is a no-op on a duplicate delivery: agreement and subscription already active, order already exists', async () => {
@@ -394,6 +415,7 @@ describe('agreement-activated', () => {
     expect(createOrder).not.toHaveBeenCalled();
     // The (idempotent) redemption is still recorded against the existing order.
     expect(recordPromoRedemption).toHaveBeenCalledWith(expect.objectContaining({ promoCodeId: 'promo-1', orderId: 'ord-1' }));
+    expect(sendOrderConfirmationEmail).not.toHaveBeenCalled();
   });
 
   it('creates the missing first order on a retry after an earlier attempt died post-activation', async () => {
@@ -441,6 +463,45 @@ describe('agreement-activated', () => {
 
     expect(res.status).toBe(500);
     expect(recordPromoRedemption).not.toHaveBeenCalled();
+    expect(sendOrderConfirmationEmail).not.toHaveBeenCalled();
+  });
+
+  it('tells the cleaner and the admins about a new first order', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue(PENDING_AGREEMENT);
+    m(getSubscriptionByPaymentAgreementId).mockResolvedValue(PENDING_SUBSCRIPTION);
+    m(createOrder).mockResolvedValue({ id: 'ord-1', order_number: 'ABC123', scheduled_date: '2030-01-04' });
+
+    const res = await post(agreementPayload({ eventType: 'recurring.agreement-activated.v1' }));
+
+    expect(res.status).toBe(200);
+    expect(sendCleanerNewOrderEmail).toHaveBeenCalledTimes(1);
+    expect(sendCleanerNewOrderEmail).toHaveBeenCalledWith('ord-1');
+    expect(sendAdminNewOrderEmail).toHaveBeenCalledTimes(1);
+    expect(sendAdminNewOrderEmail).toHaveBeenCalledWith('ord-1');
+  });
+
+  it('sends no staff e-mails on a duplicate delivery', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue({ ...PENDING_AGREEMENT, status: 'active' });
+    m(getSubscriptionByPaymentAgreementId).mockResolvedValue({ ...PENDING_SUBSCRIPTION, status: 'active' });
+    m(getOrderByPaymentAgreementId).mockResolvedValue({ id: 'ord-1', order_number: 'ABC123' });
+
+    const res = await post(agreementPayload({ eventType: 'recurring.agreement-activated.v1' }));
+
+    expect(res.status).toBe(200);
+    expect(sendCleanerNewOrderEmail).not.toHaveBeenCalled();
+    expect(sendAdminNewOrderEmail).not.toHaveBeenCalled();
+  });
+
+  it('sends no staff e-mails when the first order insert fails', async () => {
+    m(getPaymentAgreementByProviderId).mockResolvedValue(PENDING_AGREEMENT);
+    m(getSubscriptionByPaymentAgreementId).mockResolvedValue(PENDING_SUBSCRIPTION);
+    m(createOrder).mockResolvedValue(null);
+
+    const res = await post(agreementPayload({ eventType: 'recurring.agreement-activated.v1' }));
+
+    expect(res.status).toBe(500);
+    expect(sendCleanerNewOrderEmail).not.toHaveBeenCalled();
+    expect(sendAdminNewOrderEmail).not.toHaveBeenCalled();
   });
 
   it('returns 500 when the order existence check throws (never inserts blind)', async () => {

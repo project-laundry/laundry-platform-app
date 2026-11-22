@@ -51,21 +51,27 @@ Staging/production values are set **per environment** in the Vercel dashboard.
 | `NEXT_PUBLIC_VIPPS_ALLOW_FORCE_ACCEPT` | `true` (enables the "Auto-godkjenn avtale" test checkbox) | **unset** — never add it to Production |
 | `GOOGLE_MAPS_API_KEY` | Maps Platform key (Geocoding API enabled) | same, or a prod-restricted key |
 | `ANTHROPIC_API_KEY` | Anthropic API key (cleaner onboarding photo recognition; optional) | separate prod key from the Anthropic Console |
-| `CRON_SECRET` | any random string (lets you curl the digest route on staging) | a different random string — Vercel sends it on every cron call to `/api/cron/admin-digest` |
-| `RESEND_API_KEY` | Resend API key (the digest only runs on Production, but the route must work when curl-tested) | Resend API key for the verified `nooracare.no` sending domain |
+| `CRON_SECRET` | any random string (lets you curl the cron routes on staging) | a different random string — Vercel sends it on every cron call to `/api/cron/admin-digest` and `/api/cron/pickup-reminders` |
+| `RESEND_API_KEY` | Resend API key — sends the customer e-mails (order confirmation, receipt, payment failed) to the staging test accounts and the curl-tested admin digest | Resend API key for the verified `nooracare.no` sending domain (customer e-mails + admin digest) |
 | `ADMIN_DIGEST_FROM` | optional; default `NooraCare <varsel@nooracare.no>` | same |
 
-> `CRON_SECRET` protects the one cron route, `GET /api/cron/admin-digest` (daily admin
-> digest, declared in `vercel.json`, Production only). Order generation is still webhook-driven.
+> `CRON_SECRET` protects the two cron routes declared in `vercel.json` (Production only):
+> `GET /api/cron/admin-digest` (daily admin digest, 06:00 UTC) and
+> `GET /api/cron/pickup-reminders` (customer pickup reminders, 16:00 UTC). Staging has no
+> crons — test either route there with
+> `curl -i -H "Authorization: Bearer <CRON_SECRET>" https://test.nooracare.no/api/cron/<name>`.
+> Order generation is still webhook-driven.
 
-**Pre-launch gate (no env var):** `src/proxy.ts` checks the request host against
-`src/lib/prelaunch.ts`. On `nooracare.no` / `www.nooracare.no`, anonymous visitors only reach
-the coming-soon pages, legal/contact pages, the price calculator, `/admin`, the auth callback and
-the password-reset pages (`/auth/forgot-password`, `/auth/reset-password`); login, signup,
-the order flow and the parked `/bli-renser/lansering` page redirect to `/`. `test.nooracare.no`,
-localhost and Vercel previews are never gated, so the full app is tested on staging. Delete
-the gate at launch. Note that this also blocks `/auth/login` on production, so admins cannot
-sign in on `nooracare.no` until the gate is removed.
+**No pre-launch gate:** the host-keyed gate (`src/lib/prelaunch.ts`) was deleted when the cleaner
+side opened. Everything is public on `nooracare.no`; the order flow (`/orders/*`) requires an account
+on every host (the proxy sends signed-out visitors to signup/login with `?next=`).
+
+**Canonical host:** the app assumes `https://nooracare.no` (no `www`) — `NEXT_PUBLIC_APP_URL`, the
+Vipps webhook URL, the Vipps return URL and every e-mail link use it, and session cookies are
+host-only. In Vercel → Settings → Domains, `nooracare.no` must serve the site and `www.nooracare.no`
+must redirect to it (not the other way round): a redirect on the apex host breaks the Vipps webhook
+(Vipps signs the request for the host it was registered with and does not follow redirects) and
+signs customers out on the way back from Vipps. Check: `curl -sI https://nooracare.no/` answers 200.
 
 ### Launch checklist
 
@@ -74,20 +80,21 @@ Before any of the steps below: open `src/lib/config/company.ts` and confirm ever
 Instagram URL; set `facebookUrl` if a Facebook page exists). It is the only place these
 details live — the footer, `/kontakt` and the legal pages all read from it.
 
-1. Delete `src/lib/prelaunch.ts`, its test, and the gate block in `src/proxy.ts`.
-2. Move `src/app/lansering/page.tsx` to `src/app/page.tsx` and `src/app/bli-renser/lansering/page.tsx`
-   to `src/app/bli-renser/page.tsx`; drop their `robots: { index: false }`; delete the coming-soon
-   pages and `src/components/coming-soon/` (keep `launch.ts` only if something still imports it).
-3. Create the promo code behind the waitlist offer (first `WAITLIST_OFFER_SPOTS` customer signups get
-   the first wash at half price — `src/components/coming-soon/launch.ts`) and put it in the launch
+1. Customer side — done in code: `src/app/page.tsx` is the launch landing page («Bestill henting»)
+   and the order flow asks for an account first.
+2. Cleaner side — done in code: the gate is deleted and `src/app/bli-renser/page.tsx` is the real
+   cleaner landing page with signup. Both go live on `nooracare.no` with the next push to `main`,
+   so finish the canonical-host check above and steps 6 onwards first.
+3. Create the promo code behind the waitlist offer (the first 50 customer signups get
+   the first wash at half price — the cap lives in the `waitlist_signups_mark_offer_eligible` trigger) and put it in the launch
    e-mail to the rows the database already marked:
    ```sql
    select email, city, created_at from public.waitlist_signups where offer_eligible order by created_at;
    ```
    Everyone else on the list gets the plain "we're open" e-mail. Each signup gets exactly one e-mail —
    that is all the consent covers (`/personvern#venteliste`).
-4. Update the share images (`src/app/opengraph-image.tsx`, `src/app/bli-renser/opengraph-image.tsx`)
-   from "Snart slipper du …" to launch copy.
+4. Send the cleaner rows of the waitlist their one "registreringen er åpen" e-mail
+   (`select email, city from public.waitlist_signups where audience = 'cleaner'`).
 5. Delete all `waitlist_signups` rows no later than six months after launch; a withdrawn consent
    (e-mail to post@nooracare.no) is deleted right away (`/personvern#venteliste`).
 6. **Vipps production credentials in Vercel** — in `portal.vippsmobilepay.com` → *For developers* →
@@ -124,35 +131,36 @@ details live — the footer, `/kontakt` and the legal pages all read from it.
    URL `https://nooracare.no/api/webhooks/vipps/recurring` and all ten `recurring.*` events (the
    portal → *For developers* → *Webhooks* shows the same). Then `rm .env.vipps-production.local`.
 8. **Verify the production webhook end-to-end** (no money moves: a FLEXIBLE agreement has no
-   initial charge and nothing is charged until a cleaner prices an order). Before launch the gate
-   blocks login on `nooracare.no`, so use the production deployment URL (Vercel → Deployments →
-   the one marked *Production* → *Visit*, a `*.vercel.app` host; log in with your Vercel account if
-   Deployment Protection asks). After launch do the same on `https://nooracare.no`.
+   initial charge and nothing is charged until a cleaner prices an order). Do it on
+   `https://nooracare.no` after the production deploy.
    1. Sign in as a customer, run `/orders/wash` → `/orders/pickup` → `/orders/confirm` with
-      **Fast** (recurring) frequency. The confirm step must **not** show "Auto-godkjenn avtale".
-   2. Approve the agreement in the real Vipps app. (Pre-launch the Vipps return lands on
-      `nooracare.no/orders/success`, where the gate may bounce you to `/` because your session
-      cookie lives on the `*.vercel.app` host — expected; the checks below are what count.)
+      a pickup date at least 2 days ahead (there is no frequency choice — every order is a one-time
+      order). The confirm step must **not** show "Auto-godkjenn avtale".
+   2. Approve the agreement in the real Vipps app. The return lands on
+      `nooracare.no/orders/success`, still signed in.
    3. Vercel → project → *Logs*, filter path `/api/webhooks/vipps/recurring`: a `POST` with status
       **200** and the log line `[Vipps Recurring Webhook] Agreement activated: <agreementId>`.
       A **401** / `Invalid authentication` means the secret in Vercel does not match the
       registration — redo step 7.
    4. Supabase **production** project (`aalxmczclyunlyziqdqn`) → Table editor:
-      `payment_agreements` newest row `status = active`; `subscriptions` newest row
-      `status = active`; one new `orders` row for that subscription.
-   5. Back in the app: `/dashboard/subscription` → `/dashboard/subscription/cancel` → confirm.
-      Logs: a second webhook `POST` 200 with `Agreement stopped`; DB: `payment_agreements.status =
-      stopped`, `subscriptions.status = cancelled`, the order `cancelled`.
+      `payment_agreements` newest row `status = active`; one new `orders` row with that
+      `payment_agreement_id` and `subscription_id` empty; no new `subscriptions` row.
+   5. Back in the app: open the order from `/dashboard` and cancel it (DB: the order `cancelled`).
+      Cancelling a one-time order stops its Vipps agreement automatically — do not stop it by
+      hand. Check: «NooraCare - Vask» is no longer an active agreement in the Vipps app; Logs:
+      `[stopVippsAgreementForOneTimeOrder] Stopping agreement …`, then a second webhook `POST`
+      200 with `Agreement stopped` (`by MERCHANT`); DB: `payment_agreements.status = stopped`
+      with `stopped_at` set. If the agreement is still active, the log shows
+      `[stopVippsAgreementForOneTimeOrder] Failed` — stop it in the Vipps app and report it.
    6. `portal.vippsmobilepay.com` → *For developers* → *Webhooks* → errors tab is empty.
 
 9. **Production Auth e-mails and URLs** — run the **production column** of
    [Supabase Auth e-mails](#supabase-auth-e-mails) on project `aalxmczclyunlyziqdqn`: custom SMTP
    (Resend), the three Norwegian templates, Site URL `https://nooracare.no` + the redirect
    allowlist, the 100/hour e-mail rate limit, and **leaked password protection**. Verify before
-   launch with the password-reset round trip (reachable through the pre-launch gate) and the
-   signup round trip on the `*.vercel.app` production deployment URL, as described there. Until
+   launch with the password-reset and signup round trips on `https://nooracare.no`, as described there. Until
    this is done, confirmation mails come from `supabase.io`, in English, at a few per hour, and
-   the order flow's return after e-mail confirmation (`?next=/orders/confirm`) is not allowlisted.
+   the order flow's return after e-mail confirmation (`?next=/orders/wash`) is not allowlisted.
 
 10. **Admin digest e-mail.** The `nooracare.no` sending domain is already verified in Resend (see
    [Supabase Auth e-mails](#supabase-auth-e-mails)). Create an API key and add to Vercel
@@ -164,6 +172,17 @@ details live — the footer, `/kontakt` and the legal pages all read from it.
    must answer `200 {"sent":<number of admins>}` and every admin receives «NooraCare <dag>:
    … å følge opp». Vercel → project → *Settings* → *Cron Jobs* lists `/api/cron/admin-digest`
    at `0 6 * * *`.
+
+11. **Pickup reminder e-mail.** Uses the same `CRON_SECRET` and `RESEND_API_KEY` as the digest —
+   no new variables. After the production deploy, trigger it once by hand:
+   ```bash
+   curl -i -H "Authorization: Bearer <CRON_SECRET>" https://nooracare.no/api/cron/pickup-reminders
+   ```
+   must answer `200 {"date":"<tomorrow>","sent":<n>,"failed":0}`, where `<n>` is the number of
+   orders in `pickup_scheduled` with pickup tomorrow (0 is a valid answer). Calling it again the
+   same evening sends nothing twice. Vercel → project → *Settings* → *Cron Jobs* lists
+   `/api/cron/pickup-reminders` at `0 16 * * *` (17:00 Oslo in winter, 18:00 in summer; on the
+   Hobby plan it fires at some point within that hour).
 
 ---
 
@@ -233,20 +252,18 @@ Do each step on **both** projects unless a column says otherwise. Project refs: 
      *Email OTP Expiration* must be `3600` (the templates say "gyldig i én time") → Save.
 6. **Verify.**
    - **Both projects — password reset:** on the matching site (`https://test.nooracare.no` /
-     `https://nooracare.no`, both reachable pre-launch) open `/auth/forgot-password`, enter an
+     `https://nooracare.no`) open `/auth/forgot-password`, enter an
      existing account's address. The mail arrives within a minute from `NooraCare
      <no-reply@nooracare.no>` with subject "Tilbakestill passordet ditt hos NooraCare"; the
      button opens `/auth/reset-password` on that same host. `https://resend.com/emails` lists it
      as *Delivered*. If it instead lands on `/auth/forgot-password?expired=1` or on `/`, the
      redirect URL was not allowlisted (step 4) or the Site URL is wrong.
-   - **Staging — signup with return path:** logged out on `https://test.nooracare.no`, run
-     `/orders/wash` → `/orders/pickup` → `/orders/confirm`, choose "Opprett konto", sign up with a
+   - **Staging — signup with return path:** logged out on `https://test.nooracare.no`, click
+     «Bestill henting» on the landing page (lands on `/auth/signup?next=/orders/wash`) and sign up with a
      fresh address. Subject "Bekreft e-postadressen din hos NooraCare"; the button must land on
-     `/orders/confirm` (not `/dashboard`) in the same browser.
-   - **Production — signup pre-launch:** signup is gated on `nooracare.no`, so use the
-     production deployment's `*.vercel.app` URL (Vercel → Deployments → *Production* → Visit) and
-     run the same signup; the link must return to that `*.vercel.app` host's `/dashboard`. After
-     launch repeat once on `https://nooracare.no`.
+     `/orders/wash` (not `/dashboard`) in the same browser.
+   - **Production — signup:** run the same signup on `https://nooracare.no`; the link must return
+     to `/orders/wash` on that host.
    - If a mail never arrives: Supabase → **Logs → Auth** shows SMTP errors (wrong key = `535`),
      and Resend → *Emails* shows bounces.
 

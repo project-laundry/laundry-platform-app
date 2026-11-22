@@ -5,7 +5,7 @@
 // createSubscriptionAction, so a later terms change can be detected per
 // agreement, and /salgsvilkar renders it as its "Sist oppdatert" date so the
 // page and the stored version can never drift apart.
-export const TERMS_VERSION = '2026-10-17';
+export const TERMS_VERSION = '2026-11-22';
 
 /** Render an ISO date version the Norwegian way: '2026-10-17' → '17.10.2026'. */
 export function formatTermsVersion(version: string = TERMS_VERSION): string {

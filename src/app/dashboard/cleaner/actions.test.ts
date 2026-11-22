@@ -6,27 +6,42 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(async () => ({ auth: { getUser } })),
 }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
-vi.mock('@/lib/database/cleaners', () => ({ getCleanerByUserId: vi.fn() }));
+vi.mock('@/lib/database/cleaners', () => ({ getCleanerByUserId: vi.fn(), findAvailableCleaner: vi.fn() }));
 vi.mock('@/lib/database/orders', () => ({
   getOrderById: vi.fn(),
   declineOrder: vi.fn(),
+  assignCleanerToPendingOrder: vi.fn(),
   updateOrderLaundryDetails: vi.fn(),
   updateOrderStatusGuarded: vi.fn(),
   getOrderByIdAndCleanerId: vi.fn(),
 }));
+vi.mock('@/lib/services/staff-emails', () => ({
+  sendCleanerNewOrderEmail: vi.fn(),
+  sendAdminOrderUnassignedEmail: vi.fn(),
+}));
 vi.mock('@/lib/payments/vipps/service', () => ({ createChargeForCompletedOrder: vi.fn() }));
 vi.mock('@/lib/services/complete-order', () => ({ completeDeliveredOrder: vi.fn() }));
+vi.mock('@/lib/services/customer-emails', () => ({
+  sendPriceReceiptEmail: vi.fn(),
+  sendOrderPickedUpEmail: vi.fn(),
+}));
 
-import { getCleanerByUserId } from '@/lib/database/cleaners';
+import { findAvailableCleaner, getCleanerByUserId } from '@/lib/database/cleaners';
 import {
+  assignCleanerToPendingOrder,
+  declineOrder,
+  getOrderById,
   getOrderByIdAndCleanerId,
   updateOrderLaundryDetails,
   updateOrderStatusGuarded,
 } from '@/lib/database/orders';
+import { sendAdminOrderUnassignedEmail, sendCleanerNewOrderEmail } from '@/lib/services/staff-emails';
 import { completeDeliveredOrder } from '@/lib/services/complete-order';
 import { createChargeForCompletedOrder } from '@/lib/payments/vipps/service';
+import { sendOrderPickedUpEmail, sendPriceReceiptEmail } from '@/lib/services/customer-emails';
 import { MAX_WASH_LOADS_PER_ORDER } from '@/lib/config/pricing';
 import {
+  declineCleanerOrder,
   markOrderPickedUpAction,
   markOrderDeliveredAction,
   markOrderReadyForDelivery,
@@ -61,6 +76,7 @@ describe('markOrderPickedUpAction', () => {
       'in_cleaning',
       { picked_up_at: expect.any(String) }
     );
+    expect(sendOrderPickedUpEmail).toHaveBeenCalledWith('ord-1', { showPickupTime: true });
   });
 
   it('allows an early pickup (agreed with the customer)', async () => {
@@ -86,6 +102,7 @@ describe('markOrderPickedUpAction', () => {
 
     expect(result).toEqual({ success: false, error: 'Ordren er allerede hentet' });
     expect(updateOrderStatusGuarded).not.toHaveBeenCalled();
+    expect(sendOrderPickedUpEmail).not.toHaveBeenCalled();
   });
 
   it("rejects another cleaner's order", async () => {
@@ -95,6 +112,7 @@ describe('markOrderPickedUpAction', () => {
 
     expect(result.success).toBe(false);
     expect(updateOrderStatusGuarded).not.toHaveBeenCalled();
+    expect(sendOrderPickedUpEmail).not.toHaveBeenCalled();
   });
 
   it('reports a lost race (guard returned null)', async () => {
@@ -108,6 +126,7 @@ describe('markOrderPickedUpAction', () => {
     const result = await markOrderPickedUpAction('ord-1');
 
     expect(result.success).toBe(false);
+    expect(sendOrderPickedUpEmail).not.toHaveBeenCalled();
   });
 
   it('rejects when not logged in', async () => {
@@ -183,6 +202,7 @@ describe('markOrderReadyForDelivery', () => {
     expect(result).toEqual({ success: true });
     expect(updateOrderStatusGuarded).toHaveBeenCalledWith('ord-1', 'in_cleaning', 'ready_for_delivery');
     expect(createChargeForCompletedOrder).toHaveBeenCalledWith('ord-1', 50000, 'NooraCare vask #NC-1001');
+    expect(sendPriceReceiptEmail).toHaveBeenCalledWith('ord-1', 'pay-1');
   });
 
   it('reports chargeFailed when the Vipps charge throws, keeping the transition', async () => {
@@ -296,5 +316,96 @@ describe('saveLaundryDetails', () => {
     });
 
     expect(result.success).toBe(true);
+  });
+});
+
+describe('declineCleanerOrder', () => {
+  // Far-future pickup so the "past pickup date" rule never depends on today's date.
+  const DECLINED = {
+    id: 'ord-1',
+    city: 'Bergen',
+    scheduled_date: '2099-01-05',
+    declined_by_cleaner_ids: ['cl-0', 'cl-1'],
+  };
+
+  beforeEach(() => {
+    m(getCleanerByUserId).mockResolvedValue({ id: 'cl-1', display_name: 'Ola Rens' });
+    m(getOrderById).mockResolvedValue({ id: 'ord-1', status: 'pickup_scheduled' });
+    m(declineOrder).mockResolvedValue(DECLINED);
+    m(findAvailableCleaner).mockResolvedValue({ id: 'cl-2', display_name: 'Per Rens' });
+    m(assignCleanerToPendingOrder).mockResolvedValue({ id: 'ord-1', cleaner_id: 'cl-2' });
+  });
+
+  it('hands the order to the next cleaner, excluding everyone who declined, and e-mails that cleaner', async () => {
+    const result = await declineCleanerOrder('ord-1');
+
+    expect(result).toEqual({ success: true });
+    expect(declineOrder).toHaveBeenCalledWith('ord-1', 'cl-1');
+    expect(findAvailableCleaner).toHaveBeenCalledWith('Bergen', new Date('2099-01-05'), ['cl-0', 'cl-1']);
+    expect(assignCleanerToPendingOrder).toHaveBeenCalledWith('ord-1', 'cl-2');
+    expect(sendCleanerNewOrderEmail).toHaveBeenCalledWith('ord-1');
+    expect(sendAdminOrderUnassignedEmail).not.toHaveBeenCalled();
+  });
+
+  it('leaves the order pending and alerts the admins when no other cleaner is available', async () => {
+    m(findAvailableCleaner).mockResolvedValue(null);
+
+    const result = await declineCleanerOrder('ord-1');
+
+    expect(result).toEqual({ success: true });
+    expect(assignCleanerToPendingOrder).not.toHaveBeenCalled();
+    expect(sendCleanerNewOrderEmail).not.toHaveBeenCalled();
+    expect(sendAdminOrderUnassignedEmail).toHaveBeenCalledWith('ord-1', 'Ola Rens');
+  });
+
+  it('does not look for a cleaner when the pickup date is already past', async () => {
+    m(declineOrder).mockResolvedValue({ ...DECLINED, scheduled_date: '2000-01-01' });
+
+    const result = await declineCleanerOrder('ord-1');
+
+    expect(result).toEqual({ success: true });
+    expect(findAvailableCleaner).not.toHaveBeenCalled();
+    expect(sendAdminOrderUnassignedEmail).toHaveBeenCalledWith('ord-1', 'Ola Rens');
+  });
+
+  it('sends no «Nytt oppdrag» when the guarded re-assignment matched no row', async () => {
+    m(assignCleanerToPendingOrder).mockResolvedValue(null);
+
+    const result = await declineCleanerOrder('ord-1');
+
+    expect(result).toEqual({ success: true });
+    expect(sendCleanerNewOrderEmail).not.toHaveBeenCalled();
+    expect(sendAdminOrderUnassignedEmail).toHaveBeenCalledWith('ord-1', 'Ola Rens');
+  });
+
+  it('still succeeds and alerts the admins when the matching throws', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    m(findAvailableCleaner).mockRejectedValue(new Error('db down'));
+
+    const result = await declineCleanerOrder('ord-1');
+
+    expect(result).toEqual({ success: true });
+    expect(sendAdminOrderUnassignedEmail).toHaveBeenCalledWith('ord-1', 'Ola Rens');
+    consoleError.mockRestore();
+  });
+
+  it('rejects an order that is no longer pickup_scheduled', async () => {
+    m(getOrderById).mockResolvedValue({ id: 'ord-1', status: 'in_cleaning' });
+
+    const result = await declineCleanerOrder('ord-1');
+
+    expect(result).toEqual({ success: false, error: 'Du kan bare avslå oppdraget før det er startet' });
+    expect(declineOrder).not.toHaveBeenCalled();
+  });
+
+  it('reports a failed decline and sends nothing', async () => {
+    m(declineOrder).mockResolvedValue(null);
+
+    const result = await declineCleanerOrder('ord-1');
+
+    expect(result).toEqual({ success: false, error: 'Kunne ikke avslå oppdraget' });
+    expect(findAvailableCleaner).not.toHaveBeenCalled();
+    expect(sendCleanerNewOrderEmail).not.toHaveBeenCalled();
+    expect(sendAdminOrderUnassignedEmail).not.toHaveBeenCalled();
   });
 });

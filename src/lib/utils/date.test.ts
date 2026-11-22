@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   addDays,
   addMonths,
@@ -7,8 +7,8 @@ import {
   getNextOccurrenceOfWeekday,
   isWeekdayInSchedule,
   calculateNextBillingDate,
-  isToday,
   todayInOslo,
+  tomorrowInOslo,
   daysBetweenISODates,
 } from './date';
 
@@ -106,26 +106,6 @@ describe('calculateNextBillingDate', () => {
   });
 });
 
-describe('isToday', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 5, 7, 9, 0, 0));
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it('is true for the current day regardless of time', () => {
-    expect(isToday(new Date(2026, 5, 7, 23, 0, 0))).toBe(true);
-  });
-
-  it('is false for other days', () => {
-    expect(isToday(new Date(2026, 5, 8))).toBe(false);
-    expect(isToday(new Date(2026, 5, 6))).toBe(false);
-  });
-});
-
 describe('todayInOslo', () => {
   it('is already the next day just after midnight Norwegian summer time', () => {
     expect(todayInOslo(new Date('2026-10-15T22:30:00Z'))).toBe('2026-10-16');
@@ -137,6 +117,23 @@ describe('todayInOslo', () => {
 
   it('matches the UTC date in the middle of the day', () => {
     expect(todayInOslo(new Date('2026-10-16T10:00:00Z'))).toBe('2026-10-16');
+  });
+});
+
+describe('tomorrowInOslo', () => {
+  it('is the next calendar day at the time the reminder cron runs', () => {
+    expect(tomorrowInOslo(new Date('2026-11-23T16:00:00Z'))).toBe('2026-11-24');
+  });
+
+  it('counts from the Norwegian day, not the UTC day, late in the evening', () => {
+    // 22:30 UTC on 30 June is already 1 July in Norway → tomorrow is 2 July.
+    expect(tomorrowInOslo(new Date('2026-06-30T22:30:00Z'))).toBe('2026-07-02');
+  });
+
+  it('rolls over months, years and the daylight-saving change', () => {
+    expect(tomorrowInOslo(new Date('2026-12-31T16:30:00Z'))).toBe('2027-01-01');
+    expect(tomorrowInOslo(new Date('2026-03-28T16:00:00Z'))).toBe('2026-03-29');
+    expect(tomorrowInOslo(new Date('2026-10-24T16:00:00Z'))).toBe('2026-10-25');
   });
 });
 

@@ -4,7 +4,7 @@ import type { Mock } from 'vitest';
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: vi.fn() }));
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getOrderByPaymentAgreementId } from './orders';
+import { assignCleanerToPendingOrder, declineOrder, getOrderByPaymentAgreementId } from './orders';
 
 const m = (fn: unknown) => fn as Mock;
 
@@ -42,5 +42,97 @@ describe('getOrderByPaymentAgreementId', () => {
     maybeSingle.mockResolvedValue({ data: null, error: { message: 'boom' } });
 
     await expect(getOrderByPaymentAgreementId('pa-1')).rejects.toThrow('Failed to look up orders for payment agreement pa-1');
+  });
+});
+
+describe('declineOrder', () => {
+  // read:  from('orders').select(...).eq('id', id).single()
+  // write: from('orders').update({...}).eq('id').eq('cleaner_id').eq('status').select().maybeSingle()
+  const single = vi.fn();
+  const readEq = vi.fn(() => ({ single }));
+  const select = vi.fn(() => ({ eq: readEq }));
+  const maybeSingle = vi.fn();
+  const writeSelect = vi.fn(() => ({ maybeSingle }));
+  const writeEq: Mock = vi.fn(() => ({ eq: writeEq, select: writeSelect }));
+  const update = vi.fn(() => ({ eq: writeEq }));
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    m(createAdminClient).mockReturnValue({ from: vi.fn(() => ({ select, update })) });
+  });
+
+  it('appends the cleaner to the declined list in a write guarded on cleaner and status', async () => {
+    single.mockResolvedValue({ data: { declined_by_cleaner_ids: ['cl-0'], cleaner_id: 'cl-1' }, error: null });
+    maybeSingle.mockResolvedValue({ data: { id: 'ord-1', status: 'pending_assignment' }, error: null });
+
+    const result = await declineOrder('ord-1', 'cl-1');
+
+    expect(result).toEqual({ id: 'ord-1', status: 'pending_assignment' });
+    expect(update).toHaveBeenCalledWith({
+      cleaner_id: null,
+      status: 'pending_assignment',
+      assigned_at: null,
+      declined_by_cleaner_ids: ['cl-0', 'cl-1'],
+    });
+    expect(writeEq).toHaveBeenCalledWith('id', 'ord-1');
+    expect(writeEq).toHaveBeenCalledWith('cleaner_id', 'cl-1');
+    expect(writeEq).toHaveBeenCalledWith('status', 'pickup_scheduled');
+  });
+
+  it('returns null without writing when another cleaner holds the order', async () => {
+    single.mockResolvedValue({ data: { declined_by_cleaner_ids: null, cleaner_id: 'cl-2' }, error: null });
+
+    await expect(declineOrder('ord-1', 'cl-1')).resolves.toBeNull();
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('returns null when the guarded write matches no row', async () => {
+    single.mockResolvedValue({ data: { declined_by_cleaner_ids: null, cleaner_id: 'cl-1' }, error: null });
+    maybeSingle.mockResolvedValue({ data: null, error: null });
+
+    await expect(declineOrder('ord-1', 'cl-1')).resolves.toBeNull();
+  });
+});
+
+describe('assignCleanerToPendingOrder', () => {
+  // from('orders').update({...}).eq('id', id).eq('status', 'pending_assignment').is('cleaner_id', null).select().maybeSingle()
+  const maybeSingle = vi.fn();
+  const select = vi.fn(() => ({ maybeSingle }));
+  const is = vi.fn(() => ({ select }));
+  const eqStatus = vi.fn(() => ({ is }));
+  const eqId = vi.fn(() => ({ eq: eqStatus }));
+  const update = vi.fn(() => ({ eq: eqId }));
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    m(createAdminClient).mockReturnValue({ from: vi.fn(() => ({ update })) });
+  });
+
+  it('assigns the cleaner only while the order is pending_assignment without a cleaner', async () => {
+    maybeSingle.mockResolvedValue({ data: { id: 'ord-1', cleaner_id: 'cl-2' }, error: null });
+
+    const result = await assignCleanerToPendingOrder('ord-1', 'cl-2');
+
+    expect(result).toEqual({ id: 'ord-1', cleaner_id: 'cl-2' });
+    expect(update).toHaveBeenCalledWith({
+      cleaner_id: 'cl-2',
+      status: 'pickup_scheduled',
+      assigned_at: expect.any(String),
+    });
+    expect(eqId).toHaveBeenCalledWith('id', 'ord-1');
+    expect(eqStatus).toHaveBeenCalledWith('status', 'pending_assignment');
+    expect(is).toHaveBeenCalledWith('cleaner_id', null);
+  });
+
+  it('returns null when the order is no longer waiting', async () => {
+    maybeSingle.mockResolvedValue({ data: null, error: null });
+
+    await expect(assignCleanerToPendingOrder('ord-1', 'cl-2')).resolves.toBeNull();
+  });
+
+  it('returns null on a query error', async () => {
+    maybeSingle.mockResolvedValue({ data: null, error: { message: 'boom' } });
+
+    await expect(assignCleanerToPendingOrder('ord-1', 'cl-2')).resolves.toBeNull();
   });
 });

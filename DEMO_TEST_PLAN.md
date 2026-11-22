@@ -34,21 +34,21 @@ Keep four browser profiles/windows open (customer, cleaner, driver, admin) so yo
 - [ ] `/auth/signup` with the fresh email. Confirmation email arrives, link lands on the dashboard (not `/auth/error`).
 - [ ] Signing up again with the same phone/email shows the clear Norwegian duplicate error.
 - [ ] `/orders/wash`: pick bags + bedding + ironing. Estimate updates live.
-- [ ] `/orders/pickup`: address in the demo city, **pickup date at least 2 days out** (needed so the cancel button appears later), frequency = weekly.
+- [ ] `/orders/pickup`: address in the demo city, **pickup date at least 2 days out** (needed so the cancel button appears later). There is no frequency choice: every order is a one-time order.
 - [ ] `/orders/confirm`: summary matches. Enter a promo code (create a fresh one in `/admin/promo-codes` for the demo; it can only be redeemed once per customer). Invalid code shows an inline error.
 - [ ] Click pay: redirected to Vipps test, approve in the MT app.
 - [ ] `/orders/success` polls and flips to "active" within ~10 s. If it hangs, the webhook did not arrive: check Vercel logs for `/api/webhooks/vipps/recurring`.
-- [ ] `/dashboard`: subscription strip visible, first order listed with status "pickup scheduled", cleaner assigned, delivery shown as "Estimert levering".
+- [ ] `/dashboard`: no subscription strip, the order listed with status "pickup scheduled", cleaner assigned, delivery shown as "Estimert levering".
 - [ ] `/orders/details/[orderId]` shows address, date, estimate and the promo line.
 
-Also test the abandoned checkout once: start checkout, cancel in Vipps. Dashboard should show the "betalingen ble ikke fullført" warning, and a new checkout must succeed afterwards.
+Also test the abandoned checkout once: start checkout, cancel in Vipps. `/orders/success` shows «Betalingen ble avbrutt», the dashboard shows no new order, and a new checkout must succeed afterwards.
 
 ## 4. Admin view of the new order
 
 - [ ] `/admin` overview counts went up by one order.
 - [ ] `/admin/orders` lists it; detail page shows the assigned cleaner and the promo snapshot.
 - [ ] Reassign to another cleaner and back (proves the reassignment action works).
-- [ ] `/admin/customers/[id]` shows the new customer and their subscription.
+- [ ] `/admin/customers/[id]` shows the new customer and their order, with no «Abonnement» card.
 - [ ] `/admin/payments` has **no** payment yet (price is set by the cleaner).
 
 ## 5. Driver: pickup leg
@@ -75,16 +75,15 @@ Log in as the cleaner on `/dashboard/cleaner`.
 
 - [ ] `/dashboard/driver`: the order is now on the collection route (it does not wait for the estimated delivery date).
 - [ ] Mark collected → `out_for_delivery`; mark delivered → `completed`.
-- [ ] Customer dashboard: completed order in history, **a new upcoming order** exists 7 days after the first pickup with the same cleaner and **no** promo.
+- [ ] Customer dashboard: completed order in history, **no** new upcoming order (one-time orders do not regenerate), and the Vipps agreement shows as stopped in the MT app.
 - [ ] Admin overview counts updated.
 
 ## 8. Cancellation and reschedule
 
-- [ ] On the new upcoming order: `/orders/[orderId]/reschedule` to a later date. Cleaner stays the same, order still shows in the cleaner list.
-- [ ] `/orders/[orderId]/cancel` → "cancel this order only". A replacement order is generated immediately.
+- [ ] On a second, fresh order: `/orders/[orderId]/reschedule` to a later date. Cleaner stays the same, order still shows in the cleaner list.
+- [ ] `/orders/[orderId]/cancel` → confirm. The order is cancelled, no replacement order is generated, and the success page does not mention «abonnement».
 - [ ] Set a pickup date within 24 h (admin edit) and confirm the cancel button disappears with the notice.
-- [ ] `/dashboard/subscription` → cancel. Upcoming order is cancelled, subscription shows cancelled, Vipps agreement stopped in the MT app. Dashboard offers a new checkout.
-- [ ] Optional: cancel the agreement from the Vipps app instead and confirm the webhook cancels the subscription.
+- [ ] Subscriptions are hidden (`SUBSCRIPTIONS_OFFERED = false`): `/dashboard/subscription` redirects to `/dashboard`.
 
 ## 9. Cleaner onboarding (if you will show it)
 

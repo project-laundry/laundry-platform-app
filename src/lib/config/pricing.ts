@@ -117,7 +117,7 @@ export const CLEANER_MIN_PAYOUT_PER_ORDER_ORE = Math.round(
  *  promise can't drift. Payout itself is a manual bank transfer. */
 export const CLEANER_PAYOUT_TERMS = {
   /** The previous month's completed orders are on the cleaner's account by this day of the month. */
-  paid_by_day_of_month: 10,
+  paid_by_day_of_month: 15,
 } as const;
 
 export const CLEANER_PAYOUT_TERMS_TEXT = `Din andel av oppdragene du fullfører i løpet av en måned utbetales samlet til kontonummeret ditt innen den ${CLEANER_PAYOUT_TERMS.paid_by_day_of_month}. i måneden etter. Det er ingen minstebeløp.`;
@@ -126,6 +126,20 @@ export const CLEANER_PAYOUT_TERMS_TEXT = `Din andel av oppdragene du fullfører 
 export function formatKr(ore: number): string {
   return `${Math.round(ore / 100).toLocaleString('nb-NO')} kr`;
 }
+
+/** Exact kroner with unit for amounts a cleaner reconciles against the bank:
+ *  whole amounts read like formatKr ("350 kr"), others keep the øre ("566,51 kr"). */
+export function formatKrExact(ore: number): string {
+  const digits = ore % 100 === 0 ? 0 : 2;
+  return `${(ore / 100).toLocaleString('nb-NO', {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  })} kr`;
+}
+
+/** Turnover in 12 months above which a business must register for VAT
+ *  (merverdiavgiftsloven § 2-1). Shown as a meter on the cleaner dashboard. */
+export const VAT_REGISTRATION_THRESHOLD_ORE = 5_000_000; // 50 000 kr
 
 /**
  * Get empty ironing details object with all groups set to 0

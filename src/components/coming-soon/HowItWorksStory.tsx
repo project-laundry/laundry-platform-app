@@ -3,11 +3,10 @@ import Link from 'next/link';
 import { ArrowRight, Check } from 'lucide-react';
 import primaryLogo from '@/assets/brand/primaerlogo.png';
 import { PRICING, formatKr } from '@/lib/config/pricing';
-import { ACCENT_CHIPS, HOW_IT_WORKS_ID, WAITLIST_ID } from '@/components/coming-soon/ComingSoonShell';
-import { WAITLIST_OFFER_SPOTS } from '@/components/coming-soon/launch';
+import { ACCENT_CHIPS, HOW_IT_WORKS_ID } from '@/components/coming-soon/ComingSoonShell';
 
-// "Slik virker det" as a zig-zag story: five illustrated steps, a dashed flow
-// line between them, and a closing CTA back up to the waitlist form. Every
+// "Slik virker det" as a zig-zag story: five illustrated steps and a dashed
+// flow line between them. Every
 // claim here must hold for a neighbor washing in a home machine who also does
 // the pickup and delivery — no turnaround promises, no product claims, and the
 // per-bag price never without the order minimum (CLAUDE.md).
@@ -123,7 +122,7 @@ function PhoneScene() {
         </div>
         <p className="text-[11px] text-medium-gray">Henting</p>
         <div className="rounded-xl border border-cream-dark bg-white px-2.5 py-2 text-xs text-dark-gray">
-          Tirsdag · hver 2. uke
+          Tirsdag
         </div>
         <div className="mt-auto flex justify-between border-t border-cream-dark pt-2 text-xs">
           <span className="text-medium-gray">Totalt</span>
@@ -321,7 +320,8 @@ export function HowItWorksStory() {
         <Step index={0} title="Du bestiller" visual={<PhoneScene />}>
           <p>
             Velg hva som skal vaskes, hvor mange poser og når det passer å hente.{' '}
-            <span className="whitespace-nowrap">{formatKr(PRICING.per_bag_ore)} per pose</span>.
+            <span className="whitespace-nowrap">{formatKr(PRICING.per_bag_ore)} per pose</span>, minste bestilling{' '}
+            <span className="whitespace-nowrap">{formatKr(PRICING.minimum_order_ore)}</span>.
           </p>
           <Link
             href="/pris-kalkulator"
@@ -355,21 +355,6 @@ export function HowItWorksStory() {
         <Step index={4} title="Levert på døren igjen" visual={<DeliveryScene />}>
           <p>Rent og brettet tilbake på dørmatten. Du betaler med Vipps når tøyet er ferdig.</p>
         </Step>
-
-        {/* Closing CTA: the one Fjord block on the page, sending people back to the form. */}
-        <div className="mt-10 flex flex-col items-center gap-5 rounded-3xl bg-fjord p-7 text-center text-sno shadow-[var(--shadow-card)] sm:mt-16 sm:flex-row sm:items-center sm:justify-between sm:p-10 sm:text-left">
-          <div>
-            <h3 className="font-serif text-2xl font-semibold leading-tight sm:text-3xl">Klar til å slippe klesvasken?</h3>
-            <p className="mt-2 text-sno/75">De {WAITLIST_OFFER_SPOTS} første på listen får en rabattkode til halv pris på første vask når vi åpner.</p>
-          </div>
-          <a
-            href={`#${WAITLIST_ID}`}
-            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-sol px-6 py-3.5 font-semibold text-fjord shadow-soft transition-all hover:brightness-105 active:scale-[0.98]"
-          >
-            Sett meg på listen
-            <ArrowRight className="size-4" />
-          </a>
-        </div>
       </div>
     </section>
   );

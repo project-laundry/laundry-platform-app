@@ -1,14 +1,17 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { MarketingNav } from '@/components/landing/MarketingNav';
+import { Navbar } from '@/components/landing/Navbar';
 import { Footer } from "@/components/landing/Footer";
 import { formatTermsVersion } from "@/lib/config/terms";
 import { CompanyContactCard } from "@/components/legal/CompanyContactCard";
+import { SUBSCRIPTIONS_OFFERED } from "@/lib/config/subscriptions";
+import { MIN_DAYS_NOTICE } from "@/lib/config/order-timing";
 
 export const metadata: Metadata = {
   title: "Salgsvilkår | NooraCare",
-  description:
-    "Salgsvilkår for NooraCare – peer-to-peer vasketjeneste i Bergen og Oslo. Les om priser, betaling, levering, angrerett, abonnement og reklamasjon.",
+  description: SUBSCRIPTIONS_OFFERED
+    ? "Salgsvilkår for NooraCare – peer-to-peer vasketjeneste i Bergen og Oslo. Les om priser, betaling, levering, angrerett, abonnement og reklamasjon."
+    : "Salgsvilkår for NooraCare – peer-to-peer vasketjeneste i Bergen og Oslo. Les om priser, betaling, levering, angrerett og reklamasjon.",
 };
 
 export default function SalgsvilkarPage() {
@@ -23,7 +26,7 @@ export default function SalgsvilkarPage() {
             'radial-gradient(120% 80% at 50% -10%, hsl(var(--sea-green) / 0.16), transparent 60%), radial-gradient(90% 60% at 110% 10%, hsl(var(--nordic-blue) / 0.10), transparent 55%)',
         }}
       />
-      <MarketingNav />
+      <Navbar />
       <main className="min-h-screen pt-24 pb-16">
         <div className="mx-auto max-w-2xl px-5">
             {/* Header */}
@@ -50,7 +53,8 @@ export default function SalgsvilkarPage() {
                 >
                   nooracare.no
                 </Link>
-                . Ved å bestille en tjeneste eller inngå et abonnement
+                . Ved å bestille en tjeneste
+                {SUBSCRIPTIONS_OFFERED ? " eller inngå et abonnement" : ""}{" "}
                 aksepterer du vilkårene som er beskrevet her.
               </p>
             </section>
@@ -76,23 +80,33 @@ export default function SalgsvilkarPage() {
               <h2 className="mb-4 font-serif text-2xl font-semibold text-dark-gray">
                 2. Tjenestebeskrivelse
               </h2>
-              <p className="leading-relaxed text-dark-gray mb-4">
-                NooraCare formidler henting, vask og levering av klesvask i
-                Bergen og Oslo. Tjenesten kan benyttes på
-                to måter:
-              </p>
-              <ul className="space-y-3 leading-relaxed text-dark-gray list-disc list-outside pl-6">
-                <li>
-                  <span className="font-medium">Abonnement</span> – fast,
-                  gjentakende henting med valgt frekvens. Betaling skjer via
-                  Vipps.
-                </li>
-                <li>
-                  <span className="font-medium">Enkeltbestilling</span> –
-                  engangsoppdrag uten bindende abonnement. Betaling skjer via
-                  Vipps.
-                </li>
-              </ul>
+              {SUBSCRIPTIONS_OFFERED ? (
+                <>
+                  <p className="leading-relaxed text-dark-gray mb-4">
+                    NooraCare formidler henting, vask og levering av klesvask i
+                    Bergen og Oslo. Tjenesten kan benyttes på
+                    to måter:
+                  </p>
+                  <ul className="space-y-3 leading-relaxed text-dark-gray list-disc list-outside pl-6">
+                    <li>
+                      <span className="font-medium">Abonnement</span> – fast,
+                      gjentakende henting med valgt frekvens. Betaling skjer via
+                      Vipps.
+                    </li>
+                    <li>
+                      <span className="font-medium">Enkeltbestilling</span> –
+                      engangsoppdrag uten bindende abonnement. Betaling skjer via
+                      Vipps.
+                    </li>
+                  </ul>
+                </>
+              ) : (
+                <p className="leading-relaxed text-dark-gray">
+                  NooraCare formidler henting, vask og levering av klesvask i
+                  Bergen og Oslo. Tjenesten bestilles som enkeltbestillinger –
+                  ett oppdrag per bestilling. Betaling skjer via Vipps.
+                </p>
+              )}
               <p className="leading-relaxed text-dark-gray mt-4">
                 Tjenesten leveres innenfor de geografiske områdene Bergen og
                 Oslo. NooraCare kan avvise bestillinger som faller utenfor
@@ -139,19 +153,37 @@ export default function SalgsvilkarPage() {
               <h2 className="mb-4 font-serif text-2xl font-semibold text-dark-gray">
                 5. Betaling
               </h2>
-              <p className="leading-relaxed text-dark-gray mb-4">
-                Betaling skjer via Vipps. For abonnement opprettes en Vipps
-                Recurring-avtale som gir NooraCare rett til å belaste deg per
-                gjennomførte oppdrag. Belastningen reserveres når renseren har
-                fastsatt endelig pris, og trekkes deretter fra Vipps.
-              </p>
-              <p className="leading-relaxed text-dark-gray">
-                Også for enkeltbestillinger opprettes en Vipps-avtale ved
-                bestilling, slik at endelig beløp kan belastes når renseren har
-                fastsatt prisen etter henting. NooraCare lagrer ikke
-                kortinformasjon – betalingsopplysninger håndteres av Vipps i
-                henhold til deres vilkår.
-              </p>
+              {SUBSCRIPTIONS_OFFERED ? (
+                <>
+                  <p className="leading-relaxed text-dark-gray mb-4">
+                    Betaling skjer via Vipps. For abonnement opprettes en Vipps
+                    Recurring-avtale som gir NooraCare rett til å belaste deg per
+                    gjennomførte oppdrag. Belastningen reserveres når renseren har
+                    fastsatt endelig pris, og trekkes deretter fra Vipps.
+                  </p>
+                  <p className="leading-relaxed text-dark-gray">
+                    Også for enkeltbestillinger opprettes en Vipps-avtale ved
+                    bestilling, slik at endelig beløp kan belastes når renseren har
+                    fastsatt prisen etter henting. NooraCare lagrer ikke
+                    kortinformasjon – betalingsopplysninger håndteres av Vipps i
+                    henhold til deres vilkår.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="leading-relaxed text-dark-gray mb-4">
+                    Betaling skjer via Vipps. Ved bestilling godkjenner du en
+                    Vipps-avtale som gir NooraCare rett til å belaste deg for
+                    oppdraget du har bestilt. Beløpet belastes når renseren har
+                    fastsatt endelig pris etter henting.
+                  </p>
+                  <p className="leading-relaxed text-dark-gray">
+                    NooraCare lagrer ikke kortinformasjon –
+                    betalingsopplysninger håndteres av Vipps i henhold til deres
+                    vilkår.
+                  </p>
+                </>
+              )}
             </section>
 
             {/* 6. Pickup & delivery */}
@@ -174,7 +206,10 @@ export default function SalgsvilkarPage() {
               </p>
             </section>
 
-            {/* 7. Subscription terms */}
+            {/* 7. Subscription terms while subscriptions are offered; otherwise the
+                change and cancellation rules for a single order. Must match
+                cancelOrderAction / updateOrderPickupDateAction in app/orders/actions.ts. */}
+            {SUBSCRIPTIONS_OFFERED ? (
             <section className="mb-10">
               <h2 className="mb-4 font-serif text-2xl font-semibold text-dark-gray">
                 7. Abonnement: bindingstid, endring og oppsigelse
@@ -211,6 +246,38 @@ export default function SalgsvilkarPage() {
                 vanlig måte.
               </p>
             </section>
+            ) : (
+            <section className="mb-10">
+              <h2 className="mb-4 font-serif text-2xl font-semibold text-dark-gray">
+                7. Endring og avbestilling
+              </h2>
+              <p className="leading-relaxed text-dark-gray mb-4">
+                Frem til tøyet er hentet kan du endre adresse, hentedato, hva
+                du sender og instruksjonene dine i bestillingen på{" "}
+                <Link
+                  href="/dashboard"
+                  className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
+                >
+                  nooracare.no/dashboard
+                </Link>
+                . En ny hentedato må være minst {MIN_DAYS_NOTICE} dager frem i
+                tid.
+              </p>
+              <p className="leading-relaxed text-dark-gray">
+                Du kan avbestille kostnadsfritt samme sted inntil 24 timer før
+                hentedagen. Da belastes du ikke, og Vipps-avtalen for
+                bestillingen avsluttes. Senere enn 24 timer før hentedagen kan
+                du ikke avbestille selv – ta kontakt med oss på{" "}
+                <a
+                  href="mailto:post@nooracare.no"
+                  className="text-nordic-blue underline underline-offset-2 hover:text-nordic-blue-light"
+                >
+                  post@nooracare.no
+                </a>
+                .
+              </p>
+            </section>
+            )}
 
             {/* 8. Right of withdrawal */}
             <section className="mb-10">

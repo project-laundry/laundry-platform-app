@@ -170,7 +170,7 @@ function SuccessView({ recurring }: { recurring: boolean }) {
           </li>
           <li className="flex items-start">
             <span className="mr-2 font-serif font-semibold text-sea-green">3.</span>
-            Levering og betaling: Du belastes automatisk via Vipps når klærne dine er ferdig renset, og de leveres tilbake til deg.
+            Levering og betaling: Vi leverer tøyet tilbake til deg når det er ferdig vasket. Du trenger ikke gjøre noe for å betale – det går automatisk via Vipps-avtalen din.
           </li>
         </ul>
       </div>
@@ -181,7 +181,7 @@ function SuccessView({ recurring }: { recurring: boolean }) {
         <div>
           <p className="text-sm leading-relaxed text-medium-gray">
             <span className="font-medium text-dark-gray">Betaling og pris:</span>{' '}
-            Renseren setter prisen når de har sett hva du faktisk sender inn. Du belastes automatisk via Vipps når tøyet er ferdig – før det leveres tilbake til deg.
+            Renseren setter prisen når de har sett hva du faktisk sender inn. Ingenting trekkes nå – det du skal betale, trekkes automatisk via Vipps i løpet av et par dager etter at prisen er satt.
           </p>
           <a
             target="_blank"

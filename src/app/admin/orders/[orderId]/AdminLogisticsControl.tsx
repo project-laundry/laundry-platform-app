@@ -70,7 +70,7 @@ export function AdminLogisticsControl({
     <div>
       <p className="text-sm text-medium-gray">
         {isReadyStep
-          ? 'Gjør ordren klar for levering og belaster kunden. Bruk bare hvis renseren har glemt det.'
+          ? 'Gjør ordren klar for levering og sender prisen til kunden. Det kunden skal betale, trekkes via Vipps i løpet av et par dager. Bruk bare hvis renseren har glemt det.'
           : 'Bruk bare hvis renseren har glemt å registrere det i appen.'}
       </p>
       {blocked && (

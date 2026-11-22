@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ArrowRight, WashingMachine } from 'lucide-react';
+import { SUBSCRIPTIONS_OFFERED } from '@/lib/config/subscriptions';
 
 export function EmptySubscriptionState() {
   return (
@@ -13,7 +14,9 @@ export function EmptySubscriptionState() {
           Bestill din første klesvask
         </h3>
         <p className="mt-3 max-w-md text-medium-gray">
-          Velg en plan som passer best for deg og la oss ta oss av klesvasken.
+          {SUBSCRIPTIONS_OFFERED
+            ? 'Velg en plan som passer best for deg og la oss ta oss av klesvasken.'
+            : 'Velg hva du vil vaske og når vi skal hente, så tar vi oss av klesvasken.'}
         </p>
       </div>
 

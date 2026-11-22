@@ -259,6 +259,27 @@ export async function getPaymentByReference(reference: string): Promise<Payment 
 }
 
 /**
+ * One payment row by id. Used by the customer e-mails (price receipt,
+ * payment failed) to read the Vipps charge reference and the amount.
+ */
+export async function getPaymentById(paymentId: string): Promise<Payment | null> {
+  const supabase = await createAdminClient();
+
+  const { data, error } = await supabase
+    .from('payments')
+    .select('*')
+    .eq('id', paymentId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching payment by id:', error);
+    return null;
+  }
+
+  return data;
+}
+
+/**
  * True when any Vipps payment for the subscription's orders is still
  * un-settled (pending/authorized). Used by the deferred agreement stop:
  * stopping a Vipps agreement cancels its still-pending charges, so the stop

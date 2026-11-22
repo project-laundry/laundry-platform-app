@@ -112,8 +112,8 @@ function SignupForm() {
       return;
     }
 
-    // Redirect to success page
-    router.push('/auth/success');
+    // "Check your e-mail" page; it keeps ?next= for its own links
+    router.push(withNext('/auth/success', next));
   };
 
   const inputClass =
@@ -145,7 +145,9 @@ function SignupForm() {
             Opprett konto
           </h1>
           <p className="mt-3 text-medium-gray">
-            Kom i gang med din NooraCare-opplevelse
+            {next?.startsWith('/orders')
+              ? 'Opprett en konto først, så fortsetter du rett til bestillingen'
+              : 'Kom i gang med din NooraCare-opplevelse'}
           </p>
         </div>
 

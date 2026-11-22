@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { safeNextPath } from '@/lib/auth/next-path';
+import { safeNextPath, withNext } from '@/lib/auth/next-path';
 import { RESET_LINK_EXPIRED_PATH, RESET_PASSWORD_PATH } from '@/lib/auth/password-reset';
 import { type EmailOtpType, type User } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
@@ -24,12 +24,15 @@ export async function GET(request: Request) {
   const type = searchParams.get('type') as EmailOtpType | null;
   const code = searchParams.get('code');
   // Same-site paths only — never trust the raw value.
-  const next = safeNextPath(searchParams.get('next')) ?? '/dashboard';
+  const requestedNext = safeNextPath(searchParams.get('next'));
+  const next = requestedNext ?? '/dashboard';
 
   // Recovery links always end on the reset page and, when broken, on the
   // forgot page (not /auth/error, whose copy is about confirmation links).
+  // /auth/error keeps ?next= so logging in from there still returns the
+  // customer to where the link was taking them (the order flow).
   const isRecovery = type === 'recovery' || next === RESET_PASSWORD_PATH;
-  const errorUrl = `${origin}${isRecovery ? RESET_LINK_EXPIRED_PATH : '/auth/error'}`;
+  const errorUrl = `${origin}${isRecovery ? RESET_LINK_EXPIRED_PATH : withNext('/auth/error', requestedNext)}`;
 
   if (!(token_hash && type) && !code) {
     return NextResponse.redirect(errorUrl);

@@ -16,6 +16,7 @@ import {
   getSubscriptionStatusVariant,
 } from '@/lib/utils/subscription-status';
 import { IRONING_OFFERED, formatKr } from '@/lib/config/pricing';
+import { SUBSCRIPTIONS_OFFERED } from '@/lib/config/subscriptions';
 import type { OrderWithRelations } from '@/types/database';
 import { requireRole } from '@/lib/auth/require-role';
 
@@ -117,7 +118,9 @@ export default async function AdminCustomerDetailPage({
         </dl>
       </section>
 
-      {/* Subscription */}
+      {/* Subscription — while subscriptions aren't offered, shown only for a
+          customer who already has one (created before they were hidden). */}
+      {(SUBSCRIPTIONS_OFFERED || subscription) && (
       <section className="mt-4 rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur">
         <div className="flex items-center gap-3">
           <span className="flex size-9 items-center justify-center rounded-full bg-sea-green/12 text-sea-green">
@@ -150,6 +153,7 @@ export default async function AdminCustomerDetailPage({
           <p className="mt-4 text-sm text-medium-gray">Ingen aktivt abonnement</p>
         )}
       </section>
+      )}
 
       {/* Orders */}
       <section className="mt-4 overflow-hidden rounded-3xl border border-cream-dark/80 bg-warm-white/80 shadow-[var(--shadow-card)] backdrop-blur">

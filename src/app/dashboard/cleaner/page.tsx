@@ -1,15 +1,16 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { AppHeader } from '@/components/layout/AppHeader';
-import { Ban, ChevronRight, Hourglass, Mail, Phone, Settings, XCircle } from 'lucide-react';
+import { Ban, ChevronRight, Hourglass, Mail, Phone, Settings, Wallet, XCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { getCleanerByUserId } from '@/lib/database/cleaners';
 import { getUsersById } from '@/lib/database/users';
 import { getOrdersByCleanerId, getCompletedOrdersByCleanerId } from '@/lib/database/orders';
 import { LogoutButton } from '@/components/ui/LogoutButton';
-import { CleanerDashboardTabs } from './components/CleanerDashboardTabs';
-import { CleanerPayoutCard } from './components/CleanerPayoutCard';
-import { formatActiveDays } from '@/lib/config/cleaner-options';
+import { CleanerOrderList } from './components/CleanerOrderList';
+import { todayInOslo } from '@/lib/utils/date';
+import { formatKrExact } from '@/lib/config/pricing';
+import { monthLabel, payoutDueDate, summarizeCleanerMonth } from '@/lib/utils/payout';
 import { COMPANY, phoneHref } from '@/lib/config/company';
 
 /** NooraCare's contact details for the rejected / suspended screens — from
@@ -63,12 +64,13 @@ export default async function CleanerDashboardPage() {
   const isRejected = cleaner.verification_status === 'rejected';
   const isSuspended = cleaner.verification_status === 'suspended';
 
-  // Availability summary for the dashboard strip (approved cleaners only).
-  const activeDaysLabel = formatActiveDays(cleaner.weekly_schedule);
-
   // Get orders for approved cleaners
   const activeOrders = isApproved ? await getOrdersByCleanerId(cleaner.id) : [];
   const historyOrders = isApproved ? await getCompletedOrdersByCleanerId(cleaner.id) : [];
+  const today = todayInOslo();
+  const currentMonth = today.slice(0, 7);
+  const monthSummary = summarizeCleanerMonth(historyOrders, currentMonth);
+  const payoutDue = payoutDueDate(currentMonth);
 
   return (
     <div className="min-h-screen bg-cream text-dark-gray">
@@ -84,10 +86,8 @@ export default async function CleanerDashboardPage() {
 
       {/* Header */}
       <AppHeader
-        maxWidth="max-w-5xl"
         right={
           <div className="flex items-center gap-4">
-            <span className="text-sm text-medium-gray">{displayName}</span>
             <Link
               href="/dashboard/cleaner/settings"
               aria-label="Innstillinger"
@@ -101,15 +101,27 @@ export default async function CleanerDashboardPage() {
       />
 
       {/* Main Content */}
-      <main className="mx-auto max-w-5xl px-5 pb-16 pt-8">
-        {/* Greeting */}
-        <div className="animate-in fade-in slide-in-from-bottom-3 duration-500">
-          <p className="text-sm font-medium uppercase tracking-[0.18em] text-sea-green">
-            Renser
-          </p>
-          <h1 className="mt-2 font-serif text-4xl font-semibold leading-tight text-dark-gray">
-            Hei, {firstName}!
+      <main className="mx-auto max-w-2xl px-5 pb-16 pt-6">
+        {/* Greeting + availability (approved cleaners only) */}
+        <div className="flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-3 duration-500">
+          <h1 className="min-w-0 truncate font-serif text-3xl font-semibold text-dark-gray">
+            Hei, {firstName}
           </h1>
+          {isApproved && (
+            <Link
+              href="/dashboard/cleaner/settings"
+              className="inline-flex shrink-0 items-center gap-2 rounded-full border border-cream-dark bg-white py-1.5 pl-3 pr-2 text-sm font-medium text-dark-gray transition-colors hover:border-sea-green/50"
+            >
+              <span
+                aria-hidden
+                className={`size-2 rounded-full ${
+                  cleaner.is_accepting_orders ? 'bg-sea-green' : 'bg-amber-500'
+                }`}
+              />
+              {cleaner.is_accepting_orders ? 'Tar imot oppdrag' : 'Tar ikke imot oppdrag'}
+              <ChevronRight className="size-4 text-medium-gray" />
+            </Link>
+          )}
         </div>
 
         {/* Status-based content */}
@@ -178,32 +190,39 @@ export default async function CleanerDashboardPage() {
 
           {isApproved && (
             <>
+              {/* The work first — the cleaner opens this on the phone at the door. */}
+              <CleanerOrderList
+                orders={activeOrders}
+                today={today}
+                home={{
+                  latitude: cleaner.latitude,
+                  longitude: cleaner.longitude,
+                  address: `${cleaner.base_street}, ${cleaner.base_postal_code} ${cleaner.base_city}`,
+                }}
+              />
+
+              {/* This month's income in one line; the rest lives on its own page. */}
               <Link
-                href="/dashboard/cleaner/settings"
-                className="mb-5 flex items-center justify-between gap-3 rounded-2xl border border-cream-dark bg-white px-4 py-3 transition-colors hover:border-sea-green/50"
+                href="/dashboard/cleaner/earnings"
+                className="mt-6 flex items-center gap-3 rounded-3xl border border-cream-dark/80 bg-warm-white/80 px-5 py-4 shadow-[var(--shadow-card)] backdrop-blur transition-colors hover:border-sea-green/50"
               >
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`size-2.5 shrink-0 rounded-full ${
-                      cleaner.is_accepting_orders ? 'bg-sea-green' : 'bg-amber-500'
-                    }`}
-                  />
-                  <div>
-                    <p className="text-sm font-medium text-dark-gray">
-                      {cleaner.is_accepting_orders
-                        ? 'Tar imot nye oppdrag'
-                        : 'Tar ikke imot nye oppdrag'}
-                    </p>
-                    <p className="text-sm text-medium-gray">{activeDaysLabel}</p>
-                  </div>
-                </div>
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sea-green/12 text-sea-green">
+                  <Wallet className="size-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-medium text-dark-gray">
+                    Opptjent i {monthLabel(currentMonth)}
+                  </span>
+                  <span className="block truncate text-sm text-medium-gray">
+                    {monthSummary.orderCount} fullførte oppdrag · utbetales innen{' '}
+                    {Number(payoutDue.slice(8, 10))}. {monthLabel(payoutDue.slice(0, 7))}
+                  </span>
+                </span>
+                <span className="shrink-0 font-serif text-xl font-semibold tabular-nums text-dark-gray">
+                  {formatKrExact(monthSummary.payoutOre)}
+                </span>
                 <ChevronRight className="size-4 shrink-0 text-medium-gray" />
               </Link>
-              <CleanerPayoutCard orders={historyOrders} />
-              <CleanerDashboardTabs
-                activeOrders={activeOrders}
-                historyOrders={historyOrders}
-              />
             </>
           )}
         </div>

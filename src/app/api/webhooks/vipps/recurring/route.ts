@@ -11,11 +11,12 @@
 // - recurring.charge-captured.v1 → Complete payment
 // - recurring.charge-canceled.v1 → Mark payment as canceled
 // - recurring.charge-refunded.v1 → Process refund
-// - recurring.charge-failed.v1 → Mark payment as failed
-// - recurring.charge-creation-failed.v1 → Handle charge creation failure
+// - recurring.charge-failed.v1 → Mark payment as failed → payment-failed e-mail to the customer
+// - recurring.charge-creation-failed.v1 → Mark payment as failed → payment-failed e-mail to the customer
 //
 // AGREEMENT EVENTS:
 // - recurring.agreement-activated.v1 → Agreement accepted by user → Activate payment agreement + subscription (if any) → Generate first order
+//   → order confirmation e-mail to the customer (lib/services/customer-emails.ts, non-blocking)
 //   (idempotent: status-guarded updates + first-order existence check, because Vipps delivers at-least-once)
 //
 // RESPONSE CODES: 401 bad signature; 200 for anything a retry can never fix (unknown
@@ -51,6 +52,8 @@ import {
 import { cancelVippsAgreement, stopVippsAgreementForCancelledSubscription } from '@/lib/payments/vipps/service';
 import { createOrder, getOrderByPaymentAgreementId } from '@/lib/database/orders';
 import { buildOrderData } from '@/lib/services/order-generation';
+import { sendOrderConfirmationEmail, sendPaymentFailedEmail } from '@/lib/services/customer-emails';
+import { sendAdminNewOrderEmail, sendCleanerNewOrderEmail } from '@/lib/services/staff-emails';
 import { recordPromoRedemption } from '@/lib/database/promo-codes';
 import { addDays, toISODateString, getWeekdayFromDate, getNextOccurrenceOfWeekday } from '@/lib/utils/date';
 import { DAYS_PICKUP_TO_DELIVERY } from '@/lib/config/order-timing';
@@ -165,7 +168,6 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('[Vipps Recurring Webhook] Received webhook');
-    console.log('[Vipps Recurring Webhook] Payload:', JSON.stringify(body, null, 2));
 
     // Route to appropriate handler based on webhook type
     if (isRecurringChargeWebhook(body)) {
@@ -464,7 +466,10 @@ async function handleChargeFailed(
 
   console.log(`[Vipps Recurring Webhook] Payment ${payment.id} marked as failed`);
 
-  // TODO: Send customer notification about failed payment
+  // Payment-failed e-mail (#28). Never throws; keyed on the payment id so a
+  // redelivered webhook sends nothing. Retry policy = admin «Belast på nytt».
+  await sendPaymentFailedEmail(payment.id);
+
   // TODO: Handle retry logic or subscription pausing after multiple failures
 }
 
@@ -472,6 +477,7 @@ async function handleChargeFailed(
  * Handle recurring.charge-creation-failed.v1
  *
  * Charge failed to be created asynchronously (async validation failed).
+ * Marks the payment row failed, then sends the customer the payment-failed e-mail (#28).
  */
 async function handleChargeCreationFailed(
   webhook: VippsChargeWebhookBody,
@@ -515,6 +521,10 @@ async function handleChargeCreationFailed(
   if (!failed) {
     throw new Error(`Failed to mark payment ${payment.id} as failed`);
   }
+
+  // Payment-failed e-mail (#28) — same as charge-failed. Never throws; keyed
+  // on the payment id so a redelivered webhook sends nothing.
+  await sendPaymentFailedEmail(payment.id);
 
   // TODO: Send admin notification about charge creation failure
 }
@@ -718,6 +728,20 @@ async function generateFirstOrder(
     // 500 and Vipps retries; the existence check above makes the retry safe.
     throw new Error(`Failed to create first order for payment agreement ${paymentAgreementId}`);
   }
+
+  // Order confirmation e-mail (#23) — only on the path that just inserted the
+  // order, so a duplicate delivery (handled above) never sends a second one.
+  // Sent BEFORE the promo redemption: if that write fails and Vipps retries,
+  // the retry finds the order, records the redemption and sends nothing.
+  // Never throws (lib/services/customer-emails.ts) — an e-mail failure must
+  // not make Vipps retry an activation that already succeeded.
+  await sendOrderConfirmationEmail(order.id);
+
+  // Staff e-mails: «Nytt oppdrag» to the assigned cleaner (skipped inside when
+  // the order has no cleaner yet) and «Ny ordre» to every admin. Same rules
+  // as the confirmation above: only on the path that just inserted the order,
+  // and they never throw (lib/services/staff-emails.ts).
+  await Promise.all([sendCleanerNewOrderEmail(order.id), sendAdminNewOrderEmail(order.id)]);
 
   // Record the redemption now that a first order exists (committed customer).
   // Idempotent via UNIQUE(promo_code_id, customer_id) — safe on webhook retries.

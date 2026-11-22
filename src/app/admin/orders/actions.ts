@@ -13,12 +13,23 @@ import {
 } from '@/lib/database/orders';
 import { completeDeliveredOrder } from '@/lib/services/complete-order';
 import { markOrderReadyAndCharge } from '@/lib/services/ready-order';
+import {
+  sendCleanerConfirmedEmail,
+  sendOrderCancelledEmail,
+  sendOrderPickedUpEmail,
+  sendPickupRescheduledEmail,
+  sendPriceReceiptEmail,
+} from '@/lib/services/customer-emails';
+import { sendCleanerNewOrderEmail } from '@/lib/services/staff-emails';
 import { checkAndGenerateNextOrders } from '@/lib/services/order-generation';
 import { getAvailableCleanersForCity } from '@/lib/database/cleaners';
 import { getPaymentsByOrderId } from '@/lib/database/payments';
 import { getPaymentAgreementById } from '@/lib/database/payment-agreements';
 import { getSubscriptionById } from '@/lib/database/subscriptions';
-import { createChargeForCompletedOrder } from '@/lib/payments/vipps/service';
+import {
+  createChargeForCompletedOrder,
+  stopVippsAgreementForOneTimeOrder,
+} from '@/lib/payments/vipps/service';
 import { hasLivePayment } from '@/lib/utils/payment-status';
 import { geocodeAddress } from '@/lib/maps/geocoding';
 import { validatePostalCode } from '@/lib/validation/cleaner';
@@ -44,6 +55,14 @@ const ASSIGNABLE_STATUSES = ['pending_assignment', 'pickup_scheduled'] as const;
  * (server actions are public endpoints): the order must not be picked up
  * yet, and the cleaner must be an available (approved + accepting) cleaner
  * in the order's own city.
+ *
+ * Assigning an order that was pending_assignment e-mails the customer that
+ * the pickup is confirmed (sendCleanerConfirmedEmail) with the order's
+ * current scheduled_date — this action never changes the date, so correct
+ * the date first when it needs correcting.
+ *
+ * Every successful assignment also e-mails the newly assigned cleaner
+ * «Nytt oppdrag» (sendCleanerNewOrderEmail).
  */
 export async function assignCleanerAction(
   orderId: string,
@@ -66,7 +85,8 @@ export async function assignCleanerAction(
   }
 
   const availableCleaners = await getAvailableCleanersForCity(order.city);
-  if (!availableCleaners.some((cleaner) => cleaner.id === cleanerId)) {
+  const cleaner = availableCleaners.find((candidate) => candidate.id === cleanerId);
+  if (!cleaner) {
     return { success: false, error: 'Renseren er ikke tilgjengelig i denne byen' };
   }
 
@@ -74,6 +94,18 @@ export async function assignCleanerAction(
   if (!updated) {
     return { success: false, error: 'Kunne ikke tildele renser' };
   }
+
+  // "En renser er bekreftet" e-mail (#30) — only when the order was waiting
+  // for a cleaner. A re-assignment between cleaners (pickup_scheduled) tells
+  // the customer nothing. Never throws (lib/services/customer-emails.ts).
+  if (order.status === 'pending_assignment') {
+    await sendCleanerConfirmedEmail(orderId, cleaner.display_name);
+  }
+
+  // «Nytt oppdrag» to the cleaner who now holds the order — on a first
+  // assignment and on a re-assignment between cleaners alike. Never throws
+  // (lib/services/staff-emails.ts).
+  await sendCleanerNewOrderEmail(orderId);
 
   revalidatePath('/admin/orders');
   revalidatePath(`/admin/orders/${orderId}`);
@@ -193,6 +225,13 @@ export async function updateOrderDetailsAction(
     return { success: false, error: 'Kunne ikke lagre endringene' };
   }
 
+  // A moved pickup must never be silent: tell the customer (#29). Only when
+  // the pickup date itself changed — an address or delivery-date edit sends
+  // nothing. `order` is the row as read before the write. Never throws.
+  if (scheduledDate !== order.scheduled_date) {
+    await sendPickupRescheduledEmail(orderId, order, 'admin');
+  }
+
   revalidatePath('/admin/orders');
   revalidatePath(`/admin/orders/${orderId}`);
   return { success: true };
@@ -207,6 +246,7 @@ export interface AdminLogisticsResult {
  * Admin fallback when the cleaner forgot to tap «Jeg har hentet tøyet».
  * Same transition as the cleaner's markOrderPickedUpAction. The guarded
  * write is the status check, so a stale page can't move the wrong order.
+ * Sends the customer the "laundry picked up" e-mail, without a pickup time.
  */
 export async function adminMarkPickedUpAction(orderId: string): Promise<AdminLogisticsResult> {
   const { error: authError } = await assertRole(['admin']);
@@ -218,6 +258,11 @@ export async function adminMarkPickedUpAction(orderId: string): Promise<AdminLog
   if (!updated) {
     return { success: false, error: 'Ordren venter ikke på henting — last siden på nytt' };
   }
+
+  // Same "laundry picked up" e-mail as the cleaner's tap (#25), but without a
+  // time: this fallback runs because the cleaner forgot to tap, so "now" is
+  // not when the bags were collected. Never throws.
+  await sendOrderPickedUpEmail(orderId, { showPickupTime: false });
 
   revalidatePath('/admin/orders');
   revalidatePath(`/admin/orders/${orderId}`);
@@ -263,6 +308,7 @@ const CHARGED_STATUSES = ['ready_for_delivery', 'out_for_delivery', 'completed']
  * agreement that is still active in our DB. createChargeForCompletedOrder
  * inserts the payment row and, on a Vipps error, marks it failed before
  * rethrowing, so a failed retry is visible on the page as one more row.
+ * Sends the customer the "price is set" e-mail again for the new charge (sendPriceReceiptEmail).
  */
 export async function retryChargeAction(orderId: string): Promise<RetryChargeResult> {
   const { error: authError } = await assertRole(['admin']);
@@ -299,8 +345,9 @@ export async function retryChargeAction(orderId: string): Promise<RetryChargeRes
     return { success: false, error: 'Vipps-avtalen er ikke aktiv lenger — kunden kan ikke belastes via Vipps' };
   }
 
+  let paymentId: string;
   try {
-    await createChargeForCompletedOrder(
+    paymentId = await createChargeForCompletedOrder(
       orderId,
       order.total_cost_ore,
       `NooraCare vask #${order.order_number}`
@@ -312,6 +359,10 @@ export async function retryChargeAction(orderId: string): Promise<RetryChargeRes
     const reason = error instanceof Error ? error.message : String(error);
     return { success: false, error: `Belastningen feilet: ${reason}` };
   }
+
+  // Same "price is set" e-mail the cleaner's mark-ready sends, for the new
+  // charge (new payment id → new idempotency key). Never throws.
+  await sendPriceReceiptEmail(orderId, paymentId);
 
   revalidatePath('/admin/orders');
   revalidatePath(`/admin/orders/${orderId}`);
@@ -336,7 +387,7 @@ const CANCELLATION_REASON_MAX = 500;
 /**
  * Cancel a not-yet-picked-up order (no-show, fraud, duplicate). The reason is
  * required and is written to cancellation_reason, which the customer's order
- * page shows. Admins are deliberately NOT bound by the customer's 24-hour
+ * page and the cancellation e-mail show. Admins are deliberately NOT bound by the customer's 24-hour
  * rule — this is the manual-override path. The subscription is never
  * touched: if it is still active the rolling window generates the
  * replacement order right away, exactly like the customer's
@@ -375,6 +426,13 @@ export async function cancelOrderAdminAction(
     return { success: false, error: 'Ordren endret status i mellomtiden — last siden på nytt' };
   }
 
+  // One-time order: nothing will ever be charged on its Vipps agreement, so
+  // stop it now (#144). Never throws — a failed stop is logged and the
+  // cancellation stands.
+  if (!order.subscription_id) {
+    await stopVippsAgreementForOneTimeOrder(orderId);
+  }
+
   // Rolling window: same as the customer's cancelOrderAction. A failure here
   // must not undo the cancellation, so it is logged and swallowed.
   if (order.subscription_id) {
@@ -387,6 +445,10 @@ export async function cancelOrderAdminAction(
       }
     }
   }
+
+  // Cancellation e-mail with the customer-visible reason (#29) — after the
+  // rolling window ran, so it can name a subscription's next pickup. Never throws.
+  await sendOrderCancelledEmail(orderId);
 
   revalidatePath('/admin/orders');
   revalidatePath(`/admin/orders/${orderId}`);
@@ -449,7 +511,7 @@ export async function overrideOrderPriceAction(
   if (hasLivePayment(payments)) {
     return {
       success: false,
-      error: 'Kunden er allerede belastet for denne ordren — prisen kan ikke endres',
+      error: 'Det er allerede sendt en betaling til Vipps for denne ordren — prisen kan ikke endres',
     };
   }
 
@@ -491,7 +553,7 @@ export interface AdminMarkReadyResult {
 
 /**
  * Admin fallback when the cleaner never marks the order ready: same guarded
- * transition and Vipps charge as the cleaner's «Marker som klar»
+ * transition and Vipps charge as the cleaner's «Tøyet er klart til levering»
  * (lib/services/ready-order.ts). Requires wash_loads > 0 and a price — set
  * them with the price override first if the cleaner never priced the order.
  * A failed charge still succeeds (the order is ready); the page then shows

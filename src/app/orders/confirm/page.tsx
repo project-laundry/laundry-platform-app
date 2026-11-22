@@ -2,8 +2,10 @@
 
 // Step 3 — review everything, then hand off to Vipps to approve the payment
 // agreement (nothing is charged until the cleaner has priced the pickup).
-// Steps 1–2 work logged out; this step asks the visitor to log in first, and
-// the login/signup pages bring them back here (the order lives in localStorage).
+// The whole flow requires an account (src/proxy.ts sends signed-out visitors to
+// signup/login). The login prompt here only shows if the session ended while
+// the customer was in the flow; the order lives in localStorage, so they
+// continue here afterwards.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -19,6 +21,8 @@ import {
 } from 'lucide-react';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { calculateCustomerEstimate } from '@/lib/config/pricing';
+import { SUBSCRIPTIONS_OFFERED } from '@/lib/config/subscriptions';
+import { getPickupTimeRangeLabel } from '@/lib/config/pickup-times';
 import type { OrderSelection } from '@/types/order-flow';
 import { createClient } from '@/lib/supabase/client';
 import { withNext } from '@/lib/auth/next-path';
@@ -167,12 +171,16 @@ export default function ConfirmPage() {
     setSubmitError(null);
     setIsSubmitting(true);
 
+    // While subscriptions aren't offered, never send a recurring choice that
+    // an older visit left in localStorage (the server ignores it as well).
+    const isRecurring = SUBSCRIPTIONS_OFFERED && (orderData.isRecurring || false);
+
     try {
       const result = await createSubscriptionAction({
         location: orderData.city!,
         selection,
-        isRecurring: orderData.isRecurring || false,
-        frequency: orderData.frequency || undefined,
+        isRecurring,
+        frequency: isRecurring ? orderData.frequency || undefined : undefined,
         firstPickupDate: orderData.firstPickupDate!,
         pickupAddress: {
           street: orderData.address!.street,
@@ -292,18 +300,25 @@ export default function ConfirmPage() {
         />
         <SummaryRow
           icon={<CalendarDays className="size-5" />}
-          title="Første henting"
+          title={SUBSCRIPTIONS_OFFERED ? 'Første henting' : 'Henting'}
           value={formatPickupDate(orderData?.firstPickupDate)}
-        />
-        <SummaryRow
-          icon={<RefreshCw className="size-5" />}
-          title="Hyppighet"
-          value={
-            orderData?.isRecurring && orderData.frequency
-              ? `Fast – ${FREQUENCY_LABELS[orderData.frequency]}`
-              : 'Én gang'
+          note={
+            orderData?.firstPickupDate
+              ? `kl. ${getPickupTimeRangeLabel()}`
+              : undefined
           }
         />
+        {SUBSCRIPTIONS_OFFERED && (
+          <SummaryRow
+            icon={<RefreshCw className="size-5" />}
+            title="Hyppighet"
+            value={
+              orderData?.isRecurring && orderData.frequency
+                ? `Fast – ${FREQUENCY_LABELS[orderData.frequency]}`
+                : 'Én gang'
+            }
+          />
+        )}
 
         {/* The one thing that makes people hesitate at the Vipps button sits
             right here, not under the price list. */}

@@ -195,7 +195,7 @@ export function CleanerSettingsForm({ cleaner }: { cleaner: Cleaner }) {
 
           <div>
             <span className="mb-2 block text-sm font-medium text-dark-gray">
-              Dager du tar imot henting
+              Hvilke dager kan du hente?
             </span>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {WEEKDAY_OPTIONS.map(({ key, label }) => {

@@ -55,6 +55,15 @@ export function todayInOslo(now: Date = new Date()): string {
 }
 
 /**
+ * Tomorrow's date in Norway as YYYY-MM-DD. Built from todayInOslo() at noon
+ * UTC, so neither the server's time zone nor a daylight-saving change can
+ * move the result to another day.
+ */
+export function tomorrowInOslo(now: Date = new Date()): string {
+  return toISODateString(addDays(new Date(`${todayInOslo(now)}T12:00:00Z`), 1));
+}
+
+/**
  * Check if a weekday is available in a weekly schedule
  * @param schedule - The weekly schedule object
  * @param weekday - The weekday to check
@@ -142,22 +151,6 @@ export function calculateNextBillingDate(
   // Monthly: Add 1 month
   const nextDate = addMonths(currentDate, 1);
   return nextDate.toISOString();
-}
-
-/**
- * Check if a date is today
- * @param date - The date to check (Date object or ISO string)
- * @returns true if the date is today
- */
-export function isToday(date: Date | string): boolean {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  const today = new Date();
-
-  return (
-    dateObj.getFullYear() === today.getFullYear() &&
-    dateObj.getMonth() === today.getMonth() &&
-    dateObj.getDate() === today.getDate()
-  );
 }
 
 /**
