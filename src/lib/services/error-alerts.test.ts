@@ -2,9 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/lib/database/users', () => ({ getUsersByRole: vi.fn() }));
 vi.mock('@/lib/email/send', () => ({ sendEmail: vi.fn() }));
+vi.mock('@/lib/analytics/server-errors', () => ({ captureServerException: vi.fn() }));
 
 import { getUsersByRole } from '@/lib/database/users';
 import { sendEmail } from '@/lib/email/send';
+import { captureServerException } from '@/lib/analytics/server-errors';
 import { buildErrorAlert, reportError } from './error-alerts';
 
 vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -58,6 +60,7 @@ describe('reportError', () => {
 
     expect(sendEmail).toHaveBeenCalledTimes(1);
     const message = vi.mocked(sendEmail).mock.calls[0][0];
+    expect(captureServerException).toHaveBeenCalledWith('webhook', expect.any(Error), { agreement: 'agr_1' });
     expect(message.to).toEqual(['a@nooracare.no']);
     expect(message.subject).toBe('NooraCare feil: webhook');
     expect(message.text).toContain('agreement: agr_1');

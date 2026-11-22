@@ -39,7 +39,10 @@ export function initAnalytics(input: { key: string | undefined; hostname: string
     cookieless_mode: 'on_reject',
     opt_out_capturing_by_default: true,
     person_profiles: 'never',
-    capture_exceptions: false,
+    // Error tracking: uncaught browser errors and unhandled promise
+    // rejections are sent as exceptions (server errors go through
+    // lib/analytics/server-errors.ts).
+    capture_exceptions: true,
     // Replay stays off until acceptAnalytics() / syncRecording() start it.
     // When it runs, everything typed is masked, and so is any element marked
     // data-ph-mask (the address on the order summary).

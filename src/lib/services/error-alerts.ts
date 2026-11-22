@@ -1,5 +1,6 @@
-// Error alerts — the app's error tracker. An unexpected server error is
-// logged and e-mailed to every admin right away, so a failure in the payment
+// Error alerts — the server side of the app's error tracking. An unexpected
+// server error is logged, sent to PostHog error tracking
+// (lib/analytics/server-errors.ts) and e-mailed to every admin right away, so a failure in the payment
 // or order flow is seen the same hour instead of in the next daily digest
 // (or never). No third-party tracker: the alert goes through the same Resend
 // transport as every other e-mail (lib/email/send.ts).
@@ -19,6 +20,7 @@
 // data; ids passed in `details` are the caller's choice.
 
 import { createHash } from 'crypto';
+import { captureServerException } from '@/lib/analytics/server-errors';
 import { sendToAdmins } from '@/lib/email/admin-mail';
 
 const MAX_STACK_LINES = 12;
@@ -72,6 +74,9 @@ export async function reportError(
 ): Promise<void> {
   try {
     console.error(`[Error alert] ${source}:`, error);
+
+    // Also to PostHog error tracking (production only; never throws).
+    await captureServerException(source, error, details);
 
     const alert = buildErrorAlert(source, error, details);
     const { recipients, sent } = await sendToAdmins(alert);

@@ -55,7 +55,7 @@ describe('initAnalytics', () => {
         person_profiles: 'never',
         disable_session_recording: true,
         session_recording: expect.objectContaining({ maskAllInputs: true }),
-        capture_exceptions: false,
+        capture_exceptions: true,
         capture_heatmaps: true,
       })
     );

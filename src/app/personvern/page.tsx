@@ -235,7 +235,9 @@ export default function PersonvernPage() {
                   tar opp hvordan sidene vises og brukes (klikk, rulling og
                   navigasjon). Det du skriver i skjemaer tas aldri opp, og
                   innloggingssidene, dashbordet og bestillingene dine tas
-                  ikke opp. Opptak slettes automatisk etter 30 dager. PostHog
+                  ikke opp. Opptak slettes automatisk etter 30 dager. Tekniske
+                  feilmeldinger fra nettstedet sendes også hit, slik at vi kan
+                  rette feil. PostHog
                   får aldri navn, e-post, adresse eller telefonnummer fra oss.
                   Behandler dette som databehandler under databehandleravtale.
                 </li>
