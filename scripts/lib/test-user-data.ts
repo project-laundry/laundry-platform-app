@@ -22,8 +22,6 @@ export interface TestCleaner {
     business_address: string | null;
     bank_account: string;
     experience_level: 'beginner' | 'experienced' | 'expert' | 'professional';
-    languages: string[];
-    specializations: string[];
     weekly_schedule: {
       mon: boolean;
       tue: boolean;
@@ -74,10 +72,6 @@ const OSLO_STREETS = [
   { street: 'Bogstadveien', numbers: [1, 70], postal: '0366', lat: 59.9263, lon: 10.7185 },
   { street: 'Thorvald Meyers gate', numbers: [1, 80], postal: '0555', lat: 59.9223, lon: 10.7583 },
   { street: 'Sofienberggata', numbers: [1, 45], postal: '0558', lat: 59.9205, lon: 10.7621 },
-];
-
-const SPECIALIZATIONS = [
-  'delicate', 'formal', 'wool', 'silk', 'down', 'sportswear', 'leather', 'outerwear'
 ];
 
 const EXPERIENCE_LEVELS: Array<'beginner' | 'experienced' | 'expert' | 'professional'> = [
@@ -149,26 +143,16 @@ export function generateRandomCleaner(
 
   const timestamp = Date.now();
   const random = randomNumber(1000, 9999);
-  const email = `${emailName}.${timestamp}.${random}@test.no`;
+  // Resend's test inbox: accepts every address, so the order and auth e-mails
+  // the app sends to seeded users never bounce (bounces hurt nooracare.no).
+  const email = `delivered+${emailName}.${timestamp}.${random}@resend.dev`;
 
   const streets = city === 'Bergen' ? BERGEN_STREETS : OSLO_STREETS;
   const streetData = randomElement(streets);
   const streetNumber = randomNumber(streetData.numbers[0], streetData.numbers[1]);
   const fullAddress = `${streetData.street} ${streetNumber}`;
 
-  const numSpecializations = randomNumber(2, 4);
-  const selectedSpecializations: string[] = [];
-  while (selectedSpecializations.length < numSpecializations) {
-    const spec = randomElement(SPECIALIZATIONS);
-    if (!selectedSpecializations.includes(spec)) {
-      selectedSpecializations.push(spec);
-    }
-  }
-
   const experienceLevel = randomElement(EXPERIENCE_LEVELS);
-  const languages = ['no'];
-  if (Math.random() > 0.5) languages.push('en');
-  if (Math.random() > 0.8) languages.push(randomElement(['pl', 'de', 'es', 'fr']));
 
   return {
     email,
@@ -194,8 +178,6 @@ export function generateRandomCleaner(
       business_address: isIndividual ? null : fullAddress + `, ${streetData.postal} ${city}`,
       bank_account: generateBankAccount(),
       experience_level: experienceLevel,
-      languages,
-      specializations: selectedSpecializations,
       weekly_schedule: generateWeeklySchedule(),
     },
   };

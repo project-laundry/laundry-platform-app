@@ -656,7 +656,7 @@
 ### Database-Level Constraints (Enforced by PostgreSQL)
 
 **CHECK Constraints:**
-- `Order`: `delivery_date >= scheduled_date` - Delivery cannot be before pickup
+- `Order`: `delivery_date >= scheduled_date` while the order is not `completed` - the delivery estimate cannot be before pickup. A completed order carries the actual delivery date, which may be earlier when the cleaner picked up ahead of schedule
 - `PromoCode`: `discount_type IN ('percentage','fixed')`, `discount_value > 0`, `max_discount_ore >= 0` (or NULL), `max_redemptions >= 0` (or NULL)
 
 **Unique Partial Indexes:**

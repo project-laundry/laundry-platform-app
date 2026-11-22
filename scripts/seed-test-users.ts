@@ -100,8 +100,6 @@ async function seedTestUsers() {
           base_country: testCleaner.address.country,
           base_special_instructions: null,
           experience_level: testCleaner.cleaner_profile.experience_level,
-          languages: testCleaner.cleaner_profile.languages,
-          specializations: testCleaner.cleaner_profile.specializations,
           weekly_schedule: testCleaner.cleaner_profile.weekly_schedule,
           is_accepting_orders: true,
           approved_at: new Date().toISOString(),
