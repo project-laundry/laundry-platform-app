@@ -194,15 +194,20 @@ details live — the footer, `/kontakt` and the legal pages all read from it.
 
 ## PostHog (analytics)
 
-Cookieless web analytics + heatmaps (see `CLAUDE.md` → "Analytics"). Two projects in one
+Web analytics + heatmaps, cookieless unless the visitor accepts the cookie banner; session replay
+only after acceptance (see `CLAUDE.md` → "Analytics"). Two projects in one
 organisation on **EU cloud**, `https://eu.posthog.com`: *NooraCare production* and *NooraCare
 staging*. Do each step on **both** projects.
 
 1. **Project settings → Web analytics → Cookieless server hash mode → on.** Without this
    every event the site sends is discarded at ingestion (they still show under *Activity →
    Live events*, which is misleading — verify with an insight, step 5).
-2. **Project settings → Autocapture → Heatmaps → on**; *Session replay* stays **off**;
-   *Autocapture* on (the SDK restricts it to clicks/submits on public pages).
+2. **Project settings → Autocapture → Heatmaps → on**; *Autocapture* on (the SDK restricts it to
+   clicks/submits on public pages). **Session replay → Record user sessions → on**: the site only
+   starts a recording after the visitor pressed «Godta» in the cookie banner, masks everything
+   typed, and never records admin, dashboards, the per-order pages or the auth pages. The
+   retention shown there must match the "Opptak slettes automatisk etter … dager" sentence on
+   `/personvern` and `/personvern-renser`.
 3. **Project settings → Toolbar → Authorized URLs**: add `https://nooracare.no` (production
    project) / `https://test.nooracare.no` (staging project). The toolbar is how heatmaps are viewed.
 4. **Project settings → Project → Project API key** (`phc_…`) → Vercel:

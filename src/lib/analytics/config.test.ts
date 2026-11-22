@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { AUTOCAPTURE_URL_IGNORELIST, isAnalyticsHost } from './config';
+import { AUTOCAPTURE_URL_IGNORELIST, isAnalyticsHost, isRecordingAllowed } from './config';
 
 describe('isAnalyticsHost', () => {
   it('sends from production and staging', () => {
@@ -53,6 +53,32 @@ describe('AUTOCAPTURE_URL_IGNORELIST', () => {
       'https://nooracare.no/auth/signup',
     ]) {
       expect(ignored(url), url).toBe(false);
+    }
+  });
+});
+
+describe('isRecordingAllowed', () => {
+  it('allows session replay on the public pages and the three order steps', () => {
+    for (const path of ['/', '/bli-renser', '/pris-kalkulator', '/orders/wash', '/orders/pickup', '/orders/confirm', '/orders/success', '/salgsvilkar']) {
+      expect(isRecordingAllowed(path), path).toBe(true);
+    }
+  });
+
+  it('never records pages that show personal data', () => {
+    for (const path of [
+      '/admin',
+      '/admin/customers',
+      '/dashboard',
+      '/dashboard/cleaner/earnings',
+      '/bli-renser/signup',
+      '/bli-renser/business',
+      '/orders/details/8b1d2b2e-1c2d-4e5f-8a9b-0c1d2e3f4a5b',
+      '/orders/8b1d2b2e-1c2d-4e5f-8a9b-0c1d2e3f4a5b/cancel',
+      '/auth/login',
+      '/auth/forgot-password',
+      '/auth/success',
+    ]) {
+      expect(isRecordingAllowed(path), path).toBe(false);
     }
   });
 });

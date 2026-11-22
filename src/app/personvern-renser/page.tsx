@@ -4,6 +4,7 @@ import { Navbar } from '@/components/landing/Navbar';
 import { Footer } from "@/components/landing/Footer";
 import { CompanyContactCard } from "@/components/legal/CompanyContactCard";
 import { COMPANY } from "@/lib/config/company";
+import { ConsentSettingsButton } from "@/components/analytics/ConsentSettingsButton";
 
 export const metadata: Metadata = {
   title: "Personvernerklæring for rensere | NooraCare",
@@ -235,12 +236,17 @@ export default function PersonvernRenserPage() {
                 <li>
                   <span className="font-medium">PostHog</span> –
                   analyseverktøy med servere i EU. Mottar sidevisninger,
-                  klikk og hvor langt du ruller, uten informasjonskapsler.
-                  IP-adressen din brukes bare til å lage en anonym kode som
-                  byttes ut hver dag, og lagres ikke. PostHog får aldri navn,
-                  e-post, adresse, telefonnummer eller noe du skriver i
-                  skjemaer. Behandler dette som databehandler under
-                  databehandleravtale.
+                  klikk og hvor langt du ruller. Uten samtykke skjer dette
+                  uten informasjonskapsler: IP-adressen din brukes bare til å
+                  lage en anonym kode som byttes ut hver dag, og lagres ikke.
+                  Har du trykket «Godta» i samtykkeboksen, bruker PostHog
+                  informasjonskapsler for å kjenne igjen nettleseren din og
+                  tar opp hvordan sidene vises og brukes (klikk, rulling og
+                  navigasjon). Det du skriver i skjemaer tas aldri opp, og
+                  innloggingssidene, dashbordet og bestillingene dine tas
+                  ikke opp. Opptak slettes automatisk etter 30 dager. PostHog
+                  får aldri navn, e-post, adresse eller telefonnummer fra oss.
+                  Behandler dette som databehandler under databehandleravtale.
                 </li>
                 <li>
                   <span className="font-medium">Offentlige myndigheter</span>{" "}
@@ -270,19 +276,31 @@ export default function PersonvernRenserPage() {
             </section>
 
             {/* 6. Cookies */}
-            <section className="mb-10">
+            <section id="informasjonskapsler" className="scroll-mt-24 mb-10">
               <h2 className="mb-4 font-serif text-2xl font-semibold text-dark-gray">
                 6. Informasjonskapsler
               </h2>
+              <p className="leading-relaxed text-dark-gray mb-4">
+                Vi bruker nødvendige informasjonskapsler for å holde deg
+                innlogget og opprettholde sesjonen din. Disse settes av
+                Supabase Auth og fornyes automatisk så lenge du er logget
+                inn. Vi bruker ikke informasjonskapsler til markedsføring.
+              </p>
+              <p className="leading-relaxed text-dark-gray mb-4">
+                Bruksstatistikken vår (PostHog, se punkt 4) virker i
+                utgangspunktet uten informasjonskapsler: ingenting lagres i
+                nettleseren din, og vi kan ikke kjenne deg igjen fra én dag
+                til den neste. Bare hvis du trykker «Godta» i samtykkeboksen,
+                bruker PostHog informasjonskapsler og lagring i nettleseren
+                til statistikk og opptak av besøket ditt. Det rettslige
+                grunnlaget er da samtykket ditt (ekomloven § 3-15 og GDPR
+                art. 6 nr. 1 bokstav a).
+              </p>
               <p className="leading-relaxed text-dark-gray">
-                Vi bruker kun nødvendige informasjonskapsler for å holde
-                deg innlogget og opprettholde sesjonen din. Disse settes
-                av Supabase Auth og fornyes automatisk så lenge du er
-                logget inn. Vi benytter ikke informasjonskapsler for
-                analyse eller markedsføring. Bruksstatistikken vår (PostHog,
-                se punkt 4) virker uten informasjonskapsler: ingenting lagres
-                i nettleseren din, og vi kan ikke kjenne deg igjen fra én dag
-                til den neste.
+                Svaret ditt huskes i nettleseren, slik at vi ikke spør på
+                nytt. Du kan når som helst ombestemme deg:{" "}
+                <ConsentSettingsButton />. Trekker du samtykket, slettes
+                informasjonskapslene til PostHog, og opptak stanses.
               </p>
             </section>
 

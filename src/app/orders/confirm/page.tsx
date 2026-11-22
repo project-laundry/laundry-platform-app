@@ -320,6 +320,7 @@ export default function ConfirmPage() {
               : '—'
           }
           note={address?.specialInstructions || undefined}
+          masked
         />
         <SummaryRow
           icon={<CalendarDays className="size-5" />}
@@ -497,11 +498,14 @@ function SummaryRow({
   title,
   value,
   note,
+  masked = false,
 }: {
   icon: React.ReactNode;
   title: string;
   value: string;
   note?: string;
+  /** Personal data (the address): hidden in session replay recordings. */
+  masked?: boolean;
 }) {
   return (
     <div className="flex items-start gap-3 rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-4 shadow-[var(--shadow-card)] backdrop-blur">
@@ -512,8 +516,14 @@ function SummaryRow({
         <p className="text-xs uppercase tracking-[0.12em] text-medium-gray">
           {title}
         </p>
-        <p className="mt-0.5 font-medium text-dark-gray">{value}</p>
-        {note && <p className="mt-0.5 text-sm text-medium-gray">{note}</p>}
+        <p className="mt-0.5 font-medium text-dark-gray" data-ph-mask={masked ? '' : undefined}>
+          {value}
+        </p>
+        {note && (
+          <p className="mt-0.5 text-sm text-medium-gray" data-ph-mask={masked ? '' : undefined}>
+            {note}
+          </p>
+        )}
       </div>
     </div>
   );
