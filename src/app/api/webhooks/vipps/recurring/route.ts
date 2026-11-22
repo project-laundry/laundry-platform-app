@@ -58,6 +58,7 @@ import { recordPromoRedemption } from '@/lib/database/promo-codes';
 import { addDays, toISODateString, getWeekdayFromDate, getNextOccurrenceOfWeekday } from '@/lib/utils/date';
 import { DAYS_PICKUP_TO_DELIVERY } from '@/lib/config/order-timing';
 import type { PaymentAgreement, SubscriptionOrderDefaults, OrderPromo } from '@/types/database';
+import { reportError } from '@/lib/services/error-alerts';
 
 
 // =============================================================================
@@ -184,8 +185,9 @@ export async function POST(request: NextRequest) {
     // 200 OK acknowledges the webhook; Vipps stops retrying this event.
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('[Vipps Recurring Webhook] Error processing webhook:', error);
-    console.error('[Vipps Recurring Webhook] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    // Logged and e-mailed to the admins: this is the path where an approved
+    // agreement may be left without an order until Vipps retries.
+    await reportError('Vipps-webhook feilet (Vipps prøver igjen)', error);
 
     // 500 makes Vipps retry (see RESPONSE CODES at the top of this file).
     // Handlers only throw on failures a retry can fix; permanent conditions
@@ -352,7 +354,7 @@ async function handleChargeCaptured(
   } catch (error) {
     // Don't fail the captured-payment handler if cleanup fails - the payment is already secured.
     // The agreement can be stopped manually if needed.
-    console.error('[Vipps Recurring Webhook] Failed to stop one-time agreement after capture:', error);
+    await reportError('Vipps-avtale ble ikke stoppet etter betaling', error, { agreement: agreementId });
   }
 
   // Orders are generated when agreement is activated.
@@ -470,6 +472,12 @@ async function handleChargeFailed(
   // redelivered webhook sends nothing. Retry policy = admin «Belast på nytt».
   await sendPaymentFailedEmail(payment.id);
 
+  await reportError(
+    'Vipps-belastning feilet',
+    new Error(failureReason || `Charge failed (code: ${failureCode})`),
+    { charge: chargeId, payment: payment.id, tiltak: '«Belast på nytt» på ordren i /admin' }
+  );
+
   // TODO: Handle retry logic or subscription pausing after multiple failures
 }
 
@@ -526,7 +534,11 @@ async function handleChargeCreationFailed(
   // on the payment id so a redelivered webhook sends nothing.
   await sendPaymentFailedEmail(payment.id);
 
-  // TODO: Send admin notification about charge creation failure
+  await reportError(
+    'Vipps kunne ikke opprette belastningen',
+    new Error(failureReason || `Charge creation failed (code: ${failureCode})`),
+    { charge: chargeId, payment: payment.id, tiltak: '«Belast på nytt» på ordren i /admin' }
+  );
 }
 
 // =============================================================================

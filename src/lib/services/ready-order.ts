@@ -4,6 +4,7 @@
 // fallback adminMarkReadyAction. NOT a server action: keeping it a plain module
 // means it can only run behind a role-guarded caller (same rule as complete-order.ts).
 
+import { reportError } from '@/lib/services/error-alerts';
 import { updateOrderStatusGuarded } from '@/lib/database/orders';
 import { createChargeForCompletedOrder } from '@/lib/payments/vipps/service';
 import { sendPriceReceiptEmail } from '@/lib/services/customer-emails';
@@ -61,7 +62,7 @@ export async function markOrderReadyAndCharge(order: ReadyOrderInput): Promise<R
         `NooraCare vask #${order.order_number}`
       );
     } catch (error) {
-      console.error('Failed to create Vipps charge:', error);
+      await reportError('Vipps-belastning kunne ikke opprettes', error, { ordre: order.order_number });
       return { success: true, chargeFailed: true };
     }
   } else {

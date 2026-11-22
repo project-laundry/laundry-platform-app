@@ -6,6 +6,7 @@
 import { updateOrderStatusGuarded } from '@/lib/database/orders';
 import { checkAndGenerateNextOrders } from '@/lib/services/order-generation';
 import { sendOrderDeliveredEmail } from '@/lib/services/customer-emails';
+import { reportError } from '@/lib/services/error-alerts';
 import {
   stopVippsAgreementForCancelledSubscription,
   stopVippsAgreementForOneTimeOrder,
@@ -48,9 +49,9 @@ export async function completeDeliveredOrder(
 
   // Rolling window: fire-and-forget, same as the previous completeOrderAction.
   if (updated.subscription_id) {
-    checkAndGenerateNextOrders(updated.subscription_id).catch((error) => {
-      console.error('[Order Completion] Failed to generate next order:', error);
-    });
+    checkAndGenerateNextOrders(updated.subscription_id).catch((error) =>
+      reportError('Neste ordre ble ikke generert etter levering', error, { subscription: updated.subscription_id })
+    );
 
     await stopVippsAgreementForCancelledSubscription(updated.subscription_id);
   } else {
