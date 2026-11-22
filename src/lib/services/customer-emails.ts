@@ -18,7 +18,6 @@ import {
 } from '@/lib/database/orders';
 import {
   buildCleanerConfirmedEmail,
-  buildEvaluationRequestEmail,
   buildOrderCancelledEmail,
   buildOrderConfirmationEmail,
   buildOrderDeliveredEmail,
@@ -163,7 +162,8 @@ export async function sendPaymentFailedEmail(paymentId: string): Promise<void> {
  * #27 — laundry delivered. Called by completeDeliveredOrder after the guarded
  * transition to `completed` (cleaner «Levert til kunden», admin «Marker som
  * levert», dormant driver delivery stop). One e-mail per order: an order is
- * completed once, and the key is the order id.
+ * completed once, and the key is the order id. Carries the evaluation link;
+ * the text depends on needsFullEvaluation (full or short form).
  */
 export async function sendOrderDeliveredEmail(orderId: string): Promise<void> {
   try {
@@ -180,42 +180,16 @@ export async function sendOrderDeliveredEmail(orderId: string): Promise<void> {
     // there) — the e-mail then simply carries no payment line.
     const payments = await getPaymentsByOrderId(order.id);
 
-    await deliver(
-      order,
-      buildOrderDeliveredEmail(order, payments, { appUrl: url }),
-      `order-delivered/${order.id}`
-    );
-  } catch (error) {
-    console.error(`[Customer e-mail] Delivered e-mail for ${orderId} failed:`, error);
-  }
-}
-
-/**
- * Evaluation form request. Called by completeDeliveredOrder right after the
- * delivered e-mail, for every completed order. The text says whether the full
- * or the short form waits (needsFullEvaluation). One e-mail per order (key =
- * order id).
- */
-export async function sendEvaluationRequestEmail(orderId: string): Promise<void> {
-  try {
-    const url = appUrl();
-    if (!url) return;
-
-    const order = await getOrderForCustomerEmail(orderId);
-    if (!order) {
-      console.error(`[Customer e-mail] Order ${orderId} not found — evaluation request skipped`);
-      return;
-    }
-
+    // Full or short evaluation text (false when the read fails — logged there).
     const full = await needsFullEvaluation(order.customer_id);
 
     await deliver(
       order,
-      buildEvaluationRequestEmail(order, full, { appUrl: url }),
-      `evaluation-request/${order.id}`
+      buildOrderDeliveredEmail(order, payments, full, { appUrl: url }),
+      `order-delivered/${order.id}`
     );
   } catch (error) {
-    console.error(`[Customer e-mail] Evaluation request for ${orderId} failed:`, error);
+    console.error(`[Customer e-mail] Delivered e-mail for ${orderId} failed:`, error);
   }
 }
 

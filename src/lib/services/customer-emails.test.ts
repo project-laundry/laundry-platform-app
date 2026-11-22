@@ -18,15 +18,14 @@ vi.mock('@/lib/email/customer-emails', () => ({
   buildOrderCancelledEmail: vi.fn(() => ({ subject: 'Kansellert', text: 'tekst', html: '<p>html</p>' })),
   buildPickupRescheduledEmail: vi.fn(() => ({ subject: 'Ny dato', text: 'tekst', html: '<p>html</p>' })),
   buildCleanerConfirmedEmail: vi.fn(() => ({ subject: 'Renser bekreftet', text: 'tekst', html: '<p>html</p>' })),
-  buildEvaluationRequestEmail: vi.fn(() => ({ subject: 'Evaluering', text: 'tekst', html: '<p>html</p>' })),
 }));
 
 import { getActiveOrdersBySubscriptionId, getOrderForCustomerEmail } from '@/lib/database/orders';
 import { needsFullEvaluation } from '@/lib/database/evaluations';
 import { getPaymentById, getPaymentsByOrderId } from '@/lib/database/payments';
 import { sendEmail } from '@/lib/email/send';
-import { buildEvaluationRequestEmail, buildCleanerConfirmedEmail, buildOrderCancelledEmail, buildPickupRescheduledEmail, buildOrderConfirmationEmail, buildOrderDeliveredEmail, buildOrderPickedUpEmail, buildPaymentFailedEmail, buildPickupReminderEmail, buildPriceReceiptEmail } from '@/lib/email/customer-emails';
-import { sendEvaluationRequestEmail, sendCleanerConfirmedEmail, sendOrderCancelledEmail, sendPickupRescheduledEmail, sendOrderConfirmationEmail, sendOrderDeliveredEmail, sendOrderPickedUpEmail, sendPaymentFailedEmail, sendPickupReminderEmail, sendPriceReceiptEmail } from './customer-emails';
+import { buildCleanerConfirmedEmail, buildOrderCancelledEmail, buildPickupRescheduledEmail, buildOrderConfirmationEmail, buildOrderDeliveredEmail, buildOrderPickedUpEmail, buildPaymentFailedEmail, buildPickupReminderEmail, buildPriceReceiptEmail } from '@/lib/email/customer-emails';
+import { sendCleanerConfirmedEmail, sendOrderCancelledEmail, sendPickupRescheduledEmail, sendOrderConfirmationEmail, sendOrderDeliveredEmail, sendOrderPickedUpEmail, sendPaymentFailedEmail, sendPickupReminderEmail, sendPriceReceiptEmail } from './customer-emails';
 import type { OrderForCustomerEmail } from '@/lib/database/orders';
 
 const m = (fn: unknown) => fn as Mock;
@@ -41,6 +40,7 @@ beforeEach(() => {
   vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://nooracare.no');
   m(getOrderForCustomerEmail).mockResolvedValue(ORDER);
   m(sendEmail).mockResolvedValue({ ok: true });
+  m(needsFullEvaluation).mockResolvedValue(false);
 });
 
 afterEach(() => {
@@ -179,7 +179,8 @@ describe('sendOrderDeliveredEmail', () => {
 
     expect(getOrderForCustomerEmail).toHaveBeenCalledWith('ord-1');
     expect(getPaymentsByOrderId).toHaveBeenCalledWith('ord-1');
-    expect(buildOrderDeliveredEmail).toHaveBeenCalledWith(ORDER, PAYMENTS, { appUrl: 'https://nooracare.no' });
+    expect(buildOrderDeliveredEmail).toHaveBeenCalledWith(ORDER, PAYMENTS, false, { appUrl: 'https://nooracare.no' });
+    expect(needsFullEvaluation).toHaveBeenCalledWith('cust-1');
     expect(sendEmail).toHaveBeenCalledWith({
       from: 'NooraCare <no-reply@nooracare.no>',
       to: ['kari@example.com'],
@@ -189,6 +190,14 @@ describe('sendOrderDeliveredEmail', () => {
       html: '<p>html</p>',
       idempotencyKey: 'order-delivered/ord-1',
     });
+  });
+
+  it('passes true when the customer still gets the first-time questions', async () => {
+    m(needsFullEvaluation).mockResolvedValue(true);
+
+    await sendOrderDeliveredEmail('ord-1');
+
+    expect(buildOrderDeliveredEmail).toHaveBeenCalledWith(ORDER, PAYMENTS, true, { appUrl: 'https://nooracare.no' });
   });
 
   it('sends nothing when the order is not found', async () => {
@@ -220,51 +229,6 @@ describe('sendOrderDeliveredEmail', () => {
     m(sendEmail).mockResolvedValue({ ok: false, error: 'Resend responded 500' });
 
     await expect(sendOrderDeliveredEmail('ord-1')).resolves.toBeUndefined();
-  });
-});
-
-describe('sendEvaluationRequestEmail', () => {
-  beforeEach(() => {
-    m(needsFullEvaluation).mockResolvedValue(true);
-  });
-
-  it('sends the full form request, keyed on the order id', async () => {
-    await sendEvaluationRequestEmail('ord-1');
-
-    expect(needsFullEvaluation).toHaveBeenCalledWith('cust-1');
-    expect(buildEvaluationRequestEmail).toHaveBeenCalledWith(ORDER, true, { appUrl: 'https://nooracare.no' });
-    expect(sendEmail).toHaveBeenCalledWith(
-      expect.objectContaining({
-        to: ['kari@example.com'],
-        subject: 'Evaluering',
-        idempotencyKey: 'evaluation-request/ord-1',
-      })
-    );
-  });
-
-  it('sends the short form request when the first-time questions are answered', async () => {
-    m(needsFullEvaluation).mockResolvedValue(false);
-
-    await sendEvaluationRequestEmail('ord-1');
-
-    expect(buildEvaluationRequestEmail).toHaveBeenCalledWith(ORDER, false, { appUrl: 'https://nooracare.no' });
-    expect(sendEmail).toHaveBeenCalledTimes(1);
-  });
-
-  it('sends nothing and does not look up the form when the order is not found', async () => {
-    m(getOrderForCustomerEmail).mockResolvedValue(null);
-
-    await sendEvaluationRequestEmail('ord-x');
-
-    expect(needsFullEvaluation).not.toHaveBeenCalled();
-    expect(sendEmail).not.toHaveBeenCalled();
-  });
-
-  it('never throws when needsFullEvaluation rejects', async () => {
-    m(needsFullEvaluation).mockRejectedValue(new Error('db down'));
-
-    await expect(sendEvaluationRequestEmail('ord-1')).resolves.toBeUndefined();
-    expect(sendEmail).not.toHaveBeenCalled();
   });
 });
 

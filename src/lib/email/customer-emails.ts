@@ -460,11 +460,15 @@ function deliveredPaymentLine(
  * link to the order. `payments` = every payments row of the order. The
  * subscription paragraph is dormant while subscriptions are hidden (a one-time
  * order has no subscription) and never states a date — the next order is
- * generated in the background while this e-mail is built.
+ * generated in the background while this e-mail is built. It also asks for
+ * the evaluation (a section with a button to /evaluering/<order id>, no
+ * login); `fullEvaluation` = the customer still gets the first-time questions
+ * (text says about 2 minutes), otherwise the short form (under one minute).
  */
 export function buildOrderDeliveredEmail(
   order: OrderForCustomerEmail,
   payments: Pick<Payment, 'status' | 'amount_ore' | 'provider_reference'>[],
+  fullEvaluation: boolean,
   options: CustomerEmailOptions
 ): CustomerEmail {
   const blocks: Block[] = [
@@ -493,6 +497,16 @@ export function buildOrderDeliveredEmail(
       )
     );
   }
+
+  blocks.push(
+    heading('Hvordan var vasken?'),
+    paragraph(
+      fullEvaluation
+        ? 'Vi vil gjerne høre hvordan det gikk. Svarene dine hjelper oss å sette riktig pris og gjøre tjenesten bedre, og det tar ca. 2 minutter.'
+        : 'Vi vil gjerne høre hvordan det gikk. Svarene dine hjelper oss å gjøre tjenesten bedre, og det tar under ett minutt.'
+    ),
+    button('Svar på spørsmålene', `${baseUrl(options)}${evaluationPath(order.id)}`)
+  );
 
   blocks.push(button('Se bestillingen', orderUrl(order, options)), closing());
 
@@ -815,34 +829,4 @@ export function buildCleanerConfirmedEmail(
     blocks,
     options
   );
-}
-
-// ─── Evaluation request ─────────────────────────────────────────────────────
-
-/**
- * Sent right after the delivered e-mail for every delivered order
- * (sendEvaluationRequestEmail). `full` = the customer still gets the
- * first-time questions (about 2 minutes), otherwise the short form. One button to the form at
- * /evaluering/<order id>, which needs no login.
- */
-export function buildEvaluationRequestEmail(
-  order: OrderForCustomerEmail,
-  full: boolean,
-  options: CustomerEmailOptions
-): CustomerEmail {
-  const blocks: Block[] = [
-    greeting(order),
-    paragraph(
-      `Takk for at du bruker NooraCare. Vi vil gjerne høre hvordan det gikk med bestilling #${order.order_number}.`
-    ),
-    paragraph(
-      full
-        ? 'Svarene dine hjelper oss å sette riktig pris og gjøre tjenesten bedre. Det tar ca. 2 minutter.'
-        : 'Svarene dine hjelper oss å gjøre tjenesten bedre. Det tar under ett minutt.'
-    ),
-    button('Svar på spørsmålene', `${baseUrl(options)}${evaluationPath(order.id)}`),
-    closing(),
-  ];
-
-  return finish('Hvordan var vasken?', 'Hvordan var vasken?', blocks, options);
 }
