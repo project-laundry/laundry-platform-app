@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ArrowDown, ArrowRight } from 'lucide-react';
 import { Wordmark } from '@/components/layout/AppHeader';
 import { Footer } from '@/components/landing/Footer';
+import { AccountLink } from '@/components/landing/AccountLink';
 
 /** Anchor the "how it works" section gets; the hero and the nav point at it. */
 export const HOW_IT_WORKS_ID = 'slik-virker-det';
@@ -12,17 +13,14 @@ export const HOW_IT_WORKS_ID = 'slik-virker-det';
 const heroContainer = 'mx-auto w-full max-w-[96rem] px-5 sm:px-8 lg:px-12 xl:px-16';
 
 /** Page shell of the customer landing page: Snø backdrop for the sections, a transparent bar over
- *  the light hero, footer. `links` are quiet text links left of the pill
+ *  the light hero, footer. `links` are quiet text links left of the account pill (`AccountLink`:
+ *  «Logg inn», or «Min side» for a signed-in visitor)
  *  (hidden on phones, where the page itself carries them). */
 export function ComingSoonShell({
   links = [],
-  switchHref,
-  switchLabel,
   children,
 }: {
   links?: { href: string; label: string }[];
-  switchHref: string;
-  switchLabel: string;
   children: React.ReactNode;
 }) {
   return (
@@ -51,13 +49,10 @@ export function ComingSoonShell({
                 {link.label}
               </Link>
             ))}
-            <Link
-              href={switchHref}
-              data-ph-capture-attribute-cta="audience-switch"
+            <AccountLink
+              loginCta="audience-switch"
               className="rounded-full border border-fjord/10 bg-white/70 px-4 py-1.5 text-sm font-medium text-fjord shadow-soft backdrop-blur transition-colors hover:border-sea-green hover:text-sea-green"
-            >
-              {switchLabel}
-            </Link>
+            />
           </nav>
         </div>
       </header>
