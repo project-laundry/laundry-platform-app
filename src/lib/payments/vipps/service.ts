@@ -148,16 +148,32 @@ export async function cancelVippsAgreement(
  * Flow:
  * 1. Get order with subscription
  * 2. Verify Vipps agreement exists
- * 3. Create payment record in database
- * 4. Create Vipps charge with calculated amount
- *    (on failure: payment marked 'failed' with the error, then rethrown)
- * 5. Webhook will handle payment confirmation
+ * 3. Count the order's Vipps-confirmed charges (for the idempotency key)
+ * 4. Create payment record in database
+ * 5. Create Vipps charge with calculated amount and a retry-safe idempotency
+ *    key (on failure: payment marked 'failed' with the error, then rethrown)
+ * 6. Webhook will handle payment confirmation
  *
  * @param orderId - Order ID to create charge for
  * @param amountOre - Calculated amount in øre
  * @param description - Charge description
  * @returns Payment ID for the new charge
  */
+/**
+ * Idempotency key for "the next Vipps charge on this order" (issue #115).
+ *
+ * `confirmedCharges` is how many charges Vipps has already confirmed for the
+ * order (payment rows with a provider_reference). A creation attempt that
+ * timed out or errored leaves no reference, so the admin's «Belast på nytt»
+ * sends the SAME key and Vipps answers with the original charge if it did
+ * create one — never a second charge. Once a charge is confirmed (and later
+ * failed, so a retry is legitimate) the count moves on and the key changes.
+ * 34+ characters, inside Vipps' limit of 40.
+ */
+export function chargeIdempotencyKey(orderId: string, confirmedCharges: number): string {
+  return `c${orderId.replace(/-/g, '')}-${confirmedCharges}`;
+}
+
 export async function createChargeForCompletedOrder(
   orderId: string,
   amountOre: number,
@@ -200,7 +216,18 @@ export async function createChargeForCompletedOrder(
     throw new Error('No Vipps agreement found for order');
   }
 
-  // 3. Create payment record
+  // 3. Count the charges Vipps has confirmed for this order — the retry-safe
+  //    idempotency key depends on it, so a failed lookup must stop the charge.
+  const { count: confirmedCharges, error: countError } = await adminClient
+    .from('payments')
+    .select('id', { count: 'exact', head: true })
+    .eq('order_id', orderId)
+    .not('provider_reference', 'is', null);
+  if (countError || confirmedCharges === null) {
+    throw new Error(`Could not read earlier charges for order ${orderId}`);
+  }
+
+  // 4. Create payment record
   const payment = await createPayment({
     customer_id: customerId,
     order_id: orderId,
@@ -213,7 +240,7 @@ export async function createChargeForCompletedOrder(
     throw new Error('Failed to create payment record');
   }
 
-  // 4. Create Vipps charge (due in 1 day minimum per Vipps requirement)
+  // 5. Create Vipps charge (due in 1 day minimum per Vipps requirement)
   const dueDate = new Date();
   dueDate.setDate(dueDate.getDate() + 1);
   const dueDateString = dueDate.toISOString().split('T')[0]; // YYYY-MM-DD
@@ -221,13 +248,17 @@ export async function createChargeForCompletedOrder(
   const vipps = createVippsRecurringClient();
   let result: { chargeId: string };
   try {
-    result = await vipps.createCharge(providerAgreementId, {
-      amount: amountOre,
-      description,
-      due: dueDateString,
-      retryDays: 3,
-      transactionType: 'DIRECT_CAPTURE',
-    });
+    result = await vipps.createCharge(
+      providerAgreementId,
+      {
+        amount: amountOre,
+        description,
+        due: dueDateString,
+        retryDays: 3,
+        transactionType: 'DIRECT_CAPTURE',
+      },
+      chargeIdempotencyKey(orderId, confirmedCharges)
+    );
   } catch (error) {
     // The payment row already exists (step 3). Leaving it `pending` with no
     // provider_reference would hide the failure from admins and block the
@@ -240,7 +271,7 @@ export async function createChargeForCompletedOrder(
     throw error;
   }
 
-  // 5. Update payment with charge ID
+  // 6. Update payment with charge ID
   await updatePayment(payment.id, {
     provider_reference: result.chargeId,
     provider_metadata: {

@@ -539,6 +539,20 @@
 
 ---
 
+### RateLimitHit
+
+**Description:** Fixed-window counters behind `isRateLimited` (`lib/utils/rate-limit.ts`). Not linked to any entity; rows older than a day are deleted by `rate_limit_hit` on every call.
+
+**Fields:**
+
+- `key` (text, PK part) - `<action>:<sha256 prefix of the IP address or user id>` — never a raw IP
+- `window_start` (timestamp, PK part) - Start of the fixed window
+- `hits` (integer) - Calls counted in that window
+
+**Notes:**
+
+- Written only through the `rate_limit_hit(p_key, p_window_seconds)` function with the service role; RLS is enabled with no policies and anon/authenticated hold no grants.
+
 ### WaitlistSignup
 
 **Description:** Pre-launch waitlist that the coming-soon pages collected (`/` for customers, `/bli-renser` for cleaners) until launch; nothing writes to it any more. Standalone — not linked to users. Delete the table's rows no later than six months after launch (promised in `/personvern#venteliste`).

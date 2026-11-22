@@ -247,13 +247,21 @@ export class VippsRecurringClient {
    * Default: DIRECT_CAPTURE (immediate payment)
    * Optional: RESERVE_CAPTURE (two-step: reserve then capture)
    */
-  async createCharge(agreementId: string, params: VippsCreateChargeParams): Promise<{
+  async createCharge(
+    agreementId: string,
+    params: VippsCreateChargeParams,
+    /**
+     * Vipps answers a repeated request with the same key with the ORIGINAL
+     * response instead of creating a second charge. Pass a key that is stable
+     * for "this charge" (see chargeIdempotencyKey in service.ts); max 40
+     * characters, none of # ? / \. Without one a random key is used, which
+     * protects nothing.
+     */
+    idempotencyKey: string = `${agreementId}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`.slice(0, 40)
+  ): Promise<{
     chargeId: string;
   }> {
     const headers = await this.baseClient.getCommonHeaders();
-
-    // Generate idempotency key to prevent duplicate charges
-    const idempotencyKey = `${agreementId}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 
     const body = {
       amount: params.amount,

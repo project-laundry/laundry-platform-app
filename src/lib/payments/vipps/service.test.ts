@@ -35,6 +35,7 @@ import {
 } from '@/lib/database/payments';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
+  chargeIdempotencyKey,
   createChargeForCompletedOrder,
   stopVippsAgreementForCancelledSubscription,
   stopVippsAgreementForOneTimeOrder,
@@ -145,8 +146,8 @@ describe('stopVippsAgreementForCancelledSubscription', () => {
 });
 
 describe('createChargeForCompletedOrder', () => {
-  /** The order lookup is the only query this function runs through the admin client. */
-  function mockOrderLookup() {
+  /** Two queries go through the admin client: the order lookup and the count of confirmed charges. */
+  function mockAdminClient(confirmedCharges: { count: number | null; error: unknown } = { count: 0, error: null }) {
     const single = vi.fn().mockResolvedValue({
       data: {
         id: 'ord-1',
@@ -156,14 +157,58 @@ describe('createChargeForCompletedOrder', () => {
       },
       error: null,
     });
-    const eq = vi.fn(() => ({ single }));
-    const select = vi.fn(() => ({ eq }));
-    m(createAdminClient).mockReturnValue({ from: vi.fn(() => ({ select })) });
+    const orders = { select: vi.fn(() => ({ eq: vi.fn(() => ({ single })) })) };
+    const payments = {
+      select: vi.fn(() => ({ eq: vi.fn(() => ({ not: vi.fn().mockResolvedValue(confirmedCharges) })) })),
+    };
+    m(createAdminClient).mockReturnValue({
+      from: vi.fn((table: string) => (table === 'payments' ? payments : orders)),
+    });
   }
 
+  const ORDER_ID = '6d584364-62f3-4005-8133-e53057f92ae4';
+
   beforeEach(() => {
-    mockOrderLookup();
+    mockAdminClient();
     m(createPayment).mockResolvedValue({ id: 'pay-1' });
+  });
+
+  it('builds a Vipps-safe idempotency key that only changes when a charge has been confirmed', () => {
+    const key = chargeIdempotencyKey(ORDER_ID, 0);
+    expect(key).toBe('c6d58436462f340058133e53057f92ae4-0');
+    expect(key.length).toBeLessThanOrEqual(40);
+    expect(key).not.toMatch(/[#?/\\]/);
+    expect(chargeIdempotencyKey(ORDER_ID, 0)).toBe(key);
+    expect(chargeIdempotencyKey(ORDER_ID, 1)).not.toBe(key);
+    expect(chargeIdempotencyKey(ORDER_ID, 99999).length).toBeLessThanOrEqual(40);
+  });
+
+  it('sends the same key again after an attempt Vipps never confirmed, and a new one after a confirmed charge', async () => {
+    createCharge.mockResolvedValue({ chargeId: 'chr-1' });
+
+    // First attempt and the retry after a timeout: no confirmed charge yet.
+    await createChargeForCompletedOrder(ORDER_ID, 50000, 'NooraCare vask #1');
+    await createChargeForCompletedOrder(ORDER_ID, 50000, 'NooraCare vask #1');
+    // A charge was confirmed (and failed later): the retry must be a new charge.
+    mockAdminClient({ count: 1, error: null });
+    await createChargeForCompletedOrder(ORDER_ID, 50000, 'NooraCare vask #1');
+
+    const keys = createCharge.mock.calls.map((call) => call[2]);
+    expect(keys).toEqual([
+      chargeIdempotencyKey(ORDER_ID, 0),
+      chargeIdempotencyKey(ORDER_ID, 0),
+      chargeIdempotencyKey(ORDER_ID, 1),
+    ]);
+  });
+
+  it('creates no payment and no charge when the earlier charges cannot be read', async () => {
+    mockAdminClient({ count: null, error: { message: 'db down' } });
+
+    await expect(createChargeForCompletedOrder(ORDER_ID, 50000, 'NooraCare vask #1')).rejects.toThrow(
+      'Could not read earlier charges'
+    );
+    expect(createPayment).not.toHaveBeenCalled();
+    expect(createCharge).not.toHaveBeenCalled();
   });
 
   it('stores the Vipps charge id on the payment when the charge is created', async () => {
@@ -172,7 +217,11 @@ describe('createChargeForCompletedOrder', () => {
     const paymentId = await createChargeForCompletedOrder('ord-1', 50000, 'NooraCare vask #1');
 
     expect(paymentId).toBe('pay-1');
-    expect(createCharge).toHaveBeenCalledWith('agr-1', expect.objectContaining({ amount: 50000, transactionType: 'DIRECT_CAPTURE' }));
+    expect(createCharge).toHaveBeenCalledWith(
+      'agr-1',
+      expect.objectContaining({ amount: 50000, transactionType: 'DIRECT_CAPTURE' }),
+      chargeIdempotencyKey('ord-1', 0)
+    );
     expect(updatePayment).toHaveBeenCalledWith('pay-1', expect.objectContaining({ provider_reference: 'chr-1' }));
     expect(failPaymentWithMetadata).not.toHaveBeenCalled();
   });
