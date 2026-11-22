@@ -167,6 +167,7 @@ src/
 │   ├── services/
 │   │   ├── admin-digest.ts      # buildAdminDigest(attention, { appUrl, now }) → { subject, text } (pure, plain text)
 │   │   ├── customer-emails.ts   # sendOrderConfirmationEmail / sendPriceReceiptEmail / sendPaymentFailedEmail / sendOrderDeliveredEmail / sendOrderPickedUpEmail / sendOrderCancelledEmail / sendPickupRescheduledEmail / sendCleanerConfirmedEmail — load (getOrderForCustomerEmail, getPaymentById, getPaymentsByOrderId), build, send; NEVER throw, return void (callers: Vipps webhook, ready-order, retryChargeAction, complete-order, markOrderPickedUpAction, adminMarkPickedUpAction, cancelOrderAction, updateOrderPickupDateAction, cancelOrderAdminAction, updateOrderDetailsAction, assignCleanerAction); sendPickupReminderEmail(order) → boolean for the pickup-reminders cron (#24)
+│   │   ├── error-alerts.ts      # reportError(source, error, details?) — logs and e-mails an unexpected error to every admin, at most once per hour per error; NEVER throws. See Error Alerts
 │   │   ├── order-generation.ts  # Subscription to orders logic
 │   │   ├── staff-emails.ts      # sendCleanerNewOrderEmail(orderId) / sendAdminNewOrderEmail(orderId) / sendAdminOrderUnassignedEmail(orderId, declinedByName) — load (getOrderForStaffEmail, getUsersByRole), build, send; NEVER throw, return void (callers: Vipps webhook, assignCleanerAction, declineCleanerOrder). See Staff E-mails
 │   │   └── staff-accounts.ts    # Staff (driver/admin) account creation: auth user + role flip + cleanup
@@ -182,6 +183,7 @@ src/
 ├── types/
 │   ├── database.ts         # Complete entity types and enums
 │   └── index.ts            # General type exports
+├── instrumentation.ts      # onRequestError → reportError: every unhandled server error is e-mailed to the admins (production builds only)
 └── proxy.ts                # Supabase session refresh + order-flow login requirement
 ```
 
@@ -243,9 +245,18 @@ Cleaner onboarding step 3 can pre-fill the washing machine fields from a photo. 
 
 ## Admin Digest
 
-Every day at 06:00 UTC a Vercel cron (`vercel.json` → `crons`, Production only) calls `GET /api/cron/admin-digest` with `Authorization: Bearer $CRON_SECRET`. The route e-mails the same lists `/admin` shows (`lib/database/admin-attention.ts` → `lib/services/admin-digest.ts`) as plain text to every `users` row with `role = 'admin'` and `deleted_at IS NULL`, through the shared `sendEmail` transport (`lib/email/send.ts` — Resend REST API with `fetch`, no SDK). It is sent even when there is nothing to do, so a missing e-mail means the cron or sender is broken. Instant alerts (#40, #42) are not built; the webhook's `TODO: Send admin notification` comments stand. The two order alerts to admins («Ny ordre», «Ordre venter på tildeling») are separate — see Staff E-mails.
+Every day at 06:00 UTC a Vercel cron (`vercel.json` → `crons`, Production only) calls `GET /api/cron/admin-digest` with `Authorization: Bearer $CRON_SECRET`. The route e-mails the same lists `/admin` shows (`lib/database/admin-attention.ts` → `lib/services/admin-digest.ts`) as plain text to every `users` row with `role = 'admin'` and `deleted_at IS NULL`, through the shared `sendEmail` transport (`lib/email/send.ts` — Resend REST API with `fetch`, no SDK). It is sent even when there is nothing to do, so a missing e-mail means the cron or sender is broken. Instant alerts for failures are separate — see Error Alerts. The two order alerts to admins («Ny ordre», «Ordre venter på tildeling») are separate — see Staff E-mails.
 
 - **Env**: `CRON_SECRET`, `RESEND_API_KEY`, optional `ADMIN_DIGEST_FROM` (see `ENVIRONMENTS.md`). The `nooracare.no` sending domain is verified in Resend (shared with the Auth e-mails).
+
+## Error Alerts
+
+The app's error tracker (#119) — no third-party service. `reportError(source, error, details?)` in `lib/services/error-alerts.ts` logs the error and e-mails it as plain text to every admin (`users.role = 'admin'`, `deleted_at IS NULL`, sender `ADMIN_DIGEST_FROM`) through the shared `sendEmail` transport. It **never throws, returns void and must be awaited**. The same source + message is mailed at most once per hour (Resend `Idempotency-Key` `error-alert/<hash>/<YYYY-MM-DDTHH>`). The mail carries the error text, a trimmed stack and the ids the caller passes — never a request body or customer data.
+
+- **Unhandled errors:** `src/instrumentation.ts` → `onRequestError` reports every error Next.js catches in a page render, route handler or server action (path without query string). Production builds only (staging and production; never `next dev`); `notFound()`/`redirect()` digests are skipped.
+- **Swallowed failures that are reported explicitly:** the Vipps webhook's 500 path (e.g. first-order generation failed after activation), `charge-failed` and `charge-creation-failed` webhooks, a failed charge creation in `markOrderReadyAndCharge`, every failed Vipps agreement stop (`stopVippsAgreementForOneTimeOrder`, `stopVippsAgreementForCancelledSubscription`, the stop after capture), and a failed rolling-window order generation in `completeDeliveredOrder`.
+- When adding a `catch` that keeps the customer or Vipps unaffected by swallowing an error, call `await reportError(...)` there instead of only `console.error`.
+- **Env:** `RESEND_API_KEY`, optional `ADMIN_DIGEST_FROM` — nothing new.
 
 ## Customer E-mails
 

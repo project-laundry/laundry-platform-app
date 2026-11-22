@@ -9,6 +9,7 @@ import {
 } from "@/lib/database/payments";
 import { hasLivePayment, isOrphanPendingPayment } from "@/lib/utils/payment-status";
 import type { Payment } from "@/types/database";
+import { reportError } from "@/lib/services/error-alerts";
 
 // =============================================================================
 // TYPES
@@ -304,7 +305,7 @@ export async function stopVippsAgreementForCancelledSubscription(
     await stopPaymentAgreement(agreement.id);
   } catch (error) {
     // Both call sites are post-payment cleanup — never let this break them.
-    console.error('[stopVippsAgreementForCancelledSubscription] Failed:', error);
+    await reportError('Vipps-avtale ble ikke stoppet (oppsagt abonnement)', error, { subscription: subscriptionId });
   }
 }
 
@@ -388,9 +389,13 @@ export async function stopVippsAgreementForOneTimeOrder(orderId: string): Promis
     await vipps.stopAgreement(agreement.provider_agreement_id);
     const stopped = await stopPaymentAgreement(agreement.id);
     if (!stopped) {
-      console.error(`[stopVippsAgreementForOneTimeOrder] Agreement ${agreement.id} is stopped at Vipps but the database row could not be updated`);
+      await reportError(
+        'Vipps-avtale stoppet hos Vipps, men ikke i databasen',
+        new Error(`payment_agreements ${agreement.id} could not be marked stopped`),
+        { ordre: orderId }
+      );
     }
   } catch (error) {
-    console.error('[stopVippsAgreementForOneTimeOrder] Failed:', error);
+    await reportError('Vipps-avtale ble ikke stoppet (enkeltbestilling)', error, { ordre: orderId });
   }
 }
