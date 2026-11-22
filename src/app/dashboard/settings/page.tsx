@@ -1,5 +1,6 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { KeyRound, MapPin, UserRound } from 'lucide-react';
+import { KeyRound, Mail, MapPin, UserRound } from 'lucide-react';
 import { AppHeader, BackLink } from '@/components/layout/AppHeader';
 import { LogoutButton } from '@/components/ui/LogoutButton';
 import { requireRole } from '@/lib/auth/require-role';
@@ -83,6 +84,16 @@ export default async function CustomerSettingsPage() {
 
         <SettingsSection icon={<KeyRound className="size-5" />} title="Passord">
           <PasswordForm />
+        </SettingsSection>
+
+        <SettingsSection icon={<Mail className="size-5" />} title="E-poster">
+          <p className="text-sm text-medium-gray">Velg hvilke e-poster du vil ha fra oss.</p>
+          <Link
+            href="/dashboard/settings/emails"
+            className="mt-3 inline-flex font-medium text-sea-green underline-offset-2 hover:underline"
+          >
+            Endre e-postvalg
+          </Link>
         </SettingsSection>
 
         {/* While subscriptions aren't offered, only a customer who already has

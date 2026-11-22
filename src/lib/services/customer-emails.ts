@@ -11,6 +11,7 @@
 // runs behind the role-guarded callers.
 
 import { COMPANY } from '@/lib/config/company';
+import { wantsEmail, type CustomerEmailKind } from '@/lib/config/email-preferences';
 import {
   getActiveOrdersBySubscriptionId,
   getOrderForCustomerEmail,
@@ -62,6 +63,13 @@ async function deliver(
   } else {
     console.error(`[Customer e-mail] Not sent ${idempotencyKey} to ${to}: ${result.error}`);
   }
+}
+
+/** True (and logged) when the customer turned this kind off on /dashboard/settings/emails. */
+function turnedOff(order: OrderForCustomerEmail, kind: CustomerEmailKind): boolean {
+  if (wantsEmail(order.customer.email_preferences, kind)) return false;
+  console.log(`[Customer e-mail] ${kind} is turned off by the customer — not sent for order ${order.id}`);
+  return true;
 }
 
 /**
@@ -175,17 +183,19 @@ export async function sendOrderDeliveredEmail(orderId: string): Promise<void> {
       console.error(`[Customer e-mail] Order ${orderId} not found — delivered e-mail skipped`);
       return;
     }
+    if (turnedOff(order, 'delivered')) return;
 
     // [] when the order was never charged (0 total) or the read failed (logged
     // there) — the e-mail then simply carries no payment line.
     const payments = await getPaymentsByOrderId(order.id);
 
-    // Full or short evaluation text (false when the read fails — logged there).
-    const full = await needsFullEvaluation(order.customer_id);
+    // null = the customer turned the evaluation question off; otherwise the
+    // full or the short text (false when the read fails — logged there).
+    const evaluation = turnedOff(order, 'evaluation') ? null : await needsFullEvaluation(order.customer_id);
 
     await deliver(
       order,
-      buildOrderDeliveredEmail(order, payments, full, { appUrl: url }),
+      buildOrderDeliveredEmail(order, payments, evaluation, { appUrl: url }),
       `order-delivered/${order.id}`
     );
   } catch (error) {
@@ -213,6 +223,7 @@ export async function sendOrderPickedUpEmail(
       console.error(`[Customer e-mail] Order ${orderId} not found — picked-up e-mail skipped`);
       return;
     }
+    if (turnedOff(order, 'picked_up')) return;
 
     await deliver(
       order,
@@ -232,7 +243,8 @@ export async function sendOrderPickedUpEmail(
  * Never throws. Unlike the event-triggered senders above it returns a
  * boolean, because the cron reports how many reminders went out: true =
  * Resend accepted the e-mail (or replayed an identical one sent earlier
- * the same evening), false = not sent (logged).
+ * the same evening) or the customer turned the reminder off (nothing
+ * failed), false = not sent (logged).
  *
  * The key contains the pickup date, so a re-run the same evening cannot
  * send twice (Resend keeps keys for 24 h and the cron runs once a day),
@@ -241,6 +253,8 @@ export async function sendOrderPickedUpEmail(
 export async function sendPickupReminderEmail(order: OrderForCustomerEmail): Promise<boolean> {
   const idempotencyKey = `pickup-reminder/${order.id}/${order.scheduled_date}`;
   try {
+    if (turnedOff(order, 'pickup_reminder')) return true;
+
     const url = appUrl();
     if (!url) return false;
 
@@ -380,6 +394,7 @@ export async function sendCleanerConfirmedEmail(
       console.error(`[Customer e-mail] Order ${orderId} not found — cleaner confirmation skipped`);
       return;
     }
+    if (turnedOff(order, 'cleaner_confirmed')) return;
 
     if (order.status !== 'pickup_scheduled') {
       // Cancelled, declined again or already picked up since the assignment.

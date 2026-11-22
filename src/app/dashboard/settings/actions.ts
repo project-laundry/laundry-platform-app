@@ -3,7 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { assertRole } from '@/lib/auth/require-role';
 import { updateUserContact } from '@/lib/database/users';
-import { getCustomerByUserId } from '@/lib/database/customers';
+import { cleanEmailPreferences } from '@/lib/config/email-preferences';
+import { getCustomerByUserId, updateCustomerEmailPreferences } from '@/lib/database/customers';
 import {
   getActiveSubscriptionByCustomerId,
   updateSubscription,
@@ -201,6 +202,37 @@ export async function updateSubscriptionAddressAction(
     return { success: true };
   } catch (error) {
     console.error('Unexpected error in updateSubscriptionAddressAction:', error);
+    return { success: false, error: 'En uventet feil oppstod. Vennligst prøv igjen.' };
+  }
+}
+
+/** Save which optional e-mails the signed-in customer wants (customers.email_preferences). */
+export async function updateEmailPreferencesAction(input: unknown): Promise<SettingsActionResult> {
+  try {
+    const { auth, error: authError } = await assertRole(['customer']);
+    if (authError || !auth) {
+      return { success: false, error: authError ?? 'Ikke autentisert' };
+    }
+
+    const customer = await getCustomerByUserId(auth.authUserId);
+    if (!customer) {
+      return { success: false, error: 'Fant ikke kundeprofilen din' };
+    }
+
+    const preferences = cleanEmailPreferences(input);
+    if (!preferences) {
+      return { success: false, error: 'Ugyldige valg. Last siden på nytt og prøv igjen.' };
+    }
+
+    const { error } = await updateCustomerEmailPreferences(customer.id, preferences);
+    if (error) {
+      return { success: false, error };
+    }
+
+    revalidatePath('/dashboard/settings/emails');
+    return { success: true };
+  } catch (error) {
+    console.error('Unexpected error in updateEmailPreferencesAction:', error);
     return { success: false, error: 'En uventet feil oppstod. Vennligst prøv igjen.' };
   }
 }

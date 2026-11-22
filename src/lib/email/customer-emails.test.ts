@@ -53,7 +53,7 @@ const ORDER: OrderForCustomerEmail = {
   mission_accepted_at: null,
   created_at: '2026-10-20T10:00:00.000Z',
   updated_at: '2026-10-20T10:00:00.000Z',
-  customer: { user: { email: 'kari@example.com', full_name: 'Kari Nordmann' } },
+  customer: { email_preferences: {}, user: { email: 'kari@example.com', full_name: 'Kari Nordmann' } },
   subscription: null,
   cleaner: null,
 };
@@ -176,7 +176,7 @@ describe('buildOrderConfirmationEmail', () => {
 
   it('escapes customer-controlled text in the HTML', () => {
     const { html, text } = buildOrderConfirmationEmail(
-      { ...ORDER, street: 'Storgata <1> & "A"', customer: { user: { email: 'x@example.com', full_name: '' } } },
+      { ...ORDER, street: 'Storgata <1> & "A"', customer: { email_preferences: {}, user: { email: 'x@example.com', full_name: '' } } },
       OPTIONS
     );
 
@@ -299,7 +299,24 @@ const DELIVERED_ORDER: OrderForCustomerEmail = {
   completed_at: '2026-10-27T15:00:00.000Z',
 };
 
+describe('customer e-mail footer', () => {
+  it('links to the e-mail settings in text and html', () => {
+    const { text, html } = buildOrderConfirmationEmail(ORDER, OPTIONS);
+
+    expect(text).toContain('Endre hvilke e-poster du får: https://nooracare.no/dashboard/settings/emails');
+    expect(html).toContain('href="https://nooracare.no/dashboard/settings/emails"');
+  });
+});
+
 describe('buildOrderDeliveredEmail', () => {
+  it('leaves out the evaluation section when the customer turned it off (null)', () => {
+    const { text, html } = buildOrderDeliveredEmail(DELIVERED_ORDER, [], null, OPTIONS);
+
+    expect(text).not.toContain('/evaluering/');
+    expect(html).not.toContain('/evaluering/');
+    expect(text).not.toContain('HVORDAN VAR VASKEN?');
+  });
+
   it('says when and where the laundry was delivered and links to the order', () => {
     const { subject, text, html } = buildOrderDeliveredEmail(DELIVERED_ORDER, [], false, OPTIONS);
 

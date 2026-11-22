@@ -4,7 +4,10 @@ import type { Mock } from 'vitest';
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 vi.mock('@/lib/auth/require-role', () => ({ assertRole: vi.fn() }));
 vi.mock('@/lib/database/users', () => ({ updateUserContact: vi.fn() }));
-vi.mock('@/lib/database/customers', () => ({ getCustomerByUserId: vi.fn() }));
+vi.mock('@/lib/database/customers', () => ({
+  getCustomerByUserId: vi.fn(),
+  updateCustomerEmailPreferences: vi.fn(),
+}));
 vi.mock('@/lib/database/subscriptions', () => ({
   getActiveSubscriptionByCustomerId: vi.fn(),
   updateSubscription: vi.fn(),
@@ -16,7 +19,7 @@ vi.mock('@/lib/maps/geocoding', () => ({ validateAddress: vi.fn() }));
 
 import { assertRole } from '@/lib/auth/require-role';
 import { updateUserContact } from '@/lib/database/users';
-import { getCustomerByUserId } from '@/lib/database/customers';
+import { getCustomerByUserId, updateCustomerEmailPreferences } from '@/lib/database/customers';
 import {
   getActiveSubscriptionByCustomerId,
   updateSubscription,
@@ -25,6 +28,7 @@ import { updateUpcomingOrdersAddressBySubscriptionId } from '@/lib/database/orde
 import { validateAddress } from '@/lib/maps/geocoding';
 import {
   updateCustomerContactAction,
+  updateEmailPreferencesAction,
   updateSubscriptionAddressAction,
   type SubscriptionAddressInput,
 } from './actions';
@@ -74,6 +78,7 @@ beforeEach(() => {
   });
   m(updateSubscription).mockResolvedValue({ id: 'sub-1' });
   m(updateUpcomingOrdersAddressBySubscriptionId).mockResolvedValue(true);
+  m(updateCustomerEmailPreferences).mockResolvedValue({ error: null });
 });
 
 describe('updateCustomerContactAction', () => {
@@ -266,5 +271,46 @@ describe('updateSubscriptionAddressAction', () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain('Adressen for abonnementet er lagret');
     expect(updateSubscription).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('updateEmailPreferencesAction', () => {
+  const VALID = {
+    cleaner_confirmed: true,
+    pickup_reminder: false,
+    picked_up: true,
+    delivered: true,
+    evaluation: false,
+  };
+
+  it('rejects when the caller is not a customer', async () => {
+    m(assertRole).mockResolvedValue({ auth: null, error: 'Ingen tilgang' });
+
+    const result = await updateEmailPreferencesAction(VALID);
+
+    expect(result).toEqual({ success: false, error: 'Ingen tilgang' });
+    expect(updateCustomerEmailPreferences).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid input without writing', async () => {
+    const result = await updateEmailPreferencesAction({ delivered: false });
+
+    expect(result.success).toBe(false);
+    expect(updateCustomerEmailPreferences).not.toHaveBeenCalled();
+  });
+
+  it('writes the cleaned object for the customer\'s id', async () => {
+    const result = await updateEmailPreferencesAction({ ...VALID, price_receipt: false, bogus: 1 });
+
+    expect(result).toEqual({ success: true });
+    expect(updateCustomerEmailPreferences).toHaveBeenCalledWith('cust-1', VALID);
+  });
+
+  it('returns a database error', async () => {
+    m(updateCustomerEmailPreferences).mockResolvedValue({ error: 'Kunne ikke lagre valgene. Prøv igjen.' });
+
+    const result = await updateEmailPreferencesAction(VALID);
+
+    expect(result).toEqual({ success: false, error: 'Kunne ikke lagre valgene. Prøv igjen.' });
   });
 });

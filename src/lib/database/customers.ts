@@ -96,3 +96,20 @@ export async function getCustomerWithUserById(
 
   return data as CustomerWithUser;
 }
+
+/** Store the customer's e-mail choices (admin client; the caller is a role-guarded action). */
+export async function updateCustomerEmailPreferences(
+  customerId: string,
+  preferences: Customer['email_preferences']
+): Promise<{ error: string | null }> {
+  const { error } = await createAdminClient()
+    .from('customers')
+    .update({ email_preferences: preferences })
+    .eq('id', customerId);
+
+  if (error) {
+    console.error('[updateCustomerEmailPreferences] Error updating customer:', error);
+    return { error: 'Kunne ikke lagre valgene. Prøv igjen.' };
+  }
+  return { error: null };
+}

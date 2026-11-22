@@ -54,6 +54,7 @@
 - `id` (uuid, PK) - Unique identifier
 - `user_id` (uuid, FK → [User](#1-user).id, unique, required) - Reference to User
   - **On Delete:** CASCADE
+- `email_preferences` (JSONB, default `{}`) - Optional e-mails the customer turned off: `{ <kind>: false }` with the kinds in `lib/config/email-preferences.ts`; a missing key means the e-mail is sent
 - `created_at` (timestamp) - Profile creation timestamp
 - `updated_at` (timestamp) - Last update timestamp
 - `deleted_at` (timestamp, nullable) - Soft delete timestamp

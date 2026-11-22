@@ -748,7 +748,7 @@ export async function getOrderByPaymentAgreementId(
  * the query fails (logged): the e-mail is then skipped, never thrown.
  */
 export interface OrderForCustomerEmail extends Order {
-  customer: { user: Pick<User, 'email' | 'full_name'> };
+  customer: { email_preferences: Customer['email_preferences']; user: Pick<User, 'email' | 'full_name'> };
   subscription: Pick<Subscription, 'frequency' | 'status'> | null;
   cleaner: Pick<Cleaner, 'display_name'> | null;
 }
@@ -763,6 +763,7 @@ export async function getOrderForCustomerEmail(
     .select(`
       *,
       customer:customers!customer_id(
+        email_preferences,
         user:users!user_id(email, full_name)
       ),
       subscription:subscriptions(frequency, status),
@@ -832,6 +833,7 @@ export async function getOrdersForPickupReminder(
     .select(`
       *,
       customer:customers!customer_id(
+        email_preferences,
         user:users!user_id(email, full_name)
       ),
       subscription:subscriptions(frequency, status),

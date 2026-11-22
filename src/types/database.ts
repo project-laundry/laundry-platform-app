@@ -60,6 +60,8 @@ export interface User {
 export interface Customer {
   id: string;
   user_id: string;
+  /** Optional e-mails the customer turned off — see lib/config/email-preferences.ts. */
+  email_preferences: Partial<Record<string, boolean>>;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;

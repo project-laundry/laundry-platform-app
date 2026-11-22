@@ -89,6 +89,8 @@ describe('buildCleanerNewOrderEmail', () => {
     expect(text).toContain('KUNDEN HAR OPPGITT\n\nKlær: 2 poser\nSengetøy: 1 sett');
     expect(text).toContain('Åpne oppdraget: https://nooracare.no/dashboard/cleaner/ord-1');
     expect(text).toContain('post@nooracare.no');
+    expect(text).not.toContain('/dashboard/settings/emails');
+    expect(html).not.toContain('/dashboard/settings/emails');
     expect(html).toContain('<h1');
     expect(html).toContain('Nytt oppdrag');
     expect(html).toContain('href="https://nooracare.no/dashboard/cleaner/ord-1"');
