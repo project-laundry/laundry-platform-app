@@ -71,7 +71,10 @@ host-only, so a customer must stay on one host from login to the return from Vip
 Settings → Domains **both** `nooracare.no` and `www.nooracare.no` are connected to Production (no
 domain-level redirect), and `next.config.ts` redirects every `www.nooracare.no` request to
 `nooracare.no` (307) — except `/api/webhooks/*`. The Vipps webhook must be answered on whichever host
-it was registered with: Vipps does not follow redirects and signs the request for that host. Never
+it was registered with: Vipps does not follow redirects and signs the request for that host. The
+production webhook is registered on `https://www.nooracare.no/api/webhooks/vipps/recurring` (seen in
+the production logs on 2026-11-22, when a live agreement activated), so `www` must keep serving that
+path. Never
 put a domain-level redirect on `nooracare.no`. Check: `curl -sI https://nooracare.no/` answers 200 and
 `curl -sI https://www.nooracare.no/` answers 307 to `https://nooracare.no/`.
 
