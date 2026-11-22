@@ -9,6 +9,18 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { orderAuthRedirect } from '@/lib/auth/next-path';
 
 export async function proxy(request: NextRequest) {
+  // next.config.ts sets skipTrailingSlashRedirect (needed by the PostHog
+  // proxy), so Next no longer normalises "/foo/" to "/foo". Do it here for
+  // app paths; /ingest never reaches this function (see the matcher below).
+  const { pathname } = request.nextUrl;
+  if (pathname.length > 1 && pathname.endsWith('/')) {
+    // A plain URL, not request.nextUrl.clone(): NextURL puts the trailing
+    // slash back when it is serialised, which would redirect to itself.
+    const url = new URL(request.url);
+    url.pathname = pathname.replace(/\/+$/, '');
+    return NextResponse.redirect(url, 308);
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -51,7 +63,7 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Everything except static assets and the Vipps webhook endpoint.
-    '/((?!_next/static|_next/image|favicon.ico|api/webhooks|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+    // Everything except static assets, the Vipps webhook endpoint and the PostHog proxy (/ingest).
+    '/((?!_next/static|_next/image|favicon.ico|api/webhooks|ingest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 };

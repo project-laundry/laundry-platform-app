@@ -53,6 +53,7 @@ export function ComingSoonShell({
             ))}
             <Link
               href={switchHref}
+              data-ph-capture-attribute-cta="audience-switch"
               className="rounded-full border border-fjord/10 bg-white/70 px-4 py-1.5 text-sm font-medium text-fjord shadow-soft backdrop-blur transition-colors hover:border-sea-green hover:text-sea-green"
             >
               {switchLabel}
@@ -266,6 +267,7 @@ export function CrossPromo({ text, href, cta }: { text: string; href: string; ct
         {text}{' '}
         <Link
           href={href}
+          data-ph-capture-attribute-cta="cross-promo"
           className="inline-flex items-center gap-1 whitespace-nowrap font-medium text-fjord underline decoration-sol decoration-2 underline-offset-4 transition-colors hover:text-sea-green"
         >
           {cta}

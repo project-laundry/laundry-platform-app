@@ -13,6 +13,7 @@ import {
 } from '@/lib/config/postal-codes';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { calculateCustomerEstimate } from '@/lib/config/pricing';
+import { track } from '@/lib/analytics/posthog';
 import { SUBSCRIPTIONS_OFFERED } from '@/lib/config/subscriptions';
 import { PICKUP_TIME_RANGE } from '@/lib/config/pickup-times';
 import type { Weekday } from '@/types/database';
@@ -218,6 +219,12 @@ function PickupForm() {
       frequency: recurring ? frequency : null,
     });
 
+    track('order_step_completed', {
+      step: 2,
+      city: derivedCity,
+      recurring,
+      frequency: recurring ? frequency : null,
+    });
     router.push('/orders/confirm');
   };
 

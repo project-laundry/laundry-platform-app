@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { AlertCircle, ChevronLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { safeNextPath, withNext } from '@/lib/auth/next-path';
+import { track } from '@/lib/analytics/posthog';
 import {
   LOGIN_FAILED_MESSAGE,
   RESEND_FAILED_MESSAGE,
@@ -29,6 +30,7 @@ function LoginForm() {
   // Where to go after a customer login (the order flow sends people here
   // from its last step). Staff and cleaners keep their own landing pages.
   const next = safeNextPath(useSearchParams().get('next'));
+  const fromOrderFlow = next?.startsWith('/orders') ?? false;
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -72,6 +74,7 @@ function LoginForm() {
     });
 
     if (signInError) {
+      track('login_submitted', { ok: false, from_order_flow: fromOrderFlow });
       setNeedsConfirmation(isEmailNotConfirmedError(signInError));
       setError(getSignInErrorMessage(signInError));
       setLoading(false);
@@ -83,6 +86,8 @@ function LoginForm() {
       setLoading(false);
       return;
     }
+
+    track('login_submitted', { ok: true, from_order_flow: fromOrderFlow });
 
     // Step 2: Fetch user role from database
     const { data: userData, error: userError } = await supabase

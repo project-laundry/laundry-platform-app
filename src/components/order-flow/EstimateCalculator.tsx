@@ -4,10 +4,11 @@
 // estimate as the order flow, plus a static price list. No ironing rows:
 // it's not part of the first version (BUSINESS_LOGIC.md "Ironing").
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { CreditCard, ListChecks, Truck } from 'lucide-react';
 import { calculateCustomerEstimate, formatKr, PRICING } from '@/lib/config/pricing';
 import type { OrderSelection } from '@/types/order-flow';
+import { track } from '@/lib/analytics/posthog';
 import { SelectionEditor } from './SelectionEditor';
 import { Breakdown, PriceDisclaimer, Section } from './primitives';
 
@@ -23,9 +24,19 @@ export function EstimateCalculator() {
   const [selection, setSelection] = useState<OrderSelection>(INITIAL_SELECTION);
   const price = useMemo(() => calculateCustomerEstimate(selection), [selection]);
 
+  // One event per visit, on the first change — "opened" is the page view.
+  const usedRef = useRef(false);
+  const handleChange = (next: OrderSelection) => {
+    setSelection(next);
+    if (!usedRef.current) {
+      usedRef.current = true;
+      track('calculator_used');
+    }
+  };
+
   return (
     <div className="mx-auto max-w-2xl">
-      <SelectionEditor selection={selection} onChange={setSelection} />
+      <SelectionEditor selection={selection} onChange={handleChange} />
 
       <section className="mt-8">
         <h2 className="font-serif text-xl font-semibold text-dark-gray">

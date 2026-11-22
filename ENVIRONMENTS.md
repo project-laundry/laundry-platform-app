@@ -54,6 +54,7 @@ Staging/production values are set **per environment** in the Vercel dashboard.
 | `CRON_SECRET` | any random string (lets you curl the cron routes on staging) | a different random string — Vercel sends it on every cron call to `/api/cron/admin-digest` and `/api/cron/pickup-reminders` |
 | `RESEND_API_KEY` | Resend API key — sends the customer e-mails (order confirmation, receipt, payment failed) to the staging test accounts and the curl-tested admin digest | Resend API key for the verified `nooracare.no` sending domain (customer e-mails + admin digest) |
 | `ADMIN_DIGEST_FROM` | optional; default `NooraCare <varsel@nooracare.no>` | same |
+| `NEXT_PUBLIC_POSTHOG_KEY` | **unset locally**; Preview → `develop`: the *NooraCare staging* PostHog project key | the *NooraCare production* PostHog project key — inlined at build time, redeploy after adding |
 
 > `CRON_SECRET` protects the two cron routes declared in `vercel.json` (Production only):
 > `GET /api/cron/admin-digest` (daily admin digest, 06:00 UTC) and
@@ -190,6 +191,40 @@ details live — the footer, `/kontakt` and the legal pages all read from it.
    Hobby plan it fires at some point within that hour).
 
 ---
+
+## PostHog (analytics)
+
+Cookieless web analytics + heatmaps (see `CLAUDE.md` → "Analytics"). Two projects in one
+organisation on **EU cloud**, `https://eu.posthog.com`: *NooraCare production* and *NooraCare
+staging*. Do each step on **both** projects.
+
+1. **Project settings → Web analytics → Cookieless server hash mode → on.** Without this
+   every event the site sends is discarded at ingestion (they still show under *Activity →
+   Live events*, which is misleading — verify with an insight, step 5).
+2. **Project settings → Autocapture → Heatmaps → on**; *Session replay* stays **off**;
+   *Autocapture* on (the SDK restricts it to clicks/submits on public pages).
+3. **Project settings → Toolbar → Authorized URLs**: add `https://nooracare.no` (production
+   project) / `https://test.nooracare.no` (staging project). The toolbar is how heatmaps are viewed.
+4. **Project settings → Project → Project API key** (`phc_…`) → Vercel:
+   ```bash
+   npx vercel env add NEXT_PUBLIC_POSTHOG_KEY production          # production project key
+   npx vercel env add NEXT_PUBLIC_POSTHOG_KEY preview develop     # staging project key
+   ```
+   `NEXT_PUBLIC_*` is inlined at build time — **redeploy** the environment afterwards.
+5. **Verify** (per environment): open the site, then in PostHog *Product analytics → New
+   insight → Trends*, event `$pageview`, last 24 h, must show the visit. Then
+   *Settings → Project → Ingestion warnings* must **not** list "Discarded cookieless event".
+   In the browser's devtools there must be no `ph_` cookie or storage entry.
+6. **Dashboards** (production project, once): create a dashboard "Launch" with
+   - Funnel *Order flow*: `$pageview` where Path = `/orders/wash` → `order_step_completed`
+     (step = 1) → `order_step_completed` (step = 2) → `checkout_vipps_started` →
+     `checkout_result` (status = active). Conversion window **1 day** (cookieless ids rotate daily).
+   - Funnel *Signup*: `$pageview` Path = `/auth/signup` → `signup_submitted` (ok = true) →
+     `$pageview` Path = `/auth/success`. Window 1 day. Confirmed accounts: Supabase
+     `auth.users.email_confirmed_at`.
+   - Trends: `$pageview` broken down by `$referring_domain` and by `utm_source`; `$autocapture`
+     broken down by `cta`; `how_it_works_viewed`; `calculator_used`; `promo_code_applied` by `valid`;
+     `login_submitted` and `signup_submitted` by `from_order_flow`.
 
 ## Supabase Auth e-mails
 
