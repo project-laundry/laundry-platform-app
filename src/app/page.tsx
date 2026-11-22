@@ -134,8 +134,6 @@ export default function HomePage() {
         { href: '/pris-kalkulator', label: 'Priser' },
         { href: '/bli-renser', label: 'Bli renser' },
       ]}
-      switchHref="/auth/login"
-      switchLabel="Logg inn"
     >
       <ComingSoonHero
         badge={`Nå åpent i ${serviceAreaText()}`}

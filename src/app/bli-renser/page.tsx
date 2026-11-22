@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Wordmark } from '@/components/layout/AppHeader';
 import { Footer } from '@/components/landing/Footer';
+import { AccountLink } from '@/components/landing/AccountLink';
 import { CLEANER_MIN_PAYOUT_PER_ORDER_ORE, PRICING, formatKr } from '@/lib/config/pricing';
 import { PICKUP_TIME_RANGE } from '@/lib/config/pickup-times';
 import { serviceAreaText } from '@/lib/config/postal-codes';
@@ -102,9 +103,7 @@ export default function BecomeCleanerPage() {
             <a href="#sporsmal" className="text-sm font-medium text-medium-gray transition-colors hover:text-nordic-blue">Spørsmål</a>
           </nav>
           <div className="flex items-center gap-3">
-            <Link href="/auth/login" className="text-sm font-medium text-nordic-blue transition-colors hover:text-sea-green">
-              Logg inn
-            </Link>
+            <AccountLink className="text-sm font-medium text-nordic-blue transition-colors hover:text-sea-green" />
             <Link
               href="/bli-renser/signup"
               className="inline-flex items-center justify-center rounded-full bg-nordic-blue px-5 py-2.5 text-sm font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98]"

@@ -5,14 +5,11 @@ import Link from "next/link";
 import { Wordmark } from '@/components/layout/AppHeader';
 import { Menu, X } from "lucide-react";
 import { EnvironmentBadge } from "@/components/ui/EnvironmentBadge";
-import { createClient } from "@/lib/supabase/client";
-import type { UserRole } from "@/types/database";
+import { AccountLink } from "@/components/landing/AccountLink";
 
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userRole, setUserRole] = useState<UserRole | null>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -23,43 +20,10 @@ export function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (user) {
-        setIsAuthenticated(true);
-
-        // Fetch user role
-        const { data: userData } = await supabase
-          .from('users')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-
-        if (userData) {
-          setUserRole(userData.role);
-        }
-      } else {
-        setIsAuthenticated(false);
-        setUserRole(null);
-      }
-    };
-
-    checkAuth();
-  }, []);
-
   const navLinks = [
     { href: "/#slik-virker-det", label: "Slik virker det" },
     { href: "/pris-kalkulator", label: "Priser" },
   ];
-
-  const getDashboardUrl = () => {
-    if (userRole === 'admin') return '/admin';
-    if (userRole === 'cleaner') return '/dashboard/cleaner';
-    return '/dashboard';
-  };
 
   const primaryPill =
     "inline-flex items-center justify-center rounded-full bg-nordic-blue px-5 py-2.5 text-sm font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98]";
@@ -107,20 +71,10 @@ export function Navbar() {
 
           {/* Desktop Auth Buttons */}
           <div className="hidden items-center gap-3 md:flex">
-            {isAuthenticated ? (
-              <Link href={getDashboardUrl()} className={primaryPill}>
-                Dashboard
-              </Link>
-            ) : (
-              <>
-                <Link href="/auth/login" className={outlinePill}>
-                  Logg inn
-                </Link>
-                <Link href="/orders/wash" className={primaryPill}>
-                  Bestill henting
-                </Link>
-              </>
-            )}
+            <AccountLink className={outlinePill} />
+            <Link href="/orders/wash" className={primaryPill}>
+              Bestill henting
+            </Link>
           </div>
 
           {/* Mobile Menu Button */}
@@ -164,23 +118,10 @@ export function Navbar() {
               )
             ))}
             <div className="space-y-3 pt-4">
-              {isAuthenticated ? (
-                <Link
-                  href={getDashboardUrl()}
-                  className={`${primaryPill} w-full`}
-                >
-                  Dashboard
-                </Link>
-              ) : (
-                <>
-                  <Link href="/auth/login" className={`${outlinePill} w-full`}>
-                    Logg inn
-                  </Link>
-                  <Link href="/orders/wash" className={`${primaryPill} w-full`}>
-                    Bestill henting
-                  </Link>
-                </>
-              )}
+              <AccountLink className={`${outlinePill} w-full`} />
+              <Link href="/orders/wash" className={`${primaryPill} w-full`}>
+                Bestill henting
+              </Link>
             </div>
           </div>
         </div>
