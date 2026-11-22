@@ -175,7 +175,7 @@ describe('createSubscriptionAction — address and date validation', () => {
     ['too-long pickup instructions', withAddress({ specialInstructions: 'x'.repeat(501) })],
     ['an unparseable date', { ...baseInput, firstPickupDate: 'i morgen' }],
     ['a pickup date in the past', { ...baseInput, firstPickupDate: '2020-01-06' }],
-    ['a pickup date today', { ...baseInput, firstPickupDate: new Date().toISOString().slice(0, 10) }],
+    ['a pickup date yesterday', { ...baseInput, firstPickupDate: new Date(Date.now() - 86_400_000 * 2).toISOString().slice(0, 10) }],
     ['an unknown city', { ...baseInput, location: 'Trondheim' as 'Bergen' }],
   ])('rejects %s before any Vipps agreement is created', async (_label, input) => {
     happyPathMocks();
@@ -365,8 +365,8 @@ describe('createSubscriptionAction — recurring orders', () => {
             bags: 2,
             bedding_sets: 1,
             iron_formal_items: 0,
-            // 2*11900 + 1*22900 + 10400 + 1830 = 58930
-            estimated_total_ore: 58930,
+            // 2*29900 + 1*29900 + 10400 + 1830 = 101930
+            estimated_total_ore: 101930,
           }),
         }),
       })

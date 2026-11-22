@@ -39,8 +39,10 @@ export interface PriceBreakdown {
 export const MAX_WASH_LOADS_PER_ORDER = 15;
 
 export const PRICING = {
-  // Cleaner-binding pricing: per-load (5kg load)
-  price_per_load_ore: 22900, // 229.00 NOK per 5kg load
+  // Cleaner-binding pricing: per wash (one full machine, up to 5 kg). Same
+  // price as a bag and a bedding set in the customer's estimate below, so the
+  // estimate and the final price agree: one bag = one wash, one set = one wash.
+  price_per_load_ore: 29900, // 299.00 NOK per wash
 
   // Ironing prices by group (in øre) — shared by cleaner pricing and estimate
   ironing: {
@@ -50,8 +52,8 @@ export const PRICING = {
   } as const,
 
   // Customer-estimate pricing (order flow / price calculator)
-  per_bag_ore: 11900, // 119 NOK - a grocery bag of clothes ≈ half a load
-  per_bedding_set_ore: 22900, // one bedding set is washed on its own ≈ one full load
+  per_bag_ore: 29900, // 299 NOK - one bag of clothes = one wash
+  per_bedding_set_ore: 29900, // 299 NOK - one bedding set is washed on its own = one wash
   garments_per_bag: 10, // rough garment count used to seed the ironing estimate
 
   // Additional fees

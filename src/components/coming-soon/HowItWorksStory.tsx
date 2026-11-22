@@ -4,6 +4,7 @@ import { ArrowRight, Check } from 'lucide-react';
 import primaryLogo from '@/assets/brand/primaerlogo.png';
 import { PRICING, formatKr } from '@/lib/config/pricing';
 import { ACCENT_CHIPS, HOW_IT_WORKS_ID } from '@/components/coming-soon/ComingSoonShell';
+import { TrackSectionView } from '@/components/analytics/TrackSectionView';
 
 // "Slik virker det" as a zig-zag story: five illustrated steps and a dashed
 // flow line between them. Every
@@ -316,6 +317,7 @@ export function HowItWorksStory() {
             Fem steg fra du trykker «bestill» til tøyet ligger brettet på døren.
           </p>
         </header>
+        <TrackSectionView event="how_it_works_viewed" />
 
         <Step index={0} title="Du bestiller" visual={<PhoneScene />}>
           <p>
@@ -325,6 +327,7 @@ export function HowItWorksStory() {
           </p>
           <Link
             href="/pris-kalkulator"
+            data-ph-capture-attribute-cta="price-list"
             className="mt-2 inline-flex items-center gap-1.5 text-base font-medium text-nordic-blue transition-colors hover:text-sea-green"
           >
             Se full prisliste

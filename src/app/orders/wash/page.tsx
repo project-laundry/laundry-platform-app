@@ -6,6 +6,7 @@ import { useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { calculateCustomerEstimate } from '@/lib/config/pricing';
+import { track } from '@/lib/analytics/posthog';
 import type { OrderSelection } from '@/types/order-flow';
 import { OrderFlowShell } from '@/components/order-flow/OrderFlowShell';
 import { SelectionEditor } from '@/components/order-flow/SelectionEditor';
@@ -41,7 +42,15 @@ export default function WashPage() {
       step={1}
       price={price}
       canAdvance={price.hasItems}
-      onAdvance={() => router.push('/orders/pickup')}
+      onAdvance={() => {
+        track('order_step_completed', {
+          step: 1,
+          bags: selection.bags,
+          bedding_sets: selection.beddingSets,
+          estimate_ore: price.totalOre,
+        });
+        router.push('/orders/pickup');
+      }}
     >
       <SelectionEditor
         selection={selection}

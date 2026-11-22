@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ArrowRight, Check, ChevronLeft, Clock, Info, Loader2, X } from 'lucide-react';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { getCheckoutStatusAction, type CheckoutStatus } from '../actions';
+import { track } from '@/lib/analytics/posthog';
 
 // While Vipps finishes activating the agreement the status stays PENDING for a
 // short while after redirect — poll a few times before giving up.
@@ -54,6 +55,7 @@ function OrderSuccessPageContent() {
   }, [resetOrderData]);
 
   const applyResult = ({ view, recurring }: { view: ViewState; recurring: boolean }) => {
+    track('checkout_result', { status: view, recurring });
     setRecurring(recurring);
     setViewState(view);
   };

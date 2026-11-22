@@ -10,6 +10,7 @@ import { validateNorwegianPhone } from '@/lib/validation/cleaner';
 import { checkSignupAvailabilityAction } from '@/app/auth/actions';
 import { getSignUpErrorMessage, getTakenFieldsMessage } from '@/lib/auth/signup-errors';
 import { safeNextPath, withNext } from '@/lib/auth/next-path';
+import { track } from '@/lib/analytics/posthog';
 
 // useSearchParams needs a Suspense boundary above it.
 export default function SignupPage() {
@@ -25,6 +26,8 @@ function SignupForm() {
   // Carried through the confirmation e-mail: /auth/callback sends the new
   // customer here once the link is clicked (the order flow uses it).
   const next = safeNextPath(useSearchParams().get('next'));
+  // The order flow sends signed-out visitors here with ?next=/orders/….
+  const fromOrderFlow = next?.startsWith('/orders') ?? false;
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -85,6 +88,7 @@ function SignupForm() {
     const availability = await checkSignupAvailabilityAction({ email, phone });
     const takenMessage = getTakenFieldsMessage(availability);
     if (takenMessage) {
+      track('signup_submitted', { ok: false, reason: 'taken', from_order_flow: fromOrderFlow });
       setError(takenMessage);
       setLoading(false);
       return;
@@ -107,11 +111,13 @@ function SignupForm() {
 
     const signUpMessage = getSignUpErrorMessage(signUpResult);
     if (signUpMessage) {
+      track('signup_submitted', { ok: false, reason: 'error', from_order_flow: fromOrderFlow });
       setError(signUpMessage);
       setLoading(false);
       return;
     }
 
+    track('signup_submitted', { ok: true, reason: null, from_order_flow: fromOrderFlow });
     // "Check your e-mail" page; it keeps ?next= for its own links
     router.push(withNext('/auth/success', next));
   };

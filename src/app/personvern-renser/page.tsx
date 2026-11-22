@@ -35,7 +35,7 @@ export default function PersonvernRenserPage() {
                 Personvernerklæring for rensere
               </h1>
               <p className="text-sm text-medium-gray">
-                Sist oppdatert: 16.10.2026
+                Sist oppdatert: 22.11.2026
               </p>
               <p className="text-sm text-medium-gray mt-2">
                 Denne erklæringen gjelder for personer som er tilknyttet
@@ -233,6 +233,16 @@ export default function PersonvernRenserPage() {
                   utleveres aldri til kunder.
                 </li>
                 <li>
+                  <span className="font-medium">PostHog</span> –
+                  analyseverktøy med servere i EU. Mottar sidevisninger,
+                  klikk og hvor langt du ruller, uten informasjonskapsler.
+                  IP-adressen din brukes bare til å lage en anonym kode som
+                  byttes ut hver dag, og lagres ikke. PostHog får aldri navn,
+                  e-post, adresse, telefonnummer eller noe du skriver i
+                  skjemaer. Behandler dette som databehandler under
+                  databehandleravtale.
+                </li>
+                <li>
                   <span className="font-medium">Offentlige myndigheter</span>{" "}
                   utover skatte- og avgiftsmyndigheter dersom vi er
                   rettslig forpliktet til å utlevere opplysninger.
@@ -269,7 +279,10 @@ export default function PersonvernRenserPage() {
                 deg innlogget og opprettholde sesjonen din. Disse settes
                 av Supabase Auth og fornyes automatisk så lenge du er
                 logget inn. Vi benytter ikke informasjonskapsler for
-                analyse eller markedsføring.
+                analyse eller markedsføring. Bruksstatistikken vår (PostHog,
+                se punkt 4) virker uten informasjonskapsler: ingenting lagres
+                i nettleseren din, og vi kan ikke kjenne deg igjen fra én dag
+                til den neste.
               </p>
             </section>
 

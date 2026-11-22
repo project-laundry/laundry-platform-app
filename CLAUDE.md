@@ -128,6 +128,7 @@ src/
 ├── assets/brand/          # Logo PNGs (primary/secondary/submerke, normal + negativ); favicons are app/icon.png + app/apple-icon.png
 ├── components/             # Reusable UI components
 │   ├── auth/               # Auth components (empty)
+│   ├── analytics/          # TrackSectionView — invisible IntersectionObserver marker that fires one analytics event when scrolled into view (used by HowItWorksStory)
 │   ├── coming-soon/        # Shell of the customer landing page (light hero with optional photo and an `action` slot for the «Bestill henting» button, CrossPromo); HowItWorksStory.tsx = the illustrated 5-step story. The folder name is historical — nothing is coming-soon any more
 │   ├── landing/            # Navbar (legal/contact/price pages), Footer
 │   ├── forms/              # Form components (empty)
@@ -137,12 +138,14 @@ src/
 │       └── LogoutButton.tsx
 ├── hooks/                  # Custom React hooks (empty)
 ├── lib/                    # Core utilities and business logic
+│   ├── analytics/          # PostHog, cookieless: config.ts = host allowlist (nooracare.no, www, test), autocapture URL ignorelist, the AnalyticsEvent union (pure, tested); posthog.ts = initAnalytics() + track() — the only file that imports posthog-js
 │   ├── ai/                 # Claude integration: machine-recognition.ts (photo → machine suggestion, never throws), config.ts (ANTHROPIC_API_KEY)
 │   ├── auth/               # requireRole/assertRole guards (require-role.ts); signup error mapping (signup-errors.ts); password-reset paths + error mapping (password-reset.ts); login error mapping (login-errors.ts); ?next= sanitizing (next-path.ts)
 │   ├── config/
 │   │   ├── company.ts      # COMPANY (legal name, org number, postal address, phone, e-mail, Instagram/Facebook URLs) + formatOrgNumber/phoneHref/formatPostalAddress — the ONLY place these values live; footer, /kontakt, the legal pages and bli-renser/success read from it. Confirm the values before launch
 │   │   ├── postal-codes.ts # POSTAL_CODE_RANGES (Bergen, Oslo) + OFFERED_CITIES (['Bergen'] in the first version) — the one switch for where we operate: getCityFromPostalCode answers null for a city that is not offered, so Oslo postal codes are "outside the service area" in the order flow, address edits, cleaner onboarding and settings; serviceAreaText('og' | 'eller') renders every "vi er i …" sentence (landing badge, footer, FAQ, error messages, /salgsvilkar, share image). To open Oslo, add it to OFFERED_CITIES and bump TERMS_VERSION — keep the Oslo code, it is intentionally dormant
-│   │   ├── pricing.ts      # Pricing constants and both calculators: calculateOrderPrice (cleaner-binding: per 5kg load + 3 ironing groups) and calculateCustomerEstimate (customer estimate: per bag/set/piece). Ironing groups exist in the model but are NOT offered in the first version — hidden on every public surface, see BUSINESS_LOGIC.md "Ironing". CLEANER_MIN_PAYOUT_PER_ORDER_ORE is the "minst 350 kr per oppdrag" cleaner marketing leads with (70 % of the 500 kr order minimum)
+│   │   ├── order-timing.ts # ORDER_TIMING: `minimum_days_notice` (0 = same-day pickup, 1 = the day before, 2 = two days before …), `same_day_cutoff` ('15:00' Norwegian time = when the pickup window opens; only used with 0 days) and the pickup→delivery days. earliestPickupDate(now) is the ONE rule for the first bookable pickup date — used by the date chips in the order flow, the reschedule calendar, validateCheckoutInput and updateOrderPickupDateAction; pickupNoticeText() renders the rule in /salgsvilkar section 7
+│   │   ├── pricing.ts      # Pricing constants and both calculators: calculateOrderPrice (cleaner-binding: per 5kg load + 3 ironing groups) and calculateCustomerEstimate (customer estimate: per bag/set/piece). One bag = one bedding set = one wash = 299 kr (`per_bag_ore`, `per_bedding_set_ore`, `price_per_load_ore` are kept equal on purpose so the customer's estimate and the cleaner's final price agree — change them together). Ironing groups exist in the model but are NOT offered in the first version — hidden on every public surface, see BUSINESS_LOGIC.md "Ironing". CLEANER_MIN_PAYOUT_PER_ORDER_ORE is the "minst 350 kr per oppdrag" cleaner marketing leads with (70 % of the 500 kr order minimum)
 │   │   ├── subscriptions.ts # SUBSCRIPTIONS_OFFERED (false in the first version) — the one switch that hides recurring pickups: order flow, dashboard empty state, Min konto, /salgsvilkar section 7 (which then shows the one-time change/cancellation rules instead), /personvern, admin customer card; createSubscriptionAction forces 'on_demand' while it is false. See BUSINESS_LOGIC.md "Subscriptions (not in the first version)"
 │   │   └── terms.ts        # TERMS_VERSION (ISO date of the current /salgsvilkar text, bump on every terms change) + formatTermsVersion; stamped into payment_agreements.provider_metadata.terms_consent at checkout
 │   ├── database/           # Database CRUD operations
@@ -187,10 +190,11 @@ src/
 │   ├── database.ts         # Complete entity types and enums
 │   └── index.ts            # General type exports
 ├── instrumentation.ts      # onRequestError → reportError: every unhandled server error is e-mailed to the admins (production builds only)
-└── proxy.ts                # Supabase session refresh + order-flow login requirement
+├── instrumentation-client.ts # Browser entry (Next convention): initAnalytics({ key: NEXT_PUBLIC_POSTHOG_KEY, hostname })
+└── proxy.ts                # Trailing-slash redirect + Supabase session refresh + order-flow login requirement; matcher skips /ingest (PostHog proxy)
 ```
 
-**Customer-facing wording:** customers count **poser** (`PRICING.per_bag_ore`), and the per-bag price is never shown without the order minimum next to it ("119 kr per pose, minste bestilling 500 kr") — on its own it reads as a 119 kr order. Cleaners count **vask** — one full machine, up to 5 kg (`PRICING.price_per_load_ore`); mention the kilos only where a cleaner needs the definition (FAQ, payout box, dashboard), never on customer surfaces. Cleaner earnings are quoted as the guaranteed minimum per order (`CLEANER_MIN_PAYOUT_PER_ORDER_ORE`), not a per-load figure. "Nabo" is a sales pitch, not a description: fine in headlines, tab titles, share images and cross-promos, but whoever actually washes is "en lokal renser" / "en godkjent renser i området" — never "i nabolaget". Don't promise turnaround times, free delivery, ironing or a quality guarantee anywhere — see the honest-claims note in `components/coming-soon/HowItWorksStory.tsx`.
+**Customer-facing wording:** customers count **poser** (`PRICING.per_bag_ore`), and the per-bag price is never shown without the order minimum next to it ("299 kr per pose, minste bestilling 500 kr") — on its own it reads as a 119 kr order. Cleaners count **vask** — one full machine, up to 5 kg (`PRICING.price_per_load_ore`); mention the kilos only where a cleaner needs the definition (FAQ, payout box, dashboard), never on customer surfaces. Cleaner earnings are quoted as the guaranteed minimum per order (`CLEANER_MIN_PAYOUT_PER_ORDER_ORE`), not a per-load figure. "Nabo" is a sales pitch, not a description: fine in headlines, tab titles, share images and cross-promos, but whoever actually washes is "en lokal renser" / "en godkjent renser i området" — never "i nabolaget". Don't promise turnaround times, free delivery, ironing or a quality guarantee anywhere — see the honest-claims note in `components/coming-soon/HowItWorksStory.tsx`.
 
 ## Architecture Patterns
 
@@ -225,7 +229,7 @@ All database operations use dedicated functions in `lib/database/`:
 
 ### Middleware
 
-`src/proxy.ts` (Next 16 proxy convention) refreshes Supabase auth sessions on every request. On every host, a signed-out page load under `/orders/*` is redirected to signup/login with `?next=` (`orderAuthRedirect`). There is no pre-launch gate any more: both the customer and the cleaner side are public on `nooracare.no`. Role guards live in `src/lib/auth/require-role.ts` (`requireRole` for pages/layouts, `assertRole` for server actions); privileged roles (`admin`, `driver`) can never be chosen at signup — the `handle_new_user` trigger only honors `customer`/`cleaner` metadata.
+`src/proxy.ts` (Next 16 proxy convention) refreshes Supabase auth sessions on every request. On every host, a signed-out page load under `/orders/*` is redirected to signup/login with `?next=` (`orderAuthRedirect`). There is no pre-launch gate any more: both the customer and the cleaner side are public on `nooracare.no`. The matcher skips `/ingest`, the PostHog reverse proxy (`next.config.ts` rewrites to `eu.i.posthog.com`), so analytics requests cost no Supabase call. Because `skipTrailingSlashRedirect` is on for that proxy, the first thing `proxy.ts` does is 308 `/foo/` → `/foo` for app paths, so canonical URLs are unchanged. Role guards live in `src/lib/auth/require-role.ts` (`requireRole` for pages/layouts, `assertRole` for server actions); privileged roles (`admin`, `driver`) can never be chosen at signup — the `handle_new_user` trigger only honors `customer`/`cleaner` metadata.
 
 ## Maps & Geocoding
 
@@ -252,6 +256,26 @@ Every day at 06:00 UTC a Vercel cron (`vercel.json` → `crons`, Production only
 
 - **One message per admin** (`sendToAdmins` in `lib/email/admin-mail.ts`), for the digest, the order alerts and the error alerts alike: with every admin on one message, a single bouncing address makes Resend suppress it for all. The digest route answers 502 `{ sent, failed }` when any admin's copy is rejected. Every admin account needs a working mailbox — a bounce also hurts the sending domain.
 - **Env**: `CRON_SECRET`, `RESEND_API_KEY`, optional `ADMIN_DIGEST_FROM` (see `ENVIRONMENTS.md`). The `nooracare.no` sending domain is verified in Resend (shared with the Auth e-mails).
+
+## Analytics
+
+PostHog (EU cloud) in **cookieless mode** (#91): no cookies, no local/session storage, `person_profiles: 'never'`, no session replay, no `identify()`. There is no cookie banner and none is needed; the privacy pages name PostHog as a recipient. The SDK is initialised in `src/instrumentation-client.ts` → `lib/analytics/posthog.ts` only when `NEXT_PUBLIC_POSTHOG_KEY` is set **and** the hostname is `nooracare.no` / `www.nooracare.no` / `test.nooracare.no` (`lib/analytics/config.ts`); localhost and previews send nothing. Events go through the same-origin proxy `/ingest` (`next.config.ts` rewrites; the www→apex redirect and `proxy.ts` both leave `/ingest` alone). Page views (incl. client-side navigation), page leaves (scroll depth), heatmaps, rageclicks and autocapture clicks are automatic; autocapture is off on `/admin`, `/dashboard`, the cleaner signup and onboarding steps and the per-order pages. Custom events are the `AnalyticsEvent` union in `lib/analytics/config.ts` and are sent with `track()` from client components — never send e-mail, name, address, phone, user ids or form input. Landing-page CTAs carry `data-ph-capture-attribute-cta="…"` (`audience-switch`, `price-list`, `cross-promo`) so autocapture clicks can be filtered by `cta`. The PostHog project setting **Cookieless server hash mode** must be on or every event is discarded (`ENVIRONMENTS.md` → "PostHog").
+
+| Event | Fired where | Properties |
+|---|---|---|
+| `how_it_works_viewed` | `TrackSectionView` inside `HowItWorksStory` | — |
+| `calculator_used` | `EstimateCalculator`, first selection change per mount | — |
+| `order_step_completed` | wash → pickup, pickup → confirm | `step` (1 or 2); step 1: `bags`, `bedding_sets`, `estimate_ore`; step 2: `city`, `recurring`, `frequency` |
+| `checkout_login_wall_shown` | confirm page when `signedIn === false` (rare: signed-out visitors are sent to signup before step 1) | — |
+| `promo_code_applied` | confirm page after validation | `valid`, `code` (upper-cased), `reason` (`'error'` or `null`) |
+| `checkout_vipps_started` | confirm page, after `createSubscriptionAction` succeeded, before leaving (sendBeacon) | `recurring`, `frequency`, `city`, `estimate_ore`, `promo`, `auto_accept` |
+| `checkout_result` | success page `applyResult` | `status` (`'active' \| 'cancelled' \| 'pending'`), `recurring` |
+| `signup_submitted` | customer signup page after the server answered | `ok`, `reason` (`'taken' \| 'error' \| null`), `from_order_flow` |
+| `login_submitted` | login page after `signInWithPassword` | `ok`, `from_order_flow` |
+
+Cookieless ids rotate daily, so funnels use a conversion window of 1 day, and the signup funnel ends at the "check your e-mail" page (the confirmation click cannot be linked).
+
+- **Env**: `NEXT_PUBLIC_POSTHOG_KEY` (one PostHog project per environment; see `ENVIRONMENTS.md`).
 
 ## Error Alerts
 

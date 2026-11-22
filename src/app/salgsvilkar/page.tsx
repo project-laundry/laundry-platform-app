@@ -5,7 +5,7 @@ import { Footer } from "@/components/landing/Footer";
 import { formatTermsVersion } from "@/lib/config/terms";
 import { CompanyContactCard } from "@/components/legal/CompanyContactCard";
 import { SUBSCRIPTIONS_OFFERED } from "@/lib/config/subscriptions";
-import { MIN_DAYS_NOTICE } from "@/lib/config/order-timing";
+import { pickupNoticeText } from "@/lib/config/order-timing";
 import { serviceAreaText } from "@/lib/config/postal-codes";
 
 export const metadata: Metadata = {
@@ -260,8 +260,7 @@ export default function SalgsvilkarPage() {
                 >
                   nooracare.no/dashboard
                 </Link>
-                . En ny hentedato må være minst {MIN_DAYS_NOTICE} dager frem i
-                tid.
+                . {pickupNoticeText()}
               </p>
               <p className="leading-relaxed text-dark-gray">
                 Du kan avbestille kostnadsfritt samme sted inntil 24 timer før

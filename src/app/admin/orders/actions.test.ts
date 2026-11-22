@@ -877,12 +877,12 @@ describe('overrideOrderPriceAction', () => {
     });
 
     expect(result).toEqual({ success: true });
-    // 3 × 22900 + 10400 + 1830 = 80930; 70 % = 56651
+    // 3 × 29900 + 10400 + 1830 = 101930; 70 % = 71351
     expect(updateOrderPricingByAdmin).toHaveBeenCalledWith('ord-1', {
       wash_loads: 3,
       ironing_details: null,
-      total_cost_ore: 80930,
-      cleaner_payout_ore: 56651,
+      total_cost_ore: 101930,
+      cleaner_payout_ore: 71351,
       pricing_notes: 'Renseren telte feil',
       promo: null,
     });
@@ -894,7 +894,7 @@ describe('overrideOrderPriceAction', () => {
     const result = await overrideOrderPriceAction('ord-1', { wash_loads: 1, pricing_notes: '' });
 
     expect(result).toEqual({ success: true });
-    // 22900 + 10400 + 1830 = 35130 < 50000 minimum → 50000; 70 % = 35000
+    // 29900 + 10400 + 1830 = 42130 < 50000 minimum → 50000; 70 % = 35000
     expect(updateOrderPricingByAdmin).toHaveBeenCalledWith(
       'ord-1',
       expect.objectContaining({ total_cost_ore: 50000, cleaner_payout_ore: 35000, pricing_notes: undefined })
@@ -919,9 +919,9 @@ describe('overrideOrderPriceAction', () => {
     expect(updateOrderPricingByAdmin).toHaveBeenCalledWith(
       'ord-1',
       expect.objectContaining({
-        total_cost_ore: 40465,
-        cleaner_payout_ore: 56651,
-        promo: expect.objectContaining({ code: 'HALV', discount_ore: 40465 }),
+        total_cost_ore: 50965,
+        cleaner_payout_ore: 71351,
+        promo: expect.objectContaining({ code: 'HALV', discount_ore: 50965 }),
       })
     );
   });

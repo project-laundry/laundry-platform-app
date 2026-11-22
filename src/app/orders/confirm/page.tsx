@@ -26,6 +26,7 @@ import { getPickupTimeRangeLabel } from '@/lib/config/pickup-times';
 import type { OrderSelection } from '@/types/order-flow';
 import { createClient } from '@/lib/supabase/client';
 import { withNext } from '@/lib/auth/next-path';
+import { track } from '@/lib/analytics/posthog';
 import {
   createSubscriptionAction,
   forceAcceptAgreementAction,
@@ -134,6 +135,12 @@ export default function ConfirmPage() {
     }
   }, [submitError]);
 
+  // Signed-out visitors are normally sent to signup before step 1; count how
+  // often the fallback wall on this step still shows.
+  useEffect(() => {
+    if (signedIn === false) track('checkout_login_wall_shown');
+  }, [signedIn]);
+
   const handleApplyPromo = async () => {
     const code = promoInput.trim();
     if (!code) return;
@@ -143,6 +150,7 @@ export default function ConfirmPage() {
 
     try {
       const result = await validatePromoCodeAction(code);
+      track('promo_code_applied', { valid: result.valid, code: code.toUpperCase(), reason: null });
       if (result.valid) {
         setPromoStatus('valid');
         setPromoMessage(result.discountLabel ? `Kode lagt til – ${result.discountLabel}` : 'Rabattkode lagt til');
@@ -153,6 +161,7 @@ export default function ConfirmPage() {
         updateOrderData({ promoCode: undefined });
       }
     } catch {
+      track('promo_code_applied', { valid: false, code: code.toUpperCase(), reason: 'error' });
       setPromoStatus('invalid');
       setPromoMessage('Kunne ikke sjekke rabattkoden. Prøv igjen.');
     }
@@ -200,6 +209,20 @@ export default function ConfirmPage() {
         setIsSubmitting(false);
         return;
       }
+
+      // Sent with sendBeacon: the next line may leave the page for Vipps.
+      track(
+        'checkout_vipps_started',
+        {
+          recurring: orderData.isRecurring || false,
+          frequency: orderData.frequency || null,
+          city: orderData.city ?? null,
+          estimate_ore: price.totalOre,
+          promo: promoStatus === 'valid',
+          auto_accept: autoAccept,
+        },
+        { beforeNavigation: true }
+      );
 
       if (autoAccept && result.agreementId) {
         // Auto-accept flow (opt-in flag, Vipps test API only)

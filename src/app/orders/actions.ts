@@ -16,7 +16,7 @@ import { isVippsForceAcceptAllowed, pickVippsTestPhone } from "@/lib/payments/vi
 import { createVippsRecurringClient } from "@/lib/payments/vipps/recurring-client";
 import { getWeekdayFromDate, isWeekdayInSchedule, addDays, toISODateString, todayInOslo } from "@/lib/utils/date";
 import { validateCheckoutInput } from "@/lib/validation/checkout";
-import { DAYS_PICKUP_TO_DELIVERY, MIN_DAYS_NOTICE } from "@/lib/config/order-timing";
+import { DAYS_PICKUP_TO_DELIVERY, earliestPickupDate } from "@/lib/config/order-timing";
 import { OFFERED_CITIES, serviceAreaText } from "@/lib/config/postal-codes";
 import { TERMS_VERSION } from "@/lib/config/terms";
 import { SUBSCRIPTIONS_OFFERED } from "@/lib/config/subscriptions";
@@ -1031,17 +1031,13 @@ export async function updateOrderPickupDateAction(
       };
     }
 
-    // Validate new date is at least MIN_DAYS_NOTICE days in the future
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const minDate = new Date(today);
-    minDate.setDate(today.getDate() + MIN_DAYS_NOTICE);
+    // The new date must be bookable right now (same rule as the order flow;
+    // ISO dates compare correctly as strings).
     const pickupDate = new Date(newPickupDate);
-
-    if (pickupDate < minDate) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(newPickupDate) || newPickupDate < earliestPickupDate()) {
       return {
         success: false,
-        error: `Hentedato må være minst ${MIN_DAYS_NOTICE} dager frem i tid`
+        error: 'Hentedatoen er ikke lenger tilgjengelig. Velg en ny dato.'
       };
     }
 
