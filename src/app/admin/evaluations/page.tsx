@@ -96,7 +96,7 @@ export default async function AdminEvaluationsPage() {
                   </p>
                 </div>
                 <dl className="mt-3 divide-y divide-cream-dark/60 text-sm">
-                  {EVALUATION_QUESTIONS.map((question) => (
+                  {EVALUATION_QUESTIONS.filter((question) => question.id in evaluation.answers).map((question) => (
                     <div key={question.id} className="flex justify-between gap-4 py-2">
                       <dt className="shrink-0 text-medium-gray">{question.short}</dt>
                       <dd className="whitespace-pre-wrap text-right font-medium text-dark-gray">

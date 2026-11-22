@@ -820,20 +820,26 @@ export function buildCleanerConfirmedEmail(
 // ─── Evaluation request ─────────────────────────────────────────────────────
 
 /**
- * Sent right after the delivered e-mail when the order is the customer's
- * first completed one (sendEvaluationRequestEmail). One button to the form at
+ * Sent right after the delivered e-mail for every delivered order
+ * (sendEvaluationRequestEmail). `full` = the customer still gets the
+ * first-time questions (about 2 minutes), otherwise the short form. One button to the form at
  * /evaluering/<order id>, which needs no login.
  */
 export function buildEvaluationRequestEmail(
   order: OrderForCustomerEmail,
+  full: boolean,
   options: CustomerEmailOptions
 ): CustomerEmail {
   const blocks: Block[] = [
     greeting(order),
     paragraph(
-      `Takk for at du prøvde NooraCare. Vi vil gjerne høre hvordan det gikk med bestilling #${order.order_number}.`
+      `Takk for at du bruker NooraCare. Vi vil gjerne høre hvordan det gikk med bestilling #${order.order_number}.`
     ),
-    paragraph('Svarene dine hjelper oss å sette riktig pris og gjøre tjenesten bedre. Det tar ca. 2 minutter.'),
+    paragraph(
+      full
+        ? 'Svarene dine hjelper oss å sette riktig pris og gjøre tjenesten bedre. Det tar ca. 2 minutter.'
+        : 'Svarene dine hjelper oss å gjøre tjenesten bedre. Det tar under ett minutt.'
+    ),
     button('Svar på spørsmålene', `${baseUrl(options)}${evaluationPath(order.id)}`),
     closing(),
   ];

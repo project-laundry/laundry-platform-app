@@ -29,7 +29,7 @@ import {
   buildPriceReceiptEmail,
   type CustomerEmail,
 } from '@/lib/email/customer-emails';
-import { countCompletedOrdersByCustomerId } from '@/lib/database/evaluations';
+import { needsFullEvaluation } from '@/lib/database/evaluations';
 import { getPaymentById, getPaymentsByOrderId } from '@/lib/database/payments';
 import { CUSTOMER_EMAIL_FROM, sendEmail } from '@/lib/email/send';
 import { todayInOslo } from '@/lib/utils/date';
@@ -192,9 +192,9 @@ export async function sendOrderDeliveredEmail(orderId: string): Promise<void> {
 
 /**
  * Evaluation form request. Called by completeDeliveredOrder right after the
- * delivered e-mail. Sent only when this is the customer's FIRST completed
- * order (exactly one completed order after the transition). A failed count is
- * treated as "do not send". One e-mail per order (key = order id).
+ * delivered e-mail, for every completed order. The text says whether the full
+ * or the short form waits (needsFullEvaluation). One e-mail per order (key =
+ * order id).
  */
 export async function sendEvaluationRequestEmail(orderId: string): Promise<void> {
   try {
@@ -207,12 +207,11 @@ export async function sendEvaluationRequestEmail(orderId: string): Promise<void>
       return;
     }
 
-    const completed = await countCompletedOrdersByCustomerId(order.customer_id);
-    if (completed !== 1) return;
+    const full = await needsFullEvaluation(order.customer_id);
 
     await deliver(
       order,
-      buildEvaluationRequestEmail(order, { appUrl: url }),
+      buildEvaluationRequestEmail(order, full, { appUrl: url }),
       `evaluation-request/${order.id}`
     );
   } catch (error) {

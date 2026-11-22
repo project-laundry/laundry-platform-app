@@ -1,7 +1,7 @@
 'use server';
 
-import { EVALUATION_FORM_VERSION, validateEvaluationAnswers } from '@/lib/config/evaluation';
-import { createEvaluation, getOrderForEvaluation } from '@/lib/database/evaluations';
+import { EVALUATION_FORM_VERSION, evaluationQuestions, validateEvaluationAnswers } from '@/lib/config/evaluation';
+import { createEvaluation, getOrderForEvaluation, needsFullEvaluation } from '@/lib/database/evaluations';
 import { reportError } from '@/lib/services/error-alerts';
 import { clientIp, isRateLimited } from '@/lib/utils/rate-limit';
 
@@ -18,14 +18,16 @@ export async function submitEvaluationAction(orderId: string, input: unknown): P
       return { success: false, error: 'For mange forsøk. Prøv igjen om noen minutter.' };
     }
 
-    const answers = validateEvaluationAnswers(input);
-    if (!answers) {
-      return { success: false, error: 'Svar på alle spørsmålene før du sender.' };
-    }
-
     const order = typeof orderId === 'string' ? await getOrderForEvaluation(orderId) : null;
     if (!order || order.status !== 'completed') {
       return { success: false, error: 'Vi fant ikke bestillingen.' };
+    }
+
+    // Which form applies is decided here, never by the client.
+    const full = await needsFullEvaluation(order.customer_id);
+    const answers = validateEvaluationAnswers(input, evaluationQuestions(full));
+    if (!answers) {
+      return { success: false, error: 'Svar på alle spørsmålene før du sender.' };
     }
 
     const result = await createEvaluation({

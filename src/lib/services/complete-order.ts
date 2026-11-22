@@ -35,7 +35,7 @@ import type { OrderStatus } from '@/types/database';
  *   pending and while a failed charge is waiting for the admin's retry.
  * - Sends the customer the "laundry delivered" e-mail last (sendOrderDeliveredEmail,
  *   never throws) — for every completed order, subscription or one-time.
- * - Then asks for an evaluation (sendEvaluationRequestEmail) when this was the customer's first completed order.
+ * - Then asks for an evaluation (sendEvaluationRequestEmail) after every delivery.
  */
 export async function completeDeliveredOrder(
   orderId: string,
@@ -68,8 +68,8 @@ export async function completeDeliveredOrder(
   // before Resend answers. Never throws (lib/services/customer-emails.ts).
   await sendOrderDeliveredEmail(updated.id);
 
-  // Evaluation form for the customer's first completed order. Sends nothing
-  // for any later order. Never throws.
+  // Evaluation request after every delivery (full or short form, decided in
+  // sendEvaluationRequestEmail). Never throws.
   await sendEvaluationRequestEmail(updated.id);
 
   return { success: true };

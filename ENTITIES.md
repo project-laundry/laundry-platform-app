@@ -541,7 +541,7 @@
 
 ### OrderEvaluation
 
-**Description:** A customer's answers to the evaluation form (`/evaluering/<order id>`), e-mailed when their first order is delivered. One row per order.
+**Description:** A customer's answers to the evaluation form (`/evaluering/<order id>`), e-mailed after every delivered order. One row per order.
 
 **Fields:**
 
@@ -549,7 +549,7 @@
 - `order_id` (UUID, FK → orders, UNIQUE, ON DELETE CASCADE) - The evaluated order
 - `customer_id` (UUID, FK → customers, ON DELETE CASCADE) - Copied from the order at submit time
 - `form_version` (text) - `EVALUATION_FORM_VERSION` when answered
-- `answers` (JSONB) - One key per question id in `lib/config/evaluation.ts`; numbers for scales and prices (whole kroner), option values for choices, text or null for free text
+- `answers` (JSONB) - One key per question that was asked, id from `lib/config/evaluation.ts` (all twelve the first time a customer answers, five afterwards); numbers for scales and prices (whole kroner), option values for choices, text or null for free text
 - `created_at` (timestamp)
 
 **Notes:**

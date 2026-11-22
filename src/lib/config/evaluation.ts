@@ -3,6 +3,11 @@
 // Pure — no I/O. Answers are stored as one JSON object keyed by question id in
 // order_evaluations.answers, together with EVALUATION_FORM_VERSION.
 //
+// Two forms: the FULL form (all questions) until the customer has answered the
+// first-time questions (`firstTimeOnly`) once, then the SHORT form (the rest).
+// The server decides which one applies (needsFullEvaluation) and validates
+// against that list; the stored answers hold only the questions that were asked.
+//
 // Changing a question: edit it here and bump EVALUATION_FORM_VERSION. Never
 // reuse an id for a different question — old rows keep their old meaning.
 
@@ -19,6 +24,8 @@ interface QuestionBase {
   /** Short name for the admin page. */
   short: string;
   hint?: string;
+  /** Asked only until the customer has answered it once (full form only). */
+  firstTimeOnly?: true;
 }
 
 export interface ScaleQuestion extends QuestionBase {
@@ -89,6 +96,7 @@ export const EVALUATION_QUESTIONS: EvaluationQuestion[] = [
   },
   {
     id: 'ease_of_ordering',
+    firstTimeOnly: true,
     type: 'scale',
     label: 'Hvor enkelt var det å bestille?',
     short: 'Enkelt å bestille',
@@ -99,6 +107,7 @@ export const EVALUATION_QUESTIONS: EvaluationQuestion[] = [
   },
   {
     id: 'fair_price_bag',
+    firstTimeOnly: true,
     type: 'price',
     label: 'Hva synes du er en rimelig pris for én pose med klær?',
     short: 'Rimelig pris per pose',
@@ -107,6 +116,7 @@ export const EVALUATION_QUESTIONS: EvaluationQuestion[] = [
   },
   {
     id: 'too_expensive_bag',
+    firstTimeOnly: true,
     type: 'price',
     label: 'Ved hvilken pris per pose ville det blitt for dyrt for deg?',
     short: 'For dyrt per pose',
@@ -114,6 +124,7 @@ export const EVALUATION_QUESTIONS: EvaluationQuestion[] = [
   },
   {
     id: 'fair_price_bedding',
+    firstTimeOnly: true,
     type: 'price',
     label: 'Hva er en rimelig pris for vask av ett sett sengetøy?',
     short: 'Rimelig pris sengetøy',
@@ -122,6 +133,7 @@ export const EVALUATION_QUESTIONS: EvaluationQuestion[] = [
   },
   {
     id: 'frequency',
+    firstTimeOnly: true,
     type: 'choice',
     label: 'Hvor ofte ville du brukt NooraCare?',
     short: 'Hvor ofte',
@@ -135,6 +147,7 @@ export const EVALUATION_QUESTIONS: EvaluationQuestion[] = [
   },
   {
     id: 'subscription_interest',
+    firstTimeOnly: true,
     type: 'choice',
     label: 'Ville du vurdert et abonnement med fast henting og lavere pris per pose?',
     short: 'Abonnement',
@@ -146,6 +159,7 @@ export const EVALUATION_QUESTIONS: EvaluationQuestion[] = [
   },
   {
     id: 'recommend',
+    firstTimeOnly: true,
     type: 'scale',
     label: 'Hvor sannsynlig er det at du anbefaler NooraCare til en venn?',
     short: 'Anbefaler',
@@ -170,8 +184,19 @@ export const EVALUATION_QUESTIONS: EvaluationQuestion[] = [
   },
 ];
 
-/** Ids of the questions that must be answered (everything except free text). */
-export const REQUIRED_EVALUATION_IDS = EVALUATION_QUESTIONS.filter((q) => q.type !== 'text').map((q) => q.id);
+export const FIRST_TIME_QUESTION_IDS = EVALUATION_QUESTIONS.filter((q) => q.firstTimeOnly).map((q) => q.id);
+
+/** The questions of the full form (`full`) or of the short form. */
+export function evaluationQuestions(full: boolean): EvaluationQuestion[] {
+  return full ? EVALUATION_QUESTIONS : EVALUATION_QUESTIONS.filter((q) => !q.firstTimeOnly);
+}
+
+/** True when some answer set holds an answer to every first-time question. */
+export function hasAnsweredFirstTimeQuestions(answerSets: EvaluationAnswers[]): boolean {
+  return answerSets.some((answers) =>
+    FIRST_TIME_QUESTION_IDS.every((id) => answers[id] !== null && answers[id] !== undefined)
+  );
+}
 
 function validAnswer(question: EvaluationQuestion, value: unknown): EvaluationAnswer | undefined {
   switch (question.type) {
@@ -202,16 +227,17 @@ function validAnswer(question: EvaluationQuestion, value: unknown): EvaluationAn
 }
 
 /**
- * Checks a submitted answer set against the questions. Returns a clean object
- * with exactly one key per question (unknown keys are dropped, empty text is
- * null), or null when a required answer is missing or any value is invalid.
+ * Checks a submitted answer set against the given questions. Returns a clean
+ * object with exactly one key per question in `questions` (all other keys are
+ * dropped, empty text is null), or null when a required answer is missing or
+ * any value is invalid.
  */
-export function validateEvaluationAnswers(input: unknown): EvaluationAnswers | null {
+export function validateEvaluationAnswers(input: unknown, questions: EvaluationQuestion[]): EvaluationAnswers | null {
   if (typeof input !== 'object' || input === null || Array.isArray(input)) return null;
   const raw = input as Record<string, unknown>;
 
   const answers: EvaluationAnswers = {};
-  for (const question of EVALUATION_QUESTIONS) {
+  for (const question of questions) {
     const answer = validAnswer(question, raw[question.id]);
     if (answer === undefined) return null;
     answers[question.id] = answer;

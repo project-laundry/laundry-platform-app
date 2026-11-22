@@ -1,12 +1,16 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
-vi.mock('@/lib/database/evaluations', () => ({ getOrderForEvaluation: vi.fn(), createEvaluation: vi.fn() }));
+vi.mock('@/lib/database/evaluations', () => ({
+  getOrderForEvaluation: vi.fn(),
+  createEvaluation: vi.fn(),
+  needsFullEvaluation: vi.fn(),
+}));
 vi.mock('@/lib/utils/rate-limit', () => ({ isRateLimited: vi.fn(), clientIp: vi.fn() }));
 vi.mock('@/lib/services/error-alerts', () => ({ reportError: vi.fn() }));
 
 import { EVALUATION_FORM_VERSION } from '@/lib/config/evaluation';
-import { createEvaluation, getOrderForEvaluation } from '@/lib/database/evaluations';
+import { createEvaluation, getOrderForEvaluation, needsFullEvaluation } from '@/lib/database/evaluations';
 import { reportError } from '@/lib/services/error-alerts';
 import { clientIp, isRateLimited } from '@/lib/utils/rate-limit';
 import { submitEvaluationAction } from './actions';
@@ -28,6 +32,7 @@ beforeEach(() => {
   m(isRateLimited).mockResolvedValue(false);
   m(getOrderForEvaluation).mockResolvedValue(ORDER);
   m(createEvaluation).mockResolvedValue('created');
+  m(needsFullEvaluation).mockResolvedValue(true);
 });
 
 describe('submitEvaluationAction', () => {
@@ -76,6 +81,26 @@ describe('submitEvaluationAction', () => {
       form_version: EVALUATION_FORM_VERSION,
       answers: { ...VALID, improvements: 'Raskere levering', other: null },
     });
+  });
+
+  it('stores five answers when the customer gets the short form', async () => {
+    m(needsFullEvaluation).mockResolvedValue(false);
+
+    const result = await submitEvaluationAction('ord-1', VALID);
+
+    expect(result).toEqual({ success: true });
+    expect(needsFullEvaluation).toHaveBeenCalledWith('cust-1');
+    const stored = m(createEvaluation).mock.calls[0][0].answers;
+    expect(Object.keys(stored)).toEqual(['satisfaction', 'on_time', 'quality', 'improvements', 'other']);
+  });
+
+  it('rejects a short answer set when the full form applies', async () => {
+    const short = { satisfaction: 4, on_time: 'yes', quality: 'yes', improvements: '', other: '' };
+
+    const result = await submitEvaluationAction('ord-1', short);
+
+    expect(result.success).toBe(false);
+    expect(createEvaluation).not.toHaveBeenCalled();
   });
 
   it('treats a duplicate as success', async () => {

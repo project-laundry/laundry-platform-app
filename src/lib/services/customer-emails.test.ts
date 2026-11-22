@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 vi.mock('@/lib/database/orders', () => ({ getOrderForCustomerEmail: vi.fn(), getActiveOrdersBySubscriptionId: vi.fn() }));
-vi.mock('@/lib/database/evaluations', () => ({ countCompletedOrdersByCustomerId: vi.fn() }));
+vi.mock('@/lib/database/evaluations', () => ({ needsFullEvaluation: vi.fn() }));
 vi.mock('@/lib/database/payments', () => ({ getPaymentById: vi.fn(), getPaymentsByOrderId: vi.fn() }));
 vi.mock('@/lib/email/send', () => ({
   sendEmail: vi.fn(),
@@ -22,7 +22,7 @@ vi.mock('@/lib/email/customer-emails', () => ({
 }));
 
 import { getActiveOrdersBySubscriptionId, getOrderForCustomerEmail } from '@/lib/database/orders';
-import { countCompletedOrdersByCustomerId } from '@/lib/database/evaluations';
+import { needsFullEvaluation } from '@/lib/database/evaluations';
 import { getPaymentById, getPaymentsByOrderId } from '@/lib/database/payments';
 import { sendEmail } from '@/lib/email/send';
 import { buildEvaluationRequestEmail, buildCleanerConfirmedEmail, buildOrderCancelledEmail, buildPickupRescheduledEmail, buildOrderConfirmationEmail, buildOrderDeliveredEmail, buildOrderPickedUpEmail, buildPaymentFailedEmail, buildPickupReminderEmail, buildPriceReceiptEmail } from '@/lib/email/customer-emails';
@@ -225,14 +225,14 @@ describe('sendOrderDeliveredEmail', () => {
 
 describe('sendEvaluationRequestEmail', () => {
   beforeEach(() => {
-    m(countCompletedOrdersByCustomerId).mockResolvedValue(1);
+    m(needsFullEvaluation).mockResolvedValue(true);
   });
 
-  it('sends for the first completed order, keyed on the order id', async () => {
+  it('sends the full form request, keyed on the order id', async () => {
     await sendEvaluationRequestEmail('ord-1');
 
-    expect(countCompletedOrdersByCustomerId).toHaveBeenCalledWith('cust-1');
-    expect(buildEvaluationRequestEmail).toHaveBeenCalledWith(ORDER, { appUrl: 'https://nooracare.no' });
+    expect(needsFullEvaluation).toHaveBeenCalledWith('cust-1');
+    expect(buildEvaluationRequestEmail).toHaveBeenCalledWith(ORDER, true, { appUrl: 'https://nooracare.no' });
     expect(sendEmail).toHaveBeenCalledWith(
       expect.objectContaining({
         to: ['kari@example.com'],
@@ -242,33 +242,26 @@ describe('sendEvaluationRequestEmail', () => {
     );
   });
 
-  it('sends nothing for a later order', async () => {
-    m(countCompletedOrdersByCustomerId).mockResolvedValue(2);
+  it('sends the short form request when the first-time questions are answered', async () => {
+    m(needsFullEvaluation).mockResolvedValue(false);
 
     await sendEvaluationRequestEmail('ord-1');
 
-    expect(sendEmail).not.toHaveBeenCalled();
+    expect(buildEvaluationRequestEmail).toHaveBeenCalledWith(ORDER, false, { appUrl: 'https://nooracare.no' });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
   });
 
-  it('sends nothing when the count failed', async () => {
-    m(countCompletedOrdersByCustomerId).mockResolvedValue(null);
-
-    await sendEvaluationRequestEmail('ord-1');
-
-    expect(sendEmail).not.toHaveBeenCalled();
-  });
-
-  it('sends nothing and does not count when the order is not found', async () => {
+  it('sends nothing and does not look up the form when the order is not found', async () => {
     m(getOrderForCustomerEmail).mockResolvedValue(null);
 
     await sendEvaluationRequestEmail('ord-x');
 
-    expect(countCompletedOrdersByCustomerId).not.toHaveBeenCalled();
+    expect(needsFullEvaluation).not.toHaveBeenCalled();
     expect(sendEmail).not.toHaveBeenCalled();
   });
 
-  it('never throws when the count rejects', async () => {
-    m(countCompletedOrdersByCustomerId).mockRejectedValue(new Error('db down'));
+  it('never throws when needsFullEvaluation rejects', async () => {
+    m(needsFullEvaluation).mockRejectedValue(new Error('db down'));
 
     await expect(sendEvaluationRequestEmail('ord-1')).resolves.toBeUndefined();
     expect(sendEmail).not.toHaveBeenCalled();

@@ -3,9 +3,8 @@
 import { useState } from 'react';
 import { AlertCircle, Check } from 'lucide-react';
 import {
-  EVALUATION_QUESTIONS,
   EVALUATION_TEXT_MAX,
-  REQUIRED_EVALUATION_IDS,
+  evaluationQuestions,
   type EvaluationQuestion,
 } from '@/lib/config/evaluation';
 import { submitEvaluationAction } from './actions';
@@ -142,7 +141,8 @@ function QuestionInput({
   );
 }
 
-export function EvaluationForm({ orderId }: { orderId: string }) {
+export function EvaluationForm({ orderId, full }: { orderId: string; full: boolean }) {
+  const questions = evaluationQuestions(full);
   const [answers, setAnswers] = useState<Answers>({});
   const [missing, setMissing] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -162,7 +162,10 @@ export function EvaluationForm({ orderId }: { orderId: string }) {
     event.preventDefault();
     if (sending) return;
 
-    const unanswered = REQUIRED_EVALUATION_IDS.filter((id) => answers[id] === undefined);
+    const unanswered = questions
+      .filter((q) => q.type !== 'text')
+      .map((q) => q.id)
+      .filter((id) => answers[id] === undefined);
     if (unanswered.length > 0) {
       setMissing(unanswered);
       setError(
@@ -193,7 +196,7 @@ export function EvaluationForm({ orderId }: { orderId: string }) {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-3">
-      {EVALUATION_QUESTIONS.map((question, index) => (
+      {questions.map((question, index) => (
         <div
           key={question.id}
           id={`card-${question.id}`}

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { AppHeader } from '@/components/layout/AppHeader';
-import { getOrderForEvaluation, hasEvaluation } from '@/lib/database/evaluations';
+import { getOrderForEvaluation, hasEvaluation, needsFullEvaluation } from '@/lib/database/evaluations';
 import { EvaluationForm, EvaluationThanks } from './EvaluationForm';
 
 export const metadata: Metadata = {
@@ -21,6 +21,7 @@ export default async function EvaluationPage({ params }: { params: Promise<{ ord
   }
 
   const answered = await hasEvaluation(order.id);
+  const full = answered === true ? false : await needsFullEvaluation(order.customer_id);
 
   return (
     <div className="min-h-screen bg-cream text-dark-gray">
@@ -44,8 +45,9 @@ export default async function EvaluationPage({ params }: { params: Promise<{ ord
           <h1 className="mt-2 font-serif text-4xl font-semibold leading-tight text-dark-gray">Hvordan var vasken?</h1>
           {answered !== true && (
             <p className="mt-3 text-medium-gray">
-              Takk for at du prøvde NooraCare. Svarene dine hjelper oss å sette riktig pris og gjøre tjenesten
-              bedre. Det tar ca. 2 minutter.
+              {full
+                ? 'Takk for at du bruker NooraCare. Svarene dine hjelper oss å sette riktig pris og gjøre tjenesten bedre. Det tar ca. 2 minutter.'
+                : 'Takk for at du bruker NooraCare. Svarene dine hjelper oss å gjøre tjenesten bedre. Det tar under ett minutt.'}
             </p>
           )}
         </header>
@@ -53,7 +55,7 @@ export default async function EvaluationPage({ params }: { params: Promise<{ ord
         {answered === true ? (
           <EvaluationThanks text="Du har allerede svart på denne evalueringen." />
         ) : (
-          <EvaluationForm orderId={order.id} />
+          <EvaluationForm orderId={order.id} full={full} />
         )}
       </main>
     </div>

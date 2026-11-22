@@ -746,10 +746,15 @@ describe('buildCleanerConfirmedEmail', () => {
 
 describe('buildEvaluationRequestEmail', () => {
   it('links to the evaluation form of the order and names the order number', () => {
-    const email = buildEvaluationRequestEmail(ORDER, OPTIONS);
+    const email = buildEvaluationRequestEmail(ORDER, true, OPTIONS);
 
     expect(email.subject).toBe('Hvordan var vasken?');
     expect(email.text).toContain(`/evaluering/${ORDER.id}`);
     expect(email.text).toContain(ORDER.order_number);
+  });
+
+  it('says about 2 minutes for the full form and under one minute for the short one', () => {
+    expect(buildEvaluationRequestEmail(ORDER, true, OPTIONS).text).toContain('ca. 2 minutter');
+    expect(buildEvaluationRequestEmail(ORDER, false, OPTIONS).text).toContain('under ett minutt');
   });
 });

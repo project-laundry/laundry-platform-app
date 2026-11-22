@@ -3,7 +3,7 @@
 // by the order's id, and the admin page is guarded by requireRole.
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import type { EvaluationAnswers } from '@/lib/config/evaluation';
+import { hasAnsweredFirstTimeQuestions, type EvaluationAnswers } from '@/lib/config/evaluation';
 import type { OrderEvaluation, OrderStatus } from '@/types/database';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -65,19 +65,22 @@ export async function createEvaluation(evaluation: {
   return 'error';
 }
 
-/** Number of the customer's orders with status `completed`. Null when the read failed (logged). */
-export async function countCompletedOrdersByCustomerId(customerId: string): Promise<number | null> {
-  const { count, error } = await createAdminClient()
-    .from('orders')
-    .select('id', { count: 'exact', head: true })
-    .eq('customer_id', customerId)
-    .eq('status', 'completed');
+/**
+ * Whether the customer still gets the full form (the first-time questions).
+ * False when they have answered them once — and false when the read fails
+ * (logged): the short form is the safe default.
+ */
+export async function needsFullEvaluation(customerId: string): Promise<boolean> {
+  const { data, error } = await createAdminClient()
+    .from('order_evaluations')
+    .select('answers')
+    .eq('customer_id', customerId);
 
-  if (error || count === null) {
-    console.error('[countCompletedOrdersByCustomerId] Error counting orders:', error);
-    return null;
+  if (error || !data) {
+    console.error('[needsFullEvaluation] Error fetching evaluations:', error);
+    return false;
   }
-  return count;
+  return !hasAnsweredFirstTimeQuestions(data.map((row) => row.answers as EvaluationAnswers));
 }
 
 export interface EvaluationWithDetails extends OrderEvaluation {
