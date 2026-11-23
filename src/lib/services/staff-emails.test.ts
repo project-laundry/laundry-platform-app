@@ -10,6 +10,7 @@ vi.mock('@/lib/email/send', () => ({
 }));
 vi.mock('@/lib/email/staff-emails', () => ({
   buildCleanerNewOrderEmail: vi.fn(() => ({ subject: 'Nytt oppdrag', text: 'tekst', html: '<p>html</p>' })),
+  buildAdminNewCleanerEmail: vi.fn(() => ({ subject: 'Ny renser', text: 'tekst' })),
   buildAdminNewOrderEmail: vi.fn(() => ({ subject: 'Ny ordre', text: 'tekst' })),
   buildAdminOrderUnassignedEmail: vi.fn(() => ({ subject: 'Venter', text: 'tekst' })),
   buildCleanerPickupRescheduledEmail: vi.fn(() => ({ subject: 'Ny hentedato', text: 'tekst', html: '<p>html</p>' })),
@@ -21,6 +22,7 @@ import { getCleanerWithUserById } from '@/lib/database/cleaners';
 import { getUsersByRole } from '@/lib/database/users';
 import { sendEmail } from '@/lib/email/send';
 import {
+  buildAdminNewCleanerEmail,
   buildAdminNewOrderEmail,
   buildAdminOrderUnassignedEmail,
   buildCleanerNewOrderEmail,
@@ -28,6 +30,7 @@ import {
   buildCleanerPickupRescheduledEmail,
 } from '@/lib/email/staff-emails';
 import {
+  sendAdminNewCleanerEmail,
   sendAdminNewOrderEmail,
   sendAdminOrderUnassignedEmail,
   sendCleanerNewOrderEmail,
@@ -390,5 +393,58 @@ describe('sendCleanerPickupRescheduledEmails', () => {
     m(sendEmail).mockResolvedValue({ ok: false, error: 'Resend responded 500' });
 
     await expect(sendCleanerPickupRescheduledEmails('ord-1', BEFORE)).resolves.toBeUndefined();
+  });
+});
+
+describe('sendAdminNewCleanerEmail', () => {
+  const CLEANER = {
+    id: 'cl-9',
+    display_name: 'Kari Vask',
+    base_city: 'Bergen',
+    business_type: 'individual',
+    tax_id: '01819000553',
+    user: { full_name: 'Kari Nordmann', email: 'kari@example.com' },
+  };
+
+  beforeEach(() => {
+    m(getCleanerWithUserById).mockResolvedValue(CLEANER);
+  });
+
+  it('sends one e-mail per active admin, keyed on the cleaner, without sensitive fields', async () => {
+    await sendAdminNewCleanerEmail('cl-9');
+
+    expect(getCleanerWithUserById).toHaveBeenCalledWith('cl-9');
+    expect(buildAdminNewCleanerEmail).toHaveBeenCalledWith(
+      {
+        id: 'cl-9',
+        display_name: 'Kari Vask',
+        full_name: 'Kari Nordmann',
+        base_city: 'Bergen',
+        business_type: 'individual',
+      },
+      { appUrl: 'https://nooracare.no' }
+    );
+    expect(sendEmail).toHaveBeenCalledTimes(2);
+    expect(sendEmail).toHaveBeenCalledWith({
+      from: 'NooraCare <varsel@nooracare.no>',
+      to: ['admin1@example.com'],
+      subject: 'Ny renser',
+      text: 'tekst',
+      idempotencyKey: 'admin-new-cleaner/cl-9/adm-1',
+    });
+  });
+
+  it('sends nothing when the cleaner is not found', async () => {
+    m(getCleanerWithUserById).mockResolvedValue(null);
+
+    await sendAdminNewCleanerEmail('cl-x');
+
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('never throws when loading the cleaner rejects', async () => {
+    m(getCleanerWithUserById).mockRejectedValue(new Error('db down'));
+
+    await expect(sendAdminNewCleanerEmail('cl-9')).resolves.toBeUndefined();
   });
 });

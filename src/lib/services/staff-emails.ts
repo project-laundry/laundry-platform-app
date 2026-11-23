@@ -1,7 +1,7 @@
-// Staff e-mail sending — «Nytt oppdrag» to the assigned cleaner and the two
-// admin alerts («Ny ordre», «Ordre venter på tildeling»). Loads the order,
-// builds the e-mail (lib/email/staff-emails.ts) and sends it through Resend
-// (lib/email/send.ts).
+// Staff e-mail sending — «Nytt oppdrag» to the assigned cleaner and the
+// admin alerts («Ny ordre», «Ordre venter på tildeling», «Ny renser venter på
+// godkjenning»). Loads the order or the cleaner, builds the e-mail
+// (lib/email/staff-emails.ts) and sends it through Resend (lib/email/send.ts).
 //
 // Same contract as lib/services/customer-emails.ts: every function NEVER
 // throws and returns void. The callers are the Vipps webhook and the
@@ -16,6 +16,7 @@ import { getOrderForStaffEmail } from '@/lib/database/orders';
 import { sendToAdmins } from '@/lib/email/admin-mail';
 import { CUSTOMER_EMAIL_FROM, sendEmail } from '@/lib/email/send';
 import {
+  buildAdminNewCleanerEmail,
   buildAdminNewOrderEmail,
   buildAdminOrderUnassignedEmail,
   buildCleanerNewOrderEmail,
@@ -270,5 +271,39 @@ export async function sendAdminOrderUnassignedEmail(
     );
   } catch (error) {
     console.error(`[Staff e-mail] Waiting-for-assignment e-mail for ${orderId} failed:`, error);
+  }
+}
+
+/**
+ * «Ny renser venter på godkjenning» to every admin. Called once by
+ * createCleanerProfileAction right after the cleaners row is inserted.
+ * Keyed on the cleaner id.
+ */
+export async function sendAdminNewCleanerEmail(cleanerId: string): Promise<void> {
+  try {
+    const url = appUrl();
+    if (!url) return;
+
+    const cleaner = await getCleanerWithUserById(cleanerId);
+    if (!cleaner) {
+      console.error(`[Staff e-mail] Cleaner ${cleanerId} not found — new-cleaner e-mail to admins skipped`);
+      return;
+    }
+
+    await deliverToAdmins(
+      buildAdminNewCleanerEmail(
+        {
+          id: cleaner.id,
+          display_name: cleaner.display_name,
+          full_name: cleaner.user?.full_name ?? '',
+          base_city: cleaner.base_city,
+          business_type: cleaner.business_type,
+        },
+        { appUrl: url }
+      ),
+      `admin-new-cleaner/${cleaner.id}`
+    );
+  } catch (error) {
+    console.error(`[Staff e-mail] New-cleaner e-mail to admins for ${cleanerId} failed:`, error);
   }
 }

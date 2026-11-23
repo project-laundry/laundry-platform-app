@@ -50,6 +50,7 @@ per admin (`sendToAdmins` in `src/lib/email/admin-mail.ts`). A deactivated admin
 | Daily digest | «NooraCare <dato>: …» | Daily cron 06:00 UTC, production only | Admin digest below |
 | «Ny ordre» | «Ny ordre #…» | A first order is created | Staff e-mails below |
 | «Ordre venter på tildeling» | «Ordre #… venter på tildeling» | A cleaner declined and nobody took over | Staff e-mails below |
+| «Ny renser venter på godkjenning» | «Ny renser venter på godkjenning – …» | A cleaner finished onboarding and waits for approval | Staff e-mails below |
 | Price review | «Pris må godkjennes – ordre #…» | The price guard held a charge | `CLAUDE.md` → Price Guard |
 | Error alert | «NooraCare feil: …» | `reportError` is called, at most once per hour per error | `CLAUDE.md` → Error Alerts |
 
@@ -121,7 +122,7 @@ Not sent (deliberately): other status changes (assignment, ready for delivery), 
 
 ## Staff e-mails in detail
 
-E-mails to the cleaner and the admins about orders. Same architecture as the customer e-mails: pure builders (`lib/email/staff-emails.ts`), a service that **never throws and returns void** (`lib/services/staff-emails.ts`), the shared `sendEmail` transport, Resend `Idempotency-Key`, nothing stored in the DB. The cleaner mail is sent from `NooraCare <no-reply@nooracare.no>` with reply-to `COMPANY.email` to the cleaner's `users.email`; the admin mails are plain text from `ADMIN_DIGEST_FROM` (default `NooraCare <varsel@nooracare.no>`) to every `users` row with `role = 'admin'` and `deleted_at IS NULL` — the digest's recipients.
+E-mails to the cleaner and the admins about orders, and to the admins about new cleaners. Same architecture as the customer e-mails: pure builders (`lib/email/staff-emails.ts`), a service that **never throws and returns void** (`lib/services/staff-emails.ts`), the shared `sendEmail` transport, Resend `Idempotency-Key`, nothing stored in the DB. The cleaner mail is sent from `NooraCare <no-reply@nooracare.no>` with reply-to `COMPANY.email` to the cleaner's `users.email`; the admin mails are plain text from `ADMIN_DIGEST_FROM` (default `NooraCare <varsel@nooracare.no>`) to every `users` row with `role = 'admin'` and `deleted_at IS NULL` — the digest's recipients.
 
 | E-mail | Trigger (exact code path) | Key |
 |---|---|---|
@@ -130,6 +131,7 @@ E-mails to the cleaner and the admins about orders. Same architecture as the cus
 | «Oppdraget er flyttet» (previous cleaner) | `sendCleanerPickupRescheduledEmails` — `updateOrderPickupDateAction`, when the customer moved the pickup to a weekday the cleaner does not work and the order went to another cleaner (who gets «Nytt oppdrag»). Order number and the previous pickup date; no address, no customer details, button to `/dashboard/cleaner` | `cleaner-order-moved/<order.id>/<previous cleaner_id>/<orders.updated_at before the write>` |
 | «Ny ordre» (admins) | `sendAdminNewOrderEmail` — `generateFirstOrder`, same place, first orders only. Order number, city, pickup date, cleaner or «ingen renser ennå», link to `/admin/orders/<order id>` | `admin-new-order/<order.id>` |
 | «Ordre venter på tildeling» (admins) | `sendAdminOrderUnassignedEmail` — `declineCleanerOrder` when the decline ended without a new cleaner (nobody available, pickup date already past, or the re-assignment failed). Who declined, city, pickup date, number of declines, link. Skipped when the order is no longer `pending_assignment` | `admin-order-unassigned/<order.id>/<number of declines>` |
+| «Ny renser venter på godkjenning» (admins) | `sendAdminNewCleanerEmail` — `createCleanerProfileAction` right after the `cleaners` row is inserted (`verification_status = 'pending'`). Display name, full name, base city, private person or business, link to `/admin/cleaners/<cleaner id>`. No tax id, bank account, address or contact details | `admin-new-cleaner/<cleaner.id>` |
 
 Not sent (deliberately): nothing to the cleaner who loses an order on an admin re-assignment; nothing for rolling-window subscription orders (dormant); no admin alert for an order created without a cleaner beyond the «ingen renser ennå» in «Ny ordre». A decline or an automatic re-assignment sends the customer nothing.
 

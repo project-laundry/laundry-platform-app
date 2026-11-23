@@ -1,6 +1,6 @@
 // Staff e-mail builders — pure (no I/O), unit tested. «Nytt oppdrag» to the
 // cleaner uses the same block list and HTML wrapper as the customer e-mails
-// (lib/email/customer-emails.ts); the two admin alerts are plain text like
+// (lib/email/customer-emails.ts); the admin alerts are plain text like
 // the daily digest. Sending lives in lib/services/staff-emails.ts.
 //
 // The cleaner mail carries no customer name, phone or e-mail — the cleaner
@@ -8,6 +8,7 @@
 
 import { PICKUP_TIME_RANGE } from '@/lib/config/pickup-times';
 import type { OrderForStaffEmail } from '@/lib/database/orders';
+import type { CleanerBusinessType } from '@/types/database';
 import {
   baseUrl,
   button,
@@ -200,6 +201,43 @@ export function buildAdminOrderUnassignedEmail(
       `Antall rensere som har avslått: ${declineCount}`,
       '',
       `${baseUrl(options)}/admin/orders/${order.id}`,
+      '',
+    ].join('\n'),
+  };
+}
+
+/** What «Ny renser venter på godkjenning» needs — deliberately no tax id, bank account or contact details. */
+export interface NewCleanerForAdminEmail {
+  id: string;
+  display_name: string;
+  full_name: string;
+  base_city: string;
+  business_type: CleanerBusinessType;
+}
+
+/**
+ * «Ny renser venter på godkjenning» — sent to every admin when a cleaner has
+ * finished onboarding and the profile waits for approval.
+ */
+export function buildAdminNewCleanerEmail(
+  cleaner: NewCleanerForAdminEmail,
+  options: CustomerEmailOptions
+): StaffTextEmail {
+  const displayName = cleaner.display_name.trim();
+
+  return {
+    subject: `Ny renser venter på godkjenning – ${displayName}, ${cleaner.base_city}`,
+    text: [
+      'Ny renser venter på godkjenning',
+      '',
+      `${displayName} har fullført registreringen. Se gjennom opplysningene og godkjenn eller avslå.`,
+      '',
+      `Visningsnavn: ${displayName}`,
+      `Navn: ${cleaner.full_name.trim() || 'ikke oppgitt'}`,
+      `By: ${cleaner.base_city}`,
+      `Type: ${cleaner.business_type === 'business' ? 'Registrert virksomhet' : 'Privatperson'}`,
+      '',
+      `${baseUrl(options)}/admin/cleaners/${cleaner.id}`,
       '',
     ].join('\n'),
   };

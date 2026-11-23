@@ -12,6 +12,7 @@ vi.mock('@/lib/database/cleaners', () => ({
   isTaxIdTaken: vi.fn(),
 }));
 vi.mock('@/lib/maps/geocoding', () => ({ geocodeAddress: vi.fn() }));
+vi.mock('@/lib/services/staff-emails', () => ({ sendAdminNewCleanerEmail: vi.fn() }));
 vi.mock('@/lib/auth/require-role', () => ({ assertRole: vi.fn() }));
 vi.mock('@/lib/ai/machine-recognition', () => ({
   MAX_IMAGE_BASE64_LENGTH: 900_000,
@@ -20,6 +21,7 @@ vi.mock('@/lib/ai/machine-recognition', () => ({
 
 import { createCleaner, getCleanerByUserId, isTaxIdTaken } from '@/lib/database/cleaners';
 import { geocodeAddress } from '@/lib/maps/geocoding';
+import { sendAdminNewCleanerEmail } from '@/lib/services/staff-emails';
 import { assertRole } from '@/lib/auth/require-role';
 import { recognizeWashingMachine } from '@/lib/ai/machine-recognition';
 import {
@@ -66,6 +68,23 @@ beforeEach(() => {
 });
 
 describe('createCleanerProfileAction', () => {
+  it('e-mails the admins about the new cleaner after the profile is created', async () => {
+    const result = await createCleanerProfileAction(baseData);
+
+    expect(result).toEqual({ success: true, cleanerId: 'cl-1' });
+    expect(sendAdminNewCleanerEmail).toHaveBeenCalledTimes(1);
+    expect(sendAdminNewCleanerEmail).toHaveBeenCalledWith('cl-1');
+  });
+
+  it('does not e-mail the admins when the insert fails', async () => {
+    m(createCleaner).mockResolvedValue({ data: null, error: { code: 'XX000' } });
+
+    const result = await createCleanerProfileAction(baseData);
+
+    expect(result.success).toBe(false);
+    expect(sendAdminNewCleanerEmail).not.toHaveBeenCalled();
+  });
+
   it('rejects when not authenticated', async () => {
     getUser.mockResolvedValue({ data: { user: null }, error: null });
 
@@ -73,6 +92,7 @@ describe('createCleanerProfileAction', () => {
 
     expect(result.success).toBe(false);
     expect(createCleaner).not.toHaveBeenCalled();
+    expect(sendAdminNewCleanerEmail).not.toHaveBeenCalled();
   });
 
   it('rejects a postal code outside the service area', async () => {

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { OrderForStaffEmail } from '@/lib/database/orders';
 import {
+  buildAdminNewCleanerEmail,
   buildAdminNewOrderEmail,
   buildAdminOrderUnassignedEmail,
   buildCleanerNewOrderEmail,
@@ -235,5 +236,46 @@ describe('buildAdminOrderUnassignedEmail', () => {
     const { text } = buildAdminOrderUnassignedEmail(UNASSIGNED_ORDER, { declinedByName: '  ' }, OPTIONS);
 
     expect(text).toContain('Renseren avslo oppdraget');
+  });
+});
+
+describe('buildAdminNewCleanerEmail', () => {
+  const CLEANER = {
+    id: 'cl-9',
+    display_name: ' Kari Vask ',
+    full_name: 'Kari Nordmann',
+    base_city: 'Bergen',
+    business_type: 'individual' as const,
+  };
+
+  it('lists display name, full name, city, type and the admin link', () => {
+    const { subject, text } = buildAdminNewCleanerEmail(CLEANER, OPTIONS);
+
+    expect(subject).toBe('Ny renser venter på godkjenning – Kari Vask, Bergen');
+    expect(text).toBe(
+      [
+        'Ny renser venter på godkjenning',
+        '',
+        'Kari Vask har fullført registreringen. Se gjennom opplysningene og godkjenn eller avslå.',
+        '',
+        'Visningsnavn: Kari Vask',
+        'Navn: Kari Nordmann',
+        'By: Bergen',
+        'Type: Privatperson',
+        '',
+        'https://nooracare.no/admin/cleaners/cl-9',
+        '',
+      ].join('\n')
+    );
+  });
+
+  it('says «Registrert virksomhet» for a business and «ikke oppgitt» for a missing name', () => {
+    const { text } = buildAdminNewCleanerEmail(
+      { ...CLEANER, business_type: 'business', full_name: ' ' },
+      OPTIONS
+    );
+
+    expect(text).toContain('Type: Registrert virksomhet');
+    expect(text).toContain('Navn: ikke oppgitt');
   });
 });
