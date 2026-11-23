@@ -27,7 +27,7 @@ import {
 import { updateUpcomingOrdersAddressBySubscriptionId } from '@/lib/database/orders';
 import { validateAddress } from '@/lib/maps/geocoding';
 import {
-  updateCustomerContactAction,
+  updateContactAction,
   updateEmailPreferencesAction,
   updateSubscriptionAddressAction,
   type SubscriptionAddressInput,
@@ -81,32 +81,38 @@ beforeEach(() => {
   m(updateCustomerEmailPreferences).mockResolvedValue({ error: null });
 });
 
-describe('updateCustomerContactAction', () => {
-  it('rejects when the caller is not a customer', async () => {
+describe('updateContactAction', () => {
+  it('rejects when the caller is neither a customer nor a cleaner', async () => {
     m(assertRole).mockResolvedValue({ auth: null, error: 'Ingen tilgang' });
 
-    const result = await updateCustomerContactAction({ fullName: 'Ola Nordmann', phone: '99887766' });
+    const result = await updateContactAction({ fullName: 'Ola Nordmann', phone: '99887766' });
 
     expect(result).toEqual({ success: false, error: 'Ingen tilgang' });
     expect(updateUserContact).not.toHaveBeenCalled();
   });
 
+  it('allows customers and cleaners', async () => {
+    await updateContactAction({ fullName: 'Ola Nordmann', phone: '99887766' });
+
+    expect(assertRole).toHaveBeenCalledWith(['customer', 'cleaner']);
+  });
+
   it('rejects a name shorter than 2 characters', async () => {
-    const result = await updateCustomerContactAction({ fullName: ' O ', phone: '99887766' });
+    const result = await updateContactAction({ fullName: ' O ', phone: '99887766' });
 
     expect(result).toEqual({ success: false, error: 'Navn må ha minst 2 tegn' });
     expect(updateUserContact).not.toHaveBeenCalled();
   });
 
   it('rejects a phone that is not 8 digits', async () => {
-    const result = await updateCustomerContactAction({ fullName: 'Ola Nordmann', phone: '1234567' });
+    const result = await updateContactAction({ fullName: 'Ola Nordmann', phone: '1234567' });
 
     expect(result).toEqual({ success: false, error: 'Telefonnummer må være 8 siffer' });
     expect(updateUserContact).not.toHaveBeenCalled();
   });
 
   it('saves the trimmed name and the phone with a +47 prefix on the caller\'s own row', async () => {
-    const result = await updateCustomerContactAction({
+    const result = await updateContactAction({
       fullName: '  Ola Nordmann ',
       phone: '998 87 766',
     });
@@ -124,7 +130,7 @@ describe('updateCustomerContactAction', () => {
       error: 'Telefonnummeret er allerede i bruk',
     });
 
-    const result = await updateCustomerContactAction({ fullName: 'Ola Nordmann', phone: '99887766' });
+    const result = await updateContactAction({ fullName: 'Ola Nordmann', phone: '99887766' });
 
     expect(result).toEqual({ success: false, error: 'Telefonnummeret er allerede i bruk' });
   });

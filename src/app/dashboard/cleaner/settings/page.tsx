@@ -4,6 +4,10 @@ import { requireViewer } from '@/lib/auth/view-as';
 import { getCleanerByUserId } from '@/lib/database/cleaners';
 import { LogoutButton } from '@/components/ui/LogoutButton';
 import { CleanerSettingsForm } from './CleanerSettingsForm';
+import { KeyRound, UserRound } from 'lucide-react';
+import { SettingsSection } from '../../settings/SettingsSection';
+import { ContactForm } from '../../settings/ContactForm';
+import { PasswordForm } from '../../settings/PasswordForm';
 
 export default async function CleanerSettingsPage() {
   // Same guard as the cleaner dashboard: any cleaner with a profile may edit,
@@ -16,6 +20,9 @@ export default async function CleanerSettingsPage() {
   if (!cleaner) {
     redirect('/bli-renser/business');
   }
+
+  // Signup stores +47 + 8 digits; staff-edited rows may lack the prefix.
+  const phoneDigits = viewer.dbUser.phone.replace(/^\+47/, '');
 
   return (
     <div className="min-h-screen bg-cream text-dark-gray">
@@ -53,6 +60,29 @@ export default async function CleanerSettingsPage() {
         </div>
 
         <CleanerSettingsForm cleaner={cleaner} />
+
+        {/* Account sections — each saves on its own, separate from the form above. */}
+        <p className="mt-10 text-sm font-medium uppercase tracking-[0.18em] text-sea-green">
+          Konto
+        </p>
+
+        <SettingsSection icon={<UserRound className="size-5" />} title="Kontaktinformasjon">
+          <ContactForm
+            initialFullName={viewer.dbUser.full_name}
+            initialPhoneDigits={phoneDigits}
+            email={viewer.dbUser.email}
+          />
+        </SettingsSection>
+
+        <SettingsSection icon={<KeyRound className="size-5" />} title="Passord">
+          {viewer.viewAs ? (
+            <p className="text-sm text-medium-gray">
+              Passordskjemaet vises ikke når du ser som renseren.
+            </p>
+          ) : (
+            <PasswordForm />
+          )}
+        </SettingsSection>
       </main>
     </div>
   );

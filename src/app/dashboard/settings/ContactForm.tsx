@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { FormInput } from '@/components/forms/FormInput';
 import { validateNorwegianPhone } from '@/lib/validation/cleaner';
-import { updateCustomerContactAction } from './actions';
+import { updateContactAction } from './actions';
 import { INPUT_CLASS, SAVE_BUTTON_CLASS, SaveMessage, type SaveMessageState } from './SettingsSection';
 
 interface ContactFormProps {
@@ -45,7 +45,7 @@ export function ContactForm({ initialFullName, initialPhoneDigits, email }: Cont
     if (!validate()) return;
 
     setIsSaving(true);
-    const result = await updateCustomerContactAction({ fullName, phone });
+    const result = await updateContactAction({ fullName, phone });
     setIsSaving(false);
 
     if (result.success) {
