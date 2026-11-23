@@ -8,6 +8,7 @@ import posthog from 'posthog-js';
 import {
   AUTOCAPTURE_URL_IGNORELIST,
   isAnalyticsHost,
+  isDroppedPageEvent,
   isRecordingAllowed,
   type AnalyticsConsent,
   type AnalyticsEvent,
@@ -59,6 +60,10 @@ export function initAnalytics(input: { key: string | undefined; hostname: string
       element_allowlist: ['a', 'button', 'form', 'label'],
       url_ignorelist: AUTOCAPTURE_URL_IGNORELIST,
     },
+    // Page views and page leaves from /admin and /dashboard are not sent
+    // (they would inflate the totals). Only those two events: browser errors
+    // from the same pages still go to error tracking.
+    before_send: (event) => (isDroppedPageEvent(event.event, event.properties?.$current_url) ? null : event),
   });
   enabled = true;
   return true;

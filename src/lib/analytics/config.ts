@@ -17,7 +17,7 @@ export function isAnalyticsHost(hostname: string | null | undefined): boolean {
  *  the element text there is customer or cleaner data: admin, dashboards,
  *  the cleaner signup and onboarding steps, the per-order pages and the evaluation form. Regex
  *  sources, matched by posthog-js against the full URL. Page views are
- *  unaffected. */
+ *  unaffected by this list (see isDroppedPageEvent below). */
 export const AUTOCAPTURE_URL_IGNORELIST = [
   '/admin',
   '/dashboard',
@@ -35,6 +35,30 @@ export const RECORDING_URL_BLOCKLIST = [...AUTOCAPTURE_URL_IGNORELIST, '/auth'];
 /** `pathname` as in window.location.pathname. */
 export function isRecordingAllowed(pathname: string): boolean {
   return !RECORDING_URL_BLOCKLIST.some((pattern) => new RegExp(pattern).test(pathname));
+}
+
+/** Paths whose page views are never sent: only signed-in staff, cleaners and
+ *  customers are there, and their visits would inflate the visitor, session
+ *  and page view totals. */
+const PAGE_EVENT_DROP_PATHS = ['/admin', '/dashboard'];
+
+/** The automatic events that are dropped on those paths. Everything else
+ *  (browser errors as `$exception` above all) is still sent from there. */
+const DROPPED_PAGE_EVENTS = ['$pageview', '$pageleave'];
+
+/** True when the event must not be sent: a `$pageview` or `$pageleave` whose
+ *  page is `/admin`, `/dashboard` or below. `url` is the event's
+ *  `$current_url` (a full URL); anything unparsable is never dropped. */
+export function isDroppedPageEvent(event: string, url: unknown): boolean {
+  if (!DROPPED_PAGE_EVENTS.includes(event)) return false;
+  if (typeof url !== 'string') return false;
+  let pathname: string;
+  try {
+    pathname = new URL(url).pathname;
+  } catch {
+    return false;
+  }
+  return PAGE_EVENT_DROP_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 }
 
 /** `off` = analytics is not running here (localhost, previews, no key);
