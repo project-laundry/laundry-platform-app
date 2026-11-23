@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
+import { LinkPendingIcon } from '@/components/ui/LinkPendingIcon';
 import { StatusBadge } from '@/components/dashboard/StatusBadge';
 import { getOrderStatusLabel, getOrderStatusVariant } from '@/lib/utils/order-status';
 import { getCompactDateLabel, getRelativeDateDisplay } from '@/lib/utils/date-format';
@@ -41,7 +42,9 @@ export function OrderRow({
         <StatusBadge variant={getOrderStatusVariant(order.status)}>
           {getOrderStatusLabel(order.status)}
         </StatusBadge>
-        <ChevronRight className="size-4 text-medium-gray" />
+        <LinkPendingIcon className="size-4 text-medium-gray">
+          <ChevronRight className="size-4 text-medium-gray" />
+        </LinkPendingIcon>
       </div>
     </Link>
   );

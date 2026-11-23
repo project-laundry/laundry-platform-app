@@ -141,7 +141,9 @@ src/
 │   ├── layout/             # Layout components (empty)
 │   ├── legal/              # CompanyContactCard — the company details box shared by /salgsvilkar, /personvern and /personvern-renser (values from lib/config/company.ts)
 │   └── ui/                 # UI elements
-│       └── LogoutButton.tsx
+│       ├── LogoutButton.tsx
+│       ├── NavigationProgress.tsx # Top progress bar on every App Router navigation (mounted in the root layout); set from onRouterTransitionStart via lib/navigation/progress.ts, resets by itself when the navigation is done
+│       └── LinkPendingIcon.tsx    # Wraps a <Link>'s icon: spinner in its place while that link's page loads (useLinkStatus). See BRANDBOOK.md §5
 ├── hooks/                  # Custom React hooks (empty)
 ├── lib/                    # Core utilities and business logic
 │   ├── analytics/          # PostHog, cookieless: config.ts = host allowlist (nooracare.no, www, test), autocapture URL ignorelist, session replay blocklist, the AnalyticsEvent union (pure, tested); posthog.ts = initAnalytics() + track() + consent (acceptAnalytics / declineAnalytics / analyticsConsent / syncRecording) — the only file that imports posthog-js
@@ -200,7 +202,7 @@ src/
 │   ├── database.ts         # Complete entity types and enums
 │   └── index.ts            # General type exports
 ├── instrumentation.ts      # onRequestError → reportError: every unhandled server error is e-mailed to the admins (production builds only)
-├── instrumentation-client.ts # Browser entry (Next convention): initAnalytics({ key: NEXT_PUBLIC_POSTHOG_KEY, hostname })
+├── instrumentation-client.ts # Browser entry (Next convention): initAnalytics({ key: NEXT_PUBLIC_POSTHOG_KEY, hostname }); onRouterTransitionStart → notifyNavigationStart (the top progress bar)
 └── proxy.ts                # Trailing-slash redirect + Supabase session refresh + order-flow login requirement; matcher skips /ingest (PostHog proxy), /robots.txt and /sitemap.xml
 ```
 

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowRight, BedDouble, ShoppingBag, Truck } from 'lucide-react';
+import { LinkPendingIcon } from '@/components/ui/LinkPendingIcon';
 import {
   ACCENT_CHIPS,
   ComingSoonHero,
@@ -58,7 +59,9 @@ function HeroAction() {
         className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-nordic-blue px-7 py-4 text-lg font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98] sm:w-auto"
       >
         Bestill henting
-        <ArrowRight className="size-5" />
+        <LinkPendingIcon className="size-5">
+          <ArrowRight className="size-5" />
+        </LinkPendingIcon>
       </Link>
     </div>
   );
@@ -118,7 +121,9 @@ function Prices() {
             className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-sol px-6 py-3.5 font-semibold text-fjord shadow-soft transition-all hover:brightness-105 active:scale-[0.98]"
           >
             Bestill henting
-            <ArrowRight className="size-4" />
+            <LinkPendingIcon className="size-4">
+              <ArrowRight className="size-4" />
+            </LinkPendingIcon>
           </Link>
         </div>
       </div>

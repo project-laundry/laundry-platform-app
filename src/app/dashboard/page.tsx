@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Plus, CalendarPlus, AlertCircle, Settings } from 'lucide-react';
+import { LinkPendingIcon } from '@/components/ui/LinkPendingIcon';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { getViewer, getViewerCustomer } from '@/lib/auth/view-as';
 import { getActiveSubscriptionByCustomerId } from '@/lib/database/subscriptions';
@@ -97,7 +98,9 @@ export default async function DashboardPage() {
               href="/orders/wash"
               className="inline-flex items-center gap-1.5 rounded-full border border-cream-dark bg-white px-4 py-2 text-sm font-medium text-nordic-blue transition-all hover:border-sea-green hover:text-sea-green active:scale-[0.98]"
             >
-              <Plus className="size-4" />
+              <LinkPendingIcon className="size-4">
+                <Plus className="size-4" />
+              </LinkPendingIcon>
               Bestill ny vask
             </Link>
           )}
@@ -123,7 +126,9 @@ export default async function DashboardPage() {
                     href="/orders/wash"
                     className="mt-4 inline-flex items-center gap-2 rounded-full bg-nordic-blue px-6 py-3.5 font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98]"
                   >
-                    <CalendarPlus className="size-4" />
+                    <LinkPendingIcon className="size-4">
+                      <CalendarPlus className="size-4" />
+                    </LinkPendingIcon>
                     Bestill ny vask
                   </Link>
                 </div>

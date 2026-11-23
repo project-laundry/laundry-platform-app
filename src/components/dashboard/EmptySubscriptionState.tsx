@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ArrowRight, WashingMachine } from 'lucide-react';
+import { LinkPendingIcon } from '@/components/ui/LinkPendingIcon';
 import { SUBSCRIPTIONS_OFFERED } from '@/lib/config/subscriptions';
 
 export function EmptySubscriptionState() {
@@ -25,7 +26,9 @@ export function EmptySubscriptionState() {
         className="mt-8 inline-flex items-center gap-2 rounded-full bg-nordic-blue px-6 py-3.5 font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98]"
       >
         Bestill klesvask
-        <ArrowRight className="size-4" />
+        <LinkPendingIcon className="size-4">
+          <ArrowRight className="size-4" />
+        </LinkPendingIcon>
       </Link>
     </div>
   );

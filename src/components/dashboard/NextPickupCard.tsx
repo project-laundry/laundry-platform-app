@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ChevronRight, MapPin, PackageCheck, Truck, User } from 'lucide-react';
+import { LinkPendingIcon } from '@/components/ui/LinkPendingIcon';
 import { StatusBadge } from '@/components/dashboard/StatusBadge';
 import { getOrderStatusLabel, getOrderStatusStep, getOrderStatusVariant } from '@/lib/utils/order-status';
 import { getCompactDateLabel, getRelativeDateDisplay } from '@/lib/utils/date-format';
@@ -81,7 +82,9 @@ export function NextPickupCard({ order }: { order: OrderWithRelations }) {
           <span className="font-serif font-semibold tabular-nums text-dark-gray">
             {priceLabel}
           </span>
-          <ChevronRight className="size-4 text-nordic-blue" />
+          <LinkPendingIcon className="size-4 text-nordic-blue">
+            <ChevronRight className="size-4 text-nordic-blue" />
+          </LinkPendingIcon>
         </span>
       </div>
     </Link>

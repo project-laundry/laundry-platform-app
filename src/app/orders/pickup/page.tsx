@@ -2,7 +2,7 @@
 
 // Step 2 — where we pick up and when.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, CalendarDays, Info, MapPin, RefreshCw } from 'lucide-react';
 import {
@@ -78,6 +78,7 @@ function PickupForm() {
     weekdays: Weekday[];
   } | null>(null);
   const [validating, setValidating] = useState(false);
+  const [isNavigating, startNavigation] = useTransition();
   const [addressError, setAddressError] = useState<string | null>(null);
   const addressErrorRef = useRef<HTMLDivElement>(null);
 
@@ -225,7 +226,7 @@ function PickupForm() {
       recurring,
       frequency: recurring ? frequency : null,
     });
-    router.push('/orders/confirm');
+    startNavigation(() => router.push('/orders/confirm'));
   };
 
   return (
@@ -235,6 +236,7 @@ function PickupForm() {
       canAdvance={canAdvance}
       onAdvance={handleAdvance}
       isSubmitting={validating}
+      isNavigating={isNavigating}
     >
       <Section
         delay={60}

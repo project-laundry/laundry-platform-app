@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Fraunces, Jost, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ConsentBanner } from "@/components/analytics/ConsentBanner";
+import { NavigationProgress } from "@/components/ui/NavigationProgress";
 
 // Brand fonts: Fraunces for headlines and the wordmark, Jost for body and labels.
 // Both are variable fonts; opsz lets Fraunces sharpen up at display sizes.
@@ -56,6 +57,7 @@ export default function RootLayout({
       <body
         className={`${fraunces.variable} ${jost.variable} ${geistMono.variable} antialiased font-sans`}
       >
+        <NavigationProgress />
         {children}
         <ConsentBanner />
       </body>
