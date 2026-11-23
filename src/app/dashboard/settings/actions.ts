@@ -20,21 +20,23 @@ export interface SettingsActionResult {
   error?: string;
 }
 
-export interface CustomerContactInput {
+export interface ContactInput {
   fullName: string;
   /** 8 digits without the +47 prefix — the form strips everything else. */
   phone: string;
 }
 
 /**
- * Update the signed-in customer's name and phone on their own users row.
- * The phone is always stored as +47 + 8 digits, exactly like signup does.
+ * Update the signed-in customer's or cleaner's name and phone on their own
+ * users row. Used by both settings pages (/dashboard/settings and
+ * /dashboard/cleaner/settings). The phone is always stored as +47 + 8 digits,
+ * exactly like signup does.
  */
-export async function updateCustomerContactAction(
-  input: CustomerContactInput
+export async function updateContactAction(
+  input: ContactInput
 ): Promise<SettingsActionResult> {
   try {
-    const { auth, error: authError } = await assertRole(['customer']);
+    const { auth, error: authError } = await assertRole(['customer', 'cleaner']);
     if (authError || !auth) {
       return { success: false, error: authError ?? 'Ikke autentisert' };
     }
@@ -63,9 +65,11 @@ export async function updateCustomerContactAction(
 
     revalidatePath('/dashboard');
     revalidatePath('/dashboard/settings');
+    revalidatePath('/dashboard/cleaner');
+    revalidatePath('/dashboard/cleaner/settings');
     return { success: true };
   } catch (error) {
-    console.error('Unexpected error in updateCustomerContactAction:', error);
+    console.error('Unexpected error in updateContactAction:', error);
     return { success: false, error: 'En uventet feil oppstod. Vennligst prøv igjen.' };
   }
 }
