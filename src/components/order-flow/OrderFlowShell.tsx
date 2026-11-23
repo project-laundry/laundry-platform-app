@@ -4,7 +4,7 @@
 // step titles, and the sticky estimate bar with the primary CTA.
 
 import { useEffect } from 'react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Loader2 } from 'lucide-react';
 import { formatKr, type PriceResult } from '@/lib/config/pricing';
 import { AppHeader, BackLink } from '@/components/layout/AppHeader';
 
@@ -48,6 +48,7 @@ export function OrderFlowShell({
   canAdvance,
   onAdvance,
   isSubmitting = false,
+  isNavigating = false,
   children,
 }: {
   step: OrderFlowStep;
@@ -56,6 +57,8 @@ export function OrderFlowShell({
   /** Steps 1–2: navigate forward. Step 3: submit to Vipps. */
   onAdvance: () => void;
   isSubmitting?: boolean;
+  /** Steps 1–2: the next step is loading — the arrow becomes a spinner. */
+  isNavigating?: boolean;
   children: React.ReactNode;
 }) {
   const meta = STEP_META[step];
@@ -145,11 +148,16 @@ export function OrderFlowShell({
             <button
               type="button"
               disabled={!canAdvance || isSubmitting}
-              onClick={onAdvance}
+              aria-busy={isNavigating}
+              onClick={isNavigating ? undefined : onAdvance}
               className="inline-flex shrink-0 items-center gap-2 rounded-full bg-nordic-blue px-6 py-3.5 font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-cream-dark disabled:text-medium-gray disabled:shadow-none"
             >
               {isSubmitting ? 'Sjekker …' : meta.cta}
-              {!isSubmitting && <ArrowRight className="size-4" />}
+              {isNavigating ? (
+                <Loader2 aria-hidden className="size-4 animate-spin" />
+              ) : (
+                !isSubmitting && <ArrowRight className="size-4" />
+              )}
             </button>
           )}
         </div>

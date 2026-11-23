@@ -243,6 +243,46 @@
   }
 }
 
+/* Top progress bar while a page navigation is loading
+   (components/ui/NavigationProgress.tsx). Invisible until .is-pending; the
+   150 ms animation delay keeps fast navigations from flashing it. */
+@keyframes nav-progress {
+  from {
+    transform: scaleX(0);
+    opacity: 1;
+  }
+  to {
+    transform: scaleX(0.92);
+    opacity: 1;
+  }
+}
+
+.nav-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  height: 3px;
+  background: hsl(var(--nordic-blue));
+  transform: scaleX(0);
+  transform-origin: left;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.nav-progress.is-pending {
+  animation: nav-progress 10s cubic-bezier(0.05, 0.7, 0.1, 1) 150ms forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-progress.is-pending {
+    animation: none;
+    transform: scaleX(1);
+    opacity: 0.6;
+  }
+}
+
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
@@ -284,6 +324,11 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  /* Pressed feedback for everything clickable (BRANDBOOK §5). Utilities win
+     over this layer, so a component can still set its own active: state. */
+  :where(a[href], button:not(:disabled), [role='button']):active {
+    opacity: 0.6;
   }
 }
 

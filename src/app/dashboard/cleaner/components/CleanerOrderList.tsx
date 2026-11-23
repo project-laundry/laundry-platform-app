@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ChevronRight, Navigation, ShoppingBag } from 'lucide-react';
+import { LinkPendingIcon } from '@/components/ui/LinkPendingIcon';
 import { daysBetweenISODates } from '@/lib/utils/date';
 import { getPickupTimeRangeLabel } from '@/lib/config/pickup-times';
 import { MAX_ROUTE_STOPS, buildRoundTripUrl, optimizeRoundTrip } from '@/lib/utils/route';
@@ -93,7 +94,9 @@ function OrderRow({
           <span className="block truncate text-sm text-medium-gray">{detail}</span>
         </span>
         {stage === 'pickup' && <PickupWhen scheduledDate={order.scheduled_date} today={today} />}
-        <ChevronRight className="size-4 shrink-0 text-medium-gray" />
+        <LinkPendingIcon className="size-4 shrink-0 text-medium-gray">
+          <ChevronRight className="size-4 shrink-0 text-medium-gray" />
+        </LinkPendingIcon>
       </Link>
     </li>
   );

@@ -317,7 +317,14 @@ Subtle entrances only, via `tw-animate-css`:
   (stagger siblings with `style={{ animationDelay: '60ms' }}` steps of ~60ms).
 - Revealed content: `animate-in fade-in slide-in-from-top-1 duration-300`.
 - Skeletons: `animate-pulse rounded-2xl bg-cream-dark/50`.
-- Press feedback: `active:scale-[0.98]` (buttons), `active:scale-90` (icon buttons).
+- Press feedback: `active:scale-[0.98]` (buttons), `active:scale-90` (icon buttons). Every link
+  and enabled button also dims while pressed (`:active { opacity: 0.6 }` in `globals.css`) — no
+  class needed.
+- Page loading: the top progress bar (`NavigationProgress` in the root layout) shows on every
+  navigation by itself. A primary link that leads to a server-rendered page wraps its icon in
+  `LinkPendingIcon` (`components/ui`) so the icon becomes a spinner while the page loads; a
+  button that navigates with `router.push` wraps the call in `useTransition` and shows
+  `Loader2` (`animate-spin`) while pending.
 
 Marketing illustrations may loop (the "Slik virker det" story: floating phone,
 spinning drum, rising bubbles, pulsing rings — tokens `animate-float`,

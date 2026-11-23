@@ -2,7 +2,7 @@
 
 // Step 1 — what the customer wants washed.
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { calculateCustomerEstimate } from '@/lib/config/pricing';
@@ -22,6 +22,7 @@ const DEFAULT_SELECTION: OrderSelection = {
 
 export default function WashPage() {
   const router = useRouter();
+  const [isNavigating, startNavigation] = useTransition();
   const orderData = useOrderFlowStore((state) => state.orderData);
   const updateOrderData = useOrderFlowStore((state) => state.updateOrderData);
   const hasHydrated = useOrderFlowStore((state) => state._hasHydrated);
@@ -42,6 +43,7 @@ export default function WashPage() {
       step={1}
       price={price}
       canAdvance={price.hasItems}
+      isNavigating={isNavigating}
       onAdvance={() => {
         track('order_step_completed', {
           step: 1,
@@ -49,7 +51,7 @@ export default function WashPage() {
           bedding_sets: selection.beddingSets,
           estimate_ore: price.totalOre,
         });
-        router.push('/orders/pickup');
+        startNavigation(() => router.push('/orders/pickup'));
       }}
     >
       <SelectionEditor
