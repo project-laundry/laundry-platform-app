@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { AppHeader, BackLink } from '@/components/layout/AppHeader';
-import { requireRole } from '@/lib/auth/require-role';
+import { requireViewer } from '@/lib/auth/view-as';
 import { getCleanerByUserId } from '@/lib/database/cleaners';
 import { getCompletedOrdersByCleanerId } from '@/lib/database/orders';
 import { todayInOslo } from '@/lib/utils/date';
@@ -9,9 +9,9 @@ import { CleanerVatCard } from '../components/CleanerVatCard';
 
 /** The cleaner's income: payout per month, the orders behind it and the VAT limit. */
 export default async function CleanerEarningsPage() {
-  const { authUserId } = await requireRole(['cleaner']);
+  const viewer = await requireViewer(['cleaner']);
 
-  const cleaner = await getCleanerByUserId(authUserId);
+  const cleaner = await getCleanerByUserId(viewer.userId);
   if (!cleaner) {
     redirect('/bli-renser/business');
   }

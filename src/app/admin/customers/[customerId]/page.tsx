@@ -19,6 +19,7 @@ import { IRONING_OFFERED, formatKr } from '@/lib/config/pricing';
 import { SUBSCRIPTIONS_OFFERED } from '@/lib/config/subscriptions';
 import type { OrderWithRelations } from '@/types/database';
 import { requireRole } from '@/lib/auth/require-role';
+import { ViewAsButton } from '../../view-as/ViewAsButton';
 
 const HISTORY_LIMIT = 10;
 
@@ -91,6 +92,9 @@ export default async function AdminCustomerDetailPage({
       <h1 className="font-serif text-4xl font-semibold leading-tight text-dark-gray">
         {customer.user.full_name}
       </h1>
+      <div className="mt-3">
+        <ViewAsButton userId={customer.user_id} label="Se som kunde" />
+      </div>
 
       {/* Contact */}
       <section className="mt-6 rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur">

@@ -2,9 +2,8 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { Ban, ChevronRight, Hourglass, Mail, Phone, Settings, Wallet, XCircle } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
+import { requireViewer } from '@/lib/auth/view-as';
 import { getCleanerByUserId } from '@/lib/database/cleaners';
-import { getUsersById } from '@/lib/database/users';
 import { getOrdersByCleanerId, getCompletedOrdersByCleanerId } from '@/lib/database/orders';
 import { LogoutButton } from '@/components/ui/LogoutButton';
 import { CleanerOrderList } from './components/CleanerOrderList';
@@ -35,29 +34,18 @@ function ContactDetails() {
 }
 
 export default async function CleanerDashboardPage() {
-  // Auth check
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/auth/login');
-  }
-
-  // Role check
-  const dbUser = await getUsersById(user.id);
-  if (!dbUser || dbUser.role !== 'cleaner') {
-    redirect('/dashboard');
-  }
+  // Cleaners only (or an admin viewing one, see lib/auth/view-as.ts)
+  const viewer = await requireViewer(['cleaner']);
 
   // Get cleaner profile
-  const cleaner = await getCleanerByUserId(user.id);
+  const cleaner = await getCleanerByUserId(viewer.userId);
 
   if (!cleaner) {
     // No profile - redirect to onboarding
     redirect('/bli-renser/business');
   }
 
-  const displayName = cleaner.display_name || user.user_metadata?.full_name || 'Renser';
+  const displayName = cleaner.display_name || viewer.dbUser.full_name || 'Renser';
   const firstName = displayName.split(' ')[0];
   const isPending = cleaner.verification_status === 'pending';
   const isApproved = cleaner.verification_status === 'approved';

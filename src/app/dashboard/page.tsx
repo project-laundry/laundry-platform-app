@@ -2,9 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Plus, CalendarPlus, AlertCircle, Settings } from 'lucide-react';
 import { AppHeader } from '@/components/layout/AppHeader';
-import { createClient } from '@/lib/supabase/server';
-import { getCustomerByUserId } from '@/lib/database/customers';
-import { getUsersById } from '@/lib/database/users';
+import { getViewer, getViewerCustomer } from '@/lib/auth/view-as';
 import { getActiveSubscriptionByCustomerId } from '@/lib/database/subscriptions';
 import { getUpcomingOrdersByCustomerId, getCompletedOrdersByCustomerId } from '@/lib/database/orders';
 import { LogoutButton } from '@/components/ui/LogoutButton';
@@ -16,28 +14,25 @@ import { HistorySection } from '@/components/dashboard/HistorySection';
 import { HelpContact } from '@/components/ui/HelpContact';
 
 export default async function DashboardPage() {
-  // Auth check
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
+  const viewer = await getViewer();
+  if (!viewer) {
     redirect('/auth/login');
   }
 
   // Non-customer roles have their own dashboards
-  const dbUser = await getUsersById(user.id);
-  if (dbUser?.role === 'cleaner') {
+  const { dbUser } = viewer;
+  if (dbUser.role === 'cleaner') {
     redirect('/dashboard/cleaner');
   }
-  if (dbUser?.role === 'driver') {
+  if (dbUser.role === 'driver') {
     redirect('/dashboard/driver');
   }
-  if (dbUser?.role === 'admin') {
+  if (dbUser.role === 'admin') {
     redirect('/admin');
   }
 
   // Get customer
-  const customer = await getCustomerByUserId(user.id);
+  const customer = await getViewerCustomer(viewer);
   if (!customer) {
     redirect('/auth/signup');
   }
@@ -53,7 +48,7 @@ export default async function DashboardPage() {
 
   // Read from the users row (editable on /dashboard/settings), not from the
   // signup-time auth metadata, which would go stale after a name change.
-  const userName = dbUser?.full_name || 'Bruker';
+  const userName = dbUser.full_name || 'Bruker';
   const firstName = userName.split(' ')[0];
 
   // Show empty state only if no subscription AND no orders

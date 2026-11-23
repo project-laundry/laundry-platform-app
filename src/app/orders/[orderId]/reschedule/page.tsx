@@ -1,9 +1,9 @@
 import { redirect, notFound } from 'next/navigation';
+import { ViewAsBanner } from '@/components/layout/ViewAsBanner';
 import { AppHeader } from '@/components/layout/AppHeader';
 import Link from 'next/link';
 import { CalendarDays, ChevronLeft, Clock } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
-import { getCustomerByUserId } from '@/lib/database/customers';
+import { getViewer, getViewerCustomer } from '@/lib/auth/view-as';
 import { getOrderWithDetailsByIdAndCustomerId } from '@/lib/database/orders';
 import { getAvailableWeekdaysForCity } from '@/lib/database/cleaners';
 import { COMPANY } from '@/lib/config/company';
@@ -18,15 +18,14 @@ export default async function RescheduleOrderPage({ params }: ReschedulePageProp
   const { orderId } = await params;
 
   // Auth check
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const viewer = await getViewer();
 
-  if (!user) {
+  if (!viewer) {
     redirect('/auth/login');
   }
 
   // Get customer
-  const customer = await getCustomerByUserId(user.id);
+  const customer = await getViewerCustomer(viewer);
   if (!customer) {
     redirect('/auth/signup');
   }
@@ -162,6 +161,7 @@ export default async function RescheduleOrderPage({ params }: ReschedulePageProp
           </div>
         </div>
       </main>
+      <ViewAsBanner />
     </div>
   );
 }

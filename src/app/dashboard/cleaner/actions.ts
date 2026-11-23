@@ -29,25 +29,6 @@ import { todayInOslo } from '@/lib/utils/date';
 export type { OrderWithCustomer };
 
 /**
- * Get a specific order's details for the cleaner
- */
-export async function getCleanerOrderDetails(
-  orderId: string
-): Promise<OrderWithCustomer | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) return null;
-
-  const cleaner = await getCleanerByUserId(user.id);
-  if (!cleaner) return null;
-
-  return getOrderByIdAndCleanerId(orderId, cleaner.id);
-}
-
-/**
  * Mark an order as cleaned and ready to deliver — and CHARGE the customer.
  * Cleaners run their own logistics: markOrderPickedUpAction before this,
  * markOrderDeliveredAction after it. The transition, its guards and the

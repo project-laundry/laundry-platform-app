@@ -3,8 +3,7 @@ import { redirect } from 'next/navigation';
 import { KeyRound, Mail, MapPin, UserRound } from 'lucide-react';
 import { AppHeader, BackLink } from '@/components/layout/AppHeader';
 import { LogoutButton } from '@/components/ui/LogoutButton';
-import { requireRole } from '@/lib/auth/require-role';
-import { getCustomerByUserId } from '@/lib/database/customers';
+import { getViewerCustomer, requireViewer } from '@/lib/auth/view-as';
 import { getActiveSubscriptionByCustomerId } from '@/lib/database/subscriptions';
 import { getActiveOrdersBySubscriptionId } from '@/lib/database/orders';
 import { SUBSCRIPTIONS_OFFERED } from '@/lib/config/subscriptions';
@@ -15,9 +14,10 @@ import { SubscriptionAddressForm } from './SubscriptionAddressForm';
 
 export default async function CustomerSettingsPage() {
   // Customers only; other roles are sent to /dashboard, which routes them on.
-  const { authUserId, dbUser } = await requireRole(['customer']);
+  const viewer = await requireViewer(['customer']);
+  const { dbUser } = viewer;
 
-  const customer = await getCustomerByUserId(authUserId);
+  const customer = await getViewerCustomer(viewer);
   if (!customer) {
     redirect('/auth/signup');
   }
@@ -83,7 +83,13 @@ export default async function CustomerSettingsPage() {
         </SettingsSection>
 
         <SettingsSection icon={<KeyRound className="size-5" />} title="Passord">
-          <PasswordForm />
+          {viewer.viewAs ? (
+            <p className="text-sm text-medium-gray">
+              Passordskjemaet vises ikke når du ser som kunden.
+            </p>
+          ) : (
+            <PasswordForm />
+          )}
         </SettingsSection>
 
         <SettingsSection icon={<Mail className="size-5" />} title="E-poster">

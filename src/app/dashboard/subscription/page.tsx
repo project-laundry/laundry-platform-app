@@ -2,8 +2,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { ChevronLeft, Repeat, XCircle } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
-import { getCustomerByUserId } from '@/lib/database/customers';
+import { getViewer, getViewerCustomer } from '@/lib/auth/view-as';
 import { getActiveSubscriptionByCustomerId } from '@/lib/database/subscriptions';
 import { getActiveOrdersBySubscriptionId } from '@/lib/database/orders';
 import { getOrderStatusStep } from '@/lib/utils/order-status';
@@ -16,15 +15,14 @@ import {
 
 export default async function SubscriptionPage() {
   // Auth check
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const viewer = await getViewer();
 
-  if (!user) {
+  if (!viewer) {
     redirect('/auth/login');
   }
 
   // Get customer
-  const customer = await getCustomerByUserId(user.id);
+  const customer = await getViewerCustomer(viewer);
   if (!customer) {
     redirect('/auth/signup');
   }

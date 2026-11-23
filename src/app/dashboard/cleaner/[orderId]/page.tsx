@@ -1,10 +1,9 @@
 import { redirect, notFound } from 'next/navigation';
 import { AppHeader, BackLink } from '@/components/layout/AppHeader';
 import { Check, Info } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
+import { requireViewer } from '@/lib/auth/view-as';
 import { getCleanerByUserId } from '@/lib/database/cleaners';
-import { getUsersById } from '@/lib/database/users';
-import { getCleanerOrderDetails } from '../actions';
+import { getOrderByIdAndCleanerId } from '@/lib/database/orders';
 import { getPaymentsByOrderId } from '@/lib/database/payments';
 import { hasLivePayment } from '@/lib/utils/payment-status';
 import { OrderStep } from './OrderStep';
@@ -95,30 +94,17 @@ function DetailRow({ label, children }: { label: string; children: React.ReactNo
 export default async function OrderDetailsPage({ params }: OrderDetailsPageProps) {
   const { orderId } = await params;
 
-  // Auth check
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/auth/login');
-  }
-
-  // Role check
-  const dbUser = await getUsersById(user.id);
-  if (!dbUser || dbUser.role !== 'cleaner') {
-    redirect('/dashboard');
-  }
+  // Cleaners only (or an admin viewing one, see lib/auth/view-as.ts)
+  const viewer = await requireViewer(['cleaner']);
 
   // Get cleaner profile
-  const cleaner = await getCleanerByUserId(user.id);
+  const cleaner = await getCleanerByUserId(viewer.userId);
   if (!cleaner) {
     redirect('/bli-renser/business');
   }
 
   // Get order details
-  const order = await getCleanerOrderDetails(orderId);
+  const order = await getOrderByIdAndCleanerId(orderId, cleaner.id);
   if (!order) {
     notFound();
   }
