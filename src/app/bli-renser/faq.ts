@@ -23,7 +23,7 @@ export const CLEANER_FAQ = {
   },
   noShow: {
     q: 'Hva om kunden ikke er hjemme?',
-    a: 'Ring kunden fra oppdraget. Kunden kan flytte hentedagen selv i bestillingen sin. Avslå bare oppdraget hvis du ikke kan ta det.',
+    a: 'Ring kunden fra oppdraget. Avslå bare oppdraget hvis du ikke kan ta det.',
   },
   earnings: {
     q: 'Hvor mye tjener jeg?',

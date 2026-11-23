@@ -308,7 +308,6 @@ export function OrderStep({
               Jeg har hentet tøyet
             </button>
             <p className="text-sm text-medium-gray">
-              Er ingen hjemme? Ring kunden – kunden kan flytte hentedagen selv.{' '}
               <button
                 type="button"
                 onClick={() => setDeclining(true)}
