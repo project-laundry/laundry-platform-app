@@ -91,8 +91,8 @@ export default async function CleanerDashboardPage() {
       {/* Main Content */}
       <main className="mx-auto max-w-2xl px-5 pb-16 pt-6">
         {/* Greeting + availability (approved cleaners only) */}
-        <div className="flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-3 duration-500">
-          <h1 className="min-w-0 truncate font-serif text-3xl font-semibold text-dark-gray">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 animate-in fade-in slide-in-from-bottom-3 duration-500">
+          <h1 className="min-w-0 break-words font-serif text-3xl font-semibold text-dark-gray">
             Hei, {firstName}
           </h1>
           {isApproved && (
