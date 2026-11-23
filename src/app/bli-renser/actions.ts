@@ -9,6 +9,7 @@ import {
   isTaxIdTaken,
 } from "@/lib/database/cleaners";
 import { geocodeAddress } from "@/lib/maps/geocoding";
+import { sendAdminNewCleanerEmail } from "@/lib/services/staff-emails";
 import {
   MAX_IMAGE_BASE64_LENGTH,
   recognizeWashingMachine,
@@ -255,6 +256,10 @@ export async function createCleanerProfileAction(
         error: "Kunne ikke opprette renserprofil. Vennligst prøv igjen.",
       };
     }
+
+    // Tell the admins there is an application to review (#158). Never throws;
+    // a lost e-mail must not fail the registration.
+    await sendAdminNewCleanerEmail(cleaner.id);
 
     return {
       success: true,
