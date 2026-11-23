@@ -1,9 +1,9 @@
 import { redirect, notFound } from 'next/navigation';
+import { ViewAsBanner } from '@/components/layout/ViewAsBanner';
 import { AppHeader } from '@/components/layout/AppHeader';
 import Link from 'next/link';
 import { ChevronLeft, TriangleAlert } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
-import { getCustomerByUserId } from '@/lib/database/customers';
+import { getViewer, getViewerCustomer } from '@/lib/auth/view-as';
 import { getOrderWithDetailsByIdAndCustomerId } from '@/lib/database/orders';
 import { CancelConfirmationForm } from './CancelConfirmationForm';
 
@@ -15,15 +15,14 @@ export default async function CancelOrderPage({ params }: CancelPageProps) {
   const { orderId } = await params;
 
   // Auth check
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const viewer = await getViewer();
 
-  if (!user) {
+  if (!viewer) {
     redirect('/auth/login');
   }
 
   // Get customer
-  const customer = await getCustomerByUserId(user.id);
+  const customer = await getViewerCustomer(viewer);
   if (!customer) {
     redirect('/auth/signup');
   }
@@ -129,6 +128,7 @@ export default async function CancelOrderPage({ params }: CancelPageProps) {
           </div>
         </div>
       </main>
+      <ViewAsBanner />
     </div>
   );
 }

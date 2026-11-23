@@ -1,27 +1,18 @@
 import { redirect } from 'next/navigation';
 import { AppHeader, BackLink } from '@/components/layout/AppHeader';
-import { createClient } from '@/lib/supabase/server';
+import { requireViewer } from '@/lib/auth/view-as';
 import { getCleanerByUserId } from '@/lib/database/cleaners';
-import { getUsersById } from '@/lib/database/users';
 import { LogoutButton } from '@/components/ui/LogoutButton';
 import { CleanerSettingsForm } from './CleanerSettingsForm';
 
 export default async function CleanerSettingsPage() {
   // Same guard as the cleaner dashboard: any cleaner with a profile may edit,
   // regardless of verification status.
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  // Cleaners only (or an admin viewing one, see lib/auth/view-as.ts)
+  const viewer = await requireViewer(['cleaner']);
 
-  if (!user) {
-    redirect('/auth/login');
-  }
-
-  const dbUser = await getUsersById(user.id);
-  if (!dbUser || dbUser.role !== 'cleaner') {
-    redirect('/dashboard');
-  }
-
-  const cleaner = await getCleanerByUserId(user.id);
+  // Get cleaner profile
+  const cleaner = await getCleanerByUserId(viewer.userId);
   if (!cleaner) {
     redirect('/bli-renser/business');
   }

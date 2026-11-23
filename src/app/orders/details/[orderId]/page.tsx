@@ -1,6 +1,6 @@
 import { redirect, notFound } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
-import { getCustomerByUserId } from '@/lib/database/customers';
+import { ViewAsBanner } from '@/components/layout/ViewAsBanner';
+import { getViewer, getViewerCustomer } from '@/lib/auth/view-as';
 import { getOrderWithDetailsByIdAndCustomerId } from '@/lib/database/orders';
 import { OrderDetailsView } from '@/components/orders/OrderDetailsView';
 
@@ -11,14 +11,13 @@ interface OrderPageProps {
 export default async function OrderDetailPage({ params }: OrderPageProps) {
   const { orderId } = await params;
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const viewer = await getViewer();
 
-  if (!user) {
+  if (!viewer) {
     redirect('/auth/login');
   }
 
-  const customer = await getCustomerByUserId(user.id);
+  const customer = await getViewerCustomer(viewer);
   if (!customer) {
     redirect('/auth/signup');
   }
@@ -28,5 +27,10 @@ export default async function OrderDetailPage({ params }: OrderPageProps) {
     notFound();
   }
 
-  return <OrderDetailsView order={order} />;
+  return (
+    <>
+      <OrderDetailsView order={order} />
+      <ViewAsBanner />
+    </>
+  );
 }

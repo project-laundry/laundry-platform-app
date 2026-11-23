@@ -10,6 +10,7 @@ import {
   WashingMachine,
 } from 'lucide-react';
 import { BackLink } from '@/components/layout/AppHeader';
+import { ViewAsButton } from '../../view-as/ViewAsButton';
 import { StatusBadge } from '@/components/dashboard/StatusBadge';
 import { getCleanerWithUserById } from '@/lib/database/cleaners';
 import { getCompletedOrdersByCleanerId, getOrdersByCleanerId } from '@/lib/database/orders';
@@ -186,6 +187,7 @@ export default async function AdminCleanerDetailPage({
               isAcceptingOrders={cleaner.is_accepting_orders}
             />
           )}
+          <ViewAsButton userId={cleaner.user_id} label="Se som renser" />
         </div>
         {isPending && (
           <div className="mt-3">

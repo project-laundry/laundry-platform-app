@@ -25,6 +25,25 @@ export async function getCustomerByUserId(userId: string): Promise<Customer | nu
 }
 
 /**
+ * Same lookup as getCustomerByUserId, but via the admin client: the session
+ * client can only read the caller's own customer row. Only for the admin
+ * «Se som» view (lib/auth/view-as.ts).
+ */
+export async function getCustomerByUserIdAsAdmin(userId: string): Promise<Customer | null> {
+  const { data, error } = await createAdminClient()
+    .from('customers')
+    .select('*')
+    .eq('user_id', userId)
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return data;
+}
+
+/**
  * Get a customer by ID (using admin client for webhook access)
  */
 export async function getCustomerById(customerId: string): Promise<Customer | null> {

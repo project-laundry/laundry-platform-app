@@ -1,9 +1,8 @@
 import { redirect } from 'next/navigation';
 import { AppHeader, BackLink } from '@/components/layout/AppHeader';
 import { LogoutButton } from '@/components/ui/LogoutButton';
-import { getAuthenticatedDbUser } from '@/lib/auth/require-role';
+import { getViewer, getViewerCustomer } from '@/lib/auth/view-as';
 import { EMAIL_PREFERENCES_PATH } from '@/lib/config/email-preferences';
-import { getCustomerByUserId } from '@/lib/database/customers';
 import { EmailPreferencesForm } from './EmailPreferencesForm';
 
 export const metadata = { title: 'E-poster – NooraCare' };
@@ -11,14 +10,14 @@ export const metadata = { title: 'E-poster – NooraCare' };
 export default async function EmailPreferencesPage() {
   // Signed-out customers come from the link in an e-mail: send them through
   // login and back here (requireRole would drop the return path).
-  const auth = await getAuthenticatedDbUser();
-  if (!auth) {
+  const viewer = await getViewer();
+  if (!viewer) {
     redirect(`/auth/login?next=${encodeURIComponent(EMAIL_PREFERENCES_PATH)}`);
   }
-  if (auth.dbUser.role !== 'customer') {
+  if (viewer.dbUser.role !== 'customer') {
     redirect('/dashboard');
   }
-  const customer = await getCustomerByUserId(auth.authUserId);
+  const customer = await getViewerCustomer(viewer);
   if (!customer) {
     redirect('/auth/signup');
   }
@@ -38,7 +37,7 @@ export default async function EmailPreferencesPage() {
         right={
           <div className="flex items-center gap-4">
             <span className="hidden text-sm font-medium text-medium-gray sm:block">
-              {auth.dbUser.full_name}
+              {viewer.dbUser.full_name}
             </span>
             <LogoutButton />
           </div>
