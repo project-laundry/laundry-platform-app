@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import type { BeforeSendFn, CaptureResult } from 'posthog-js';
 
 vi.mock('posthog-js', () => ({
   default: {
@@ -66,6 +67,25 @@ describe('initAnalytics', () => {
     initAnalytics({ key: KEY, hostname: 'test.nooracare.no' });
     expect(initAnalytics({ key: KEY, hostname: 'test.nooracare.no' })).toBe(true);
     expect(posthog.init).toHaveBeenCalledTimes(1);
+  });
+
+  it('drops dashboard and admin page views before they are sent, but not errors', async () => {
+    const { posthog, initAnalytics } = await load();
+    initAnalytics({ key: KEY, hostname: 'nooracare.no' });
+    const beforeSend = vi.mocked(posthog.init).mock.calls[0][1]?.before_send as BeforeSendFn;
+    const event = (name: string, url: string): CaptureResult => ({
+      uuid: 'test',
+      event: name,
+      properties: { $current_url: url },
+    });
+
+    expect(beforeSend(event('$pageview', 'https://nooracare.no/admin/orders'))).toBeNull();
+    expect(beforeSend(event('$pageleave', 'https://nooracare.no/dashboard'))).toBeNull();
+
+    const error = event('$exception', 'https://nooracare.no/admin/orders');
+    expect(beforeSend(error)).toBe(error);
+    const landing = event('$pageview', 'https://nooracare.no/');
+    expect(beforeSend(landing)).toBe(landing);
   });
 });
 

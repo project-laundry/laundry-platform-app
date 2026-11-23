@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { AUTOCAPTURE_URL_IGNORELIST, isAnalyticsHost, isRecordingAllowed } from './config';
+import { AUTOCAPTURE_URL_IGNORELIST, isAnalyticsHost, isDroppedPageEvent, isRecordingAllowed } from './config';
 
 describe('isAnalyticsHost', () => {
   it('sends from production and staging', () => {
@@ -81,5 +81,52 @@ describe('isRecordingAllowed', () => {
     ]) {
       expect(isRecordingAllowed(path), path).toBe(false);
     }
+  });
+});
+
+describe('isDroppedPageEvent', () => {
+  it('drops page views and page leaves on /admin and /dashboard', () => {
+    for (const url of [
+      'https://nooracare.no/admin',
+      'https://nooracare.no/admin/orders/8b1d2b2e-1c2d-4e5f-8a9b-0c1d2e3f4a5b',
+      'https://nooracare.no/dashboard',
+      'https://nooracare.no/dashboard?welcome=1',
+      'https://test.nooracare.no/dashboard/cleaner/settings',
+    ]) {
+      expect(isDroppedPageEvent('$pageview', url), url).toBe(true);
+      expect(isDroppedPageEvent('$pageleave', url), url).toBe(true);
+    }
+  });
+
+  it('keeps every other event from those pages, browser errors above all', () => {
+    for (const event of ['$exception', '$autocapture', '$rageclick', 'checkout_result']) {
+      expect(isDroppedPageEvent(event, 'https://nooracare.no/admin/orders'), event).toBe(false);
+      expect(isDroppedPageEvent(event, 'https://nooracare.no/dashboard'), event).toBe(false);
+    }
+  });
+
+  it('keeps page views everywhere else', () => {
+    for (const url of [
+      'https://nooracare.no/',
+      'https://nooracare.no/bli-renser',
+      'https://nooracare.no/bli-renser/business',
+      'https://nooracare.no/orders/wash',
+      'https://nooracare.no/orders/success',
+      'https://nooracare.no/orders/details/8b1d2b2e-1c2d-4e5f-8a9b-0c1d2e3f4a5b',
+      'https://nooracare.no/auth/login?next=%2Fdashboard',
+      'https://nooracare.no/?next=/admin',
+      'https://nooracare.no/administrator',
+      'https://nooracare.no/dashboards',
+    ]) {
+      expect(isDroppedPageEvent('$pageview', url), url).toBe(false);
+      expect(isDroppedPageEvent('$pageleave', url), url).toBe(false);
+    }
+  });
+
+  it('never drops an event without a usable URL', () => {
+    expect(isDroppedPageEvent('$pageview', undefined)).toBe(false);
+    expect(isDroppedPageEvent('$pageview', '')).toBe(false);
+    expect(isDroppedPageEvent('$pageview', '/admin')).toBe(false);
+    expect(isDroppedPageEvent('$pageview', 42)).toBe(false);
   });
 });
