@@ -1,10 +1,10 @@
 import { Metadata } from "next";
 import { serviceAreaText } from "@/lib/config/postal-codes";
 import Link from "next/link";
-import { Mail, Phone, MapPin, Building2, ArrowRight } from "lucide-react";
+import { Mail, MapPin, Building2, ArrowRight } from "lucide-react";
 import { Navbar } from '@/components/landing/Navbar';
 import { Footer } from "@/components/landing/Footer";
-import { COMPANY, formatOrgNumber, phoneHref } from "@/lib/config/company";
+import { COMPANY, formatOrgNumber } from "@/lib/config/company";
 
 export const metadata: Metadata = {
   title: "Kontakt | NooraCare",
@@ -93,15 +93,6 @@ export default function KontaktPage() {
                     className="transition-colors hover:text-nordic-blue"
                   >
                     {COMPANY.email}
-                  </a>
-                </li>
-                <li className="flex items-start gap-3">
-                  <Phone className="mt-1 size-4 text-sea-green" />
-                  <a
-                    href={phoneHref()}
-                    className="transition-colors hover:text-nordic-blue"
-                  >
-                    {COMPANY.phoneDisplay}
                   </a>
                 </li>
                 <li className="flex items-start gap-3">

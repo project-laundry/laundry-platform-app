@@ -43,8 +43,11 @@ function Facebook({ className }: { className?: string }) {
 export function Footer({
   /** The "Priser" link points at the customer price calculator; hide it on cleaner pages. */
   showPricing = true,
+  /** The phone number is for cleaners only — customers contact us by e-mail. Only the cleaner pages pass true. */
+  showPhone = false,
 }: {
   showPricing?: boolean;
+  showPhone?: boolean;
 }) {
   return (
     <footer className="border-t border-cream-dark/70 bg-warm-white/80 backdrop-blur">
@@ -112,14 +115,16 @@ export function Footer({
                   {COMPANY.email}
                 </a>
               </li>
-              <li>
-                <a
-                  href={phoneHref()}
-                  className="transition-colors hover:text-nordic-blue"
-                >
-                  {COMPANY.phoneDisplay}
-                </a>
-              </li>
+              {showPhone && (
+                <li>
+                  <a
+                    href={phoneHref()}
+                    className="transition-colors hover:text-nordic-blue"
+                  >
+                    {COMPANY.phoneDisplay}
+                  </a>
+                </li>
+              )}
               <li className="leading-relaxed">
                 {COMPANY.address.street}
                 <br />

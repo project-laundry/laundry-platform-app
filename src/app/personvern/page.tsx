@@ -102,7 +102,7 @@ export default function PersonvernPage() {
                 {COMPANY.legalName} er behandlingsansvarlig for behandlingen av
                 personopplysningene som beskrives her.
               </p>
-              <CompanyContactCard label="Kontaktopplysninger:" />
+              <CompanyContactCard label="Kontaktopplysninger:" showPhone={false} />
             </section>
 
             {/* 2. What we process */}

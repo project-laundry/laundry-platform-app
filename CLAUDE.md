@@ -140,7 +140,7 @@ src/
 │   ├── landing/            # Navbar (legal/contact/price pages), Footer, AccountLink (client: «Logg inn» → /auth/login, or «Min side» → /dashboard once the browser finds a Supabase session; used by the customer landing shell, Navbar and the bli-renser bar — the pages stay static, nobody is redirected)
 │   ├── forms/              # Form components (empty)
 │   ├── layout/             # Layout components (empty)
-│   ├── legal/              # CompanyContactCard — the company details box shared by /salgsvilkar, /personvern and /personvern-renser (values from lib/config/company.ts)
+│   ├── legal/              # CompanyContactCard — the company details box shared by /salgsvilkar, /personvern and /personvern-renser (values from lib/config/company.ts) — the phone row is hidden on /personvern (showPhone={false})
 │   └── ui/                 # UI elements
 │       ├── LogoutButton.tsx
 │       ├── NavigationProgress.tsx # Top progress bar on every App Router navigation (mounted in the root layout); set from onRouterTransitionStart via lib/navigation/progress.ts, resets by itself when the navigation is done
@@ -207,7 +207,7 @@ src/
 └── proxy.ts                # Trailing-slash redirect + Supabase session refresh + order-flow login requirement; matcher skips /ingest (PostHog proxy), /robots.txt and /sitemap.xml
 ```
 
-**Customer-facing wording:** customers count **poser** (`PRICING.per_bag_ore`), and the per-bag price is never shown without the order minimum next to it ("299 kr per pose, minste bestilling 500 kr") — on its own it reads as a 119 kr order. Cleaners count **vask** — one full machine, up to 5 kg (`PRICING.price_per_load_ore`); mention the kilos only where a cleaner needs the definition (FAQ, payout box, dashboard), never on customer surfaces. Cleaner earnings are quoted as the guaranteed minimum per order (`CLEANER_MIN_PAYOUT_PER_ORDER_ORE`), not a per-load figure. "Nabo" is a sales pitch, not a description: fine in headlines, tab titles, share images and cross-promos, but whoever actually washes is "en lokal renser" / "en godkjent renser i området" — never "i nabolaget". Don't promise turnaround times, free delivery, ironing or a quality guarantee anywhere — see the honest-claims note in `components/coming-soon/HowItWorksStory.tsx`.
+**Customer-facing wording:** customers count **poser** (`PRICING.per_bag_ore`), and the per-bag price is never shown without the order minimum next to it ("299 kr per pose, minste bestilling 500 kr") — on its own it reads as a 119 kr order. Cleaners count **vask** — one full machine, up to 5 kg (`PRICING.price_per_load_ore`); mention the kilos only where a cleaner needs the definition (FAQ, payout box, dashboard), never on customer surfaces. Cleaner earnings are quoted as the guaranteed minimum per order (`CLEANER_MIN_PAYOUT_PER_ORDER_ORE`), not a per-load figure. "Nabo" is a sales pitch, not a description: fine in headlines, tab titles, share images and cross-promos, but whoever actually washes is "en lokal renser" / "en godkjent renser i området" — never "i nabolaget". Don't promise turnaround times, free delivery, ironing or a quality guarantee anywhere — see the honest-claims note in `components/coming-soon/HowItWorksStory.tsx`. NooraCare's phone number is for cleaners only: customer surfaces (HelpContact, /kontakt, /personvern, the footer unless a cleaner page passes `showPhone`) show only the e-mail address; the number stays in the company box on /salgsvilkar as required seller information.
 
 ## Architecture Patterns
 

@@ -470,7 +470,7 @@ export default function PersonvernRenserPage() {
             </section>
         </div>
       </main>
-      <Footer />
+      <Footer showPhone />
     </div>
   );
 }
