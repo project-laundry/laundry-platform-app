@@ -12,7 +12,7 @@
 
 import { COMPANY } from '@/lib/config/company';
 import { EMAIL_PREFERENCES_PATH } from '@/lib/config/email-preferences';
-import { evaluationPath } from '@/lib/config/evaluation';
+import { SATISFACTION_QUESTION, evaluationPath } from '@/lib/config/evaluation';
 import { PICKUP_TIME_RANGE } from '@/lib/config/pickup-times';
 import {
   IRONING_OFFERED,
@@ -47,14 +47,23 @@ export interface Row {
 
 export type Block =
   | { type: 'heading'; text: string }
-  | { type: 'paragraph'; text: string }
+  | { type: 'paragraph'; text: string; strong?: true }
   | { type: 'rows'; rows: Row[] }
-  | { type: 'button'; label: string; url: string };
+  | { type: 'button'; label: string; url: string }
+  | { type: 'scale'; options: { label: string; url: string }[]; lowLabel: string; highLabel: string };
 
 export const heading = (text: string): Block => ({ type: 'heading', text });
-export const paragraph = (text: string): Block => ({ type: 'paragraph', text });
+export const paragraph = (text: string, strong = false): Block =>
+  strong ? { type: 'paragraph', text, strong: true } : { type: 'paragraph', text };
 export const rows = (list: Row[]): Block => ({ type: 'rows', rows: list });
 export const button = (label: string, url: string): Block => ({ type: 'button', label, url });
+
+/** A row of equally wide link buttons (a 1–5 score), with a label under each end. */
+export const scale = (
+  options: { label: string; url: string }[],
+  lowLabel: string,
+  highLabel: string
+): Block => ({ type: 'scale', options, lowLabel, highLabel });
 
 // ─── Formatting helpers ─────────────────────────────────────────────────────
 
@@ -135,6 +144,8 @@ function renderText(blocks: Block[]): string {
         return block.rows.map((row) => `${row.label}: ${row.value}`).join('\n');
       case 'button':
         return `${block.label}: ${block.url}`;
+      case 'scale':
+        return `${block.options.map((option) => `${option.label}: ${option.url}`).join('\n')}\n${block.options[0].label} = ${block.lowLabel}, ${block.options[block.options.length - 1].label} = ${block.highLabel}`;
     }
   });
   return `${parts.join('\n\n')}\n`;
@@ -147,7 +158,7 @@ function renderBlockHtml(block: Block): string {
     case 'heading':
       return `<p style="margin:24px 0 8px;font-size:12px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:#3D6A7B;">${escapeHtml(block.text)}</p>`;
     case 'paragraph':
-      return `<p style="margin:0 0 16px;font-size:16px;line-height:1.6;color:#1E3A4C;">${escapeHtml(block.text)}</p>`;
+      return `<p style="margin:0 0 16px;font-size:16px;line-height:1.6;${block.strong ? 'font-weight:600;' : ''}color:#1E3A4C;">${escapeHtml(block.text)}</p>`;
     case 'rows':
       return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 16px;font-size:15px;line-height:1.5;color:#1E3A4C;">${block.rows
         .map((row) => {
@@ -157,6 +168,16 @@ function renderBlockHtml(block: Block): string {
         .join('')}</table>`;
     case 'button':
       return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px;"><tr><td style="border-radius:999px;background-color:#1E3A4C;"><a href="${escapeHtml(block.url)}" style="display:inline-block;padding:14px 28px;font-family:${FONT};font-size:16px;font-weight:500;color:#FFFFFF;text-decoration:none;border-radius:999px;">${escapeHtml(block.label)}</a></td></tr></table>`;
+    case 'scale': {
+      const width = Math.floor(100 / block.options.length);
+      const cells = block.options
+        .map(
+          (option) =>
+            `<td width="${width}%" style="padding:0 3px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td align="center" style="border-radius:12px;background-color:#1E3A4C;"><a href="${escapeHtml(option.url)}" style="display:block;padding:14px 0;font-family:${FONT};font-size:18px;font-weight:600;line-height:1;color:#FFFFFF;text-align:center;text-decoration:none;border-radius:12px;">${escapeHtml(option.label)}</a></td></tr></table></td>`
+        )
+        .join('');
+      return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 8px;table-layout:fixed;"><tr>${cells}</tr></table><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 24px;font-size:13px;line-height:1.5;color:#586974;"><tr><td style="padding:0 3px;">${escapeHtml(block.lowLabel)}</td><td align="right" style="padding:0 3px;">${escapeHtml(block.highLabel)}</td></tr></table>`;
+    }
   }
 }
 
@@ -467,16 +488,12 @@ function deliveredPaymentLine(
  * link to the order. `payments` = every payments row of the order. The
  * subscription paragraph is dormant while subscriptions are hidden (a one-time
  * order has no subscription) and never states a date — the next order is
- * generated in the background while this e-mail is built. It also asks for
- * the evaluation (a section with a button to /evaluering/<order id>, no
- * login); `fullEvaluation` = the customer still gets the first-time questions
- * (text says about 2 minutes), otherwise the short form (under one minute);
- * `null` = the customer turned the evaluation question off, so the section is left out.
+ * generated in the background while this e-mail is built.
+ * The evaluation is NOT asked here — it is its own e-mail the day after (buildEvaluationRequestEmail).
  */
 export function buildOrderDeliveredEmail(
   order: OrderForCustomerEmail,
   payments: Pick<Payment, 'status' | 'amount_ore' | 'provider_reference'>[],
-  fullEvaluation: boolean | null,
   options: CustomerEmailOptions
 ): CustomerEmail {
   const blocks: Block[] = [
@@ -506,23 +523,61 @@ export function buildOrderDeliveredEmail(
     );
   }
 
-  if (fullEvaluation !== null) {
-    blocks.push(
-      heading('Hvordan var vasken?'),
-      paragraph(
-        fullEvaluation
-          ? 'Vi vil gjerne høre hvordan det gikk. Svarene dine hjelper oss å sette riktig pris og gjøre tjenesten bedre, og det tar ca. 2 minutter.'
-          : 'Vi vil gjerne høre hvordan det gikk. Svarene dine hjelper oss å gjøre tjenesten bedre, og det tar under ett minutt.'
-      ),
-      button('Svar på spørsmålene', `${baseUrl(options)}${evaluationPath(order.id)}`)
-    );
-  }
-
   blocks.push(button('Se bestillingen', orderUrl(order, options)), closing());
 
   return finishCustomer(
     `Tøyet ditt er levert – bestilling #${order.order_number}`,
     'Tøyet ditt er levert',
+    blocks,
+    options
+  );
+}
+
+// ─── Evaluation request ─────────────────────────────────────────────────────
+
+/**
+ * Sent by the evaluation-requests cron the day after delivery, to completed
+ * orders that are not evaluated yet. One job: get the first answer. The first
+ * question of the form is shown as link buttons — each opens
+ * /evaluering/<order id>?satisfaction=<n> with that score selected; nothing is
+ * saved until the customer sends the form (mail scanners follow links, so a
+ * click must never store an answer). `fullEvaluation` = the customer still
+ * gets the first-time questions (about 2 minutes), otherwise the short form
+ * (under one minute). Deliberately no «Se bestillingen» button.
+ */
+export function buildEvaluationRequestEmail(
+  order: OrderForCustomerEmail,
+  fullEvaluation: boolean,
+  options: CustomerEmailOptions
+): CustomerEmail {
+  const question = SATISFACTION_QUESTION;
+  const scores = Array.from({ length: question.to - question.from + 1 }, (_, i) => question.from + i);
+
+  const blocks: Block[] = [
+    greeting(order),
+    paragraph(
+      `Tøyet fra bestilling #${order.order_number} ble levert ${formatLongDate(order.delivery_date)}. Vi vil gjerne høre hvordan det gikk.`
+    ),
+    paragraph(question.label, true),
+    scale(
+      scores.map((score) => ({
+        label: String(score),
+        url: `${baseUrl(options)}${evaluationPath(order.id, score)}`,
+      })),
+      question.lowLabel,
+      question.highLabel
+    ),
+    paragraph(
+      fullEvaluation
+        ? 'Trykk på et tall, så åpnes resten av spørsmålene. Det tar ca. 2 minutter, og svarene dine hjelper oss å sette riktig pris og gjøre tjenesten bedre.'
+        : 'Trykk på et tall, så åpnes resten av spørsmålene. Det tar under ett minutt, og svarene dine hjelper oss å gjøre tjenesten bedre.'
+    ),
+    closing(),
+  ];
+
+  return finishCustomer(
+    `Hvordan var vasken? – bestilling #${order.order_number}`,
+    'Hvordan var vasken?',
     blocks,
     options
   );

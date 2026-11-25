@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   EVALUATION_QUESTIONS,
+  SATISFACTION_QUESTION,
+  evaluationPath,
+  prefilledSatisfaction,
   evaluationQuestions,
   hasAnsweredFirstTimeQuestions,
   EVALUATION_TEXT_MAX,
@@ -132,5 +135,28 @@ describe('averageEvaluationAnswer', () => {
   it('is null when nobody answered', () => {
     expect(averageEvaluationAnswer([{ other: 'x' }], 'satisfaction')).toBeNull();
     expect(averageEvaluationAnswer([], 'satisfaction')).toBeNull();
+  });
+});
+
+describe('the satisfaction question and its link', () => {
+  it('is the first question of both forms', () => {
+    expect(FULL[0]).toBe(SATISFACTION_QUESTION);
+    expect(SHORT[0]).toBe(SATISFACTION_QUESTION);
+  });
+
+  it('builds the form path with and without a score', () => {
+    expect(evaluationPath('ord-1')).toBe('/evaluering/ord-1');
+    expect(evaluationPath('ord-1', 4)).toBe('/evaluering/ord-1?satisfaction=4');
+  });
+
+  it('reads a score on the scale from the query parameter', () => {
+    expect(prefilledSatisfaction('1')).toBe(1);
+    expect(prefilledSatisfaction('5')).toBe(5);
+  });
+
+  it('answers null for anything else', () => {
+    for (const raw of [undefined, '', '0', '6', '4.5', '04', 'abc', '-1', ['4'], ['4', '5']]) {
+      expect(prefilledSatisfaction(raw)).toBeNull();
+    }
   });
 });

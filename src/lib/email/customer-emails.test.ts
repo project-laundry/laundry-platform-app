@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { OrderForCustomerEmail } from '@/lib/database/orders';
-import { buildCleanerConfirmedEmail, buildOrderCancelledEmail, buildPickupRescheduledEmail, buildOrderConfirmationEmail, buildOrderPickedUpEmail, buildPickupReminderEmail, buildPaymentFailedEmail, buildOrderDeliveredEmail, buildPriceReceiptEmail, formatKrExact, formatLongDate } from './customer-emails';
+import { buildCleanerConfirmedEmail, buildOrderCancelledEmail, buildPickupRescheduledEmail, buildOrderConfirmationEmail, buildOrderPickedUpEmail, buildPickupReminderEmail, buildPaymentFailedEmail, buildOrderDeliveredEmail, buildEvaluationRequestEmail, buildPriceReceiptEmail, formatKrExact, formatLongDate } from './customer-emails';
 
 const OPTIONS = { appUrl: 'https://nooracare.no/' };
 
@@ -309,8 +309,8 @@ describe('customer e-mail footer', () => {
 });
 
 describe('buildOrderDeliveredEmail', () => {
-  it('leaves out the evaluation section when the customer turned it off (null)', () => {
-    const { text, html } = buildOrderDeliveredEmail(DELIVERED_ORDER, [], null, OPTIONS);
+  it('does not ask for the evaluation — that is its own e-mail', () => {
+    const { text, html } = buildOrderDeliveredEmail(DELIVERED_ORDER, [], OPTIONS);
 
     expect(text).not.toContain('/evaluering/');
     expect(html).not.toContain('/evaluering/');
@@ -318,7 +318,7 @@ describe('buildOrderDeliveredEmail', () => {
   });
 
   it('says when and where the laundry was delivered and links to the order', () => {
-    const { subject, text, html } = buildOrderDeliveredEmail(DELIVERED_ORDER, [], false, OPTIONS);
+    const { subject, text, html } = buildOrderDeliveredEmail(DELIVERED_ORDER, [], OPTIONS);
 
     expect(subject).toBe('Tøyet ditt er levert – bestilling #ABC123');
     expect(text).toContain('Hei Kari!');
@@ -333,7 +333,7 @@ describe('buildOrderDeliveredEmail', () => {
     const { text } = buildOrderDeliveredEmail(
       DELIVERED_ORDER,
       [{ status: 'pending', amount_ore: 57624, provider_reference: 'chr-1' }],
-      false, OPTIONS
+      OPTIONS
     );
 
     expect(text).toContain(
@@ -348,7 +348,7 @@ describe('buildOrderDeliveredEmail', () => {
         { status: 'captured', amount_ore: 57624, provider_reference: 'chr-2' },
         { status: 'failed', amount_ore: 57624, provider_reference: 'chr-1' },
       ],
-      false, OPTIONS
+      OPTIONS
     );
 
     expect(text).toContain('BETALING\n\n576,24 kr er trukket via Vipps-avtalen din.');
@@ -356,7 +356,7 @@ describe('buildOrderDeliveredEmail', () => {
   });
 
   it('says nothing is charged for a 0-total order', () => {
-    const { text } = buildOrderDeliveredEmail({ ...DELIVERED_ORDER, total_cost_ore: 0 }, [], false, OPTIONS);
+    const { text } = buildOrderDeliveredEmail({ ...DELIVERED_ORDER, total_cost_ore: 0 }, [], OPTIONS);
 
     expect(text).toContain('BETALING\n\nIngenting trekkes fra Vipps-avtalen din for denne bestillingen.');
   });
@@ -371,7 +371,7 @@ describe('buildOrderDeliveredEmail', () => {
     ];
 
     for (const payments of silent) {
-      const { text } = buildOrderDeliveredEmail(DELIVERED_ORDER, payments, false, OPTIONS);
+      const { text } = buildOrderDeliveredEmail(DELIVERED_ORDER, payments, OPTIONS);
 
       expect(text).not.toContain('BETALING');
       expect(text).not.toContain('Vipps');
@@ -380,7 +380,7 @@ describe('buildOrderDeliveredEmail', () => {
   });
 
   it('never mentions a subscription for a one-time order', () => {
-    const { text } = buildOrderDeliveredEmail(DELIVERED_ORDER, [], false, OPTIONS);
+    const { text } = buildOrderDeliveredEmail(DELIVERED_ORDER, [], OPTIONS);
 
     expect(text).not.toContain('bonnement');
     expect(text).not.toContain('Neste henting');
@@ -390,7 +390,7 @@ describe('buildOrderDeliveredEmail', () => {
     const { text } = buildOrderDeliveredEmail(
       { ...DELIVERED_ORDER, subscription_id: 'sub-1', subscription: { frequency: 'weekly', status: 'active' } },
       [],
-      false, OPTIONS
+      OPTIONS
     );
 
     expect(text).toContain(
@@ -402,24 +402,53 @@ describe('buildOrderDeliveredEmail', () => {
     const { text } = buildOrderDeliveredEmail(
       { ...DELIVERED_ORDER, subscription_id: 'sub-1', subscription: { frequency: 'weekly', status: 'cancelled' } },
       [],
-      false, OPTIONS
+      OPTIONS
     );
 
     expect(text).not.toContain('Neste henting');
   });
+});
 
-  it('asks for the evaluation with the full-form text', () => {
-    const { text } = buildOrderDeliveredEmail(DELIVERED_ORDER, [], true, OPTIONS);
+describe('buildEvaluationRequestEmail', () => {
+  it('asks the first question with one link per score', () => {
+    const { subject, text, html } = buildEvaluationRequestEmail(DELIVERED_ORDER, true, OPTIONS);
 
-    expect(text).toContain(`/evaluering/${DELIVERED_ORDER.id}`);
-    expect(text).toContain('ca. 2 minutter');
+    expect(subject).toBe('Hvordan var vasken? – bestilling #ABC123');
+    expect(text).toContain('Hei Kari!');
+    expect(text).toContain(
+      'Tøyet fra bestilling #ABC123 ble levert tirsdag 27. oktober 2026. Vi vil gjerne høre hvordan det gikk.'
+    );
+    expect(text).toContain('Hvor fornøyd er du med vasken totalt?');
+    for (const score of [1, 2, 3, 4, 5]) {
+      expect(text).toContain(`${score}: https://nooracare.no/evaluering/ord-1?satisfaction=${score}`);
+      expect(html).toContain(`href="https://nooracare.no/evaluering/ord-1?satisfaction=${score}"`);
+    }
+    expect(text).toContain('1 = Lite fornøyd, 5 = Veldig fornøyd');
+    expect(html).toContain('Lite fornøyd');
+    expect(html).toContain('Veldig fornøyd');
+    expect(html).not.toContain('<form');
+    expect(html).not.toContain('<input');
   });
 
-  it('asks for the evaluation with the short-form text', () => {
-    const { text } = buildOrderDeliveredEmail(DELIVERED_ORDER, [], false, OPTIONS);
+  it('uses the full-form text while the customer still gets the first-time questions', () => {
+    const { text } = buildEvaluationRequestEmail(DELIVERED_ORDER, true, OPTIONS);
 
-    expect(text).toContain(`/evaluering/${DELIVERED_ORDER.id}`);
+    expect(text).toContain('ca. 2 minutter');
+    expect(text).toContain('sette riktig pris');
+  });
+
+  it('uses the short-form text afterwards', () => {
+    const { text } = buildEvaluationRequestEmail(DELIVERED_ORDER, false, OPTIONS);
+
     expect(text).toContain('under ett minutt');
+    expect(text).not.toContain('sette riktig pris');
+  });
+
+  it('has no order button and keeps the e-mail settings link', () => {
+    const { text } = buildEvaluationRequestEmail(DELIVERED_ORDER, false, OPTIONS);
+
+    expect(text).not.toContain('Se bestillingen');
+    expect(text).toContain('Endre hvilke e-poster du får: https://nooracare.no/dashboard/settings/emails');
   });
 });
 

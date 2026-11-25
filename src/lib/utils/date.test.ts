@@ -9,6 +9,7 @@ import {
   calculateNextBillingDate,
   todayInOslo,
   tomorrowInOslo,
+  yesterdayInOslo,
   daysBetweenISODates,
 } from './date';
 
@@ -134,6 +135,23 @@ describe('tomorrowInOslo', () => {
     expect(tomorrowInOslo(new Date('2026-12-31T16:30:00Z'))).toBe('2027-01-01');
     expect(tomorrowInOslo(new Date('2026-03-28T16:00:00Z'))).toBe('2026-03-29');
     expect(tomorrowInOslo(new Date('2026-10-24T16:00:00Z'))).toBe('2026-10-25');
+  });
+});
+
+describe('yesterdayInOslo', () => {
+  it('is the previous calendar day at the time the evaluation cron runs', () => {
+    expect(yesterdayInOslo(new Date('2026-11-25T09:00:00Z'))).toBe('2026-11-24');
+  });
+
+  it('counts from the Norwegian day, not the UTC day, late in the evening', () => {
+    // 22:30 UTC on 30 June is already 1 July in Norway → yesterday is 30 June.
+    expect(yesterdayInOslo(new Date('2026-06-30T22:30:00Z'))).toBe('2026-06-30');
+  });
+
+  it('rolls over months, years and the daylight-saving change', () => {
+    expect(yesterdayInOslo(new Date('2027-01-01T09:00:00Z'))).toBe('2026-12-31');
+    expect(yesterdayInOslo(new Date('2026-03-29T09:00:00Z'))).toBe('2026-03-28');
+    expect(yesterdayInOslo(new Date('2026-10-25T09:00:00Z'))).toBe('2026-10-24');
   });
 });
 

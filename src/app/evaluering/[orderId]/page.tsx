@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { getOrderForEvaluation, hasEvaluation, needsFullEvaluation } from '@/lib/database/evaluations';
+import { prefilledSatisfaction } from '@/lib/config/evaluation';
 import { EvaluationForm, EvaluationThanks } from './EvaluationForm';
 
 export const metadata: Metadata = {
@@ -12,8 +13,16 @@ export const metadata: Metadata = {
 // Reads the order and the answer state on every request.
 export const dynamic = 'force-dynamic';
 
-export default async function EvaluationPage({ params }: { params: Promise<{ orderId: string }> }) {
+export default async function EvaluationPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ orderId: string }>;
+  searchParams: Promise<{ satisfaction?: string | string[] }>;
+}) {
   const { orderId } = await params;
+  // The score button pressed in the evaluation e-mail; only pre-selects the first answer.
+  const initialSatisfaction = prefilledSatisfaction((await searchParams).satisfaction);
 
   const order = await getOrderForEvaluation(orderId);
   if (!order || order.status !== 'completed') {
@@ -55,7 +64,7 @@ export default async function EvaluationPage({ params }: { params: Promise<{ ord
         {answered === true ? (
           <EvaluationThanks text="Du har allerede svart på denne evalueringen." />
         ) : (
-          <EvaluationForm orderId={order.id} full={full} />
+          <EvaluationForm orderId={order.id} full={full} initialSatisfaction={initialSatisfaction} />
         )}
       </main>
     </div>

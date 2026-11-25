@@ -44,22 +44,6 @@ export function EmailPreferencesForm({ initial }: { initial: Partial<Record<stri
               />
             );
           }
-          if (kind.id === 'evaluation') {
-            return (
-              <SwitchRow
-                key={kind.id}
-                label={kind.label}
-                hint={kind.description}
-                checked={values.delivered && values.evaluation}
-                disabled={!values.delivered}
-                disabledHint="Sendes bare sammen med «Tøyet er levert»."
-                onChange={(checked) => {
-                  setValues((current) => ({ ...current, [kind.id]: checked }));
-                  setMessage(null);
-                }}
-              />
-            );
-          }
           return (
             <SwitchRow
               key={kind.id}
