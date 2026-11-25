@@ -18,6 +18,7 @@ import {
   type OrderForCustomerEmail,
 } from '@/lib/database/orders';
 import {
+  buildEvaluationRequestEmail,
   buildCleanerConfirmedEmail,
   buildOrderCancelledEmail,
   buildOrderConfirmationEmail,
@@ -47,7 +48,7 @@ async function deliver(
   order: OrderForCustomerEmail,
   email: CustomerEmail,
   idempotencyKey: string
-): Promise<void> {
+): Promise<boolean> {
   const to = order.customer.user.email;
   const result = await sendEmail({
     from: CUSTOMER_EMAIL_FROM,
@@ -63,6 +64,7 @@ async function deliver(
   } else {
     console.error(`[Customer e-mail] Not sent ${idempotencyKey} to ${to}: ${result.error}`);
   }
+  return result.ok;
 }
 
 /** True (and logged) when the customer turned this kind off on /dashboard/settings/emails. */
@@ -170,8 +172,8 @@ export async function sendPaymentFailedEmail(paymentId: string): Promise<void> {
  * #27 — laundry delivered. Called by completeDeliveredOrder after the guarded
  * transition to `completed` (cleaner «Levert til kunden», admin «Marker som
  * levert», dormant driver delivery stop). One e-mail per order: an order is
- * completed once, and the key is the order id. Carries the evaluation link;
- * the text depends on needsFullEvaluation (full or short form).
+ * completed once, and the key is the order id. The evaluation is asked in its own
+ * e-mail the day after (sendEvaluationRequestEmail).
  */
 export async function sendOrderDeliveredEmail(orderId: string): Promise<void> {
   try {
@@ -189,13 +191,9 @@ export async function sendOrderDeliveredEmail(orderId: string): Promise<void> {
     // there) — the e-mail then simply carries no payment line.
     const payments = await getPaymentsByOrderId(order.id);
 
-    // null = the customer turned the evaluation question off; otherwise the
-    // full or the short text (false when the read fails — logged there).
-    const evaluation = turnedOff(order, 'evaluation') ? null : await needsFullEvaluation(order.customer_id);
-
     await deliver(
       order,
-      buildOrderDeliveredEmail(order, payments, evaluation, { appUrl: url }),
+      buildOrderDeliveredEmail(order, payments, { appUrl: url }),
       `order-delivered/${order.id}`
     );
   } catch (error) {
@@ -278,6 +276,37 @@ export async function sendPickupReminderEmail(order: OrderForCustomerEmail): Pro
     return result.ok;
   } catch (error) {
     console.error(`[Customer e-mail] Pickup reminder ${idempotencyKey} failed:`, error);
+    return false;
+  }
+}
+
+/**
+ * Evaluation request. Called once per order by the evaluation-requests cron
+ * (app/api/cron/evaluation-requests/route.ts), which has already loaded the
+ * orders delivered the day before and dropped the ones that are evaluated.
+ *
+ * Never throws. Returns a boolean like sendPickupReminderEmail, because the
+ * cron reports the counts: true = Resend accepted the e-mail (or replayed an
+ * identical one sent earlier the same day) or the customer turned the
+ * evaluation e-mail off (nothing failed), false = not sent (logged).
+ *
+ * One e-mail per order: the key is the order id, and an order matches the
+ * cron's date filter on exactly one day.
+ */
+export async function sendEvaluationRequestEmail(order: OrderForCustomerEmail): Promise<boolean> {
+  const idempotencyKey = `evaluation-request/${order.id}`;
+  try {
+    if (turnedOff(order, 'evaluation')) return true;
+
+    const url = appUrl();
+    if (!url) return false;
+
+    // false when the read fails (logged there): the short-form text is the safe default.
+    const full = await needsFullEvaluation(order.customer_id);
+
+    return await deliver(order, buildEvaluationRequestEmail(order, full, { appUrl: url }), idempotencyKey);
+  } catch (error) {
+    console.error(`[Customer e-mail] Evaluation request ${idempotencyKey} failed:`, error);
     return false;
   }
 }

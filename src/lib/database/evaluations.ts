@@ -48,6 +48,25 @@ export async function hasEvaluation(orderId: string): Promise<boolean | null> {
 }
 
 /**
+ * Which of the given orders already have an evaluation. Null when the read
+ * failed (logged). An empty list answers an empty set without a query.
+ */
+export async function getEvaluatedOrderIds(orderIds: string[]): Promise<Set<string> | null> {
+  if (orderIds.length === 0) return new Set();
+
+  const { data, error } = await createAdminClient()
+    .from('order_evaluations')
+    .select('order_id')
+    .in('order_id', orderIds);
+
+  if (error || !data) {
+    console.error('[getEvaluatedOrderIds] Error fetching evaluations:', error);
+    return null;
+  }
+  return new Set(data.map((row) => row.order_id as string));
+}
+
+/**
  * Stores one evaluation. 'duplicate' when the order already has one (the
  * UNIQUE(order_id) constraint, Postgres 23505) — a double submit, not an error.
  */

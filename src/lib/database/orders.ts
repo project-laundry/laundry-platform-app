@@ -851,6 +851,41 @@ export async function getOrdersForPickupReminder(
   return data as OrderForCustomerEmail[];
 }
 
+/**
+ * The completed orders delivered on the given YYYY-MM-DD date (delivery_date
+ * is stamped with the real delivery day on completion), each with what a
+ * customer e-mail needs (same shape as getOrderForCustomerEmail). Admin client
+ * — the only caller is the evaluation-requests cron route. Returns null when
+ * the query fails (logged), so the route can answer 500 instead of "0 to send".
+ */
+export async function getOrdersDeliveredOn(
+  deliveryDate: string
+): Promise<OrderForCustomerEmail[] | null> {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select(`
+      *,
+      customer:customers!customer_id(
+        email_preferences,
+        user:users!user_id(email, full_name)
+      ),
+      subscription:subscriptions(frequency, status),
+      cleaner:cleaners!orders_cleaner_id_fkey(display_name)
+    `)
+    .eq('status', 'completed')
+    .eq('delivery_date', deliveryDate)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('[getOrdersDeliveredOn] Error fetching orders:', error);
+    return null;
+  }
+
+  return data as OrderForCustomerEmail[];
+}
+
 export interface RecentOrderAddress {
   street: string;
   postal_code: string;

@@ -32,7 +32,7 @@ export const CUSTOMER_EMAIL_KINDS: CustomerEmailKindInfo[] = [
   { id: 'price_receipt', label: 'Pris og kvittering', description: 'Når prisen er satt og betalingen sendes til Vipps.', optional: false },
   { id: 'payment_failed', label: 'Betalingen gikk ikke gjennom', description: 'Hvis Vipps ikke får trukket beløpet.', optional: false },
   { id: 'delivered', label: 'Tøyet er levert', description: 'Når tøyet er levert tilbake.', optional: true },
-  { id: 'evaluation', label: 'Spørsmål om hvordan det gikk', description: 'Noen korte spørsmål i e-posten «Tøyet er levert».', optional: true },
+  { id: 'evaluation', label: 'Spørsmål om hvordan det gikk', description: 'Dagen etter at tøyet er levert.', optional: true },
   { id: 'cancelled', label: 'Bestillingen er kansellert', description: 'Når en bestilling blir kansellert.', optional: false },
   { id: 'rescheduled', label: 'Ny hentedato', description: 'Når hentedatoen blir endret.', optional: false },
 ];

@@ -51,15 +51,16 @@ Staging/production values are set **per environment** in the Vercel dashboard.
 | `NEXT_PUBLIC_VIPPS_ALLOW_FORCE_ACCEPT` | `true` (enables the "Auto-godkjenn avtale" test checkbox) | **unset** — never add it to Production |
 | `GOOGLE_MAPS_API_KEY` | Maps Platform key (Geocoding API enabled) | same, or a prod-restricted key |
 | `ANTHROPIC_API_KEY` | Anthropic API key (cleaner onboarding photo recognition; optional) | separate prod key from the Anthropic Console |
-| `CRON_SECRET` | any random string (lets you curl the cron routes on staging) | a different random string — Vercel sends it on every cron call to `/api/cron/admin-digest` and `/api/cron/pickup-reminders` |
+| `CRON_SECRET` | any random string (lets you curl the cron routes on staging) | a different random string — Vercel sends it on every cron call to `/api/cron/admin-digest`, `/api/cron/pickup-reminders` and `/api/cron/evaluation-requests` |
 | `RESEND_API_KEY` | Resend API key — sends the customer e-mails (order confirmation, receipt, payment failed) to the staging test accounts and the curl-tested admin digest | Resend API key for the verified `nooracare.no` sending domain (customer e-mails + admin digest) |
 | `ADMIN_DIGEST_FROM` | optional; default `NooraCare <varsel@nooracare.no>` | same |
 | `NEXT_PUBLIC_POSTHOG_KEY` | **unset locally**; Preview → `develop`: the *NooraCare staging* PostHog project key | the *NooraCare production* PostHog project key — inlined at build time, redeploy after adding |
 
-> `CRON_SECRET` protects the two cron routes declared in `vercel.json` (Production only):
-> `GET /api/cron/admin-digest` (daily admin digest, 06:00 UTC) and
-> `GET /api/cron/pickup-reminders` (customer pickup reminders, 16:00 UTC). Staging has no
-> crons — test either route there with
+> `CRON_SECRET` protects the three cron routes declared in `vercel.json` (Production only):
+> `GET /api/cron/admin-digest` (daily admin digest, 06:00 UTC),
+> `GET /api/cron/pickup-reminders` (customer pickup reminders, 16:00 UTC) and
+> `GET /api/cron/evaluation-requests` (customer evaluation e-mails, 09:00 UTC). Staging has no
+> crons — test any of them there with
 > `curl -i -H "Authorization: Bearer <CRON_SECRET>" https://test.nooracare.no/api/cron/<name>`.
 > Order generation is still webhook-driven.
 

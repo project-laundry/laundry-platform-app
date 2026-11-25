@@ -64,6 +64,14 @@ export function tomorrowInOslo(now: Date = new Date()): string {
 }
 
 /**
+ * Yesterday's date in Norway as YYYY-MM-DD. Same construction as
+ * tomorrowInOslo(): counted from todayInOslo() at noon UTC.
+ */
+export function yesterdayInOslo(now: Date = new Date()): string {
+  return toISODateString(addDays(new Date(`${todayInOslo(now)}T12:00:00Z`), -1));
+}
+
+/**
  * Check if a weekday is available in a weekly schedule
  * @param schedule - The weekly schedule object
  * @param weekday - The weekday to check

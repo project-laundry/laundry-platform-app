@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { AlertCircle, Check } from 'lucide-react';
 import {
   EVALUATION_TEXT_MAX,
+  SATISFACTION_QUESTION,
   evaluationQuestions,
   type EvaluationQuestion,
 } from '@/lib/config/evaluation';
@@ -141,9 +142,20 @@ function QuestionInput({
   );
 }
 
-export function EvaluationForm({ orderId, full }: { orderId: string; full: boolean }) {
+export function EvaluationForm({
+  orderId,
+  full,
+  initialSatisfaction,
+}: {
+  orderId: string;
+  full: boolean;
+  /** The score pressed in the evaluation e-mail, or null. Selected from the start; the customer can change it. */
+  initialSatisfaction: number | null;
+}) {
   const questions = evaluationQuestions(full);
-  const [answers, setAnswers] = useState<Answers>({});
+  const [answers, setAnswers] = useState<Answers>(() =>
+    initialSatisfaction === null ? {} : { [SATISFACTION_QUESTION.id]: initialSatisfaction }
+  );
   const [missing, setMissing] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);

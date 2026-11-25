@@ -62,17 +62,23 @@ export type EvaluationAnswers = Record<string, EvaluationAnswer>;
 
 const PRICE_RANGE = { min: 50, max: 400, step: 10 } as const;
 
+/**
+ * The first question of both forms. The evaluation e-mail asks it directly:
+ * five link buttons that open the form with that score selected.
+ */
+export const SATISFACTION_QUESTION: ScaleQuestion = {
+  id: 'satisfaction',
+  type: 'scale',
+  label: 'Hvor fornøyd er du med vasken totalt?',
+  short: 'Fornøyd totalt',
+  from: 1,
+  to: 5,
+  lowLabel: 'Lite fornøyd',
+  highLabel: 'Veldig fornøyd',
+};
+
 export const EVALUATION_QUESTIONS: EvaluationQuestion[] = [
-  {
-    id: 'satisfaction',
-    type: 'scale',
-    label: 'Hvor fornøyd er du med vasken totalt?',
-    short: 'Fornøyd totalt',
-    from: 1,
-    to: 5,
-    lowLabel: 'Lite fornøyd',
-    highLabel: 'Veldig fornøyd',
-  },
+  SATISFACTION_QUESTION,
   {
     id: 'on_time',
     type: 'choice',
@@ -269,7 +275,21 @@ export function averageEvaluationAnswer(answerSets: EvaluationAnswers[], questio
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
-/** Path of the form for one order. */
-export function evaluationPath(orderId: string): string {
-  return `/evaluering/${orderId}`;
+/**
+ * Path of the form for one order. With `satisfaction` the form opens with
+ * that score selected for the first question (the e-mail's score buttons).
+ */
+export function evaluationPath(orderId: string, satisfaction?: number): string {
+  const path = `/evaluering/${orderId}`;
+  return satisfaction === undefined ? path : `${path}?${SATISFACTION_QUESTION.id}=${satisfaction}`;
+}
+
+/**
+ * The score from the `?satisfaction=` query parameter, or null when it is
+ * missing or not a whole number on the question's scale.
+ */
+export function prefilledSatisfaction(raw: string | string[] | undefined): number | null {
+  if (typeof raw !== 'string' || !/^\d$/.test(raw)) return null;
+  const value = Number(raw);
+  return value >= SATISFACTION_QUESTION.from && value <= SATISFACTION_QUESTION.to ? value : null;
 }

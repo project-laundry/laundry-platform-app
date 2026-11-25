@@ -542,7 +542,7 @@
 
 ### OrderEvaluation
 
-**Description:** A customer's answers to the evaluation form (`/evaluering/<order id>`), linked from the delivered e-mail of every order. One row per order.
+**Description:** A customer's answers to the evaluation form (`/evaluering/<order id>`), linked from the evaluation e-mail sent the day after every delivery. One row per order.
 
 **Fields:**
 
