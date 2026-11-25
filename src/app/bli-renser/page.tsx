@@ -292,7 +292,7 @@ export default function BecomeCleanerPage() {
         </section>
       </main>
 
-      <Footer showPricing={false} />
+      <Footer showPricing={false} showPhone />
     </div>
   );
 }
