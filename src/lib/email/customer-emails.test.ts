@@ -23,6 +23,8 @@ const ORDER: OrderForCustomerEmail = {
   scheduled_date: '2026-10-24',
   delivery_date: '2026-10-27',
   special_instructions: null,
+  delivery_if_absent: null,
+  delivery_instructions: null,
   needs_ironing: false,
   customer_estimate: {
     bags: 2,
@@ -260,6 +262,56 @@ describe('buildPriceReceiptEmail', () => {
     expect(text).toContain('Totalt: 0 kr');
     expect(text).toContain('ingenting trekkes');
     expect(text).not.toContain('Vipps-referanse');
+  });
+});
+
+describe('buildPriceReceiptEmail — delivery section', () => {
+  const CHANGE_NOTE = 'Vil du endre dette? Det kan du gjøre på bestillingssiden frem til tøyet er levert.';
+
+  it('repeats the "leave at the door" choice and the delivery note while the order awaits delivery', () => {
+    const { text, html } = buildPriceReceiptEmail(
+      { ...PRICED_ORDER, delivery_if_absent: 'leave_at_door', delivery_instructions: '  Sett posen i boden  ' },
+      { provider_reference: 'chr-1' },
+      OPTIONS
+    );
+
+    expect(text).toContain(
+      'Renseren leverer tøyet tilbake til Storgata 1. Hvis du ikke er hjemme, setter renseren tøyet utenfor døra, slik du har valgt.'
+    );
+    expect(text).toContain('Din beskjed om levering: Sett posen i boden');
+    expect(text).toContain(CHANGE_NOTE);
+    expect(html).toContain('Din beskjed om levering: Sett posen i boden');
+  });
+
+  it('leaves out the note line when there is no note', () => {
+    const { text } = buildPriceReceiptEmail(
+      { ...PRICED_ORDER, delivery_if_absent: 'leave_at_door', delivery_instructions: null },
+      { provider_reference: 'chr-1' },
+      OPTIONS
+    );
+
+    expect(text).toContain('Hvis du ikke er hjemme, setter renseren tøyet utenfor døra, slik du har valgt.');
+    expect(text).not.toContain('Din beskjed om levering');
+    expect(text).toContain(CHANGE_NOTE);
+  });
+
+  it('has no delivery section on an order from before the choice existed', () => {
+    const { text } = buildPriceReceiptEmail(PRICED_ORDER, { provider_reference: 'chr-1' }, OPTIONS);
+
+    expect(text).not.toContain('Hvis du ikke er hjemme');
+    expect(text).not.toContain(CHANGE_NOTE);
+  });
+
+  it('has no delivery section on a re-charge after the order is delivered', () => {
+    const { text } = buildPriceReceiptEmail(
+      { ...PRICED_ORDER, status: 'completed', delivery_if_absent: 'leave_at_door', delivery_instructions: 'Sett posen i boden' },
+      { provider_reference: 'chr-2' },
+      OPTIONS
+    );
+
+    expect(text).not.toContain('Hvis du ikke er hjemme');
+    expect(text).not.toContain('Din beskjed om levering');
+    expect(text).not.toContain(CHANGE_NOTE);
   });
 });
 

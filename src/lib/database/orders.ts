@@ -1,7 +1,7 @@
 // Order database operations
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import type { Order, OrderStatus, OrderWithRelations, Customer, User, Subscription, OrderIroningDetails, OrderPromo, CustomerEstimate, Cleaner } from '@/types/database';
+import type { Order, OrderStatus, OrderWithRelations, Customer, User, Subscription, OrderIroningDetails, OrderPromo, CustomerEstimate, Cleaner, DeliveryIfAbsent } from '@/types/database';
 
 /**
  * Order with customer and subscription details for cleaner dashboard
@@ -31,6 +31,10 @@ export interface CreateOrderData {
   delivery_date: string; // ISO date string
   // Pickup details
   special_instructions?: string | null;
+  // Delivery when nobody is home + optional delivery note (null for
+  // order_defaults stored before the choice existed)
+  delivery_if_absent?: DeliveryIfAbsent | null;
+  delivery_instructions?: string | null;
   // Service preferences
   needs_ironing?: boolean;
   // Customer's checkout selection + estimate (null for pre-estimate orders)
@@ -102,6 +106,9 @@ export async function createOrder(data: CreateOrderData): Promise<Order | null> 
       delivery_date: data.delivery_date,
       // Pickup details
       special_instructions: data.special_instructions || null,
+      // Delivery when nobody is home + optional delivery note
+      delivery_if_absent: data.delivery_if_absent ?? null,
+      delivery_instructions: data.delivery_instructions || null,
       // Service preferences
       needs_ironing: data.needs_ironing || false,
       // Customer's checkout selection + estimate

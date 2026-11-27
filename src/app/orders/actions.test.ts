@@ -87,6 +87,7 @@ import {
   getPickupPrefillAction,
   updateOrderSelectionAction,
   updateOrderSpecialInstructionsAction,
+  updateOrderDeliveryAction,
   updateOrderAddressAction,
   cancelOrderAction,
   updateOrderPickupDateAction,
@@ -127,6 +128,7 @@ const baseInput: CreateSubscriptionInput = {
     country: 'Norge',
     specialInstructions: 'Ring på',
   },
+  deliveryIfAbsent: 'leave_at_door',
   termsAccepted: true,
 };
 
@@ -178,6 +180,10 @@ describe('createSubscriptionAction — address and date validation', () => {
     ['an Oslo postal code while only Bergen is offered', withAddress({ postalCode: '0150' })],
     ['a too-short street', withAddress({ street: ' A ' })],
     ['too-long pickup instructions', withAddress({ specialInstructions: 'x'.repeat(501) })],
+    ['a missing delivery choice', { ...baseInput, deliveryIfAbsent: undefined as unknown as 'leave_at_door' }],
+    ['an unknown delivery choice', { ...baseInput, deliveryIfAbsent: 'neighbour' as unknown as 'leave_at_door' }],
+    ['a too-long delivery note', { ...baseInput, deliveryIfAbsent: 'other' as const, deliveryInstructions: 'x'.repeat(501) }],
+    ['«Annet» without a note', { ...baseInput, deliveryIfAbsent: 'other' as const, deliveryInstructions: '   ' }],
     ['an unparseable date', { ...baseInput, firstPickupDate: 'i morgen' }],
     ['a pickup date in the past', { ...baseInput, firstPickupDate: '2020-01-06' }],
     ['a pickup date yesterday', { ...baseInput, firstPickupDate: new Date(Date.now() - 86_400_000 * 2).toISOString().slice(0, 10) }],
@@ -212,6 +218,44 @@ describe('createSubscriptionAction — address and date validation', () => {
       expect.objectContaining({
         order_defaults: expect.objectContaining({
           initial_address: expect.objectContaining({ street: 'Storgata 1' }),
+        }),
+      })
+    );
+  });
+
+  it('stores «Annet» and the trimmed delivery note in order_defaults', async () => {
+    happyPathMocks();
+
+    await createSubscriptionAction({
+      ...baseInput,
+      deliveryIfAbsent: 'other',
+      deliveryInstructions: '  Sett posen i boden  ',
+    });
+
+    expect(createSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({
+        order_defaults: expect.objectContaining({
+          delivery_if_absent: 'other',
+          delivery_instructions: 'Sett posen i boden',
+        }),
+      })
+    );
+  });
+
+  it('drops the delivery note for every choice but «Annet»', async () => {
+    happyPathMocks();
+
+    await createSubscriptionAction({
+      ...baseInput,
+      deliveryIfAbsent: 'leave_at_door',
+      deliveryInstructions: 'Sett posen i boden',
+    });
+
+    expect(createSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({
+        order_defaults: expect.objectContaining({
+          delivery_if_absent: 'leave_at_door',
+          delivery_instructions: undefined,
         }),
       })
     );
@@ -1343,6 +1387,100 @@ describe('order edit and cancel actions — customer-facing error texts', () => 
     expect(await cancelOrderAction('order-1')).toEqual({
       success: false,
       error: 'Noe gikk galt. Last siden på nytt og sjekk om bestillingen er kansellert.',
+    });
+  });
+});
+
+describe('updateOrderDeliveryAction', () => {
+  const input = { ifAbsent: 'other' as const, instructions: '  Sett posen i boden  ' };
+
+  /** A signed-in customer who owns order-1 in the given status, and a DB write that answers `error`. */
+  function withOrder(status: string, error: { message: string } | null = null) {
+    getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
+    m(getOrderWithDetailsByIdAndCustomerId).mockResolvedValue({ id: 'order-1', status });
+    const eqMock = vi.fn().mockResolvedValue({ error });
+    const updateMock = vi.fn(() => ({ eq: eqMock }));
+    m(createAdminClient).mockReturnValue({ from: vi.fn(() => ({ update: updateMock })) });
+    return { updateMock, eqMock };
+  }
+
+  it.each(['pending_assignment', 'pickup_scheduled', 'in_cleaning', 'ready_for_delivery'])(
+    'saves the choice and the trimmed note while the order is %s',
+    async (status) => {
+      const { updateMock, eqMock } = withOrder(status);
+
+      const result = await updateOrderDeliveryAction('order-1', input);
+
+      expect(result).toEqual({ success: true });
+      expect(updateMock).toHaveBeenCalledWith({
+        delivery_if_absent: 'other',
+        delivery_instructions: 'Sett posen i boden',
+      });
+      expect(eqMock).toHaveBeenCalledWith('id', 'order-1');
+    }
+  );
+
+  it('clears the note when the choice is not «Annet»', async () => {
+    const { updateMock } = withOrder('in_cleaning');
+
+    await updateOrderDeliveryAction('order-1', { ifAbsent: 'leave_at_door', instructions: 'Sett posen i boden' });
+
+    expect(updateMock).toHaveBeenCalledWith({
+      delivery_if_absent: 'leave_at_door',
+      delivery_instructions: null,
+    });
+  });
+
+  it.each(['completed', 'cancelled'])('refuses once the order is %s', async (status) => {
+    withOrder(status);
+
+    const result = await updateOrderDeliveryAction('order-1', input);
+
+    expect(result).toEqual({ success: false, error: 'Leveringsvalget kan ikke lenger endres' });
+    expect(createAdminClient).not.toHaveBeenCalled();
+  });
+
+  it('refuses an unknown choice and a too-long note without writing', async () => {
+    withOrder('pickup_scheduled');
+
+    expect(
+      await updateOrderDeliveryAction('order-1', {
+        ifAbsent: 'neighbour' as unknown as 'leave_at_door',
+        instructions: '',
+      })
+    ).toEqual({ success: false, error: 'Velg hva vi gjør hvis du ikke er hjemme ved levering' });
+    expect(
+      await updateOrderDeliveryAction('order-1', { ifAbsent: 'other', instructions: 'x'.repeat(501) })
+    ).toEqual({ success: false, error: 'Beskjed om levering kan ikke være mer enn 500 tegn' });
+    expect(
+      await updateOrderDeliveryAction('order-1', { ifAbsent: 'other', instructions: '  ' })
+    ).toEqual({ success: false, error: 'Skriv hva vi skal gjøre hvis du ikke er hjemme' });
+    expect(createAdminClient).not.toHaveBeenCalled();
+  });
+
+  it('answers in Norwegian for a signed-out customer and for an order that is not theirs', async () => {
+    getUser.mockResolvedValue({ data: { user: null } });
+    expect(await updateOrderDeliveryAction('order-1', input)).toEqual({
+      success: false,
+      error: 'Du er logget ut. Logg inn på nytt og prøv igjen.',
+    });
+
+    getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    m(getCustomerByUserId).mockResolvedValue({ id: 'cust-1' });
+    m(getOrderWithDetailsByIdAndCustomerId).mockResolvedValue(null);
+    expect(await updateOrderDeliveryAction('order-1', input)).toEqual({
+      success: false,
+      error: 'Vi fant ikke bestillingen. Last siden på nytt og prøv igjen.',
+    });
+  });
+
+  it('answers in Norwegian when the write fails', async () => {
+    withOrder('pickup_scheduled', { message: 'boom' });
+
+    expect(await updateOrderDeliveryAction('order-1', input)).toEqual({
+      success: false,
+      error: 'Vi klarte ikke å lagre leveringsvalget. Prøv igjen.',
     });
   });
 });

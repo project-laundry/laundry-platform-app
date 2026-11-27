@@ -25,7 +25,11 @@ const ROUTE_REQUIREMENTS: Record<string, (data: Record<string, unknown> | null) 
   '/orders/wash': () => true, // No requirements - entry point
   '/orders/pickup': (data) => hasItems(data),
   '/orders/confirm': (data) =>
-    hasItems(data) && !!data?.city && !!data?.firstPickupDate && !!data?.address,
+    hasItems(data) &&
+    !!data?.city &&
+    !!data?.firstPickupDate &&
+    !!data?.address &&
+    !!data?.deliveryIfAbsent,
 };
 
 export default function OrdersLayout({ children }: { children: React.ReactNode }) {

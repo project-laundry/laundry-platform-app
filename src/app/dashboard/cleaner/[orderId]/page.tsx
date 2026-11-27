@@ -15,6 +15,7 @@ import {
 } from '@/lib/config/pricing';
 import { monthKeyInOslo, monthLabel, payoutDueDate } from '@/lib/utils/payout';
 import { getPickupTimeRangeLabel } from '@/lib/config/pickup-times';
+import { deliveryCleanerText } from '@/lib/config/delivery';
 import { buildSingleDestinationUrl } from '@/lib/utils/route';
 import { todayInOslo } from '@/lib/utils/date';
 import type { CustomerEstimate, OrderStatus } from '@/types/database';
@@ -233,6 +234,10 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
               mapsUrl,
               phone: customerPhone,
             }}
+            delivery={{
+              ifAbsent: order.delivery_if_absent,
+              instructions: order.delivery_instructions,
+            }}
             pickupWhen={`${formatDate(order.scheduled_date)} · kl. ${getPickupTimeRangeLabel()}`}
             pickupDue={order.scheduled_date <= todayInOslo()}
             washInstructions={order.special_instructions || null}
@@ -307,6 +312,17 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
             {doorInDetails && order.special_instructions_address && (
               <DetailRow label="Ved døren">
                 <span className="whitespace-pre-line">{order.special_instructions_address}</span>
+              </DetailRow>
+            )}
+            {/* The delivery step shows this itself */}
+            {isActive && step !== 'deliver' && order.delivery_if_absent && (
+              <DetailRow label="Ved levering">
+                {deliveryCleanerText(order.delivery_if_absent)}
+                {order.delivery_instructions && (
+                  <span className="block whitespace-pre-line text-sm text-medium-gray">
+                    {order.delivery_instructions}
+                  </span>
+                )}
               </DetailRow>
             )}
             <DetailRow label={order.status === 'pickup_scheduled' ? 'Henting' : 'Hentedato'}>

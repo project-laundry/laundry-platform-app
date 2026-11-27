@@ -19,11 +19,11 @@ export const CLEANER_FAQ = {
   },
   driving: {
     q: 'Må jeg hente eller levere tøy?',
-    a: `Ja. Du henter posene hos kunden på dagen kunden har valgt, mellom kl. ${PICKUP_TIME_RANGE.start} og ${PICKUP_TIME_RANGE.end}, og leverer det rene tøyet tilbake. Adressen, telefonnummeret og kundens beskjeder ser du i oppdraget.`,
+    a: `Ja. Du henter posene hos kunden på dagen kunden har valgt og leverer det rene tøyet tilbake – begge deler mellom kl. ${PICKUP_TIME_RANGE.start} og ${PICKUP_TIME_RANGE.end}, så du kan hente og levere på samme runde. Adressen, telefonnummeret og kundens beskjeder ser du i oppdraget.`,
   },
   noShow: {
     q: 'Hva om kunden ikke er hjemme?',
-    a: 'Ring kunden fra oppdraget. Avslå bare oppdraget hvis du ikke kan ta det.',
+    a: 'Ved levering følger du kundens valg, som står i oppdraget: sett tøyet utenfor døra, eller gjør det kunden har skrevet. Har kunden ikke valgt, ringer du før du setter tøyet igjen. Er kunden ikke hjemme ved henting, ring kunden fra oppdraget.',
   },
   earnings: {
     q: 'Hvor mye tjener jeg?',

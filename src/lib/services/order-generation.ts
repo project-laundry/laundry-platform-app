@@ -8,6 +8,7 @@ import type { CreateOrderData } from '@/lib/database/orders';
 import { getNextOccurrenceOfWeekday, addDays, toISODateString, getWeekdayFromDate } from '@/lib/utils/date';
 import { DAYS_PICKUP_TO_DELIVERY } from '@/lib/config/order-timing';
 import { IRONING_OFFERED } from '@/lib/config/pricing';
+import { isDeliveryIfAbsent } from '@/lib/config/delivery';
 
 /**
  * Per-order parameters that vary between the first order (created on agreement
@@ -58,6 +59,12 @@ export function buildOrderData(
     longitude: address.longitude ?? null,
     // Pickup details from order defaults
     special_instructions: orderDefaults.special_instructions ?? null,
+    // Delivery when nobody is home + delivery note (null for order_defaults
+    // stored before the choice existed or with a choice no longer offered)
+    delivery_if_absent: isDeliveryIfAbsent(orderDefaults.delivery_if_absent)
+      ? orderDefaults.delivery_if_absent
+      : null,
+    delivery_instructions: orderDefaults.delivery_instructions ?? null,
     // Promo snapshot (first order only; null otherwise)
     promo: params.promo ?? null,
   };

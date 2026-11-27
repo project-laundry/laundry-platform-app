@@ -9,6 +9,7 @@ import { RescheduleButton } from '@/components/orders/RescheduleButton';
 import { EditableSpecialInstructions } from '@/components/orders/EditableSpecialInstructions';
 import { EditableOrderSelection } from '@/components/orders/EditableOrderSelection';
 import { EditableAddress } from '@/components/orders/EditableAddress';
+import { EditableDelivery } from '@/components/orders/EditableDelivery';
 import { HelpContact } from '@/components/ui/HelpContact';
 import type { OrderStatus, OrderWithRelations } from '@/types/database';
 import { Truck, User, Package, AlertCircle, Info } from 'lucide-react';
@@ -64,6 +65,8 @@ function timestampForStatus(status: OrderStatus, order: {
 // The route's page.tsx handles auth + data and renders this.
 export function OrderDetailsView({ order }: { order: OrderWithRelations }) {
   const isEditable = order.status === 'pending_assignment' || order.status === 'pickup_scheduled';
+  // The delivery choice stays open after pickup, until the laundry is delivered.
+  const isDeliveryEditable = order.status !== 'completed' && order.status !== 'cancelled';
   // Unpriced order: the estimate with the order's promo code applied.
   const estimateWithPromo = order.customer_estimate
     ? estimateAfterPromo(order.customer_estimate.estimated_total_ore, order.promo)
@@ -157,7 +160,9 @@ export function OrderDetailsView({ order }: { order: OrderWithRelations }) {
                     {formatDate(order.delivery_date)}
                   </p>
                   <p className="text-sm text-medium-gray">
-                    {order.status === 'completed' ? 'Levert' : 'Estimert levering'}
+                    {order.status === 'completed'
+                      ? 'Levert'
+                      : `Estimert levering kl. ${getPickupTimeRangeLabel()}`}
                   </p>
                 </div>
               </div>
@@ -298,10 +303,23 @@ export function OrderDetailsView({ order }: { order: OrderWithRelations }) {
           />
         </section>
 
+        {/* Delivery when nobody is home */}
+        <section
+          className="mt-4 animate-in fade-in slide-in-from-bottom-3 duration-500"
+          style={{ animationDelay: '240ms' }}
+        >
+          <EditableDelivery
+            orderId={order.id}
+            initialIfAbsent={order.delivery_if_absent}
+            initialInstructions={order.delivery_instructions}
+            isEditable={isDeliveryEditable}
+          />
+        </section>
+
         {/* Cancel */}
         <section
           className="mt-6 animate-in fade-in slide-in-from-bottom-3 duration-500"
-          style={{ animationDelay: '240ms' }}
+          style={{ animationDelay: '300ms' }}
         >
           <CancelOrderButton
             orderId={order.id}
@@ -313,7 +331,7 @@ export function OrderDetailsView({ order }: { order: OrderWithRelations }) {
         {/* Help — who to contact when something is wrong with the order */}
         <section
           className="mt-6 animate-in fade-in slide-in-from-bottom-3 duration-500"
-          style={{ animationDelay: '300ms' }}
+          style={{ animationDelay: '360ms' }}
         >
           <HelpContact orderNumber={order.order_number} />
         </section>

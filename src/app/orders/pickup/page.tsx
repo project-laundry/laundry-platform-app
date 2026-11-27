@@ -4,7 +4,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, CalendarDays, Info, MapPin, RefreshCw } from 'lucide-react';
+import { AlertCircle, CalendarDays, Info, MapPin, RefreshCw, Truck } from 'lucide-react';
 import {
   getCityFromPostalCode,
   serviceAreaText,
@@ -16,7 +16,17 @@ import { calculateCustomerEstimate } from '@/lib/config/pricing';
 import { track } from '@/lib/analytics/posthog';
 import { SUBSCRIPTIONS_OFFERED } from '@/lib/config/subscriptions';
 import { PICKUP_TIME_RANGE } from '@/lib/config/pickup-times';
-import type { Weekday } from '@/types/database';
+import { DAYS_PICKUP_TO_DELIVERY } from '@/lib/config/order-timing';
+import {
+  DELIVERY_IF_ABSENT_OPTIONS,
+  DELIVERY_INSTRUCTIONS_MAX_LENGTH,
+  DELIVERY_NOTE_LABEL,
+  DELIVERY_NOTE_PLACEHOLDER,
+  deliveryInputError,
+  deliveryNote,
+  isDeliveryIfAbsent,
+} from '@/lib/config/delivery';
+import type { DeliveryIfAbsent, Weekday } from '@/types/database';
 import { buildDateChips } from './date-chips';
 import {
   getAvailableWeekdaysAction,
@@ -33,6 +43,17 @@ const FREQUENCY_LABELS: Record<Frequency, string> = {
   biweekly: 'Annenhver uke',
   monthly: 'Månedlig',
 };
+
+/** "onsdag 3. desember" — the estimated delivery day for a pickup date. */
+function estimatedDeliveryText(pickupDate: string): string | null {
+  if (!pickupDate) return null;
+  const [y, m, d] = pickupDate.split('-').map(Number);
+  return new Date(y, m - 1, d + DAYS_PICKUP_TO_DELIVERY).toLocaleDateString('nb-NO', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+}
 
 /** "Hentes hver onsdag" — the chosen date fixes the weekday for every later
  *  pickup, which the frequency chips alone don't say. */
@@ -73,6 +94,15 @@ function PickupForm() {
   );
   const [isRecurring, setIsRecurring] = useState(orderData?.isRecurring ?? false);
   const [frequency, setFrequency] = useState<Frequency>(orderData?.frequency ?? 'weekly');
+  // Required: what the cleaner does at delivery when nobody is home. The
+  // stored value comes from localStorage, so it is checked before it is trusted.
+  const storedDeliveryIfAbsent = orderData?.deliveryIfAbsent;
+  const [deliveryIfAbsent, setDeliveryIfAbsent] = useState<DeliveryIfAbsent | null>(
+    isDeliveryIfAbsent(storedDeliveryIfAbsent) ? storedDeliveryIfAbsent : null
+  );
+  const [deliveryInstructions, setDeliveryInstructions] = useState(
+    orderData?.deliveryInstructions ?? ''
+  );
   const [weekdaysFetch, setWeekdaysFetch] = useState<{
     city: SupportedCity;
     weekdays: Weekday[];
@@ -171,7 +201,9 @@ function PickupForm() {
   const canAdvance =
     street.trim().length > 0 &&
     derivedCity !== null &&
-    pickupDate !== '';
+    pickupDate !== '' &&
+    deliveryIfAbsent !== null &&
+    deliveryInputError(deliveryIfAbsent, deliveryInstructions) === null;
 
   const handlePostal = (raw: string) => {
     setAddressError(null);
@@ -179,7 +211,7 @@ function PickupForm() {
   };
 
   const handleAdvance = async () => {
-    if (!canAdvance || !derivedCity || validating) return;
+    if (!canAdvance || !derivedCity || !deliveryIfAbsent || validating) return;
 
     setAddressError(null);
     setValidating(true);
@@ -216,6 +248,8 @@ function PickupForm() {
         specialInstructions: instructions,
       },
       firstPickupDate: pickupDate,
+      deliveryIfAbsent,
+      deliveryInstructions: deliveryNote(deliveryIfAbsent, deliveryInstructions) ?? '',
       isRecurring: recurring,
       frequency: recurring ? frequency : null,
     });
@@ -364,7 +398,7 @@ function PickupForm() {
           </div>
         )}
         {/* The pickup hours, shown as soon as there is a date to choose
-            (issue #97). Pickup only — delivery has no time window. */}
+            (issue #97). Delivery uses the same window (see pickup-times.ts). */}
         {dateChips.length > 0 && (
           <div className="mt-3 flex items-start gap-2 rounded-2xl bg-cream/70 px-3.5 py-2.5 text-sm text-medium-gray">
             <Info className="mt-0.5 size-4 shrink-0 text-sea-green" />
@@ -432,6 +466,49 @@ function PickupForm() {
         )}
       </Section>
       )}
+
+      <Section
+        delay={SUBSCRIPTIONS_OFFERED ? 240 : 180}
+        icon={<Truck className="size-5" />}
+        title="Levering"
+        subtitle="Hva gjør vi hvis du ikke er hjemme når tøyet leveres?"
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          {DELIVERY_IF_ABSENT_OPTIONS.map((option) => (
+            <FreqCard
+              key={option.value}
+              active={deliveryIfAbsent === option.value}
+              title={option.title}
+              subtitle={option.subtitle}
+              onClick={() => setDeliveryIfAbsent(option.value)}
+            />
+          ))}
+        </div>
+        {deliveryIfAbsent === 'other' && (
+        <div className="mt-4">
+          <Field label={DELIVERY_NOTE_LABEL}>
+            <textarea
+              value={deliveryInstructions}
+              onChange={(e) => setDeliveryInstructions(e.target.value)}
+              rows={2}
+              maxLength={DELIVERY_INSTRUCTIONS_MAX_LENGTH}
+              placeholder={DELIVERY_NOTE_PLACEHOLDER}
+              className="w-full resize-none rounded-2xl border border-cream-dark bg-white px-4 py-3 text-dark-gray outline-none transition-colors placeholder:text-medium-gray/60 focus:border-sea-green focus:ring-2 focus:ring-sea-green/20"
+            />
+          </Field>
+        </div>
+        )}
+        {pickupDate && (
+          <div className="mt-4 flex items-start gap-2 rounded-2xl bg-cream/70 px-3.5 py-2.5 text-sm text-medium-gray">
+            <Info className="mt-0.5 size-4 shrink-0 text-sea-green" />
+            <p className="tabular-nums">
+              Antatt levering: {estimatedDeliveryText(pickupDate)}, mellom kl.{' '}
+              {PICKUP_TIME_RANGE.start} og {PICKUP_TIME_RANGE.end}. Du får beskjed når tøyet er
+              klart for levering.
+            </p>
+          </div>
+        )}
+      </Section>
     </OrderFlowShell>
   );
 }

@@ -27,6 +27,7 @@ import {
 import { COMPANY } from "@/lib/config/company";
 import { OFFERED_CITIES, serviceAreaText } from "@/lib/config/postal-codes";
 import { TERMS_VERSION } from "@/lib/config/terms";
+import { deliveryInputError, deliveryNote } from "@/lib/config/delivery";
 import { SUBSCRIPTIONS_OFFERED } from "@/lib/config/subscriptions";
 import { translateFrequency } from "@/lib/utils/i18n";
 import {
@@ -49,6 +50,7 @@ import type {
   CustomerEstimate,
   OrderStatus,
   OrderPromo,
+  DeliveryIfAbsent,
   TermsConsent,
 } from "@/types/database";
 import type { OrderSelection } from "@/types/order-flow";
@@ -66,6 +68,10 @@ export interface CreateSubscriptionInput {
     country: string;
     specialInstructions?: string;
   };
+  /** What the cleaner does at delivery when nobody is home. Required. */
+  deliveryIfAbsent: DeliveryIfAbsent;
+  /** Optional free-text delivery note (max 500 characters). */
+  deliveryInstructions?: string;
   promoCode?: string;
   /** The customer ticked the checkout consent box (sales terms + privacy policy
    *  + express request to start within the withdrawal period). Must be exactly
@@ -159,6 +165,7 @@ export async function createSubscriptionAction(
   }
   const street = input.pickupAddress.street.trim();
   const specialInstructions = input.pickupAddress.specialInstructions?.trim() || undefined;
+  const deliveryInstructions = deliveryNote(input.deliveryIfAbsent, input.deliveryInstructions) ?? undefined;
 
   // Sanitize the customer's selection and recompute the estimate server-side —
   // never trust a client-supplied total.
@@ -276,6 +283,8 @@ export async function createSubscriptionAction(
     default_cleaner_id: cleaner?.id || null,
     first_pickup_date: input.firstPickupDate,
     customer_estimate: customerEstimate,
+    delivery_if_absent: input.deliveryIfAbsent,
+    delivery_instructions: deliveryInstructions,
   };
 
   // Build payment agreement metadata.
@@ -669,6 +678,69 @@ export async function updateOrderSpecialInstructionsAction(
     return { success: true };
   } catch (error) {
     console.error('Error updating special instructions:', error);
+    return { success: false, error: 'Noe gikk galt. Prøv igjen.' };
+  }
+}
+
+export interface UpdateOrderDeliveryInput {
+  ifAbsent: DeliveryIfAbsent;
+  instructions: string;
+}
+
+/**
+ * Update what the cleaner does at delivery when nobody is home, and the
+ * optional delivery note. Unlike the other customer edits this stays open
+ * after pickup: allowed until the order is delivered (completed) or cancelled.
+ */
+export async function updateOrderDeliveryAction(
+  orderId: string,
+  input: UpdateOrderDeliveryInput
+): Promise<ActionResult> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: false, error: 'Du er logget ut. Logg inn på nytt og prøv igjen.' };
+    }
+
+    const customer = await getCustomerByUserId(user.id);
+    if (!customer) {
+      return { success: false, error: 'Vi fant ikke kundeprofilen din. Logg inn på nytt og prøv igjen.' };
+    }
+
+    const order = await getOrderWithDetailsByIdAndCustomerId(orderId, customer.id);
+    if (!order) {
+      return { success: false, error: 'Vi fant ikke bestillingen. Last siden på nytt og prøv igjen.' };
+    }
+
+    if (order.status === 'completed' || order.status === 'cancelled') {
+      return { success: false, error: 'Leveringsvalget kan ikke lenger endres' };
+    }
+
+    const inputError = deliveryInputError(input?.ifAbsent, input?.instructions);
+    if (inputError) {
+      return { success: false, error: inputError };
+    }
+
+
+    const adminClient = createAdminClient();
+    const { error } = await adminClient
+      .from('orders')
+      .update({
+        delivery_if_absent: input.ifAbsent,
+        delivery_instructions: deliveryNote(input.ifAbsent, input.instructions),
+      })
+      .eq('id', orderId);
+
+    if (error) {
+      console.error('Error updating delivery choice:', error);
+      return { success: false, error: 'Vi klarte ikke å lagre leveringsvalget. Prøv igjen.' };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating delivery choice:', error);
     return { success: false, error: 'Noe gikk galt. Prøv igjen.' };
   }
 }

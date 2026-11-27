@@ -18,11 +18,17 @@ import {
   MapPin,
   Package,
   RefreshCw,
+  Truck,
 } from 'lucide-react';
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { calculateCustomerEstimate, estimateAfterPromo } from '@/lib/config/pricing';
 import { SUBSCRIPTIONS_OFFERED } from '@/lib/config/subscriptions';
 import { getPickupTimeRangeLabel } from '@/lib/config/pickup-times';
+import {
+  DELIVERY_QUESTION,
+  deliveryIfAbsentLabel,
+  isDeliveryIfAbsent,
+} from '@/lib/config/delivery';
 import type { OrderSelection } from '@/types/order-flow';
 import { createClient } from '@/lib/supabase/client';
 import { withNext } from '@/lib/auth/next-path';
@@ -182,6 +188,8 @@ export default function ConfirmPage() {
 
   const handleSubmit = async () => {
     if (!orderData || isSubmitting) return;
+    const deliveryIfAbsent = orderData.deliveryIfAbsent;
+    if (!isDeliveryIfAbsent(deliveryIfAbsent)) return;
 
     setSubmitError(null);
     setIsSubmitting(true);
@@ -204,6 +212,8 @@ export default function ConfirmPage() {
           country: 'Norge',
           specialInstructions: orderData.address!.specialInstructions || undefined,
         },
+        deliveryIfAbsent,
+        deliveryInstructions: orderData.deliveryInstructions || undefined,
         promoCode: promoStatus === 'valid' ? promoInput.trim() || undefined : undefined,
         termsAccepted,
       });
@@ -264,6 +274,7 @@ export default function ConfirmPage() {
         price.hasItems &&
         !!orderData?.city &&
         !!orderData?.firstPickupDate &&
+        isDeliveryIfAbsent(orderData?.deliveryIfAbsent) &&
         termsAccepted
       }
       onAdvance={handleSubmit}
@@ -349,6 +360,14 @@ export default function ConfirmPage() {
             }
           />
         )}
+
+        <SummaryRow
+          icon={<Truck className="size-5" />}
+          title={DELIVERY_QUESTION}
+          value={deliveryIfAbsentLabel(orderData?.deliveryIfAbsent)}
+          note={orderData?.deliveryInstructions || undefined}
+          masked
+        />
 
         {/* The one thing that makes people hesitate at the Vipps button sits
             right here, not under the price list. */}

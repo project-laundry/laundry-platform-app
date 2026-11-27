@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { AppHeader } from '@/components/layout/AppHeader';
-import { Ban, ChevronRight, Hourglass, Mail, Phone, Settings, Wallet, XCircle } from 'lucide-react';
+import { Ban, ChevronRight, Hourglass, Mail, Phone, Settings, Star, Wallet, XCircle } from 'lucide-react';
 import { requireViewer } from '@/lib/auth/view-as';
 import { getCleanerByUserId } from '@/lib/database/cleaners';
 import { getOrdersByCleanerId, getCompletedOrdersByCleanerId } from '@/lib/database/orders';
@@ -11,6 +11,8 @@ import { todayInOslo } from '@/lib/utils/date';
 import { formatKrExact } from '@/lib/config/pricing';
 import { monthLabel, payoutDueDate, summarizeCleanerMonth } from '@/lib/utils/payout';
 import { COMPANY, phoneHref } from '@/lib/config/company';
+import { getCleanerRating } from '@/lib/database/evaluations';
+import { SATISFACTION_QUESTION, formatRating, isCleanerRatingShown } from '@/lib/config/evaluation';
 
 /** NooraCare's contact details for the rejected / suspended screens — from
  *  lib/config/company.ts, like /kontakt and /bli-renser/success. */
@@ -55,6 +57,8 @@ export default async function CleanerDashboardPage() {
   // Get orders for approved cleaners
   const activeOrders = isApproved ? await getOrdersByCleanerId(cleaner.id) : [];
   const historyOrders = isApproved ? await getCompletedOrdersByCleanerId(cleaner.id) : [];
+  // Null when the read failed — the rating row is then left out.
+  const rating = isApproved ? await getCleanerRating(cleaner.id) : null;
   const today = todayInOslo();
   const currentMonth = today.slice(0, 7);
   const monthSummary = summarizeCleanerMonth(historyOrders, currentMonth);
@@ -211,6 +215,30 @@ export default async function CleanerDashboardPage() {
                 </span>
                 <ChevronRight className="size-4 shrink-0 text-medium-gray" />
               </Link>
+
+              {/* Mean customer rating — a number only from CLEANER_RATING_MIN_COUNT ratings. */}
+              {rating && (
+                <div className="mt-3 flex items-center gap-3 rounded-3xl border border-cream-dark/80 bg-warm-white/80 px-5 py-4 shadow-[var(--shadow-card)] backdrop-blur">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sea-green/12 text-sea-green">
+                    <Star className="size-5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-medium text-dark-gray">Din vurdering</span>
+                    <span className="block text-sm text-medium-gray">
+                      {isCleanerRatingShown(rating)
+                        ? `Snitt av ${rating.count} kundevurderinger`
+                        : rating.count === 0
+                          ? 'Ingen vurderinger ennå'
+                          : 'For få vurderinger ennå – vises fra 3'}
+                    </span>
+                  </span>
+                  {isCleanerRatingShown(rating) && (
+                    <span className="shrink-0 font-serif text-xl font-semibold tabular-nums text-dark-gray">
+                      {formatRating(rating.average)} av {SATISFACTION_QUESTION.to}
+                    </span>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>

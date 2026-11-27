@@ -93,6 +93,8 @@ function makeOrder(over: Partial<DriverRouteOrder> = {}): DriverRouteOrder {
     scheduled_date: TODAY,
     delivery_date: '2026-08-31',
     special_instructions: null,
+    delivery_if_absent: null,
+    delivery_instructions: null,
     needs_ironing: false,
     customer_estimate: null,
     wash_loads: 0,

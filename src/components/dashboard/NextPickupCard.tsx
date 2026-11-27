@@ -39,13 +39,10 @@ export function NextPickupCard({ order }: { order: OrderWithRelations }) {
       <p className="mt-2 font-serif text-2xl font-semibold leading-tight tabular-nums text-dark-gray sm:text-3xl">
         {getRelativeDateDisplay(isPickedUp ? order.delivery_date : order.scheduled_date)}
       </p>
-      {/* The time window belongs to the pickup. Delivery has no time window,
-          so nothing is shown under «Estimert levering». */}
-      {!isPickedUp && (
-        <p className="mt-0.5 text-sm tabular-nums text-medium-gray">
-          kl. {getPickupTimeRangeLabel()}
-        </p>
-      )}
+      {/* Pickup and delivery share one time window (pickup-times.ts). */}
+      <p className="mt-0.5 text-sm tabular-nums text-medium-gray">
+        kl. {getPickupTimeRangeLabel()}
+      </p>
 
       <div className="mt-3 space-y-1.5 text-sm text-dark-gray">
         <p className="flex items-center gap-2">

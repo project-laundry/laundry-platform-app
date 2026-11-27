@@ -30,6 +30,8 @@ const ORDER: OrderForStaffEmail = {
   scheduled_date: '2026-10-24',
   delivery_date: '2026-10-27',
   special_instructions: null,
+  delivery_if_absent: null,
+  delivery_instructions: null,
   needs_ironing: false,
   customer_estimate: {
     bags: 2,

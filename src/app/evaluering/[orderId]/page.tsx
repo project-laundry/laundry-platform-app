@@ -53,11 +53,17 @@ export default async function EvaluationPage({
           <p className="text-sm font-medium uppercase tracking-[0.18em] text-sea-green">Evaluering</p>
           <h1 className="mt-2 font-serif text-4xl font-semibold leading-tight text-dark-gray">Hvordan var vasken?</h1>
           {answered !== true && (
-            <p className="mt-3 text-medium-gray">
-              {full
-                ? 'Takk for at du bruker NooraCare. Svarene dine hjelper oss å sette riktig pris og gjøre tjenesten bedre. Det tar ca. 2 minutter.'
-                : 'Takk for at du bruker NooraCare. Svarene dine hjelper oss å gjøre tjenesten bedre. Det tar under ett minutt.'}
-            </p>
+            <>
+              <p className="mt-3 text-medium-gray">
+                {full
+                  ? 'Takk for at du bruker NooraCare. Svarene dine hjelper oss å sette riktig pris og gjøre tjenesten bedre. Det tar ca. 2 minutter.'
+                  : 'Takk for at du bruker NooraCare. Svarene dine hjelper oss å gjøre tjenesten bedre. Det tar under ett minutt.'}
+              </p>
+              <p className="mt-2 text-sm text-medium-gray">
+                Svaret på det første spørsmålet teller med i renserens gjennomsnittlige vurdering. Renseren ser bare
+                gjennomsnittet, aldri svarene dine.
+              </p>
+            </>
           )}
         </header>
 

@@ -43,6 +43,8 @@ const ORDER_DEFAULTS = {
     longitude: 10.7522,
   },
   special_instructions: 'Hentes kl 09',
+  delivery_if_absent: 'leave_at_door',
+  delivery_instructions: 'Sett posen i boden',
   location_city: 'Oslo',
   default_needs_ironing: true,
   default_cleaner_id: 'cleaner-1',
@@ -200,6 +202,8 @@ describe('buildOrderData — shared order_defaults -> order mapping', () => {
       country: 'Norge',
       special_instructions_address: 'Ring på',
       special_instructions: 'Hentes kl 09',
+      delivery_if_absent: 'leave_at_door',
+      delivery_instructions: 'Sett posen i boden',
       needs_ironing: false, // default_needs_ironing is true, but ironing isn't offered (IRONING_OFFERED)
       customer_estimate: ORDER_DEFAULTS.customer_estimate,
       total_cost_ore: null,
@@ -245,6 +249,21 @@ describe('buildOrderData — shared order_defaults -> order mapping', () => {
     });
 
     expect(data.customer_estimate).toBeNull();
+  });
+
+  it('defaults the delivery choice and note to null for order_defaults from before the choice existed', () => {
+    const { delivery_if_absent, delivery_instructions, ...legacyDefaults } = ORDER_DEFAULTS;
+    void delivery_if_absent;
+    void delivery_instructions;
+
+    const data = buildOrderData(legacyDefaults, {
+      customerId: 'cust-1',
+      pickupDate,
+      deliveryDate,
+    });
+
+    expect(data.delivery_if_absent).toBeNull();
+    expect(data.delivery_instructions).toBeNull();
   });
 
   it('marks the order pending_assignment when no default cleaner is set', () => {

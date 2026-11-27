@@ -6,6 +6,7 @@ import {
   Landmark,
   MapPin,
   ShieldCheck,
+  Star,
   UserRound,
   WashingMachine,
 } from 'lucide-react';
@@ -34,6 +35,13 @@ import {
   machineConditionLabel,
 } from '@/lib/config/cleaner-options';
 import { formatKr } from '@/lib/config/pricing';
+import { getCleanerRating } from '@/lib/database/evaluations';
+import {
+  CLEANER_RATING_MIN_COUNT,
+  SATISFACTION_QUESTION,
+  formatRating,
+  isCleanerRatingShown,
+} from '@/lib/config/evaluation';
 import { CleanerActivationButton } from '../CleanerActivationButton';
 import { CleanerAcceptingOrdersButton } from '../CleanerAcceptingOrdersButton';
 import { CleanerRejectControl } from './CleanerRejectControl';
@@ -105,9 +113,10 @@ export default async function AdminCleanerDetailPage({
     notFound();
   }
 
-  const [activeOrders, completedOrders] = await Promise.all([
+  const [activeOrders, completedOrders, rating] = await Promise.all([
     getOrdersByCleanerId(cleaner.id),
     getCompletedOrdersByCleanerId(cleaner.id),
+    getCleanerRating(cleaner.id),
   ]);
   const historyOrders = completedOrders.slice(0, HISTORY_LIMIT);
   const olderCount = completedOrders.length - historyOrders.length;
@@ -326,6 +335,31 @@ export default async function AdminCleanerDetailPage({
             </div>
           ))}
         </div>
+      </section>
+
+      {/* Customer rating */}
+      <section className={`mt-4 ${cardClass}`}>
+        <SectionHeading icon={<Star className="size-5" />} title="Kundevurdering" />
+        {rating === null ? (
+          <p className="mt-4 text-sm text-red-700">Kunne ikke hente vurderingene.</p>
+        ) : rating.average === null ? (
+          <p className="mt-4 text-sm text-medium-gray">Ingen vurderinger ennå</p>
+        ) : (
+          <>
+            <p className="mt-4 font-serif text-xl font-semibold tabular-nums text-dark-gray">
+              {formatRating(rating.average)} av {SATISFACTION_QUESTION.to}
+            </p>
+            <p className="text-sm text-medium-gray">
+              Snitt av {rating.count} {rating.count === 1 ? 'vurdering' : 'vurderinger'} på «
+              {SATISFACTION_QUESTION.label}»
+            </p>
+            {!isCleanerRatingShown(rating) && (
+              <p className="mt-2 text-sm text-medium-gray">
+                Renseren ser ikke snittet før {CLEANER_RATING_MIN_COUNT} kunder har svart.
+              </p>
+            )}
+          </>
+        )}
       </section>
 
       {/* Orders */}

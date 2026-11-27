@@ -10,6 +10,9 @@ import {
   averageEvaluationAnswer,
   formatEvaluationAnswer,
   validateEvaluationAnswers,
+  cleanerRating,
+  formatRating,
+  isCleanerRatingShown,
 } from './evaluation';
 
 const VALID = {
@@ -158,5 +161,26 @@ describe('the satisfaction question and its link', () => {
     for (const raw of [undefined, '', '0', '6', '4.5', '04', 'abc', '-1', ['4'], ['4', '5']]) {
       expect(prefilledSatisfaction(raw)).toBeNull();
     }
+  });
+});
+
+describe('cleaner rating', () => {
+  it('averages the satisfaction answers and counts only sets that have one', () => {
+    expect(cleanerRating([{ satisfaction: 4 }, { satisfaction: 5 }, { other: 'x' }])).toEqual({ average: 4.5, count: 2 });
+  });
+
+  it('has no average without ratings', () => {
+    expect(cleanerRating([])).toEqual({ average: null, count: 0 });
+  });
+
+  it('is shown to the cleaner from three ratings', () => {
+    expect(isCleanerRatingShown({ average: null, count: 0 })).toBe(false);
+    expect(isCleanerRatingShown({ average: 5, count: 2 })).toBe(false);
+    expect(isCleanerRatingShown({ average: 4, count: 3 })).toBe(true);
+  });
+
+  it('formats with one decimal and a comma', () => {
+    expect(formatRating(4.56)).toBe('4,6');
+    expect(formatRating(5)).toBe('5,0');
   });
 });

@@ -41,6 +41,9 @@ export type PaymentProvider = 'vipps' | 'stripe' | 'manual';
 
 export type PromoDiscountType = 'percentage' | 'fixed';
 
+/** What the cleaner does at delivery when nobody is home (orders.delivery_if_absent). */
+export type DeliveryIfAbsent = 'leave_at_door' | 'other';
+
 // =============================================================================
 // ENTITY TYPES
 // =============================================================================
@@ -181,6 +184,11 @@ export interface SubscriptionOrderDefaults {
     longitude?: number | null;
   };
   special_instructions?: string;
+  // What the cleaner does at delivery when nobody is home + the customer's
+  // optional delivery note. Optional: defaults stored before the question
+  // existed lack them.
+  delivery_if_absent?: DeliveryIfAbsent;
+  delivery_instructions?: string;
   location_city: 'Bergen' | 'Oslo';
   default_needs_ironing: boolean;
   default_cleaner_id: string | null;
@@ -237,6 +245,10 @@ export interface Order {
   delivery_date: string;
   // Pickup details
   special_instructions: string | null;
+  // Delivery when nobody is home (null on orders created before the choice
+  // existed) and the customer's optional delivery note
+  delivery_if_absent: DeliveryIfAbsent | null;
+  delivery_instructions: string | null;
   // Service preferences
   needs_ironing: boolean;
   // Customer's checkout selection + estimate (null for pre-estimate orders)

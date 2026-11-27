@@ -37,7 +37,7 @@ export default function PersonvernPage() {
                 Personvernerklæring
               </h1>
               <p className="text-sm text-medium-gray">
-                Sist oppdatert: 22.11.2026
+                Sist oppdatert: 27.11.2026
               </p>
               <p className="text-sm text-medium-gray mt-2">
                 Denne erklæringen gjelder for kunder. Er du tilknyttet
@@ -145,7 +145,11 @@ export default function PersonvernPage() {
                 <li>
                   <span className="font-medium">Tilbakemeldinger:</span> svarene
                   du gir hvis du fyller ut evalueringsskjemaet vi sender etter
-                  en bestilling. Det er frivillig å svare.
+                  en bestilling. Det er frivillig å svare. Svaret på hvor
+                  fornøyd du er totalt, teller med i en gjennomsnittlig
+                  vurdering av renseren som utførte oppdraget. Renseren ser
+                  bare gjennomsnittet og antall vurderinger, og først når
+                  minst tre kunder har svart – aldri svarene dine.
                 </li>
               </ul>
               <p className="leading-relaxed text-dark-gray">

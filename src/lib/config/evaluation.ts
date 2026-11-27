@@ -275,6 +275,32 @@ export function averageEvaluationAnswer(answerSets: EvaluationAnswers[], questio
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+/** A cleaner sees their mean rating only from this many ratings. */
+export const CLEANER_RATING_MIN_COUNT = 3;
+
+/** A cleaner's rating: the mean satisfaction score and how many customers gave one. */
+export interface CleanerRating {
+  /** Mean of the satisfaction answers (1–5); null when there are none. */
+  average: number | null;
+  count: number;
+}
+
+/** The rating from the answer sets of one cleaner's evaluated orders. */
+export function cleanerRating(answerSets: EvaluationAnswers[]): CleanerRating {
+  const count = answerSets.filter((answers) => typeof answers[SATISFACTION_QUESTION.id] === 'number').length;
+  return { average: averageEvaluationAnswer(answerSets, SATISFACTION_QUESTION.id), count };
+}
+
+/** Whether the cleaner may see the mean: enough ratings that no single customer stands out. */
+export function isCleanerRatingShown(rating: CleanerRating): rating is CleanerRating & { average: number } {
+  return rating.average !== null && rating.count >= CLEANER_RATING_MIN_COUNT;
+}
+
+/** The mean with exactly one decimal, Norwegian comma: 4.56 → «4,6», 5 → «5,0». */
+export function formatRating(average: number): string {
+  return average.toLocaleString('nb-NO', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
+
 /**
  * Path of the form for one order. With `satisfaction` the form opens with
  * that score selected for the first question (the e-mail's score buttons).
