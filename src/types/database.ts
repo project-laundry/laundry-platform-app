@@ -42,7 +42,7 @@ export type PaymentProvider = 'vipps' | 'stripe' | 'manual';
 export type PromoDiscountType = 'percentage' | 'fixed';
 
 /** What the cleaner does at delivery when nobody is home (orders.delivery_if_absent). */
-export type DeliveryIfAbsent = 'leave_at_door' | 'call_customer';
+export type DeliveryIfAbsent = 'leave_at_door' | 'other';
 
 // =============================================================================
 // ENTITY TYPES

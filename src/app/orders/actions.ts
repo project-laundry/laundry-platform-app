@@ -27,7 +27,7 @@ import {
 import { COMPANY } from "@/lib/config/company";
 import { OFFERED_CITIES, serviceAreaText } from "@/lib/config/postal-codes";
 import { TERMS_VERSION } from "@/lib/config/terms";
-import { deliveryInputError } from "@/lib/config/delivery";
+import { deliveryInputError, deliveryNote } from "@/lib/config/delivery";
 import { SUBSCRIPTIONS_OFFERED } from "@/lib/config/subscriptions";
 import { translateFrequency } from "@/lib/utils/i18n";
 import {
@@ -165,7 +165,7 @@ export async function createSubscriptionAction(
   }
   const street = input.pickupAddress.street.trim();
   const specialInstructions = input.pickupAddress.specialInstructions?.trim() || undefined;
-  const deliveryInstructions = input.deliveryInstructions?.trim() || undefined;
+  const deliveryInstructions = deliveryNote(input.deliveryIfAbsent, input.deliveryInstructions) ?? undefined;
 
   // Sanitize the customer's selection and recompute the estimate server-side —
   // never trust a client-supplied total.
@@ -723,14 +723,13 @@ export async function updateOrderDeliveryAction(
       return { success: false, error: inputError };
     }
 
-    const note = typeof input.instructions === 'string' ? input.instructions.trim() : '';
 
     const adminClient = createAdminClient();
     const { error } = await adminClient
       .from('orders')
       .update({
         delivery_if_absent: input.ifAbsent,
-        delivery_instructions: note || null,
+        delivery_instructions: deliveryNote(input.ifAbsent, input.instructions),
       })
       .eq('id', orderId);
 

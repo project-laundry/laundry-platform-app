@@ -19,6 +19,10 @@ import { PICKUP_TIME_RANGE } from '@/lib/config/pickup-times';
 import {
   DELIVERY_IF_ABSENT_OPTIONS,
   DELIVERY_INSTRUCTIONS_MAX_LENGTH,
+  DELIVERY_NOTE_LABEL,
+  DELIVERY_NOTE_PLACEHOLDER,
+  deliveryInputError,
+  deliveryNote,
   isDeliveryIfAbsent,
 } from '@/lib/config/delivery';
 import type { DeliveryIfAbsent, Weekday } from '@/types/database';
@@ -186,7 +190,8 @@ function PickupForm() {
     street.trim().length > 0 &&
     derivedCity !== null &&
     pickupDate !== '' &&
-    deliveryIfAbsent !== null;
+    deliveryIfAbsent !== null &&
+    deliveryInputError(deliveryIfAbsent, deliveryInstructions) === null;
 
   const handlePostal = (raw: string) => {
     setAddressError(null);
@@ -232,7 +237,7 @@ function PickupForm() {
       },
       firstPickupDate: pickupDate,
       deliveryIfAbsent,
-      deliveryInstructions: deliveryInstructions.trim(),
+      deliveryInstructions: deliveryNote(deliveryIfAbsent, deliveryInstructions) ?? '',
       isRecurring: recurring,
       frequency: recurring ? frequency : null,
     });
@@ -467,18 +472,20 @@ function PickupForm() {
             />
           ))}
         </div>
+        {deliveryIfAbsent === 'other' && (
         <div className="mt-4">
-          <Field label="Beskjed om levering (valgfritt)">
+          <Field label={DELIVERY_NOTE_LABEL}>
             <textarea
               value={deliveryInstructions}
               onChange={(e) => setDeliveryInstructions(e.target.value)}
               rows={2}
               maxLength={DELIVERY_INSTRUCTIONS_MAX_LENGTH}
-              placeholder="F.eks. sett posen i boden, eller bak huset …"
+              placeholder={DELIVERY_NOTE_PLACEHOLDER}
               className="w-full resize-none rounded-2xl border border-cream-dark bg-white px-4 py-3 text-dark-gray outline-none transition-colors placeholder:text-medium-gray/60 focus:border-sea-green focus:ring-2 focus:ring-sea-green/20"
             />
           </Field>
         </div>
+        )}
       </Section>
     </OrderFlowShell>
   );

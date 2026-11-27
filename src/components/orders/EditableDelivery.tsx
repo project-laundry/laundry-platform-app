@@ -6,8 +6,11 @@ import { updateOrderDeliveryAction } from '@/app/orders/actions';
 import {
   DELIVERY_IF_ABSENT_OPTIONS,
   DELIVERY_INSTRUCTIONS_MAX_LENGTH,
+  DELIVERY_NOTE_LABEL,
+  DELIVERY_NOTE_PLACEHOLDER,
   DELIVERY_QUESTION,
   deliveryIfAbsentLabel,
+  deliveryInputError,
 } from '@/lib/config/delivery';
 import type { DeliveryIfAbsent } from '@/types/database';
 import { Truck, Pencil, Check, X, AlertCircle } from 'lucide-react';
@@ -108,20 +111,23 @@ export function EditableDelivery({
               );
             })}
           </div>
+          {ifAbsent === 'other' && (
           <label className="block">
             <span className="mb-1.5 block text-sm font-medium text-dark-gray">
-              Beskjed om levering (valgfritt)
+              {DELIVERY_NOTE_LABEL}
             </span>
             <textarea
               value={instructions}
               onChange={(e) => setInstructions(e.target.value)}
               disabled={isLoading}
               rows={3}
+              autoFocus
               maxLength={DELIVERY_INSTRUCTIONS_MAX_LENGTH}
-              placeholder="F.eks. sett posen i boden, eller bak huset …"
+              placeholder={DELIVERY_NOTE_PLACEHOLDER}
               className="w-full resize-none rounded-2xl border border-cream-dark bg-white px-4 py-3 text-dark-gray outline-none transition-colors placeholder:text-medium-gray/60 focus:border-sea-green focus:ring-2 focus:ring-sea-green/20 disabled:bg-cream/50"
             />
           </label>
+          )}
           {saveError && (
             <div role="alert" className="flex items-start gap-2 rounded-2xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
               <AlertCircle className="mt-0.5 size-4 shrink-0" />
@@ -132,7 +138,7 @@ export function EditableDelivery({
             <button
               type="button"
               onClick={handleSave}
-              disabled={isLoading || !ifAbsent}
+              disabled={isLoading || !ifAbsent || deliveryInputError(ifAbsent, instructions) !== null}
               className="inline-flex items-center gap-2 rounded-full bg-nordic-blue px-4 py-2 text-sm font-medium text-white shadow-soft transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-cream-dark disabled:text-medium-gray disabled:shadow-none"
             >
               <Check className="size-4" />

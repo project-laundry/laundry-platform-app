@@ -182,7 +182,8 @@ describe('createSubscriptionAction — address and date validation', () => {
     ['too-long pickup instructions', withAddress({ specialInstructions: 'x'.repeat(501) })],
     ['a missing delivery choice', { ...baseInput, deliveryIfAbsent: undefined as unknown as 'leave_at_door' }],
     ['an unknown delivery choice', { ...baseInput, deliveryIfAbsent: 'neighbour' as unknown as 'leave_at_door' }],
-    ['a too-long delivery note', { ...baseInput, deliveryInstructions: 'x'.repeat(501) }],
+    ['a too-long delivery note', { ...baseInput, deliveryIfAbsent: 'other' as const, deliveryInstructions: 'x'.repeat(501) }],
+    ['«Annet» without a note', { ...baseInput, deliveryIfAbsent: 'other' as const, deliveryInstructions: '   ' }],
     ['an unparseable date', { ...baseInput, firstPickupDate: 'i morgen' }],
     ['a pickup date in the past', { ...baseInput, firstPickupDate: '2020-01-06' }],
     ['a pickup date yesterday', { ...baseInput, firstPickupDate: new Date(Date.now() - 86_400_000 * 2).toISOString().slice(0, 10) }],
@@ -222,20 +223,39 @@ describe('createSubscriptionAction — address and date validation', () => {
     );
   });
 
-  it('stores the delivery choice and the trimmed delivery note in order_defaults', async () => {
+  it('stores «Annet» and the trimmed delivery note in order_defaults', async () => {
     happyPathMocks();
 
     await createSubscriptionAction({
       ...baseInput,
-      deliveryIfAbsent: 'call_customer',
+      deliveryIfAbsent: 'other',
       deliveryInstructions: '  Sett posen i boden  ',
     });
 
     expect(createSubscription).toHaveBeenCalledWith(
       expect.objectContaining({
         order_defaults: expect.objectContaining({
-          delivery_if_absent: 'call_customer',
+          delivery_if_absent: 'other',
           delivery_instructions: 'Sett posen i boden',
+        }),
+      })
+    );
+  });
+
+  it('drops the delivery note for every choice but «Annet»', async () => {
+    happyPathMocks();
+
+    await createSubscriptionAction({
+      ...baseInput,
+      deliveryIfAbsent: 'leave_at_door',
+      deliveryInstructions: 'Sett posen i boden',
+    });
+
+    expect(createSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({
+        order_defaults: expect.objectContaining({
+          delivery_if_absent: 'leave_at_door',
+          delivery_instructions: undefined,
         }),
       })
     );
@@ -1372,7 +1392,7 @@ describe('order edit and cancel actions — customer-facing error texts', () => 
 });
 
 describe('updateOrderDeliveryAction', () => {
-  const input = { ifAbsent: 'call_customer' as const, instructions: '  Sett posen i boden  ' };
+  const input = { ifAbsent: 'other' as const, instructions: '  Sett posen i boden  ' };
 
   /** A signed-in customer who owns order-1 in the given status, and a DB write that answers `error`. */
   function withOrder(status: string, error: { message: string } | null = null) {
@@ -1394,17 +1414,17 @@ describe('updateOrderDeliveryAction', () => {
 
       expect(result).toEqual({ success: true });
       expect(updateMock).toHaveBeenCalledWith({
-        delivery_if_absent: 'call_customer',
+        delivery_if_absent: 'other',
         delivery_instructions: 'Sett posen i boden',
       });
       expect(eqMock).toHaveBeenCalledWith('id', 'order-1');
     }
   );
 
-  it('stores an empty note as null', async () => {
+  it('clears the note when the choice is not «Annet»', async () => {
     const { updateMock } = withOrder('in_cleaning');
 
-    await updateOrderDeliveryAction('order-1', { ifAbsent: 'leave_at_door', instructions: '   ' });
+    await updateOrderDeliveryAction('order-1', { ifAbsent: 'leave_at_door', instructions: 'Sett posen i boden' });
 
     expect(updateMock).toHaveBeenCalledWith({
       delivery_if_absent: 'leave_at_door',
@@ -1431,8 +1451,11 @@ describe('updateOrderDeliveryAction', () => {
       })
     ).toEqual({ success: false, error: 'Velg hva vi gjør hvis du ikke er hjemme ved levering' });
     expect(
-      await updateOrderDeliveryAction('order-1', { ifAbsent: 'leave_at_door', instructions: 'x'.repeat(501) })
+      await updateOrderDeliveryAction('order-1', { ifAbsent: 'other', instructions: 'x'.repeat(501) })
     ).toEqual({ success: false, error: 'Beskjed om levering kan ikke være mer enn 500 tegn' });
+    expect(
+      await updateOrderDeliveryAction('order-1', { ifAbsent: 'other', instructions: '  ' })
+    ).toEqual({ success: false, error: 'Skriv hva vi skal gjøre hvis du ikke er hjemme' });
     expect(createAdminClient).not.toHaveBeenCalled();
   });
 

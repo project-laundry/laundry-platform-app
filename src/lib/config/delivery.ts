@@ -18,26 +18,39 @@ export const DELIVERY_IF_ABSENT_OPTIONS: readonly {
   subtitle: string;
 }[] = [
   { value: 'leave_at_door', title: 'Sett tøyet utenfor døra', subtitle: 'Du trenger ikke være hjemme' },
-  { value: 'call_customer', title: 'Ring meg', subtitle: 'Så avtaler vi levering' },
+  { value: 'other', title: 'Annet', subtitle: 'Skriv hva vi skal gjøre' },
 ];
+
+/** Label and placeholder of the note field, shown only when «Annet» is chosen. */
+export const DELIVERY_NOTE_LABEL = 'Hva skal vi gjøre?';
+export const DELIVERY_NOTE_PLACEHOLDER = 'F.eks. sett posen i boden, eller lever til naboen i 2. etasje …';
 
 const CUSTOMER_LABELS: Record<DeliveryIfAbsent, string> = {
   leave_at_door: 'Sett tøyet utenfor døra',
-  call_customer: 'Ring meg, så avtaler vi levering',
+  other: 'Annet',
 };
 
 const CLEANER_TEXTS: Record<DeliveryIfAbsent, string> = {
   leave_at_door: 'Sett tøyet utenfor døra.',
-  call_customer: 'Ring kunden og avtal levering. Ikke sett tøyet igjen uten avtale.',
+  other: 'Følg kundens beskjed om levering.',
 };
 
 const EMAIL_SENTENCES: Record<DeliveryIfAbsent, string> = {
   leave_at_door: 'Hvis du ikke er hjemme, setter renseren tøyet utenfor døra, slik du har valgt.',
-  call_customer: 'Hvis du ikke er hjemme, ringer renseren deg for å avtale levering, slik du har valgt.',
+  other: 'Hvis du ikke er hjemme, følger renseren beskjeden din om levering.',
 };
 
 export function isDeliveryIfAbsent(value: unknown): value is DeliveryIfAbsent {
-  return value === 'leave_at_door' || value === 'call_customer';
+  return value === 'leave_at_door' || value === 'other';
+}
+
+/**
+ * The note to store with the choice: the trimmed text for «Annet», null for
+ * every other choice (the note field is only shown for «Annet»).
+ */
+export function deliveryNote(ifAbsent: unknown, instructions: unknown): string | null {
+  if (ifAbsent !== 'other' || typeof instructions !== 'string') return null;
+  return instructions.trim() || null;
 }
 
 /** The choice as the customer and the admin read it; «Ikke valgt» when there is none. */
@@ -71,6 +84,9 @@ export function deliveryInputError(ifAbsent: unknown, instructions: unknown): st
     (typeof instructions !== 'string' || instructions.length > DELIVERY_INSTRUCTIONS_MAX_LENGTH)
   ) {
     return `Beskjed om levering kan ikke være mer enn ${DELIVERY_INSTRUCTIONS_MAX_LENGTH} tegn`;
+  }
+  if (ifAbsent === 'other' && !deliveryNote(ifAbsent, instructions)) {
+    return 'Skriv hva vi skal gjøre hvis du ikke er hjemme';
   }
   return null;
 }

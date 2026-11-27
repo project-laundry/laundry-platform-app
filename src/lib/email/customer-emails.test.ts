@@ -283,14 +283,14 @@ describe('buildPriceReceiptEmail — delivery section', () => {
     expect(html).toContain('Din beskjed om levering: Sett posen i boden');
   });
 
-  it('says the cleaner calls when the customer chose that, and leaves out the note line when there is no note', () => {
+  it('leaves out the note line when there is no note', () => {
     const { text } = buildPriceReceiptEmail(
-      { ...PRICED_ORDER, delivery_if_absent: 'call_customer' },
+      { ...PRICED_ORDER, delivery_if_absent: 'leave_at_door', delivery_instructions: null },
       { provider_reference: 'chr-1' },
       OPTIONS
     );
 
-    expect(text).toContain('Hvis du ikke er hjemme, ringer renseren deg for å avtale levering, slik du har valgt.');
+    expect(text).toContain('Hvis du ikke er hjemme, setter renseren tøyet utenfor døra, slik du har valgt.');
     expect(text).not.toContain('Din beskjed om levering');
     expect(text).toContain(CHANGE_NOTE);
   });
