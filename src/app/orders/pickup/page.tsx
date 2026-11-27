@@ -4,7 +4,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, CalendarDays, Info, MapPin, RefreshCw } from 'lucide-react';
+import { AlertCircle, CalendarDays, Info, MapPin, RefreshCw, Truck } from 'lucide-react';
 import {
   getCityFromPostalCode,
   serviceAreaText,
@@ -16,7 +16,12 @@ import { calculateCustomerEstimate } from '@/lib/config/pricing';
 import { track } from '@/lib/analytics/posthog';
 import { SUBSCRIPTIONS_OFFERED } from '@/lib/config/subscriptions';
 import { PICKUP_TIME_RANGE } from '@/lib/config/pickup-times';
-import type { Weekday } from '@/types/database';
+import {
+  DELIVERY_IF_ABSENT_OPTIONS,
+  DELIVERY_INSTRUCTIONS_MAX_LENGTH,
+  isDeliveryIfAbsent,
+} from '@/lib/config/delivery';
+import type { DeliveryIfAbsent, Weekday } from '@/types/database';
 import { buildDateChips } from './date-chips';
 import {
   getAvailableWeekdaysAction,
@@ -73,6 +78,15 @@ function PickupForm() {
   );
   const [isRecurring, setIsRecurring] = useState(orderData?.isRecurring ?? false);
   const [frequency, setFrequency] = useState<Frequency>(orderData?.frequency ?? 'weekly');
+  // Required: what the cleaner does at delivery when nobody is home. The
+  // stored value comes from localStorage, so it is checked before it is trusted.
+  const storedDeliveryIfAbsent = orderData?.deliveryIfAbsent;
+  const [deliveryIfAbsent, setDeliveryIfAbsent] = useState<DeliveryIfAbsent | null>(
+    isDeliveryIfAbsent(storedDeliveryIfAbsent) ? storedDeliveryIfAbsent : null
+  );
+  const [deliveryInstructions, setDeliveryInstructions] = useState(
+    orderData?.deliveryInstructions ?? ''
+  );
   const [weekdaysFetch, setWeekdaysFetch] = useState<{
     city: SupportedCity;
     weekdays: Weekday[];
@@ -171,7 +185,8 @@ function PickupForm() {
   const canAdvance =
     street.trim().length > 0 &&
     derivedCity !== null &&
-    pickupDate !== '';
+    pickupDate !== '' &&
+    deliveryIfAbsent !== null;
 
   const handlePostal = (raw: string) => {
     setAddressError(null);
@@ -179,7 +194,7 @@ function PickupForm() {
   };
 
   const handleAdvance = async () => {
-    if (!canAdvance || !derivedCity || validating) return;
+    if (!canAdvance || !derivedCity || !deliveryIfAbsent || validating) return;
 
     setAddressError(null);
     setValidating(true);
@@ -216,6 +231,8 @@ function PickupForm() {
         specialInstructions: instructions,
       },
       firstPickupDate: pickupDate,
+      deliveryIfAbsent,
+      deliveryInstructions: deliveryInstructions.trim(),
       isRecurring: recurring,
       frequency: recurring ? frequency : null,
     });
@@ -432,6 +449,37 @@ function PickupForm() {
         )}
       </Section>
       )}
+
+      <Section
+        delay={SUBSCRIPTIONS_OFFERED ? 240 : 180}
+        icon={<Truck className="size-5" />}
+        title="Levering"
+        subtitle="Hva gjør vi hvis du ikke er hjemme når tøyet leveres?"
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          {DELIVERY_IF_ABSENT_OPTIONS.map((option) => (
+            <FreqCard
+              key={option.value}
+              active={deliveryIfAbsent === option.value}
+              title={option.title}
+              subtitle={option.subtitle}
+              onClick={() => setDeliveryIfAbsent(option.value)}
+            />
+          ))}
+        </div>
+        <div className="mt-4">
+          <Field label="Beskjed om levering (valgfritt)">
+            <textarea
+              value={deliveryInstructions}
+              onChange={(e) => setDeliveryInstructions(e.target.value)}
+              rows={2}
+              maxLength={DELIVERY_INSTRUCTIONS_MAX_LENGTH}
+              placeholder="F.eks. sett posen i boden, eller bak huset …"
+              className="w-full resize-none rounded-2xl border border-cream-dark bg-white px-4 py-3 text-dark-gray outline-none transition-colors placeholder:text-medium-gray/60 focus:border-sea-green focus:ring-2 focus:ring-sea-green/20"
+            />
+          </Field>
+        </div>
+      </Section>
     </OrderFlowShell>
   );
 }

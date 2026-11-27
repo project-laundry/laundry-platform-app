@@ -23,7 +23,8 @@ import {
   MAX_WASH_LOADS_PER_ORDER,
   PRICING,
 } from '@/lib/config/pricing';
-import type { OrderPromo } from '@/types/database';
+import { deliveryCleanerText } from '@/lib/config/delivery';
+import type { DeliveryIfAbsent, OrderPromo } from '@/types/database';
 
 /** The customer's door — shown on the pickup and delivery steps. */
 export interface OrderDoor {
@@ -42,6 +43,8 @@ interface OrderStepProps {
   step: 'pickup' | 'wash' | 'deliver';
   customerFirstName: string;
   door: OrderDoor;
+  /** The customer's answer for delivery when nobody is home (null on orders from before the question existed) and their delivery note. */
+  delivery: { ifAbsent: DeliveryIfAbsent | null; instructions: string | null };
   /** 'tor. 21. nov. · kl. 15:00 - 18:00' */
   pickupWhen: string;
   /** True from the customer's chosen pickup date onward (Norwegian time). */
@@ -97,8 +100,12 @@ function Warning({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Address, pickup instructions and the two things to do with them. */
-function Door({ door }: { door: OrderDoor }) {
+/**
+ * Address, pickup instructions and the two things to do with them.
+ * `instructionsLabel` names the note where it could be misread — on the
+ * delivery step the note was written for the pickup.
+ */
+function Door({ door, instructionsLabel }: { door: OrderDoor; instructionsLabel?: string }) {
   return (
     <div className="space-y-3">
       <div>
@@ -110,7 +117,10 @@ function Door({ door }: { door: OrderDoor }) {
       {door.instructions && (
         <div className="flex items-start gap-2 rounded-2xl bg-cream/70 px-3.5 py-2.5 text-sm text-dark-gray">
           <Info className="mt-0.5 size-4 shrink-0 text-sea-green" />
-          <p className="whitespace-pre-line">{door.instructions}</p>
+          <div>
+            {instructionsLabel && <p className="font-medium">{instructionsLabel}</p>}
+            <p className="whitespace-pre-line">{door.instructions}</p>
+          </div>
         </div>
       )}
       <div className="flex gap-2">
@@ -172,6 +182,7 @@ export function OrderStep({
   step,
   customerFirstName,
   door,
+  delivery,
   pickupWhen,
   pickupDue,
   washInstructions,
@@ -540,7 +551,22 @@ export function OrderStep({
         </p>
       )}
 
-      <Door door={door} />
+      <Door door={door} instructionsLabel="Kundens beskjed ved henting" />
+
+      {delivery.ifAbsent ? (
+        <div className="rounded-2xl border border-dashed border-sea-green/40 bg-sea-green/5 px-4 py-3 text-sm text-dark-gray">
+          <p className="font-medium">Hvis kunden ikke er hjemme</p>
+          <p className="mt-0.5">{deliveryCleanerText(delivery.ifAbsent)}</p>
+          {delivery.instructions && (
+            <p className="mt-2 whitespace-pre-line">
+              <span className="font-medium">Beskjed fra kunden om levering:</span>{' '}
+              {delivery.instructions}
+            </p>
+          )}
+        </div>
+      ) : (
+        <Warning>{deliveryCleanerText(null)}</Warning>
+      )}
       {errorNote}
 
       {confirming ? (

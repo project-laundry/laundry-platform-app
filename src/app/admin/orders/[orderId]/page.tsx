@@ -25,6 +25,7 @@ import { PriceOverrideForm } from './PriceOverrideForm';
 import { AdminNotesForm } from './AdminNotesForm';
 import type { OrderStatus } from '@/types/database';
 import { requireRole } from '@/lib/auth/require-role';
+import { deliveryIfAbsentLabel } from '@/lib/config/delivery';
 
 /** Statuses where the admin can still (re)assign the cleaner. */
 const ASSIGNABLE_STATUSES: OrderStatus[] = ['pending_assignment', 'pickup_scheduled'];
@@ -259,6 +260,14 @@ export default async function AdminOrderDetailPage({
           <div>
             <dt className="text-medium-gray">Vaskeinstruksjoner</dt>
             <dd className="text-dark-gray">{order.special_instructions || '—'}</dd>
+          </div>
+          <div>
+            <dt className="text-medium-gray">Hvis ikke hjemme ved levering</dt>
+            <dd className="text-dark-gray">{deliveryIfAbsentLabel(order.delivery_if_absent)}</dd>
+          </div>
+          <div>
+            <dt className="text-medium-gray">Beskjed om levering</dt>
+            <dd className="whitespace-pre-line text-dark-gray">{order.delivery_instructions || '—'}</dd>
           </div>
           {IRONING_OFFERED && (
             <div>

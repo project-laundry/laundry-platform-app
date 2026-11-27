@@ -197,12 +197,19 @@ export default function SalgsvilkarPage() {
                 vaskede tøyet tilbake til samme adresse. Leveringsdatoen som
                 vises er et estimat, ikke en fast avtale.
               </p>
-              <p className="leading-relaxed text-dark-gray">
+              <p className="leading-relaxed text-dark-gray mb-4">
                 Du er ansvarlig for å være tilgjengelig på adressen i
                 hentevinduet, eller for å gi tydelige instruksjoner for
                 kontaktløs henting og levering. Hvis henting ikke kan
                 gjennomføres, tar renseren kontakt med deg, og du kan flytte
                 hentedagen i bestillingen din.
+              </p>
+              <p className="leading-relaxed text-dark-gray">
+                Når du bestiller, velger du hva renseren skal gjøre hvis du
+                ikke er hjemme når tøyet leveres. Har du valgt at tøyet skal
+                settes utenfor døra, regnes tøyet som levert når renseren har
+                satt det der, og du har selv ansvaret for det fra da av. Du
+                kan endre valget i bestillingen din frem til tøyet er levert.
               </p>
             </section>
 

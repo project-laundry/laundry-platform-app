@@ -1,3 +1,5 @@
+import type { DeliveryIfAbsent } from '@/types/database';
+
 // What the customer says they'll send — drives the price estimate and is
 // persisted as the order's customer_estimate.
 export interface OrderSelection {
@@ -28,6 +30,11 @@ export interface OrderData {
     postalCode: string;
     specialInstructions: string;
   };
+
+  // Delivery (step 2): what the cleaner does when nobody is home (required)
+  // and an optional delivery note
+  deliveryIfAbsent: DeliveryIfAbsent;
+  deliveryInstructions: string;
 
   // Promo code (validated at checkout, applied to the first order)
   promoCode?: string;

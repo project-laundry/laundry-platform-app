@@ -271,6 +271,8 @@
     - `initial_address` (object) - Service address for orders:
       - `street`, `postal_code`, `city`, `country`, `special_instructions`
     - `special_instructions` (string, nullable) - Recurring pickup instructions
+    - `delivery_if_absent` (string, optional) - `'leave_at_door'` or `'call_customer'`: what the cleaner does at delivery when nobody is home. Required at checkout; missing only in defaults stored before the choice existed
+    - `delivery_instructions` (string, optional) - The customer's free-text delivery note
     - `location_city` (string) - Service area city ('Bergen' or 'Oslo') - used for cleaner matching
     - `default_needs_ironing` (boolean) - Default ironing preference for orders
     - `default_cleaner_id` (uuid, nullable) - Default cleaner assignment (orders can be reassigned)
@@ -346,6 +348,10 @@
   - `special_instructions` (text, nullable) - One-time order notes
     - **Validation:** Max 1000 chars
     - **Examples:** "Call when arriving", "Extra dirty items", "Handle with care"
+- **Delivery:**
+  - `delivery_if_absent` (text, nullable) - What the cleaner does at delivery when nobody is home: `'leave_at_door'` or `'call_customer'` (CHECK constraint). Required at checkout (`deliveryInputError` in `lib/config/delivery.ts`); `NULL` only on orders created before the choice existed — the cleaner is then told to call the customer. The customer can change it on the order page until the order is `completed` or `cancelled` (`updateOrderDeliveryAction`); admins see it read-only
+  - `delivery_instructions` (text, nullable) - The customer's optional free-text delivery note
+    - **Validation:** Max 500 chars
 - **Service Preferences:**
   - `needs_ironing` (boolean) - Ironing needed for this order
     - **Default:** `false`

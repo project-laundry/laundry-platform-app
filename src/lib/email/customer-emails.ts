@@ -11,6 +11,7 @@
 // confirmation shows the checkout figure as an «Estimat» row and nothing more.
 
 import { COMPANY } from '@/lib/config/company';
+import { deliveryEmailSentence } from '@/lib/config/delivery';
 import { EMAIL_PREFERENCES_PATH } from '@/lib/config/email-preferences';
 import { SATISFACTION_QUESTION, evaluationPath } from '@/lib/config/evaluation';
 import { PICKUP_TIME_RANGE } from '@/lib/config/pickup-times';
@@ -393,6 +394,28 @@ export function buildPriceReceiptEmail(
     }
   } else {
     blocks.push(paragraph('Rabatten dekker hele beløpet – ingenting trekkes fra Vipps-avtalen din.'));
+  }
+
+  // Delivery is next: repeat the customer's own answer for "nobody home" while
+  // it can still be changed. Left out on a re-charge after delivery
+  // (retryChargeAction on a completed order) and on orders from before the
+  // choice existed.
+  const awaitingDelivery =
+    order.status === 'ready_for_delivery' || order.status === 'out_for_delivery';
+  if (awaitingDelivery && order.delivery_if_absent) {
+    const deliveryNote = order.delivery_instructions?.trim() || null;
+    blocks.push(
+      heading('Levering'),
+      paragraph(
+        `Renseren leverer tøyet tilbake til ${order.street}. ${deliveryEmailSentence(order.delivery_if_absent)}`
+      )
+    );
+    if (deliveryNote) {
+      blocks.push(paragraph(`Din beskjed om levering: ${deliveryNote}`));
+    }
+    blocks.push(
+      paragraph('Vil du endre dette? Det kan du gjøre på bestillingssiden frem til tøyet er levert.')
+    );
   }
 
   blocks.push(button('Se bestillingen', orderUrl(order, options)), closing());

@@ -58,6 +58,10 @@ export function buildOrderData(
     longitude: address.longitude ?? null,
     // Pickup details from order defaults
     special_instructions: orderDefaults.special_instructions ?? null,
+    // Delivery when nobody is home + optional delivery note (null for
+    // order_defaults stored before the choice existed)
+    delivery_if_absent: orderDefaults.delivery_if_absent ?? null,
+    delivery_instructions: orderDefaults.delivery_instructions ?? null,
     // Promo snapshot (first order only; null otherwise)
     promo: params.promo ?? null,
   };
