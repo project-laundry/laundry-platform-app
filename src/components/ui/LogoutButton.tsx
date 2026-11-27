@@ -1,15 +1,15 @@
 'use client';
 
 import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
 
 export function LogoutButton() {
-  const router = useRouter();
-
   const handleLogout = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
-    router.push('/auth/login');
+    // A full page load drops every page the browser prefetched while signed
+    // in, so no link replays a signed-in page after logout.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- the full reload is the point
+    window.location.assign('/auth/login');
   };
 
   return (

@@ -3,7 +3,7 @@
 import { Suspense, useState } from 'react';
 import { AppHeader } from '@/components/layout/AppHeader';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { AlertCircle, ChevronLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { safeNextPath, withNext } from '@/lib/auth/next-path';
@@ -26,7 +26,6 @@ export default function LoginPage() {
 }
 
 function LoginForm() {
-  const router = useRouter();
   // Where to go after a customer login (the order flow sends people here
   // from its last step). Staff and cleaners keep their own landing pages.
   const next = safeNextPath(useSearchParams().get('next'));
@@ -104,41 +103,27 @@ function LoginForm() {
     }
 
     const role = userData.role;
-
+    let destination = next ?? '/dashboard';
     if (role === 'admin') {
-      router.push('/admin');
-      router.refresh();
-      return;
-    }
-
-    if (role === 'driver') {
-      router.push('/dashboard/driver');
-      router.refresh();
-      return;
-    }
-
-    if (role === 'cleaner') {
+      destination = '/admin';
+    } else if (role === 'driver') {
+      destination = '/dashboard/driver';
+    } else if (role === 'cleaner') {
       // Check if cleaner has a profile (completed onboarding)
       const { data: cleanerProfile } = await supabase
         .from('cleaners')
         .select('id')
         .eq('user_id', authData.user.id)
         .single();
-
-      if (!cleanerProfile) {
-        // No profile - continue onboarding
-        router.push('/bli-renser/business');
-      } else {
-        // Has profile - go to cleaner dashboard
-        router.push('/dashboard/cleaner');
-      }
-      router.refresh();
-      return;
+      destination = cleanerProfile ? '/dashboard/cleaner' : '/bli-renser/business';
     }
 
-    // Default: back where the customer came from, else the dashboard
-    router.push(next ?? '/dashboard');
-    router.refresh();
+    // A full page load, not router.push: while signed out, the browser has
+    // already prefetched pages like /orders/wash and remembers the proxy's
+    // "go to signup" answer for minutes. router.refresh() only clears the
+    // current route, so a client-side navigation would replay that answer
+    // (the dashboard's «Bestill ny vask» landed on signup).
+    window.location.assign(destination);
   };
 
   const handleResend = async () => {
