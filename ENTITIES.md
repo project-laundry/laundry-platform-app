@@ -562,6 +562,7 @@
 **Notes:**
 
 - Written only by `submitEvaluationAction` with the service role; RLS is enabled with no policies and anon/authenticated hold no grants.
+- The cleaner rating is derived, not stored: `getCleanerRating` averages `answers.satisfaction` over the evaluations of orders with that `cleaner_id`. The cleaner sees it from 3 ratings (`CLEANER_RATING_MIN_COUNT`).
 
 ### RateLimitHit
 

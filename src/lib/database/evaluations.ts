@@ -3,7 +3,12 @@
 // by the order's id, and the admin page is guarded by requireRole.
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import { hasAnsweredFirstTimeQuestions, type EvaluationAnswers } from '@/lib/config/evaluation';
+import {
+  cleanerRating,
+  hasAnsweredFirstTimeQuestions,
+  type CleanerRating,
+  type EvaluationAnswers,
+} from '@/lib/config/evaluation';
 import type { OrderEvaluation, OrderStatus } from '@/types/database';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -123,4 +128,21 @@ export async function getAllEvaluations(): Promise<EvaluationWithDetails[] | nul
     return null;
   }
   return data as EvaluationWithDetails[];
+}
+
+/**
+ * The cleaner's rating over every evaluated order they hold (orders.cleaner_id),
+ * all-time. Null when the read failed (logged).
+ */
+export async function getCleanerRating(cleanerId: string): Promise<CleanerRating | null> {
+  const { data, error } = await createAdminClient()
+    .from('order_evaluations')
+    .select('answers, orders!inner(cleaner_id)')
+    .eq('orders.cleaner_id', cleanerId);
+
+  if (error || !data) {
+    console.error('[getCleanerRating] Error fetching evaluations:', error);
+    return null;
+  }
+  return cleanerRating(data.map((row) => row.answers as EvaluationAnswers));
 }
