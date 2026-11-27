@@ -67,7 +67,7 @@ const HOW = [
   {
     icon: Package,
     title: 'Du leverer det rene tøyet',
-    text: 'Marker oppdraget som klart – da betaler kunden med Vipps. Lever tøyet tilbake til kunden.',
+    text: `Marker oppdraget som klart – da betaler kunden med Vipps. Lever tøyet tilbake til kunden mellom kl. ${PICKUP_TIME_RANGE.start} og ${PICKUP_TIME_RANGE.end}.`,
   },
 ];
 

@@ -24,6 +24,7 @@ import {
   PRICING,
 } from '@/lib/config/pricing';
 import { deliveryCleanerText } from '@/lib/config/delivery';
+import { getPickupTimeRangeLabel } from '@/lib/config/pickup-times';
 import type { DeliveryIfAbsent, OrderPromo } from '@/types/database';
 
 /** The customer's door — shown on the pickup and delivery steps. */
@@ -529,9 +530,13 @@ export function OrderStep({
   // Step 3: deliver back to the customer
   return (
     <section className={`${CARD} space-y-4`}>
-      <h2 className="font-serif text-2xl font-semibold text-dark-gray">
-        Lever tøyet til {customerFirstName}
-      </h2>
+      <div>
+        <h2 className="font-serif text-2xl font-semibold text-dark-gray">
+          Lever tøyet til {customerFirstName}
+        </h2>
+        {/* Same window as the pickup (pickup-times.ts) */}
+        <p className="mt-1 tabular-nums text-medium-gray">kl. {getPickupTimeRangeLabel()}</p>
+      </div>
 
       {chargeHeld ? (
         <Warning>

@@ -127,7 +127,7 @@ src/
 │       ├── [orderId]/      # Order cancel/reschedule
 │       ├── details/        # Customer order details
 │       ├── wash/           # Step 1: what to wash (bags, bedding, ironing)
-│       ├── pickup/         # Step 2: address + pickup date + the required «Levering» choice (what the cleaner does when nobody is home: leave at the door, or «Annet» with a required note — lib/config/delivery.ts) (the frequency section is hidden while SUBSCRIPTIONS_OFFERED is false)
+│       ├── pickup/         # Step 2: address + pickup date + «Antatt levering» (pickup date + DAYS_PICKUP_TO_DELIVERY, same 15–18 window — pickup and delivery share PICKUP_TIME_RANGE) + the required «Levering» choice (what the cleaner does when nobody is home: leave at the door, or «Annet» with a required note — lib/config/delivery.ts) (the frequency section is hidden while SUBSCRIPTIONS_OFFERED is false)
 │       ├── confirm/        # Step 3: review + promo code + required terms/angrerett consent + Vipps handoff
 │       ├── success/        # Order success (polls getCheckoutStatusAction: DB agreement status + first-order presence; Vipps only as abort fallback while pending)
 │       ├── layout.tsx      # Step route guards (redirects to /orders/wash)

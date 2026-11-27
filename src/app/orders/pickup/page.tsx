@@ -16,6 +16,7 @@ import { calculateCustomerEstimate } from '@/lib/config/pricing';
 import { track } from '@/lib/analytics/posthog';
 import { SUBSCRIPTIONS_OFFERED } from '@/lib/config/subscriptions';
 import { PICKUP_TIME_RANGE } from '@/lib/config/pickup-times';
+import { DAYS_PICKUP_TO_DELIVERY } from '@/lib/config/order-timing';
 import {
   DELIVERY_IF_ABSENT_OPTIONS,
   DELIVERY_INSTRUCTIONS_MAX_LENGTH,
@@ -42,6 +43,17 @@ const FREQUENCY_LABELS: Record<Frequency, string> = {
   biweekly: 'Annenhver uke',
   monthly: 'Månedlig',
 };
+
+/** "onsdag 3. desember" — the estimated delivery day for a pickup date. */
+function estimatedDeliveryText(pickupDate: string): string | null {
+  if (!pickupDate) return null;
+  const [y, m, d] = pickupDate.split('-').map(Number);
+  return new Date(y, m - 1, d + DAYS_PICKUP_TO_DELIVERY).toLocaleDateString('nb-NO', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+}
 
 /** "Hentes hver onsdag" — the chosen date fixes the weekday for every later
  *  pickup, which the frequency chips alone don't say. */
@@ -386,7 +398,7 @@ function PickupForm() {
           </div>
         )}
         {/* The pickup hours, shown as soon as there is a date to choose
-            (issue #97). Pickup only — delivery has no time window. */}
+            (issue #97). Delivery uses the same window (see pickup-times.ts). */}
         {dateChips.length > 0 && (
           <div className="mt-3 flex items-start gap-2 rounded-2xl bg-cream/70 px-3.5 py-2.5 text-sm text-medium-gray">
             <Info className="mt-0.5 size-4 shrink-0 text-sea-green" />
@@ -485,6 +497,16 @@ function PickupForm() {
             />
           </Field>
         </div>
+        )}
+        {pickupDate && (
+          <div className="mt-4 flex items-start gap-2 rounded-2xl bg-cream/70 px-3.5 py-2.5 text-sm text-medium-gray">
+            <Info className="mt-0.5 size-4 shrink-0 text-sea-green" />
+            <p className="tabular-nums">
+              Antatt levering: {estimatedDeliveryText(pickupDate)}, mellom kl.{' '}
+              {PICKUP_TIME_RANGE.start} og {PICKUP_TIME_RANGE.end}. Du får beskjed når tøyet er
+              klart for levering.
+            </p>
+          </div>
         )}
       </Section>
     </OrderFlowShell>

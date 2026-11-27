@@ -65,7 +65,7 @@ function OrderRow({
       ? `${address} · kl. ${getPickupTimeRangeLabel()}`
       : stage === 'wash'
         ? `Levering ca. ${shortDate(order.delivery_date)}`
-        : address;
+        : `${address} · kl. ${getPickupTimeRangeLabel()}`;
 
   return (
     <li>

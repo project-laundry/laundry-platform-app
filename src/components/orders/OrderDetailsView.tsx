@@ -160,7 +160,9 @@ export function OrderDetailsView({ order }: { order: OrderWithRelations }) {
                     {formatDate(order.delivery_date)}
                   </p>
                   <p className="text-sm text-medium-gray">
-                    {order.status === 'completed' ? 'Levert' : 'Estimert levering'}
+                    {order.status === 'completed'
+                      ? 'Levert'
+                      : `Estimert levering kl. ${getPickupTimeRangeLabel()}`}
                   </p>
                 </div>
               </div>
