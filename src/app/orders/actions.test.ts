@@ -180,6 +180,7 @@ describe('createSubscriptionAction — address and date validation', () => {
     ['an Oslo postal code while only Bergen is offered', withAddress({ postalCode: '0150' })],
     ['a too-short street', withAddress({ street: ' A ' })],
     ['too-long pickup instructions', withAddress({ specialInstructions: 'x'.repeat(501) })],
+    ['too-long wash instructions', { ...baseInput, washInstructions: 'x'.repeat(501) }],
     ['a missing delivery choice', { ...baseInput, deliveryIfAbsent: undefined as unknown as 'leave_at_door' }],
     ['an unknown delivery choice', { ...baseInput, deliveryIfAbsent: 'neighbour' as unknown as 'leave_at_door' }],
     ['a too-long delivery note', { ...baseInput, deliveryIfAbsent: 'other' as const, deliveryInstructions: 'x'.repeat(501) }],
@@ -238,6 +239,18 @@ describe('createSubscriptionAction — address and date validation', () => {
           delivery_if_absent: 'other',
           delivery_instructions: 'Sett posen i boden',
         }),
+      })
+    );
+  });
+
+  it('stores the trimmed wash instructions in order_defaults', async () => {
+    happyPathMocks();
+
+    await createSubscriptionAction({ ...baseInput, washInstructions: '  Håndklær på 60 grader  ' });
+
+    expect(createSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({
+        order_defaults: expect.objectContaining({ special_instructions: 'Håndklær på 60 grader' }),
       })
     );
   });

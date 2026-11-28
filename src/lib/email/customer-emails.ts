@@ -15,6 +15,7 @@ import { deliveryEmailSentence } from '@/lib/config/delivery';
 import { EMAIL_PREFERENCES_PATH } from '@/lib/config/email-preferences';
 import { SATISFACTION_QUESTION, evaluationPath } from '@/lib/config/evaluation';
 import { PICKUP_TIME_RANGE } from '@/lib/config/pickup-times';
+import { WASH_RULE_CUSTOMER_TEXT } from '@/lib/config/washing';
 import {
   IRONING_OFFERED,
   PRICING,
@@ -713,6 +714,7 @@ export function buildPickupReminderEmail(
   }
 
   blocks.push(
+    paragraph(WASH_RULE_CUSTOMER_TEXT),
     paragraph(
       'Stemmer ikke noe? Du kan fortsatt endre adresse, beskjeder og hentedato på bestillingssiden.'
     ),

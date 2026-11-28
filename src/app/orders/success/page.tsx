@@ -7,6 +7,7 @@ import { ArrowRight, Check, ChevronLeft, Clock, Info, Loader2, X } from 'lucide-
 import { useOrderFlowStore } from '@/stores/order-flow-store';
 import { getCheckoutStatusAction, type CheckoutStatus } from '../actions';
 import { track } from '@/lib/analytics/posthog';
+import { WASH_RULE_CUSTOMER_TEXT } from '@/lib/config/washing';
 
 // While Vipps finishes activating the agreement the status stays PENDING for a
 // short while after redirect — poll a few times before giving up.
@@ -164,7 +165,7 @@ function SuccessView({ recurring }: { recurring: boolean }) {
         <ul className="mt-3 space-y-2.5 text-sm text-medium-gray">
           <li className="flex items-start">
             <span className="mr-2 font-serif font-semibold text-sea-green">1.</span>
-            Gjør klar vasken: Legg tøyet i egne poser. En vanlig handlepose er én pose.
+            Gjør klar vasken: Legg tøyet i egne poser. En vanlig handlepose er én pose. {WASH_RULE_CUSTOMER_TEXT}
           </li>
           <li className="flex items-start">
             <span className="mr-2 font-serif font-semibold text-sea-green">2.</span>

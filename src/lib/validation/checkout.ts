@@ -8,6 +8,7 @@ import { getCityFromPostalCode, isValidPostalCodeFormat, serviceAreaText } from 
 import { earliestPickupDate } from '@/lib/config/order-timing';
 import { daysBetweenISODates } from '@/lib/utils/date';
 import { deliveryInputError } from '@/lib/config/delivery';
+import { washInstructionsError } from '@/lib/config/washing';
 
 /** The date chips offer about two weeks; anything far beyond that is a stale
  *  or tampered value. */
@@ -25,6 +26,7 @@ export interface CheckoutAddressInput {
   };
   deliveryIfAbsent: string;
   deliveryInstructions?: string;
+  washInstructions?: string;
 }
 
 /**
@@ -56,6 +58,9 @@ export function validateCheckoutInput(
   if (instructions != null && (typeof instructions !== 'string' || instructions.length > 500)) {
     return 'Hentedetaljer kan ikke være mer enn 500 tegn';
   }
+
+  const washError = washInstructionsError(input.washInstructions);
+  if (washError) return washError;
 
   const deliveryError = deliveryInputError(input.deliveryIfAbsent, input.deliveryInstructions);
   if (deliveryError) return deliveryError;

@@ -24,6 +24,7 @@ import {
   PRICING,
 } from '@/lib/config/pricing';
 import { deliveryCleanerText } from '@/lib/config/delivery';
+import { WASH_RULE_CLEANER_TEXT } from '@/lib/config/washing';
 import { getPickupTimeRangeLabel } from '@/lib/config/pickup-times';
 import type { DeliveryIfAbsent, OrderPromo } from '@/types/database';
 
@@ -343,6 +344,7 @@ export function OrderStep({
           <p className="mt-1 text-medium-gray">
             Én vask er én full maskin, inntil 5 kg. Sengetøy vaskes for seg og teller som egen vask.
           </p>
+          <p className="mt-1 text-medium-gray">{WASH_RULE_CLEANER_TEXT}</p>
         </div>
 
         {washInstructions && (

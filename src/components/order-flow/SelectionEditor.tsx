@@ -87,7 +87,7 @@ export function SelectionEditor({
         delay={140}
         icon={<BedDouble className="size-5" />}
         title="Sengetøy"
-        subtitle="Vil du sende med sengetøy? Hvert sett vaskes for seg."
+        subtitle="Ett sett er dynetrekk, laken og putevar."
       >
         <Stepper
           value={sel.beddingSets}
