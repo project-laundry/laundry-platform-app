@@ -8,6 +8,12 @@ import {
   estimateAfterPromo,
   estimatedGarments,
   withoutUnofferedIroning,
+  IRONING_OFFERED,
+  OFFERED_IRONING_GROUPS,
+  isIroningGroupOffered,
+  ironingDetailsError,
+  offeredIroningDetails,
+  MAX_WASH_LOADS_PER_ORDER,
   oreToNok,
   nokToOre,
   formatKr,
@@ -107,11 +113,23 @@ describe('calculateOrderPrice', () => {
     const ironing: IroningDetails = {
       everyday: 0,
       shirts_dresses: 2, // 2 * 4900 = 9800
-      bedding: 1, // 8500
+      bedding: 1, // 5000
     };
     const result = calculateOrderPrice({ wash_loads: 0, ironing_details: ironing });
 
-    expect(result.ironing_subtotal_ore).toBe(9800 + 8500);
+    expect(result.ironing_subtotal_ore).toBe(9800 + 5000);
+  });
+
+  it('prices ironed bedding at 50 kr per set and pays the cleaner 70 % of the total', () => {
+    // 2 loads (59800) + 2 ironed sets (10000) + 10400 + 1830 = 82030; 70 % = 57421
+    const result = calculateOrderPrice({
+      wash_loads: 2,
+      ironing_details: { everyday: 0, shirts_dresses: 0, bedding: 2 },
+    });
+
+    expect(result.ironing_subtotal_ore).toBe(10000);
+    expect(result.total_ore).toBe(82030);
+    expect(result.cleaner_payout_ore).toBe(57421);
   });
 
   it('ignores unknown ironing keys from legacy 7-category data', () => {
@@ -156,7 +174,7 @@ describe('calculateCustomerEstimate', () => {
   });
 
   it('sums bags, bedding and ironing above the minimum', () => {
-    // 3 bags (89700) + 2 sets (59800) + 5 formal (24500) + ironed bedding (17000)
+    // 3 bags (89700) + 2 sets (59800) + 5 formal (24500) + ironed bedding (10000)
     const result = calculateCustomerEstimate({
       bags: 3,
       beddingSets: 2,
@@ -165,7 +183,7 @@ describe('calculateCustomerEstimate', () => {
       ironBedding: true,
     });
 
-    expect(result.itemsSubtotalOre).toBe(89700 + 59800 + 24500 + 17000);
+    expect(result.itemsSubtotalOre).toBe(89700 + 59800 + 24500 + 10000);
     expect(result.subtotalOre).toBe(result.itemsSubtotalOre + 10400 + 1830);
     expect(result.minimumApplied).toBe(false);
     expect(result.totalOre).toBe(result.subtotalOre);
@@ -190,18 +208,89 @@ describe('calculateCustomerEstimate', () => {
   });
 });
 
+describe('offered ironing groups', () => {
+  it('offers bedding ironing only', () => {
+    expect(OFFERED_IRONING_GROUPS).toEqual(['bedding']);
+    expect(isIroningGroupOffered('bedding')).toBe(true);
+    expect(isIroningGroupOffered('everyday')).toBe(false);
+    expect(isIroningGroupOffered('shirts_dresses')).toBe(false);
+    expect(IRONING_OFFERED).toBe(true);
+  });
+});
+
 describe('withoutUnofferedIroning', () => {
-  it('zeroes ironing and keeps bags and bedding while ironing is not offered', () => {
+  it('keeps bedding ironing and zeroes the clothes ironing counts', () => {
     const stale = { bags: 1, beddingSets: 1, everydayItems: 2, formalItems: 2, ironBedding: true };
     expect(withoutUnofferedIroning(stale)).toEqual({
       bags: 1,
       beddingSets: 1,
       everydayItems: 0,
       formalItems: 0,
-      ironBedding: false,
+      ironBedding: true,
     });
-    const lines = calculateCustomerEstimate(withoutUnofferedIroning(stale)).lines;
-    expect(lines.some((l) => l.key.startsWith('iron'))).toBe(false);
+    const keys = calculateCustomerEstimate(withoutUnofferedIroning(stale)).lines.map((l) => l.key);
+    expect(keys.filter((k) => k.startsWith('iron'))).toEqual(['iron-bedding']);
+  });
+});
+
+describe('bedding ironing in the customer estimate', () => {
+  it('adds 50 kr per set', () => {
+    // 1 bag (29900) + 2 sets (59800) + ironing 2 × 5000 + fees (12230) = 111930
+    const result = calculateCustomerEstimate({ ...emptySelection, bags: 1, beddingSets: 2, ironBedding: true });
+
+    expect(result.lines.find((l) => l.key === 'iron-bedding')).toMatchObject({
+      label: 'Stryking av sengetøy',
+      detail: '2 sett',
+      amountOre: 10000,
+    });
+    expect(result.totalOre).toBe(111930);
+  });
+
+  it('stays at the order minimum for one ironed set alone', () => {
+    // 1 set (29900) + ironing (5000) + fees (12230) = 47130 < 50000
+    const result = calculateCustomerEstimate({ ...emptySelection, beddingSets: 1, ironBedding: true });
+
+    expect(result.subtotalOre).toBe(47130);
+    expect(result.minimumApplied).toBe(true);
+    expect(result.totalOre).toBe(PRICING.minimum_order_ore);
+  });
+});
+
+describe('offeredIroningDetails', () => {
+  it('keeps the bedding count and drops the groups that are not offered', () => {
+    expect(offeredIroningDetails({ everyday: 4, shirts_dresses: 3, bedding: 2 })).toEqual({
+      everyday: 0,
+      shirts_dresses: 0,
+      bedding: 2,
+    });
+  });
+
+  it('returns null when nothing is left to iron', () => {
+    expect(offeredIroningDetails(null)).toBeNull();
+    expect(offeredIroningDetails({ everyday: 4, shirts_dresses: 3, bedding: 0 })).toBeNull();
+  });
+});
+
+describe('ironingDetailsError', () => {
+  it('accepts no ironing and counts from 0 to the cap', () => {
+    expect(ironingDetailsError(null)).toBeNull();
+    expect(ironingDetailsError({ everyday: 0, shirts_dresses: 0, bedding: 0 })).toBeNull();
+    expect(
+      ironingDetailsError({ everyday: 0, shirts_dresses: 0, bedding: MAX_WASH_LOADS_PER_ORDER })
+    ).toBeNull();
+  });
+
+  it.each([
+    ['a negative count', -1],
+    ['a fractional count', 1.5],
+    ['NaN', Number.NaN],
+    ['more than the cap', MAX_WASH_LOADS_PER_ORDER + 1],
+  ])('rejects %s', (_label, bedding) => {
+    expect(ironingDetailsError({ everyday: 0, shirts_dresses: 0, bedding })).toEqual(expect.any(String));
+  });
+
+  it('does not check the groups that are not offered', () => {
+    expect(ironingDetailsError({ everyday: 999, shirts_dresses: -5, bedding: 1 })).toBeNull();
   });
 });
 

@@ -13,7 +13,6 @@ import {
 import { IroningQuantityInput } from '../components/IroningQuantityInput';
 import {
   type IroningDetails,
-  type IroningGroup,
   calculateOrderPrice,
   computeDiscountOre,
   getEmptyIroningDetails,
@@ -21,9 +20,11 @@ import {
   formatKrExact,
   isPriceFarAboveEstimate,
   MAX_WASH_LOADS_PER_ORDER,
+  OFFERED_IRONING_GROUPS,
   PRICING,
 } from '@/lib/config/pricing';
 import { deliveryCleanerText } from '@/lib/config/delivery';
+import { WASH_RULE_CLEANER_TEXT } from '@/lib/config/washing';
 import { getPickupTimeRangeLabel } from '@/lib/config/pickup-times';
 import type { DeliveryIfAbsent, OrderPromo } from '@/types/database';
 
@@ -74,8 +75,6 @@ interface OrderStepProps {
   /** orders.customer_estimate.estimated_total_ore — what the customer expected to pay at checkout. */
   estimatedTotalOre: number | null;
 }
-
-const IRONING_CATEGORIES: IroningGroup[] = ['everyday', 'shirts_dresses', 'bedding'];
 
 const CARD =
   'rounded-3xl border border-cream-dark/80 bg-warm-white/80 p-5 shadow-[var(--shadow-card)] backdrop-blur';
@@ -343,6 +342,7 @@ export function OrderStep({
           <p className="mt-1 text-medium-gray">
             Én vask er én full maskin, inntil 5 kg. Sengetøy vaskes for seg og teller som egen vask.
           </p>
+          <p className="mt-1 text-medium-gray">{WASH_RULE_CLEANER_TEXT}</p>
         </div>
 
         {washInstructions && (
@@ -390,16 +390,23 @@ export function OrderStep({
         </div>
 
         {needsIroning && (
-          <div className="divide-y divide-cream-dark/60 border-t border-cream-dark/60">
-            {IRONING_CATEGORIES.map((category) => (
-              <IroningQuantityInput
-                key={category}
-                category={category}
-                value={ironingDetails[category]}
-                onChange={(value) => setIroningDetails((prev) => ({ ...prev, [category]: value }))}
-                disabled={confirming}
-              />
-            ))}
+          <div className="border-t border-cream-dark/60 pt-4">
+            <p className="font-medium text-dark-gray">Stryking</p>
+            <p className="text-sm text-medium-gray">
+              Kunden har bestilt stryking av sengetøy. Tell opp settene du har strøket.
+            </p>
+            <div className="divide-y divide-cream-dark/60">
+              {OFFERED_IRONING_GROUPS.map((category) => (
+                <IroningQuantityInput
+                  key={category}
+                  category={category}
+                  value={ironingDetails[category]}
+                  onChange={(value) => setIroningDetails((prev) => ({ ...prev, [category]: value }))}
+                  disabled={confirming}
+                  max={MAX_WASH_LOADS_PER_ORDER}
+                />
+              ))}
+            </div>
           </div>
         )}
 

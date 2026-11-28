@@ -1023,6 +1023,84 @@ describe('overrideOrderPriceAction', () => {
     expect(result).toEqual({ success: false, error: 'Kunne ikke lagre prisen' });
     expect(revalidatePath).not.toHaveBeenCalled();
   });
+
+  describe('ironed bedding sets', () => {
+    const IRONING_ORDER = {
+      ...IN_CLEANING_ORDER,
+      needs_ironing: true,
+      ironing_details: { everyday: 0, shirts_dresses: 0, bedding: 1 },
+    };
+
+    it('prices the corrected number of ironed sets', async () => {
+      m(getOrderById).mockResolvedValue(IRONING_ORDER);
+
+      const result = await overrideOrderPriceAction('ord-1', {
+        wash_loads: 2,
+        pricing_notes: '',
+        ironed_bedding_sets: 2,
+      });
+
+      expect(result).toEqual({ success: true });
+      // 2 × 29900 + 2 × 5000 + 10400 + 1830 = 82030; 70 % = 57421
+      expect(updateOrderPricingByAdmin).toHaveBeenCalledWith(
+        'ord-1',
+        expect.objectContaining({
+          ironing_details: { everyday: 0, shirts_dresses: 0, bedding: 2 },
+          total_cost_ore: 82030,
+          cleaner_payout_ore: 57421,
+        })
+      );
+    });
+
+    it('keeps the stored count when none is sent', async () => {
+      m(getOrderById).mockResolvedValue(IRONING_ORDER);
+
+      await overrideOrderPriceAction('ord-1', { wash_loads: 2, pricing_notes: '' });
+
+      // 2 × 29900 + 1 × 5000 + 10400 + 1830 = 77030
+      expect(updateOrderPricingByAdmin).toHaveBeenCalledWith(
+        'ord-1',
+        expect.objectContaining({
+          ironing_details: { everyday: 0, shirts_dresses: 0, bedding: 1 },
+          total_cost_ore: 77030,
+        })
+      );
+    });
+
+    it('stores no ironing when the count is set to 0', async () => {
+      m(getOrderById).mockResolvedValue(IRONING_ORDER);
+
+      await overrideOrderPriceAction('ord-1', { wash_loads: 2, pricing_notes: '', ironed_bedding_sets: 0 });
+
+      // 2 × 29900 + 10400 + 1830 = 72030
+      expect(updateOrderPricingByAdmin).toHaveBeenCalledWith(
+        'ord-1',
+        expect.objectContaining({ ironing_details: null, total_cost_ore: 72030 })
+      );
+    });
+
+    it('ignores ironed sets on an order without ironing ordered', async () => {
+      await overrideOrderPriceAction('ord-1', { wash_loads: 2, pricing_notes: '', ironed_bedding_sets: 3 });
+
+      expect(updateOrderPricingByAdmin).toHaveBeenCalledWith(
+        'ord-1',
+        expect.objectContaining({ ironing_details: null, total_cost_ore: 72030 })
+      );
+    });
+
+    it('rejects a count above the cap without saving', async () => {
+      m(getOrderById).mockResolvedValue(IRONING_ORDER);
+
+      const result = await overrideOrderPriceAction('ord-1', {
+        wash_loads: 2,
+        pricing_notes: '',
+        ironed_bedding_sets: 16,
+      });
+
+      expect(result.success).toBe(false);
+      expect(updateOrderPricingByAdmin).not.toHaveBeenCalled();
+    });
+  });
 });
 
 describe('adminMarkReadyAction', () => {

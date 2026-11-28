@@ -214,6 +214,7 @@ export default function ConfirmPage() {
         },
         deliveryIfAbsent,
         deliveryInstructions: orderData.deliveryInstructions || undefined,
+        washInstructions: orderData.washInstructions || undefined,
         promoCode: promoStatus === 'valid' ? promoInput.trim() || undefined : undefined,
         termsAccepted,
       });
@@ -327,6 +328,7 @@ export default function ConfirmPage() {
           icon={<Package className="size-5" />}
           title="Dette sender du"
           value={selectionSummary(selection)}
+          note={orderData?.washInstructions?.trim() || undefined}
         />
         <SummaryRow
           icon={<MapPin className="size-5" />}

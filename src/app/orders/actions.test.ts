@@ -180,6 +180,7 @@ describe('createSubscriptionAction — address and date validation', () => {
     ['an Oslo postal code while only Bergen is offered', withAddress({ postalCode: '0150' })],
     ['a too-short street', withAddress({ street: ' A ' })],
     ['too-long pickup instructions', withAddress({ specialInstructions: 'x'.repeat(501) })],
+    ['too-long wash instructions', { ...baseInput, washInstructions: 'x'.repeat(501) }],
     ['a missing delivery choice', { ...baseInput, deliveryIfAbsent: undefined as unknown as 'leave_at_door' }],
     ['an unknown delivery choice', { ...baseInput, deliveryIfAbsent: 'neighbour' as unknown as 'leave_at_door' }],
     ['a too-long delivery note', { ...baseInput, deliveryIfAbsent: 'other' as const, deliveryInstructions: 'x'.repeat(501) }],
@@ -238,6 +239,18 @@ describe('createSubscriptionAction — address and date validation', () => {
           delivery_if_absent: 'other',
           delivery_instructions: 'Sett posen i boden',
         }),
+      })
+    );
+  });
+
+  it('stores the trimmed wash instructions in order_defaults', async () => {
+    happyPathMocks();
+
+    await createSubscriptionAction({ ...baseInput, washInstructions: '  Håndklær på 60 grader  ' });
+
+    expect(createSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({
+        order_defaults: expect.objectContaining({ special_instructions: 'Håndklær på 60 grader' }),
       })
     );
   });
@@ -447,6 +460,29 @@ describe('createSubscriptionAction — recurring orders', () => {
     expect(createSubscription).toHaveBeenCalledWith(
       expect.objectContaining({
         order_defaults: expect.objectContaining({ default_needs_ironing: false }),
+      })
+    );
+  });
+
+  it('keeps bedding ironing: needs ironing, the choice and 50 kr per set in the estimate', async () => {
+    happyPathMocks();
+
+    await createSubscriptionAction({
+      ...baseInput,
+      selection: { bags: 2, beddingSets: 1, everydayItems: 0, formalItems: 0, ironBedding: true },
+    });
+
+    expect(createSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({
+        order_defaults: expect.objectContaining({
+          default_needs_ironing: true,
+          customer_estimate: expect.objectContaining({
+            bedding_sets: 1,
+            iron_bedding: true,
+            // 2*29900 + 1*29900 + 1*5000 + 10400 + 1830 = 106930
+            estimated_total_ore: 106930,
+          }),
+        }),
       })
     );
   });
@@ -880,6 +916,26 @@ describe('updateOrderSelectionAction', () => {
         customer_estimate: expect.objectContaining({ iron_bedding: false }),
       })
     );
+  });
+
+  it('stores bedding ironing: needs_ironing true and the ironing in the estimate', async () => {
+    withEditableOrder();
+
+    await updateOrderSelectionAction('order-1', { ...selection, ironBedding: true });
+
+    expect(updateMock).toHaveBeenCalledWith({
+      needs_ironing: true,
+      customer_estimate: {
+        bags: 2,
+        bedding_sets: 1,
+        iron_everyday_items: 0,
+        // The 3 formal items are dropped: ironing of clothes is not offered
+        iron_formal_items: 0,
+        iron_bedding: true,
+        // 2*29900 + 1*29900 + 1*5000 + 10400 + 1830 = 106930
+        estimated_total_ore: 106930,
+      },
+    });
   });
 
   it('clamps out-of-range counts before persisting', async () => {

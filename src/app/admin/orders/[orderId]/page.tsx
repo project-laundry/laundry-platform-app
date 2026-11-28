@@ -14,6 +14,7 @@ import {
   IRONING_OFFERED,
   formatKr,
   isChargeHeldForPriceReview,
+  isIroningGroupOffered,
   orderPriceNeedsReview,
 } from '@/lib/config/pricing';
 import { AssignCleanerControl, type CleanerOption } from '../AssignCleanerControl';
@@ -71,6 +72,18 @@ export default async function AdminOrderDetailPage({
     order.total_cost_ore !== null &&
     order.total_cost_ore > 0 &&
     !hasLivePayment(payments);
+  // Price override: the ironed-sets field is shown only when the customer
+  // ordered bedding ironing. It starts at the stored count; on an order that
+  // is not priced yet, at what the customer ordered (a saved 0 is stored as
+  // null and must stay 0).
+  const ironedBeddingSets =
+    order.needs_ironing && isIroningGroupOffered('bedding')
+      ? (order.ironing_details?.bedding ??
+        (order.total_cost_ore === null && order.customer_estimate?.iron_bedding
+          ? order.customer_estimate.bedding_sets
+          : 0))
+      : null;
+
   // Price override: same gate as overrideOrderPriceAction, which re-checks it.
   // A delivered order stays priceable while it has a price and nothing is
   // charged (held or failed charge) — the admin corrects it, then «Belast på nytt».
@@ -223,7 +236,7 @@ export default async function AdminOrderDetailPage({
               orderId={order.id}
               initialWashLoads={order.wash_loads}
               initialNotes={order.pricing_notes}
-              ironingDetails={IRONING_OFFERED ? order.ironing_details : null}
+              ironedBeddingSets={ironedBeddingSets}
               promo={order.promo}
             />
           </div>
@@ -281,15 +294,15 @@ export default async function AdminOrderDetailPage({
               <dd className="text-dark-gray">
                 {order.customer_estimate.bags} poser · {order.customer_estimate.bedding_sets}{' '}
                 sengetøysett
-                {IRONING_OFFERED && (
-                  <>
-                    {order.customer_estimate.iron_everyday_items > 0 &&
-                      ` · ${order.customer_estimate.iron_everyday_items} hverdagsplagg strykes`}
-                    {order.customer_estimate.iron_formal_items > 0 &&
-                      ` · ${order.customer_estimate.iron_formal_items} skjorter/kjoler strykes`}
-                    {order.customer_estimate.iron_bedding && ' · sengetøy strykes'}
-                  </>
-                )}
+                {isIroningGroupOffered('everyday') &&
+                  order.customer_estimate.iron_everyday_items > 0 &&
+                  ` · ${order.customer_estimate.iron_everyday_items} hverdagsplagg strykes`}
+                {isIroningGroupOffered('shirts_dresses') &&
+                  order.customer_estimate.iron_formal_items > 0 &&
+                  ` · ${order.customer_estimate.iron_formal_items} skjorter/kjoler strykes`}
+                {isIroningGroupOffered('bedding') &&
+                  order.customer_estimate.iron_bedding &&
+                  ' · sengetøy strykes'}
               </dd>
             </div>
           )}

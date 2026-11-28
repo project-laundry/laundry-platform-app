@@ -4,6 +4,11 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateOrderSpecialInstructionsAction } from '@/app/orders/actions';
 import { MessageSquare, Pencil, Check, X, AlertCircle } from 'lucide-react';
+import {
+  WASH_INSTRUCTIONS_MAX_LENGTH,
+  WASH_INSTRUCTIONS_PLACEHOLDER,
+  WASH_RULE_CUSTOMER_TEXT,
+} from '@/lib/config/washing';
 
 interface EditableSpecialInstructionsProps {
   orderId: string;
@@ -80,7 +85,8 @@ export function EditableSpecialInstructions({
             onChange={(e) => setInstructions(e.target.value)}
             disabled={isLoading}
             rows={4}
-            placeholder="F.eks. vask på 30 grader eller ikke tørketrommel…"
+            placeholder={WASH_INSTRUCTIONS_PLACEHOLDER}
+            maxLength={WASH_INSTRUCTIONS_MAX_LENGTH}
             className="w-full resize-none rounded-2xl border border-cream-dark bg-white px-4 py-3 text-dark-gray outline-none transition-colors placeholder:text-medium-gray/60 focus:border-sea-green focus:ring-2 focus:ring-sea-green/20 disabled:bg-cream/50"
           />
           {saveError && (
@@ -115,7 +121,7 @@ export function EditableSpecialInstructions({
           <MessageSquare className="mt-0.5 size-4 shrink-0 text-sea-green" />
           <p className="text-dark-gray">
             {initialInstructions || (
-              <span className="italic text-medium-gray">Ingen instruksjoner lagt til</span>
+              <span className="text-medium-gray">{WASH_RULE_CUSTOMER_TEXT}</span>
             )}
           </p>
         </div>

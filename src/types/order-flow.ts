@@ -14,6 +14,10 @@ export interface OrderData {
   // What the customer wants washed (step 1)
   selection: OrderSelection;
 
+  // What the customer wrote about the laundry itself (step 1, optional) —
+  // becomes orders.special_instructions
+  washInstructions?: string;
+
   // City - derived from postal code
   city: 'Bergen' | 'Oslo' | null;
 

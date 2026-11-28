@@ -28,6 +28,7 @@ import { COMPANY } from "@/lib/config/company";
 import { OFFERED_CITIES, serviceAreaText } from "@/lib/config/postal-codes";
 import { TERMS_VERSION } from "@/lib/config/terms";
 import { deliveryInputError, deliveryNote } from "@/lib/config/delivery";
+import { washInstructionsError } from "@/lib/config/washing";
 import { SUBSCRIPTIONS_OFFERED } from "@/lib/config/subscriptions";
 import { translateFrequency } from "@/lib/utils/i18n";
 import {
@@ -72,6 +73,9 @@ export interface CreateSubscriptionInput {
   deliveryIfAbsent: DeliveryIfAbsent;
   /** Optional free-text delivery note (max 500 characters). */
   deliveryInstructions?: string;
+  /** Optional free text about the laundry itself (max 500 characters) —
+   *  stored as the order's special_instructions and shown to the cleaner. */
+  washInstructions?: string;
   promoCode?: string;
   /** The customer ticked the checkout consent box (sales terms + privacy policy
    *  + express request to start within the withdrawal period). Must be exactly
@@ -166,6 +170,7 @@ export async function createSubscriptionAction(
   const street = input.pickupAddress.street.trim();
   const specialInstructions = input.pickupAddress.specialInstructions?.trim() || undefined;
   const deliveryInstructions = deliveryNote(input.deliveryIfAbsent, input.deliveryInstructions) ?? undefined;
+  const washInstructions = input.washInstructions?.trim() || undefined;
 
   // Sanitize the customer's selection and recompute the estimate server-side —
   // never trust a client-supplied total.
@@ -279,6 +284,7 @@ export async function createSubscriptionAction(
       longitude: pickupCoords?.longitude ?? null,
     },
     location_city: input.location,
+    special_instructions: washInstructions,
     default_needs_ironing: needsIroning,
     default_cleaner_id: cleaner?.id || null,
     first_pickup_date: input.firstPickupDate,
@@ -664,10 +670,15 @@ export async function updateOrderSpecialInstructionsAction(
       };
     }
 
+    const lengthError = washInstructionsError(specialInstructions);
+    if (lengthError) {
+      return { success: false, error: lengthError };
+    }
+
     const adminClient = createAdminClient();
     const { error } = await adminClient
       .from('orders')
-      .update({ special_instructions: specialInstructions || null })
+      .update({ special_instructions: specialInstructions.trim() || null })
       .eq('id', orderId);
 
     if (error) {

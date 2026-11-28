@@ -39,7 +39,9 @@ import { validatePostalCode } from '@/lib/validation/cleaner';
 import {
   calculateOrderPrice,
   applyPromoDiscount,
-  IRONING_OFFERED,
+  getEmptyIroningDetails,
+  ironingDetailsError,
+  offeredIroningDetails,
   type LaundryDetails,
 } from '@/lib/config/pricing';
 
@@ -469,6 +471,9 @@ export async function cancelOrderAdminAction(
 export interface OverridePriceInput {
   wash_loads: number;
   pricing_notes: string;
+  /** Bedding sets that were ironed. Only read for an order where the customer
+   *  ordered ironing (needs_ironing); left out = keep the stored count. */
+  ironed_bedding_sets?: number;
 }
 
 export interface OverridePriceResult {
@@ -531,10 +536,21 @@ export async function overrideOrderPriceAction(
     };
   }
 
-  // Ironing isn't offered yet: never price or store it (same as saveLaundryDetails).
+  // Ironing is priced only when the customer ordered it and only for the
+  // groups on offer (same rule as saveLaundryDetails). The admin can correct
+  // the number of ironed bedding sets; left out, the stored count is kept.
+  let ironingDetails = order.needs_ironing ? offeredIroningDetails(order.ironing_details) : null;
+  if (order.needs_ironing && input.ironed_bedding_sets !== undefined) {
+    const requested = { ...getEmptyIroningDetails(), bedding: input.ironed_bedding_sets };
+    const ironingError = ironingDetailsError(requested);
+    if (ironingError) {
+      return { success: false, error: ironingError };
+    }
+    ironingDetails = offeredIroningDetails(requested);
+  }
   const details: LaundryDetails = {
     wash_loads: input.wash_loads,
-    ironing_details: IRONING_OFFERED ? order.ironing_details : null,
+    ironing_details: ironingDetails,
   };
   const breakdown = calculateOrderPrice(details);
   const { total_cost_ore, promo } = applyPromoDiscount(breakdown.total_ore, order.promo);

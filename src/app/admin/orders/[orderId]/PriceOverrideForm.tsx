@@ -8,7 +8,8 @@ import {
   calculateOrderPrice,
   applyPromoDiscount,
   formatKr,
-  type IroningDetails,
+  getEmptyIroningDetails,
+  MAX_WASH_LOADS_PER_ORDER,
 } from '@/lib/config/pricing';
 import type { OrderPromo } from '@/types/database';
 
@@ -27,28 +28,34 @@ export function PriceOverrideForm({
   orderId,
   initialWashLoads,
   initialNotes,
-  ironingDetails,
+  ironedBeddingSets,
   promo,
 }: {
   orderId: string;
   initialWashLoads: number;
   initialNotes: string | null;
-  /** What the server will price ironing with (null while ironing is not offered). */
-  ironingDetails: IroningDetails | null;
+  /** Ironed bedding sets to start from; null when the customer did not order
+   *  ironing — the field is then not shown and ironing is not priced. */
+  ironedBeddingSets: number | null;
   promo: OrderPromo | null;
 }) {
   const router = useRouter();
   const [washLoads, setWashLoads] = useState(Math.max(1, initialWashLoads));
+  const [ironedSets, setIronedSets] = useState(ironedBeddingSets ?? 0);
   const [notes, setNotes] = useState(initialNotes ?? '');
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const preview = useMemo(() => {
-    const breakdown = calculateOrderPrice({ wash_loads: washLoads, ironing_details: ironingDetails });
+    const breakdown = calculateOrderPrice({
+      wash_loads: washLoads,
+      ironing_details:
+        ironedBeddingSets === null ? null : { ...getEmptyIroningDetails(), bedding: ironedSets },
+    });
     const { total_cost_ore } = applyPromoDiscount(breakdown.total_ore, promo);
     return { total_cost_ore, cleaner_payout_ore: breakdown.cleaner_payout_ore, minimum_applied: breakdown.minimum_applied };
-  }, [washLoads, ironingDetails, promo]);
+  }, [washLoads, ironedSets, ironedBeddingSets, promo]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -57,6 +64,7 @@ export function PriceOverrideForm({
       const result = await overrideOrderPriceAction(orderId, {
         wash_loads: washLoads,
         pricing_notes: notes,
+        ...(ironedBeddingSets !== null ? { ironed_bedding_sets: ironedSets } : {}),
       });
       if (!result.success) {
         setError(result.error || 'Noe gikk galt');
@@ -98,6 +106,26 @@ export function PriceOverrideForm({
           </p>
         </div>
       </div>
+
+      {ironedBeddingSets !== null && (
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-medium text-dark-gray">Strøkne sengetøysett</span>
+          <input
+            type="number"
+            min={0}
+            max={MAX_WASH_LOADS_PER_ORDER}
+            step={1}
+            required
+            value={ironedSets}
+            onChange={(e) => {
+              setSaved(false);
+              const value = parseInt(e.target.value, 10);
+              if (!Number.isNaN(value) && value >= 0) setIronedSets(value);
+            }}
+            className={inputClass}
+          />
+        </label>
+      )}
 
       <label className="block">
         <span className="mb-1.5 block text-sm font-medium text-dark-gray">Prisnotat</span>
