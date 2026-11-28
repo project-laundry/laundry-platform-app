@@ -1,12 +1,12 @@
 'use client';
 
 // Public price calculator (/pris-kalkulator) — same selection model and
-// estimate as the order flow, plus a static price list. No ironing rows:
-// it's not part of the first version (BUSINESS_LOGIC.md "Ironing").
+// estimate as the order flow, plus a static price list. Ironing is listed
+// for bedding only (BUSINESS_LOGIC.md "Ironing").
 
 import { useMemo, useRef, useState } from 'react';
 import { CreditCard, ListChecks, Truck } from 'lucide-react';
-import { calculateCustomerEstimate, formatKr, PRICING } from '@/lib/config/pricing';
+import { calculateCustomerEstimate, formatKr, isIroningGroupOffered, PRICING } from '@/lib/config/pricing';
 import type { OrderSelection } from '@/types/order-flow';
 import { track } from '@/lib/analytics/posthog';
 import { SelectionEditor } from './SelectionEditor';
@@ -56,6 +56,13 @@ export function EstimateCalculator() {
         <div className="divide-y divide-cream-dark/60 text-sm">
           <PriceListRow label="Vask av klær" detail="Per pose" amount={`${formatKr(PRICING.per_bag_ore)}`} />
           <PriceListRow label="Sengetøy" detail="Per sett · egen vask" amount={`${formatKr(PRICING.per_bedding_set_ore)}`} />
+          {isIroningGroupOffered('bedding') && (
+            <PriceListRow
+              label="Stryking av sengetøy"
+              detail="Per sett · valgfritt"
+              amount={`+ ${formatKr(PRICING.ironing.bedding)}`}
+            />
+          )}
           <PriceListRow
             label="Henting & levering"
             detail="Til døren"

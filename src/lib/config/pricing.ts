@@ -48,7 +48,7 @@ export const PRICING = {
   ironing: {
     everyday: 2900, // 29 NOK - Vanlige plagg, per piece
     shirts_dresses: 4900, // 49 NOK - Skjorter & kjoler, per piece
-    bedding: 8500, // 85 NOK - Sengetøy, per set
+    bedding: 5000, // 50 NOK - Sengetøy, per set
   } as const,
 
   // Customer-estimate pricing (order flow / price calculator)
@@ -228,18 +228,69 @@ export interface PriceResult {
   totalOre: number;
 }
 
-/** Ironing is not offered in the first version (BUSINESS_LOGIC.md "Ironing").
- *  Flip this when it ships: it un-hides the ironing section and stops
- *  `withoutUnofferedIroning` from zeroing the counts. */
-export const IRONING_OFFERED = false;
+/** The ironing groups customers can order — the one switch for ironing
+ *  (BUSINESS_LOGIC.md "Ironing"). Bedding only: the customer switches it on
+ *  per order and pays PRICING.ironing.bedding per set. Ironing of clothes
+ *  (everyday, shirts_dresses) is built but not offered; add a group here to
+ *  offer it. */
+export const OFFERED_IRONING_GROUPS: readonly IroningGroup[] = ['bedding'];
 
-/** Zero the ironing part of a customer selection while ironing isn't offered.
+export function isIroningGroupOffered(group: IroningGroup): boolean {
+  return OFFERED_IRONING_GROUPS.includes(group);
+}
+
+/** True while at least one ironing group is offered. */
+export const IRONING_OFFERED = OFFERED_IRONING_GROUPS.length > 0;
+
+/** Zero the parts of a customer selection whose ironing group isn't offered.
  *  Guards against stale counts — a browser that persisted the order flow
- *  before ironing was hidden, or a hand-crafted request — so they never reach
+ *  before a group was hidden, or a hand-crafted request — so they never reach
  *  the estimate, the stored `customer_estimate` or `needs_ironing`. */
 export function withoutUnofferedIroning(sel: OrderSelection): OrderSelection {
-  if (IRONING_OFFERED) return sel;
-  return { ...sel, everydayItems: 0, formalItems: 0, ironBedding: false };
+  return {
+    ...sel,
+    everydayItems: isIroningGroupOffered('everyday') ? sel.everydayItems : 0,
+    formalItems: isIroningGroupOffered('shirts_dresses') ? sel.formalItems : 0,
+    ironBedding: isIroningGroupOffered('bedding') ? sel.ironBedding : false,
+  };
+}
+
+/** Norwegian error for the ironing counts a cleaner or an admin registers, or
+ *  null when they are fine. Only the offered groups are checked. The cap is
+ *  MAX_WASH_LOADS_PER_ORDER: bedding is washed one set per wash, so there can
+ *  never be more ironed sets than washes. */
+export function ironingDetailsError(details: IroningDetails | null | undefined): string | null {
+  if (!details) return null;
+  for (const group of OFFERED_IRONING_GROUPS) {
+    const count: unknown = details[group];
+    if (typeof count !== 'number' || !Number.isInteger(count) || count < 0) {
+      return 'Antall sett til stryking må være et helt tall, 0 eller mer';
+    }
+    if (count > MAX_WASH_LOADS_PER_ORDER) {
+      return `Du kan registrere maks ${MAX_WASH_LOADS_PER_ORDER} sett til stryking på én ordre. Kontakt NooraCare hvis ordren er større.`;
+    }
+  }
+  return null;
+}
+
+/** The ironing counts that may be priced and stored: the offered groups only,
+ *  every other group 0. Returns null when nothing is left to iron, so "no
+ *  ironing" is always stored as null. Call `ironingDetailsError` first on
+ *  counts that come from a client. */
+export function offeredIroningDetails(
+  details: IroningDetails | null | undefined
+): IroningDetails | null {
+  if (!details) return null;
+  const kept = getEmptyIroningDetails();
+  let hasIroning = false;
+  for (const group of OFFERED_IRONING_GROUPS) {
+    const count = details[group];
+    if (typeof count === 'number' && count > 0) {
+      kept[group] = count;
+      hasIroning = true;
+    }
+  }
+  return hasIroning ? kept : null;
 }
 
 /** Estimated number of garments to iron for a given number of bags. Used to

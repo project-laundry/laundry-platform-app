@@ -29,6 +29,10 @@ export const CLEANER_FAQ = {
     q: 'Hvor mye tjener jeg?',
     a: `Du får ${PRICING.cleaner_payout_percent} % av totalprisen på hvert oppdrag. Minste bestilling er ${formatKr(PRICING.minimum_order_ore)}, så du tjener minst ${formatKr(CLEANER_MIN_PAYOUT_PER_ORDER_ORE)} per oppdrag – og mer når kunden sender flere vask. En vask er én full maskin, inntil 5 kg.`,
   },
+  ironing: {
+    q: 'Må jeg stryke?',
+    a: `Bare sengetøy, og bare når kunden har bestilt det – da står det i oppdraget. Kunden betaler ${formatKr(PRICING.ironing.bedding)} per sett for strykingen, og du får ${PRICING.cleaner_payout_percent} % av det, som av resten av prisen. Klær stryker du ikke.`,
+  },
   turnaround: {
     q: 'Hvor raskt må tøyet være klart?',
     a: 'Kunden får en estimert leveringsdato ved bestilling. Marker oppdraget som klart så snart tøyet er tørt og brettet, og lever det til kunden. Jo raskere du er ferdig, jo fornøydere kunde.',

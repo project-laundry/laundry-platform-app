@@ -464,6 +464,29 @@ describe('createSubscriptionAction — recurring orders', () => {
     );
   });
 
+  it('keeps bedding ironing: needs ironing, the choice and 50 kr per set in the estimate', async () => {
+    happyPathMocks();
+
+    await createSubscriptionAction({
+      ...baseInput,
+      selection: { bags: 2, beddingSets: 1, everydayItems: 0, formalItems: 0, ironBedding: true },
+    });
+
+    expect(createSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({
+        order_defaults: expect.objectContaining({
+          default_needs_ironing: true,
+          customer_estimate: expect.objectContaining({
+            bedding_sets: 1,
+            iron_bedding: true,
+            // 2*29900 + 1*29900 + 1*5000 + 10400 + 1830 = 106930
+            estimated_total_ore: 106930,
+          }),
+        }),
+      })
+    );
+  });
+
   it('surfaces a failure to create the subscription', async () => {
     happyPathMocks();
     m(createSubscription).mockResolvedValue(null);
@@ -893,6 +916,26 @@ describe('updateOrderSelectionAction', () => {
         customer_estimate: expect.objectContaining({ iron_bedding: false }),
       })
     );
+  });
+
+  it('stores bedding ironing: needs_ironing true and the ironing in the estimate', async () => {
+    withEditableOrder();
+
+    await updateOrderSelectionAction('order-1', { ...selection, ironBedding: true });
+
+    expect(updateMock).toHaveBeenCalledWith({
+      needs_ironing: true,
+      customer_estimate: {
+        bags: 2,
+        bedding_sets: 1,
+        iron_everyday_items: 0,
+        // The 3 formal items are dropped: ironing of clothes is not offered
+        iron_formal_items: 0,
+        iron_bedding: true,
+        // 2*29900 + 1*29900 + 1*5000 + 10400 + 1830 = 106930
+        estimated_total_ore: 106930,
+      },
+    });
   });
 
   it('clamps out-of-range counts before persisting', async () => {

@@ -353,7 +353,7 @@
   - `delivery_instructions` (text, nullable) - The customer's free-text delivery note: required for `'other'` («Annet»), `NULL` for `'leave_at_door'` (`deliveryNote` in `lib/config/delivery.ts`)
     - **Validation:** Max 500 chars
 - **Service Preferences:**
-  - `needs_ironing` (boolean) - Ironing needed for this order
+  - `needs_ironing` (boolean) - The customer ordered ironing (bedding only — see `BUSINESS_LOGIC.md` "Ironing"). Set at checkout and by the customer's order edit; ironing is priced only when this is true
     - **Default:** `false`
 - **Pricing (Calculated by cleaner after pickup):**
   - `actual_weight_kg` (decimal, nullable) - Actual weight after pickup

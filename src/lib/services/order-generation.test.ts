@@ -204,7 +204,7 @@ describe('buildOrderData — shared order_defaults -> order mapping', () => {
       special_instructions: 'Hentes kl 09',
       delivery_if_absent: 'leave_at_door',
       delivery_instructions: 'Sett posen i boden',
-      needs_ironing: false, // default_needs_ironing is true, but ironing isn't offered (IRONING_OFFERED)
+      needs_ironing: true, // from default_needs_ironing, while an ironing group is offered (IRONING_OFFERED)
       customer_estimate: ORDER_DEFAULTS.customer_estimate,
       total_cost_ore: null,
       // The field that originally drifted between paths:

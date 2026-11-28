@@ -85,6 +85,29 @@ describe('formatting helpers', () => {
 });
 
 describe('buildOrderConfirmationEmail', () => {
+  it('lists bedding ironing when the customer ordered it', () => {
+    const { text } = buildOrderConfirmationEmail(
+      {
+        ...ORDER,
+        customer_estimate: {
+          bags: 2,
+          bedding_sets: 1,
+          iron_everyday_items: 0,
+          iron_formal_items: 0,
+          iron_bedding: true,
+          estimated_total_ore: 63930,
+        },
+      },
+      OPTIONS
+    );
+
+    expect(text).toContain('Sengetøy: 1 sett\nStryking av sengetøy: 1 sett');
+  });
+
+  it('does not mention ironing when it was not ordered', () => {
+    expect(buildOrderConfirmationEmail(ORDER, OPTIONS).text).not.toContain('Stryking');
+  });
+
   it('confirms a one-time order with pickup, items and estimate, and never mentions a subscription', () => {
     const { subject, text, html } = buildOrderConfirmationEmail(SCHEDULED_ORDER, OPTIONS);
 

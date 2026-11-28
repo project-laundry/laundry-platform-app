@@ -3,12 +3,12 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateOrderSelectionAction } from '@/app/orders/actions';
-import { calculateCustomerEstimate, estimateAfterPromo, withoutUnofferedIroning } from '@/lib/config/pricing';
+import { calculateCustomerEstimate, estimateAfterPromo, isIroningGroupOffered, withoutUnofferedIroning } from '@/lib/config/pricing';
 import { SelectionEditor } from '@/components/order-flow/SelectionEditor';
 import { Breakdown, PriceDisclaimer } from '@/components/order-flow/primitives';
 import type { CustomerEstimate, OrderPromo } from '@/types/database';
 import type { OrderSelection } from '@/types/order-flow';
-import { Pencil, Check, X, ShoppingBag, BedDouble, AlertCircle } from 'lucide-react';
+import { Pencil, Check, X, ShoppingBag, BedDouble, Sparkles, AlertCircle } from 'lucide-react';
 
 interface EditableOrderSelectionProps {
   orderId: string;
@@ -40,8 +40,10 @@ function getEstimateRows(estimate: CustomerEstimate) {
   if (estimate.bedding_sets > 0) {
     rows.push({ icon: BedDouble, label: `${estimate.bedding_sets} sengesett` });
   }
-  // Ironing rows intentionally omitted — not offered in the first version
-  // (BUSINESS_LOGIC.md "Ironing").
+  // Only bedding ironing is offered (BUSINESS_LOGIC.md "Ironing").
+  if (isIroningGroupOffered('bedding') && estimate.iron_bedding && estimate.bedding_sets > 0) {
+    rows.push({ icon: Sparkles, label: 'Stryking av sengetøy' });
+  }
   return rows;
 }
 

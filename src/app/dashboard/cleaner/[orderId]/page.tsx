@@ -11,7 +11,9 @@ import {
   IRONING_OFFERED,
   formatKr,
   formatKrExact,
+  getEmptyIroningDetails,
   isChargeHeldForPriceReview,
+  isIroningGroupOffered,
 } from '@/lib/config/pricing';
 import { monthKeyInOslo, monthLabel, payoutDueDate } from '@/lib/utils/payout';
 import { getPickupTimeRangeLabel } from '@/lib/config/pickup-times';
@@ -73,10 +75,14 @@ function estimateSummary(estimate: CustomerEstimate): string {
   const parts: string[] = [];
   if (estimate.bags > 0) parts.push(`${estimate.bags} ${estimate.bags === 1 ? 'pose' : 'poser'} klær`);
   if (estimate.bedding_sets > 0) parts.push(`${estimate.bedding_sets} sett sengetøy`);
-  if (IRONING_OFFERED) {
-    if (estimate.iron_everyday_items > 0) parts.push(`${estimate.iron_everyday_items} vanlige plagg til stryking`);
-    if (estimate.iron_formal_items > 0) parts.push(`${estimate.iron_formal_items} skjorter/kjoler til stryking`);
-    if (estimate.iron_bedding) parts.push('stryking av sengetøy');
+  if (isIroningGroupOffered('everyday') && estimate.iron_everyday_items > 0) {
+    parts.push(`${estimate.iron_everyday_items} vanlige plagg til stryking`);
+  }
+  if (isIroningGroupOffered('shirts_dresses') && estimate.iron_formal_items > 0) {
+    parts.push(`${estimate.iron_formal_items} skjorter/kjoler til stryking`);
+  }
+  if (isIroningGroupOffered('bedding') && estimate.iron_bedding && estimate.bedding_sets > 0) {
+    parts.push('stryking av sengetøy');
   }
   return parts.join(', ');
 }
@@ -129,8 +135,18 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
   // an active order lists it under «Om ordren».
   const doorInDetails = isActive && step !== 'pickup' && step !== 'deliver';
 
-  // Orders created before ironing was hidden can still carry needs_ironing.
   const needsIroning = IRONING_OFFERED && order.needs_ironing;
+
+  // Until the cleaner has priced the order, the ironing counter starts at what
+  // the customer ordered. Once priced, the saved count is shown as it is (a
+  // saved 0 is stored as null and must stay 0).
+  const orderedIroning =
+    needsIroning &&
+    order.total_cost_ore === null &&
+    isIroningGroupOffered('bedding') &&
+    order.customer_estimate?.iron_bedding
+      ? { ...getEmptyIroningDetails(), bedding: order.customer_estimate.bedding_sets }
+      : null;
 
   // Marking the order ready charges the customer at the saved price, so the
   // count and the price are locked — and listed — from ready_for_delivery on.
@@ -243,7 +259,7 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
             washInstructions={order.special_instructions || null}
             needsIroning={needsIroning}
             initialWashLoads={order.wash_loads || 0}
-            initialIroningDetails={order.ironing_details}
+            initialIroningDetails={order.ironing_details ?? orderedIroning}
             initialNotes={order.pricing_notes}
             promo={order.promo}
             totalCostOre={order.total_cost_ore}
@@ -346,7 +362,7 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
                 </span>
               </DetailRow>
             )}
-            {needsIroning && <DetailRow label="Stryking">Inkludert</DetailRow>}
+            {needsIroning && <DetailRow label="Stryking">Sengetøyet skal strykes</DetailRow>}
             {/* The wash step shows the customer's note itself */}
             {order.special_instructions && step !== 'wash' && (
               <DetailRow label="Fra kunden">
@@ -358,6 +374,11 @@ export default async function OrderDetailsPage({ params }: OrderDetailsPageProps
                 <DetailRow label="Antall vask">
                   <span className="tabular-nums">{order.wash_loads}</span>
                 </DetailRow>
+                {order.ironing_details && order.ironing_details.bedding > 0 && (
+                  <DetailRow label="Strøkne sengetøysett">
+                    <span className="tabular-nums">{order.ironing_details.bedding}</span>
+                  </DetailRow>
+                )}
                 {order.total_cost_ore !== null && (
                   <DetailRow label="Kunden betaler">
                     <span className="tabular-nums">{formatKrExact(order.total_cost_ore)}</span>

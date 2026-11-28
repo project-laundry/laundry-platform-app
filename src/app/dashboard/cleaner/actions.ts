@@ -14,7 +14,8 @@ import {
 } from '@/lib/database/orders';
 import {
   calculateOrderPrice,
-  IRONING_OFFERED,
+  ironingDetailsError,
+  offeredIroningDetails,
   MAX_WASH_LOADS_PER_ORDER,
   applyPromoDiscount,
   type LaundryDetails,
@@ -208,15 +209,6 @@ export async function saveLaundryDetails(
     };
   }
 
-  // Ironing isn't offered yet: never price or store it, whatever the client sent.
-  if (!IRONING_OFFERED) details = { ...details, ironing_details: null };
-
-  // Calculate service price (full price; the cleaner's payout is based on this)
-  const priceBreakdown = calculateOrderPrice(details);
-
-  // Apply promo discount (if any) to the amount charged to the customer.
-  // The discount is platform-absorbed: it reduces total_cost_ore but NOT
-  // cleaner_payout_ore, which is stamped from the full-price breakdown below.
   const order = await getOrderByIdAndCleanerId(orderId, cleaner.id);
   if (!order) {
     return { success: false, error: 'Ordre ikke funnet eller ikke tildelt deg' };
@@ -228,6 +220,25 @@ export async function saveLaundryDetails(
   if (order.status !== 'in_cleaning') {
     return { success: false, error: 'Vaskdetaljer kan ikke endres etter at ordren er gjort klar for levering' };
   }
+
+  // Ironing is priced only when the customer ordered it (needs_ironing) and
+  // only for the groups on offer — whatever the client sent.
+  if (order.needs_ironing) {
+    const ironingError = ironingDetailsError(details.ironing_details);
+    if (ironingError) {
+      return { success: false, error: ironingError };
+    }
+  }
+  details = {
+    ...details,
+    ironing_details: order.needs_ironing ? offeredIroningDetails(details.ironing_details) : null,
+  };
+
+  // Calculate service price (full price; the cleaner's payout is based on this).
+  // The promo discount (if any) is applied below to the amount charged to the
+  // customer. It is platform-absorbed: it reduces total_cost_ore but NOT
+  // cleaner_payout_ore, which is stamped from this full-price breakdown.
+  const priceBreakdown = calculateOrderPrice(details);
 
   const { total_cost_ore: totalCostOre, promo: promoUpdate } = applyPromoDiscount(
     priceBreakdown.total_ore,

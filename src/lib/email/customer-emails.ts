@@ -17,12 +17,12 @@ import { SATISFACTION_QUESTION, evaluationPath } from '@/lib/config/evaluation';
 import { PICKUP_TIME_RANGE } from '@/lib/config/pickup-times';
 import { WASH_RULE_CUSTOMER_TEXT } from '@/lib/config/washing';
 import {
-  IRONING_OFFERED,
   PRICING,
   calculateOrderPrice,
   estimateAfterPromo,
   formatKr,
   formatKrExact,
+  isIroningGroupOffered,
 } from '@/lib/config/pricing';
 import type { OrderForCustomerEmail } from '@/lib/database/orders';
 import { getSubscriptionFrequencyLabel } from '@/lib/utils/subscription-status';
@@ -110,7 +110,7 @@ export function closing(): Block {
   return paragraph(`Spørsmål? Svar på denne e-posten eller skriv til ${COMPANY.email}.`);
 }
 
-/** "Det du sender" lines from the checkout selection; ironing only while it is offered. */
+/** "Det du sender" lines from the checkout selection; ironing only for the groups on offer. */
 export function estimateRows(estimate: CustomerEstimate): Row[] {
   const list: Row[] = [];
   if (estimate.bags > 0) {
@@ -119,16 +119,14 @@ export function estimateRows(estimate: CustomerEstimate): Row[] {
   if (estimate.bedding_sets > 0) {
     list.push({ label: 'Sengetøy', value: `${estimate.bedding_sets} sett` });
   }
-  if (IRONING_OFFERED) {
-    if (estimate.iron_everyday_items > 0) {
-      list.push({ label: 'Stryking av vanlige plagg', value: `${estimate.iron_everyday_items} plagg` });
-    }
-    if (estimate.iron_formal_items > 0) {
-      list.push({ label: 'Stryking av skjorter & kjoler', value: `${estimate.iron_formal_items} plagg` });
-    }
-    if (estimate.iron_bedding && estimate.bedding_sets > 0) {
-      list.push({ label: 'Stryking av sengetøy', value: `${estimate.bedding_sets} sett` });
-    }
+  if (isIroningGroupOffered('everyday') && estimate.iron_everyday_items > 0) {
+    list.push({ label: 'Stryking av vanlige plagg', value: `${estimate.iron_everyday_items} plagg` });
+  }
+  if (isIroningGroupOffered('shirts_dresses') && estimate.iron_formal_items > 0) {
+    list.push({ label: 'Stryking av skjorter & kjoler', value: `${estimate.iron_formal_items} plagg` });
+  }
+  if (isIroningGroupOffered('bedding') && estimate.iron_bedding && estimate.bedding_sets > 0) {
+    list.push({ label: 'Stryking av sengetøy', value: `${estimate.bedding_sets} sett` });
   }
   return list;
 }

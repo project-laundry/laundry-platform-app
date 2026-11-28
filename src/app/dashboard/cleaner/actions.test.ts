@@ -348,6 +348,77 @@ describe('saveLaundryDetails', () => {
 
     expect(result.success).toBe(true);
   });
+
+  it('prices the ironed bedding sets when the customer ordered ironing', async () => {
+    m(getOrderByIdAndCleanerId).mockResolvedValue({
+      id: 'ord-1',
+      status: 'in_cleaning',
+      promo: null,
+      needs_ironing: true,
+    });
+
+    const result = await saveLaundryDetails('ord-1', {
+      wash_loads: 2,
+      ironing_details: { everyday: 5, shirts_dresses: 3, bedding: 2 },
+    });
+
+    expect(result.success).toBe(true);
+    // 2 × 29900 + 2 × 5000 + 10400 + 1830 = 82030; 70 % = 57421.
+    // The clothes counts are dropped: only bedding ironing is offered.
+    expect(updateOrderLaundryDetails).toHaveBeenCalledWith(
+      'ord-1',
+      'cl-1',
+      expect.objectContaining({
+        wash_loads: 2,
+        ironing_details: { everyday: 0, shirts_dresses: 0, bedding: 2 },
+        total_cost_ore: 82030,
+        cleaner_payout_ore: 57421,
+      })
+    );
+  });
+
+  it('never prices ironing the customer did not order', async () => {
+    m(getOrderByIdAndCleanerId).mockResolvedValue({
+      id: 'ord-1',
+      status: 'in_cleaning',
+      promo: null,
+      needs_ironing: false,
+    });
+
+    const result = await saveLaundryDetails('ord-1', {
+      wash_loads: 2,
+      ironing_details: { everyday: 0, shirts_dresses: 0, bedding: 2 },
+    });
+
+    expect(result.success).toBe(true);
+    // 2 × 29900 + 10400 + 1830 = 72030
+    expect(updateOrderLaundryDetails).toHaveBeenCalledWith(
+      'ord-1',
+      'cl-1',
+      expect.objectContaining({ ironing_details: null, total_cost_ore: 72030 })
+    );
+  });
+
+  it.each([
+    ['more ironed sets than the cap', MAX_WASH_LOADS_PER_ORDER + 1],
+    ['a fractional count', 1.5],
+    ['a negative count', -1],
+  ])('rejects %s without saving a price', async (_label, bedding) => {
+    m(getOrderByIdAndCleanerId).mockResolvedValue({
+      id: 'ord-1',
+      status: 'in_cleaning',
+      promo: null,
+      needs_ironing: true,
+    });
+
+    const result = await saveLaundryDetails('ord-1', {
+      wash_loads: 2,
+      ironing_details: { everyday: 0, shirts_dresses: 0, bedding },
+    });
+
+    expect(result.success).toBe(false);
+    expect(updateOrderLaundryDetails).not.toHaveBeenCalled();
+  });
 });
 
 describe('declineCleanerOrder', () => {

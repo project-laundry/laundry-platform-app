@@ -13,6 +13,8 @@ interface IroningQuantityInputProps {
   value: number;
   onChange: (value: number) => void;
   disabled?: boolean;
+  /** Highest count the buttons and the field accept. */
+  max?: number;
 }
 
 export function IroningQuantityInput({
@@ -20,6 +22,7 @@ export function IroningQuantityInput({
   value,
   onChange,
   disabled = false,
+  max,
 }: IroningQuantityInputProps) {
   const { label, description } = IRONING_LABELS[category];
   const priceOre = PRICING.ironing[category];
@@ -32,13 +35,15 @@ export function IroningQuantityInput({
   };
 
   const handleIncrement = () => {
-    onChange(value + 1);
+    if (max === undefined || value < max) {
+      onChange(value + 1);
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = parseInt(e.target.value, 10);
     if (!isNaN(newValue) && newValue >= 0) {
-      onChange(newValue);
+      onChange(max === undefined ? newValue : Math.min(newValue, max));
     }
   };
 
@@ -73,6 +78,7 @@ export function IroningQuantityInput({
         <input
           type="number"
           min="0"
+          max={max}
           value={value}
           onChange={handleInputChange}
           disabled={disabled}
@@ -82,7 +88,7 @@ export function IroningQuantityInput({
           type="button"
           aria-label="Flere"
           onClick={handleIncrement}
-          disabled={disabled}
+          disabled={disabled || (max !== undefined && value >= max)}
           className="flex size-9 items-center justify-center rounded-full border border-cream-dark bg-white text-nordic-blue transition-all hover:border-sea-green hover:text-sea-green active:scale-90 disabled:cursor-not-allowed disabled:border-cream-dark disabled:text-cream-dark disabled:active:scale-100"
         >
           <Plus className="size-4" />
